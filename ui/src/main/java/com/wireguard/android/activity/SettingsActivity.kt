@@ -94,6 +94,24 @@ class SettingsActivity : AppCompatActivity() {
                 startActivity(Intent(requireContext(), LogViewerActivity::class.java))
                 true
             }
+            preferenceManager.findPreference<Preference>("open_source_licenses")?.setOnPreferenceClickListener {
+                com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Open Source Licenses")
+                    .setMessage(
+                        "WireGuard for Android\n" +
+                        "Copyright © 2017-2025 WireGuard LLC. All Rights Reserved.\n" +
+                        "Licensed under the Apache License, Version 2.0\n\n" +
+                        "You may obtain a copy of the License at:\n" +
+                        "https://www.apache.org/licenses/LICENSE-2.0\n\n" +
+                        "Unless required by applicable law or agreed to in writing, " +
+                        "software distributed under the License is distributed on an " +
+                        "\"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, " +
+                        "either express or implied."
+                    )
+                    .setPositiveButton("OK", null)
+                    .show()
+                true
+            }
             val kernelModuleEnabler = preferenceManager.findPreference<Preference>("kernel_module_enabler")
             if (WgQuickBackend.hasKernelSupport()) {
                 lifecycleScope.launch {

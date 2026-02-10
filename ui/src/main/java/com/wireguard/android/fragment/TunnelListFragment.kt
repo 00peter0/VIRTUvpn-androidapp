@@ -29,28 +29,30 @@ import com.journeyapps.barcodescanner.ScanOptions
 import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.activity.TunnelCreatorActivity
+import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.databinding.ObservableKeyedRecyclerViewAdapter.RowConfigurationHandler
 import com.wireguard.android.databinding.TunnelListFragmentBinding
 import com.wireguard.android.databinding.TunnelListItemBinding
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.updater.SnackbarUpdateShower
 import com.wireguard.android.util.ErrorMessages
+import com.wireguard.android.util.PingManager
 import com.wireguard.android.util.QrCodeFromFileScanner
 import com.wireguard.android.util.TunnelImporter
 import com.wireguard.android.widget.MultiselectableRelativeLayout
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/**
- * Fragment containing a list of known WireGuard tunnels. It allows creating and deleting tunnels.
- */
 class TunnelListFragment : BaseFragment() {
     private val actionModeListener = ActionModeListener()
     private var actionMode: ActionMode? = null
     private var backPressedCallback: OnBackPressedCallback? = null
     private var binding: TunnelListFragmentBinding? = null
+    private var pingActive = false
+
     private val tunnelFileImportResultLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { data ->
         if (data == null) return@registerForActivityResult
         val activity = activity ?: return@registerForActivityResult
@@ -101,6 +103,8 @@ class TunnelListFragment : BaseFragment() {
         binding = TunnelListFragmentBinding.inflate(inflater, container, false)
         val bottomSheet = AddTunnelsSheet()
         binding?.apply {
+            fastestButton.setOnClickListener { onFastestButtonClicked() }
+
             createFab.setOnClickListener {
                 if (childFragmentManager.findFragmentByTag("BOTTOM_SHEET") != null)
                     return@setOnClickListener
@@ -109,11 +113,9 @@ class TunnelListFragment : BaseFragment() {
                         AddTunnelsSheet.REQUEST_CREATE -> {
                             startActivity(Intent(requireActivity(), TunnelCreatorActivity::class.java))
                         }
-
                         AddTunnelsSheet.REQUEST_IMPORT -> {
                             tunnelFileImportResultLauncher.launch("*/*")
                         }
-
                         AddTunnelsSheet.REQUEST_SCAN -> {
                             qrImportResultLauncher.launch(
                                 ScanOptions()
@@ -134,6 +136,63 @@ class TunnelListFragment : BaseFragment() {
 
         return binding?.root
     }
+
+    // ── Smart Server Picker ──
+
+    private fun onFastestButtonClicked() {
+        lifecycleScope.launch {
+            val tunnels = Application.getTunnelManager().getTunnels()
+            val fastest = PingManager.findFastest(tunnels)
+            if (fastest != null) {
+                selectedTunnel = fastest
+                try {
+                    if (fastest.state != Tunnel.State.UP) {
+                        fastest.setStateAsync(Tunnel.State.UP)
+                    }
+                    showSnackbar("⚡ ${fastest.name} • ${fastest.latencyMs} ms")
+                } catch (e: Throwable) {
+                    val error = ErrorMessages[e]
+                    showSnackbar(getString(R.string.toggle_error, error))
+                }
+            } else {
+                showSnackbar(getString(R.string.ping_measuring))
+                // Trigger immediate ping if not measured yet
+                startPingTest()
+            }
+        }
+    }
+
+    private fun startPingTest() {
+        lifecycleScope.launch {
+            try {
+                val tunnels = Application.getTunnelManager().getTunnels()
+                PingManager.pingAll(tunnels)
+            } catch (e: Throwable) {
+                Log.e(TAG, "Ping test failed", e)
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        pingActive = true
+        // Initial ping immediately
+        startPingTest()
+        // Refresh every 30 seconds
+        lifecycleScope.launch {
+            while (pingActive) {
+                delay(30_000)
+                if (pingActive) startPingTest()
+            }
+        }
+    }
+
+    override fun onStop() {
+        pingActive = false
+        super.onStop()
+    }
+
+    // ── Lifecycle ──
 
     override fun onDestroyView() {
         binding = null
@@ -187,9 +246,9 @@ class TunnelListFragment : BaseFragment() {
                     true
                 }
                 if (actionMode != null)
-                    (binding.root as MultiselectableRelativeLayout).setMultiSelected(actionModeListener.checkedItems.contains(position))
+                    (binding.tunnelListItem as MultiselectableRelativeLayout).setMultiSelected(actionModeListener.checkedItems.contains(position))
                 else
-                    (binding.root as MultiselectableRelativeLayout).setSingleSelected(selectedTunnel == item)
+                    (binding.tunnelListItem as MultiselectableRelativeLayout).setSingleSelected(selectedTunnel == item)
             }
         }
     }
@@ -208,13 +267,13 @@ class TunnelListFragment : BaseFragment() {
         return binding?.tunnelList?.findViewHolderForAdapterPosition(tunnels.indexOf(tunnel))?.itemView as? MultiselectableRelativeLayout
     }
 
+    // ── Action Mode (delete/select) ──
+
     private inner class ActionModeListener : ActionMode.Callback {
         val checkedItems: MutableCollection<Int> = HashSet()
         private var resources: Resources? = null
 
-        fun getCheckedItems(): ArrayList<Int> {
-            return ArrayList(checkedItems)
-        }
+        fun getCheckedItems(): ArrayList<Int> = ArrayList(checkedItems)
 
         override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
             return when (item.itemId) {
@@ -241,17 +300,13 @@ class TunnelListFragment : BaseFragment() {
                     mode.finish()
                     true
                 }
-
                 R.id.menu_action_select_all -> {
                     lifecycleScope.launch {
                         val tunnels = Application.getTunnelManager().getTunnels()
-                        for (i in 0 until tunnels.size) {
-                            setItemChecked(i, true)
-                        }
+                        for (i in 0 until tunnels.size) setItemChecked(i, true)
                     }
                     true
                 }
-
                 else -> false
             }
         }
@@ -259,9 +314,7 @@ class TunnelListFragment : BaseFragment() {
         override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
             actionMode = mode
             backPressedCallback?.isEnabled = true
-            if (activity != null) {
-                resources = activity!!.resources
-            }
+            if (activity != null) resources = activity!!.resources
             animateFab(binding?.createFab, false)
             mode.menuInflater.inflate(R.menu.tunnel_list_action_mode, menu)
             binding?.tunnelList?.adapter?.notifyDataSetChanged()
@@ -283,13 +336,9 @@ class TunnelListFragment : BaseFragment() {
         }
 
         fun setItemChecked(position: Int, checked: Boolean) {
-            if (checked) {
-                checkedItems.add(position)
-            } else {
-                checkedItems.remove(position)
-            }
+            if (checked) checkedItems.add(position) else checkedItems.remove(position)
             val adapter = if (binding == null) null else binding!!.tunnelList.adapter
-            if (actionMode == null && !checkedItems.isEmpty() && activity != null) {
+            if (actionMode == null && checkedItems.isNotEmpty() && activity != null) {
                 (activity as AppCompatActivity).startSupportActionMode(this)
             } else if (actionMode != null && checkedItems.isEmpty()) {
                 actionMode!!.finish()
@@ -298,20 +347,12 @@ class TunnelListFragment : BaseFragment() {
             updateTitle(actionMode)
         }
 
-        fun toggleItemChecked(position: Int) {
-            setItemChecked(position, !checkedItems.contains(position))
-        }
+        fun toggleItemChecked(position: Int) = setItemChecked(position, !checkedItems.contains(position))
 
         private fun updateTitle(mode: ActionMode?) {
-            if (mode == null) {
-                return
-            }
+            if (mode == null) return
             val count = checkedItems.size
-            if (count == 0) {
-                mode.title = ""
-            } else {
-                mode.title = resources!!.getQuantityString(R.plurals.delete_title, count, count)
-            }
+            mode.title = if (count == 0) "" else resources!!.getQuantityString(R.plurals.delete_title, count, count)
         }
 
         private fun animateFab(view: View?, show: Boolean) {
@@ -320,16 +361,9 @@ class TunnelListFragment : BaseFragment() {
                 context, if (show) R.anim.scale_up else R.anim.scale_down
             )
             animation.setAnimationListener(object : Animation.AnimationListener {
-                override fun onAnimationRepeat(animation: Animation?) {
-                }
-
-                override fun onAnimationEnd(animation: Animation?) {
-                    if (!show) view.visibility = View.GONE
-                }
-
-                override fun onAnimationStart(animation: Animation?) {
-                    if (show) view.visibility = View.VISIBLE
-                }
+                override fun onAnimationRepeat(animation: Animation?) {}
+                override fun onAnimationEnd(animation: Animation?) { if (!show) view.visibility = View.GONE }
+                override fun onAnimationStart(animation: Animation?) { if (show) view.visibility = View.VISIBLE }
             })
             view.startAnimation(animation)
         }
@@ -340,3 +374,4 @@ class TunnelListFragment : BaseFragment() {
         private const val TAG = "WireGuard/TunnelListFragment"
     }
 }
+

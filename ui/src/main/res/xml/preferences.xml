@@ -45,4 +45,9 @@
         android:summaryOn="@string/allow_remote_control_intents_summary_on"
         android:title="@string/allow_remote_control_intents_title" />
     <com.wireguard.android.preference.DonatePreference android:singleLineTitle="false" />
+    <Preference
+        android:key="open_source_licenses"
+        android:singleLineTitle="false"
+        android:summary="View open source licenses"
+        android:title="Open Source Licenses" />
 </androidx.preference.PreferenceScreen>

@@ -31,7 +31,7 @@ class VersionPreference(context: Context, attrs: AttributeSet?) : Preference(con
 
     override fun onClick() {
         val intent = Intent(Intent.ACTION_VIEW)
-        intent.data = Uri.parse("https://www.wireguard.com/")
+        intent.data = Uri.parse("https://virtuvpn.ch/")
         try {
             context.startActivity(intent)
         } catch (e: Throwable) {

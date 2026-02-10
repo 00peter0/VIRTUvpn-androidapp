@@ -64,6 +64,7 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
             is TunnelListItemBinding -> binding.item
             else -> return
         } ?: return
+        selectedTunnel = tunnel
         val activity = activity ?: return
         activity.lifecycleScope.launch {
             if (Application.getBackend() is GoBackend) {

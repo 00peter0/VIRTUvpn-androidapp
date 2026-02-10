@@ -1,66 +1,99 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-  ~ Copyright © 2017-2025 WireGuard LLC. All Rights Reserved.
-  ~ SPDX-License-Identifier: Apache-2.0
-  -->
+<?xml version="1.0" encoding="utf-8"?>
 <layout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools">
 
     <data>
-
         <import type="com.wireguard.android.model.ObservableTunnel" />
-
         <import type="com.wireguard.android.backend.Tunnel.State" />
-
-        <variable
-            name="collection"
+        <variable name="collection"
             type="com.wireguard.android.databinding.ObservableKeyedArrayList&lt;String, ObservableTunnel&gt;" />
-
-        <variable
-            name="key"
-            type="String" />
-
-        <variable
-            name="item"
-            type="com.wireguard.android.model.ObservableTunnel" />
-
-        <variable
-            name="fragment"
-            type="com.wireguard.android.fragment.TunnelListFragment" />
+        <variable name="key" type="String" />
+        <variable name="item" type="com.wireguard.android.model.ObservableTunnel" />
+        <variable name="fragment" type="com.wireguard.android.fragment.TunnelListFragment" />
     </data>
 
     <com.wireguard.android.widget.MultiselectableRelativeLayout
         android:id="@+id/tunnel_list_item"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/list_item_background"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginVertical="6dp"
+        android:background="@drawable/server_card_background"
+        android:elevation="4dp"
+        android:clipToOutline="true"
+        android:foreground="?attr/selectableItemBackground"
         android:descendantFocusability="beforeDescendants"
         android:focusable="true"
         android:nextFocusRight="@+id/tunnel_switch"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="8dp">
+        android:padding="16dp">
 
+        <!-- Status dot -->
+        <View
+            android:id="@+id/status_dot"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="12dp"
+            android:background="@drawable/status_dot"
+            app:tunnelState="@{item.state}"
+            app:latencyMs="@{item.latencyMs}" />
+
+        <!-- Server name -->
         <TextView
             android:id="@+id/tunnel_name"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentStart="true"
+            android:layout_toEndOf="@id/status_dot"
             android:layout_centerVertical="true"
             android:ellipsize="end"
             android:maxLines="1"
             android:text="@{key}"
-            android:textAppearance="?attr/textAppearanceBodyLarge"
-            tools:text="@sample/interface_names.json/names/names/name" />
+            android:textColor="#E0E0E0"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            tools:text="warsaw" />
 
+        <!-- Chevron -->
+        <ImageView
+            android:id="@+id/chevron"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:src="@drawable/ic_chevron_right"
+            android:alpha="0.4"
+            android:contentDescription="@string/detail" />
+
+        <!-- Toggle switch -->
         <com.wireguard.android.widget.ToggleSwitch
             android:id="@+id/tunnel_switch"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
+            android:layout_toStartOf="@id/chevron"
             android:layout_centerVertical="true"
+            android:layout_marginEnd="12dp"
             android:nextFocusLeft="@+id/tunnel_list_item"
             app:checked="@{item.state == State.UP}"
             app:onBeforeCheckedChanged="@{fragment::setTunnelState}"
-            tools:checked="@sample/interface_names.json/names/checked/checked" />
+            tools:checked="false" />
+
+        <!-- Latency text -->
+        <TextView
+            android:id="@+id/latency_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_toStartOf="@id/tunnel_switch"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="16dp"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            app:latencyText="@{item.latencyMs}"
+            app:latencyTextColor="@{item.latencyMs}"
+            tools:text="12 ms"
+            tools:textColor="#00BFA5" />
+
     </com.wireguard.android.widget.MultiselectableRelativeLayout>
 </layout>
+

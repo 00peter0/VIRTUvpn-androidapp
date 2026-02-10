@@ -139,6 +139,13 @@ class ObservableTunnel internal constructor(
 
     suspend fun deleteAsync() = manager.delete(this)
 
+        // --- Latency for Smart Server Picker ---
+    @get:Bindable
+    var latencyMs: Long = -1L
+        set(value) {
+            field = value
+            notifyPropertyChanged(BR.latencyMs)
+        }
 
     companion object {
         private const val TAG = "WireGuard/ObservableTunnel"
