@@ -50,10 +50,23 @@ object VcsManagedClient {
         val sync = requestJson("GET", syncUrl, null, session.token)
         handleUpdateAvailable(context, sync.optJSONObject("update"))
         val assignments = sync.optJSONArray("assignments") ?: JSONArray()
+        val bundledAssignmentIds = mutableSetOf<String>()
         var imported = 0
+        val bundle = sync.optJSONObject("bundle")
+        if (bundle != null && bundle.optString("config").isNotBlank()) {
+            val localTunnelName = importManagedBundle(context, bundle)
+            val ids = bundle.optJSONArray("assignmentIds") ?: JSONArray()
+            for (i in 0 until ids.length()) bundledAssignmentIds.add(ids.getString(i))
+            for (i in 0 until assignments.length()) {
+                val assignment = assignments.getJSONObject(i)
+                if (bundledAssignmentIds.contains(assignment.optString("id"))) assignment.put("localTunnelName", localTunnelName)
+            }
+            imported += 1
+        }
         for (i in 0 until assignments.length()) {
             val assignment = assignments.getJSONObject(i)
             if (assignment.optString("status") != "ACTIVE" && assignment.optString("status") != "REISSUE_REQUIRED") continue
+            if (bundledAssignmentIds.contains(assignment.optString("id"))) continue
             if (assignment.optString("kind") != "VPN_ROUTE" && assignment.optString("kind") != "AGENT_GATEWAY_PROFILE") continue
             val assignmentId = assignment.getString("id")
             val provision = requestJson("POST", "${session.apiBase}/api/mobile/android/tunnels/$assignmentId/provision", JSONObject(), session.token)
@@ -115,6 +128,24 @@ object VcsManagedClient {
                 .put("metadata", JSONObject().put("localTunnelName", tunnel.name))
             requestJson("POST", "${session.apiBase}/api/mobile/android/tunnels/${assignment.getString("id")}/state", body, session.token)
         }
+    }
+
+
+    private suspend fun importManagedBundle(context: Context, bundle: JSONObject): String {
+        val configText = bundle.getString("config")
+        val preferredName = sanitizeTunnelName(bundle.optString("configFilename", bundle.optString("displayName", "VCS Managed Access")))
+        val config = Config.parse(ByteArrayInputStream(configText.toByteArray(StandardCharsets.UTF_8)))
+        withContext(Dispatchers.Main.immediate) {
+            val manager = Application.getTunnelManager()
+            val tunnels = manager.getTunnels()
+            val existing = tunnels[preferredName]
+            if (existing == null) {
+                manager.create(preferredName, config)
+            } else {
+                existing.setConfigAsync(config)
+            }
+        }
+        return preferredName
     }
 
     private suspend fun importManagedConfig(context: Context, session: Session, provision: JSONObject): String {
