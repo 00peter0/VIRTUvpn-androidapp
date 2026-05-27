@@ -234,6 +234,7 @@
     <string name="status_connecting">Connecting…</string>
     <string name="stat_your_ip">Your IP</string>
     <string name="stat_server_ip">Server</string>
+    <string name="stat_wg_routes">WG routes</string>
     <string name="stat_download">Download</string>
     <string name="stat_upload">Upload</string>
     <string name="stat_total_down">Total ↓</string>

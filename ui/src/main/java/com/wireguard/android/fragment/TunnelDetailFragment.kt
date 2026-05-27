@@ -123,10 +123,19 @@ class TunnelDetailFragment : BaseFragment(), MenuProvider {
             addresses.joinToString("\n") { it.address.hostAddress ?: "?" }
         } else getString(R.string.stat_no_data)
 
-        val endpoint = config.peers.firstOrNull()?.endpoint
-        binding.serverIpValue.text = if (endpoint != null && endpoint.isPresent) {
-            endpoint.get().host
-        } else getString(R.string.stat_no_data)
+        val peer = config.peers.firstOrNull()
+        val allowedIps = peer?.allowedIps?.joinToString("\n") { it.toString() }.orEmpty()
+        binding.serverIpLabel.text = if (allowedIps.isNotEmpty()) {
+            getString(R.string.stat_wg_routes)
+        } else {
+            getString(R.string.stat_server_ip)
+        }
+        binding.serverIpValue.text = if (allowedIps.isNotEmpty()) {
+            allowedIps
+        } else {
+            val endpoint = peer?.endpoint
+            if (endpoint != null && endpoint.isPresent) endpoint.get().host else getString(R.string.stat_no_data)
+        }
     }
 
     private fun formatDuration(millis: Long): String {
