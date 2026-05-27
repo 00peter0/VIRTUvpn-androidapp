@@ -11,12 +11,27 @@
         <variable name="config" type="com.wireguard.config.Config" />
     </data>
 
-    <ScrollView
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@drawable/dashboard_gradient"
-        android:clickable="true"
-        android:focusable="true">
+        android:background="@drawable/dashboard_gradient">
+
+        <ImageView
+            android:id="@+id/detail_background_logo"
+            android:layout_width="280dp"
+            android:layout_height="280dp"
+            android:layout_gravity="center"
+            android:alpha="0.075"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_logo"
+            app:tint="#FFFFFF" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@android:color/transparent"
+            android:clickable="true"
+            android:focusable="true">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -522,5 +537,6 @@
             </LinearLayout>
 
         </LinearLayout>
-    </ScrollView>
+        </ScrollView>
+    </FrameLayout>
 </layout>

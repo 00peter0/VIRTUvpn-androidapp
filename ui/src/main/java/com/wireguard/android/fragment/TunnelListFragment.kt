@@ -238,6 +238,11 @@ class TunnelListFragment : BaseFragment() {
         }
     }
 
+    private fun openTunnelDetail(tunnel: ObservableTunnel) {
+        if (selectedTunnel == tunnel) selectedTunnel = null
+        selectedTunnel = tunnel
+    }
+
     private fun onTunnelDeletionFinished(count: Int, throwable: Throwable?) {
         val message: String
         val ctx = activity ?: Application.get()
@@ -259,13 +264,17 @@ class TunnelListFragment : BaseFragment() {
         binding!!.rowConfigurationHandler = object : RowConfigurationHandler<TunnelListItemBinding, ObservableTunnel> {
             override fun onConfigureRow(binding: TunnelListItemBinding, item: ObservableTunnel, position: Int) {
                 binding.fragment = this@TunnelListFragment
-                binding.root.setOnClickListener {
+                val openClick = View.OnClickListener {
                     if (actionMode == null) {
-                        selectedTunnel = item
+                        openTunnelDetail(item)
                     } else {
                         actionModeListener.toggleItemChecked(position)
                     }
                 }
+                binding.root.setOnClickListener(openClick)
+                binding.tunnelListItem.setOnClickListener(openClick)
+                binding.tunnelName.setOnClickListener(openClick)
+                binding.chevron.setOnClickListener(openClick)
                 binding.root.setOnLongClickListener {
                     actionModeListener.toggleItemChecked(position)
                     true
