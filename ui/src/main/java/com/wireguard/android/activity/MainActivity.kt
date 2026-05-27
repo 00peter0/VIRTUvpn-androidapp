@@ -10,16 +10,20 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.addCallback
 import androidx.appcompat.app.ActionBar
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentTransaction
 import androidx.fragment.app.commit
+import androidx.lifecycle.lifecycleScope
 import com.wireguard.android.R
 import com.wireguard.android.fragment.TunnelDetailFragment
 import com.wireguard.android.fragment.TunnelEditorFragment
 import com.wireguard.android.model.ObservableTunnel
+import com.wireguard.android.vcs.VcsManagedClient
+import kotlinx.coroutines.launch
 
 class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener {
     private var actionBar: ActionBar? = null
@@ -60,6 +64,25 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
             setIcon(R.drawable.ic_logo)
             title = "  Virtu VPN"
         }
+        handleVcsEnrollmentIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleVcsEnrollmentIntent(intent)
+    }
+
+    private fun handleVcsEnrollmentIntent(intent: Intent?) {
+        val uri = intent?.data ?: return
+        lifecycleScope.launch {
+            try {
+                val result = VcsManagedClient.handleEnrollmentUri(this@MainActivity, uri) ?: return@launch
+                Toast.makeText(this@MainActivity, getString(R.string.vcs_sync_success, result.imported, result.assigned), Toast.LENGTH_LONG).show()
+            } catch (e: Throwable) {
+                Toast.makeText(this@MainActivity, getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -82,6 +105,18 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
                 true
             }
             R.id.menu_action_save -> false
+            R.id.menu_vcs_sync -> {
+                lifecycleScope.launch {
+                    try {
+                        val result = VcsManagedClient.syncManagedTunnels(this@MainActivity)
+                        VcsManagedClient.reportCurrentStates(this@MainActivity)
+                        Toast.makeText(this@MainActivity, getString(R.string.vcs_sync_success, result.imported, result.assigned), Toast.LENGTH_LONG).show()
+                    } catch (e: Throwable) {
+                        Toast.makeText(this@MainActivity, getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
+                    }
+                }
+                true
+            }
             R.id.menu_web_dashboard -> {
                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://virtuvpn.ch/dashboard")))
                 true

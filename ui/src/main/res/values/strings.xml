@@ -283,4 +283,7 @@
     <string name="live_traffic">Live Traffic</string>
     <string name="stat_latency">Latency</string>
     <string name="stat_quality">Quality</string>
+    <string name="vcs_sync_managed_tunnels">Sync VCS tunnels</string>
+    <string name="vcs_sync_success">VCS sync complete: imported %1$d of %2$d assigned tunnels</string>
+    <string name="vcs_sync_error">VCS sync failed: %1$s</string>
 </resources>

@@ -39,6 +39,7 @@ import com.wireguard.android.util.ErrorMessages
 import com.wireguard.android.util.PingManager
 import com.wireguard.android.util.QrCodeFromFileScanner
 import com.wireguard.android.util.TunnelImporter
+import com.wireguard.android.vcs.VcsManagedClient
 import com.wireguard.android.widget.MultiselectableRelativeLayout
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
@@ -79,7 +80,18 @@ class TunnelListFragment : BaseFragment() {
         val qrCode = result.contents
         val activity = activity
         if (qrCode != null && activity != null) {
-            activity.lifecycleScope.launch { TunnelImporter.importTunnel(parentFragmentManager, qrCode) { showSnackbar(it) } }
+            activity.lifecycleScope.launch {
+                if (qrCode.contains("vcs_android_enrollment") || qrCode.startsWith("virtuvpn://enroll")) {
+                    try {
+                        val result = VcsManagedClient.handleEnrollmentPayload(activity, qrCode)
+                        showSnackbar(getString(R.string.vcs_sync_success, result.imported, result.assigned))
+                    } catch (e: Throwable) {
+                        showSnackbar(getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName))
+                    }
+                } else {
+                    TunnelImporter.importTunnel(parentFragmentManager, qrCode) { showSnackbar(it) }
+                }
+            }
         }
     }
 

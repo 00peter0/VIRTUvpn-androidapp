@@ -2,6 +2,12 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
+        android:id="@+id/menu_vcs_sync"
+        android:icon="@drawable/ic_download"
+        android:orderInCategory="50"
+        android:title="@string/vcs_sync_managed_tunnels"
+        app:showAsAction="ifRoom" />
+    <item
         android:id="@+id/menu_web_dashboard"
         android:icon="@drawable/ic_web"
         android:orderInCategory="100"
