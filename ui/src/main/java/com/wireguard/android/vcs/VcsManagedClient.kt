@@ -49,7 +49,7 @@ object VcsManagedClient {
         for (i in 0 until assignments.length()) {
             val assignment = assignments.getJSONObject(i)
             if (assignment.optString("status") != "ACTIVE" && assignment.optString("status") != "REISSUE_REQUIRED") continue
-            if (assignment.optString("kind") != "VPN_ROUTE") continue
+            if (assignment.optString("kind") != "VPN_ROUTE" && assignment.optString("kind") != "AGENT_GATEWAY_PROFILE") continue
             val assignmentId = assignment.getString("id")
             val provision = requestJson("POST", "${session.apiBase}/api/mobile/android/tunnels/$assignmentId/provision", JSONObject(), session.token)
             val localTunnelName = importManagedConfig(context, session, provision)
