@@ -20,12 +20,15 @@ android {
     }
     namespace = pkg
     defaultConfig {
-        applicationId = pkg
+        applicationId = "com.virtuvpn.android"
         minSdk = 24
         targetSdk = 36
         versionCode = providers.gradleProperty("wireguardVersionCode").get().toInt()
         versionName = providers.gradleProperty("wireguardVersionName").get()
         buildConfigField("int", "MIN_SDK_VERSION", minSdk.toString())
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -48,6 +51,12 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+        }
+        create("vcsinstall") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ""
+            versionNameSuffix = "-vcsinstall"
+            matchingFallbacks += "debug"
         }
         create("googleplay") {
             initWith(getByName("release"))
