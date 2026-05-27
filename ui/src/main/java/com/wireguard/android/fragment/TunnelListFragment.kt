@@ -271,14 +271,18 @@ class TunnelListFragment : BaseFragment() {
                         actionModeListener.toggleItemChecked(position)
                     }
                 }
+                val deleteLongClick = View.OnLongClickListener {
+                    actionModeListener.toggleItemChecked(position)
+                    true
+                }
                 binding.root.setOnClickListener(openClick)
                 binding.tunnelListItem.setOnClickListener(openClick)
                 binding.tunnelName.setOnClickListener(openClick)
                 binding.chevron.setOnClickListener(openClick)
-                binding.root.setOnLongClickListener {
-                    actionModeListener.toggleItemChecked(position)
-                    true
-                }
+                binding.root.setOnLongClickListener(deleteLongClick)
+                binding.tunnelListItem.setOnLongClickListener(deleteLongClick)
+                binding.tunnelName.setOnLongClickListener(deleteLongClick)
+                binding.chevron.setOnLongClickListener(deleteLongClick)
                 if (actionMode != null)
                     (binding.tunnelListItem as MultiselectableRelativeLayout).setMultiSelected(actionModeListener.checkedItems.contains(position))
                 else
