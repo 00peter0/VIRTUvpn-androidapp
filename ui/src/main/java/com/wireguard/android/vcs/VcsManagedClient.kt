@@ -25,6 +25,7 @@ object VcsManagedClient {
     private const val KEY_DEVICE_ID = "device_id"
     private const val KEY_ASSIGNMENTS = "assignments"
     private const val KEY_LAST_UPDATE_PROMPT = "last_update_prompt"
+    private const val KEY_LAST_UPDATE_URL = "last_update_url"
     private const val TIMEOUT_MS = 15_000
 
     data class SyncResult(val imported: Int, val assigned: Int, val deviceName: String?)
@@ -70,13 +71,30 @@ object VcsManagedClient {
         if (update == null || !update.optBoolean("updateAvailable", false)) return
         val latestVersion = update.optString("latestVersionName").takeIf { it.isNotBlank() } ?: return
         val apkUrl = update.optString("apkUrl").takeIf { it.isNotBlank() } ?: return
+        openUpdateUrl(context, latestVersion, apkUrl, respectPromptMemory = true)
+    }
+
+    fun openManagedUpdate(context: Context): Boolean {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (prefs.getString(KEY_LAST_UPDATE_PROMPT, null) == latestVersion) return
-        prefs.edit().putString(KEY_LAST_UPDATE_PROMPT, latestVersion).apply()
+        val latestVersion = prefs.getString(KEY_LAST_UPDATE_PROMPT, null) ?: return false
+        val apkUrl = prefs.getString(KEY_LAST_UPDATE_URL, null) ?: return false
+        return openUpdateUrl(context, latestVersion, apkUrl, respectPromptMemory = false)
+    }
+
+    private fun openUpdateUrl(context: Context, latestVersion: String, apkUrl: String, respectPromptMemory: Boolean): Boolean {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (respectPromptMemory && prefs.getString(KEY_LAST_UPDATE_PROMPT, null) == latestVersion) return false
+        prefs.edit().putString(KEY_LAST_UPDATE_URL, apkUrl).apply()
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(apkUrl)).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        context.startActivity(intent)
+        return try {
+            context.startActivity(intent)
+            prefs.edit().putString(KEY_LAST_UPDATE_PROMPT, latestVersion).putString(KEY_LAST_UPDATE_URL, apkUrl).apply()
+            true
+        } catch (_: Throwable) {
+            false
+        }
     }
 
     private fun urlEncode(value: String): String = java.net.URLEncoder.encode(value, StandardCharsets.UTF_8.name())

@@ -116,6 +116,7 @@ class TunnelListFragment : BaseFragment() {
         val bottomSheet = AddTunnelsSheet()
         binding?.apply {
             fastestButton.setOnClickListener { onFastestButtonClicked() }
+            updateButton.setOnClickListener { onUpdateButtonClicked() }
 
             createFab.setOnClickListener {
                 if (childFragmentManager.findFragmentByTag("BOTTOM_SHEET") != null)
@@ -150,6 +151,18 @@ class TunnelListFragment : BaseFragment() {
     }
 
     // ── Smart Server Picker ──
+
+    private fun onUpdateButtonClicked() {
+        lifecycleScope.launch {
+            try {
+                VcsManagedClient.syncManagedTunnels(requireContext())
+                val opened = VcsManagedClient.openManagedUpdate(requireContext())
+                showSnackbar(getString(if (opened) R.string.vcs_update_opened else R.string.vcs_update_none))
+            } catch (e: Throwable) {
+                showSnackbar(getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName))
+            }
+        }
+    }
 
     private fun onFastestButtonClicked() {
         lifecycleScope.launch {
