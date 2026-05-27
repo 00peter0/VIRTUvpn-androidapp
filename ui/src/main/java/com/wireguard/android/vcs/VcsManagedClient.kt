@@ -1,6 +1,7 @@
 package com.wireguard.android.vcs
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import com.wireguard.android.Application
@@ -23,6 +24,7 @@ object VcsManagedClient {
     private const val KEY_ACCESS_TOKEN = "access_token"
     private const val KEY_DEVICE_ID = "device_id"
     private const val KEY_ASSIGNMENTS = "assignments"
+    private const val KEY_LAST_UPDATE_PROMPT = "last_update_prompt"
     private const val TIMEOUT_MS = 15_000
 
     data class SyncResult(val imported: Int, val assigned: Int, val deviceName: String?)
@@ -43,7 +45,9 @@ object VcsManagedClient {
 
     suspend fun syncManagedTunnels(context: Context): SyncResult = withContext(Dispatchers.IO) {
         val session = requireSession(context)
-        val sync = requestJson("GET", "${session.apiBase}/api/mobile/android/sync", null, session.token)
+        val syncUrl = "${session.apiBase}/api/mobile/android/sync?appVersion=${urlEncode(BuildConfig.VERSION_NAME)}&androidVersion=${urlEncode(Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString())}"
+        val sync = requestJson("GET", syncUrl, null, session.token)
+        handleUpdateAvailable(context, sync.optJSONObject("update"))
         val assignments = sync.optJSONArray("assignments") ?: JSONArray()
         var imported = 0
         for (i in 0 until assignments.length()) {
@@ -60,6 +64,22 @@ object VcsManagedClient {
         val device = sync.optJSONObject("device")
         SyncResult(imported, assignments.length(), device?.optString("deviceName")?.takeIf { it.isNotBlank() })
     }
+
+
+    private fun handleUpdateAvailable(context: Context, update: JSONObject?) {
+        if (update == null || !update.optBoolean("updateAvailable", false)) return
+        val latestVersion = update.optString("latestVersionName").takeIf { it.isNotBlank() } ?: return
+        val apkUrl = update.optString("apkUrl").takeIf { it.isNotBlank() } ?: return
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (prefs.getString(KEY_LAST_UPDATE_PROMPT, null) == latestVersion) return
+        prefs.edit().putString(KEY_LAST_UPDATE_PROMPT, latestVersion).apply()
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(apkUrl)).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    }
+
+    private fun urlEncode(value: String): String = java.net.URLEncoder.encode(value, StandardCharsets.UTF_8.name())
 
     suspend fun reportCurrentStates(context: Context) = withContext(Dispatchers.IO) {
         val session = loadSession(context) ?: return@withContext
