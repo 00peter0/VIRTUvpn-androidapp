@@ -153,19 +153,24 @@ object VcsManagedClient {
     fun webTerminalForTunnel(context: Context, tunnelName: String?): WebTerminalLink? {
         if (tunnelName.isNullOrBlank()) return null
         val assignments = loadAssignments(context)
+        val fallbackBundleName = managedBundleTunnelName(assignments)
         for (i in 0 until assignments.length()) {
             val assignment = assignments.getJSONObject(i)
+            val status = assignment.optString("status")
+            if (status != "ACTIVE" && status != "REISSUE_REQUIRED") continue
             val localName = assignment.optString("localTunnelName")
-            val bundleName = assignment.optString("bundleLocalTunnelName")
-            if (localName != tunnelName && bundleName != tunnelName) continue
             val terminal = assignment.optJSONObject("webTerminal") ?: continue
+            val bundleName = assignment.optString("bundleLocalTunnelName")
+                .takeIf { it.isNotBlank() }
+                ?: fallbackBundleName
+            if (localName != tunnelName && bundleName != tunnelName) continue
             val url = terminal.optString("url").takeIf { it.startsWith("http://") || it.startsWith("https://") } ?: continue
             return WebTerminalLink(
                 serverName = terminal.optString("serverName").takeIf { it.isNotBlank() },
                 url = url,
                 bindIp = terminal.optString("bindIp").takeIf { it.isNotBlank() },
                 port = terminal.optInt("port").takeIf { it > 0 },
-                requiredTunnelName = bundleName.takeIf { it.isNotBlank() } ?: localName.takeIf { it.isNotBlank() }
+                requiredTunnelName = bundleName ?: localName.takeIf { it.isNotBlank() }
             )
         }
         return null
@@ -190,7 +195,7 @@ object VcsManagedClient {
         return try {
             val manager = context.getSystemService(DownloadManager::class.java) ?: return false
             val fileName = "VirtuVPN-$latestVersion.apk"
-            val request = DownloadManager.Request(Uri.parse(apkUrl))
+            val request = DownloadManager.Request(updateDownloadUri(apkUrl))
                 .setTitle(fileName)
                 .setDescription("VirtuVPN update")
                 .setMimeType("application/vnd.android.package-archive")
@@ -204,6 +209,13 @@ object VcsManagedClient {
         } catch (_: Throwable) {
             false
         }
+    }
+
+    private fun updateDownloadUri(apkUrl: String): Uri {
+        val uri = Uri.parse(apkUrl)
+        if (!uri.path.orEmpty().endsWith("/api/mobile/android/update/apk")) return uri
+        if (uri.getQueryParameter("download") == "1") return uri
+        return uri.buildUpon().appendQueryParameter("download", "1").build()
     }
 
     private fun urlEncode(value: String): String = java.net.URLEncoder.encode(value, StandardCharsets.UTF_8.name())

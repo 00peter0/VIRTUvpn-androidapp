@@ -24,14 +24,18 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import com.wireguard.android.Application
 import com.wireguard.android.R
-import com.wireguard.android.activity.SecureBrowserActivity
+import com.wireguard.android.activity.WebTerminalBrowserActivity
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.databinding.TunnelDetailFragmentBinding
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.vcs.VcsManagedClient
 import com.wireguard.config.Config
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.net.HttpURLConnection
+import java.net.URL
 
 class TunnelDetailFragment : BaseFragment(), MenuProvider {
     private var binding: TunnelDetailFragmentBinding? = null
@@ -126,9 +130,16 @@ class TunnelDetailFragment : BaseFragment(), MenuProvider {
         }
 
         binding.webTerminalCard.visibility = View.VISIBLE
+        binding.webTerminalHealthDot.setBackgroundResource(R.drawable.status_dot_disconnected)
         binding.webTerminalTitle.text = terminal.serverName?.let { "${getString(R.string.web_terminal)} · $it" }
             ?: getString(R.string.web_terminal)
         binding.webTerminalUrl.text = terminal.url
+        lifecycleScope.launch {
+            val reachable = isWebTerminalReachable(terminal.url)
+            this@TunnelDetailFragment.binding?.webTerminalHealthDot?.setBackgroundResource(
+                if (reachable) R.drawable.status_dot_connected else R.drawable.status_dot_disconnected
+            )
+        }
         binding.webTerminalCopy.setOnClickListener {
             val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.web_terminal), terminal.url))
@@ -136,32 +147,67 @@ class TunnelDetailFragment : BaseFragment(), MenuProvider {
         }
         binding.webTerminalOpen.setOnClickListener {
             lifecycleScope.launch {
-                val requiredTunnelName = terminal.requiredTunnelName
-                if (!requiredTunnelName.isNullOrBlank()) {
-                    val requiredTunnel = Application.getTunnelManager().getTunnels()[requiredTunnelName]
-                    if (requiredTunnel == null) {
-                        Toast.makeText(requireContext(), getString(R.string.web_terminal_tunnel_missing, requiredTunnelName), Toast.LENGTH_LONG).show()
-                        return@launch
-                    }
-                    if (requiredTunnel.state != Tunnel.State.UP) {
-                        Toast.makeText(requireContext(), getString(R.string.web_terminal_starting_tunnel, requiredTunnelName), Toast.LENGTH_SHORT).show()
-                        try {
-                            requiredTunnel.setStateAsync(Tunnel.State.UP)
-                            delay(1200)
-                        } catch (e: Throwable) {
-                            Toast.makeText(requireContext(), getString(R.string.web_terminal_tunnel_start_failed, e.message ?: getString(R.string.unknown_error)), Toast.LENGTH_LONG).show()
+                val activeBinding = binding ?: return@launch
+                activeBinding.webTerminalOpen.isEnabled = false
+                activeBinding.webTerminalOpen.text = getString(R.string.web_terminal_checking)
+                Toast.makeText(requireContext(), R.string.web_terminal_opening, Toast.LENGTH_SHORT).show()
+                try {
+                    val requiredTunnelName = terminal.requiredTunnelName
+                    if (!requiredTunnelName.isNullOrBlank()) {
+                        val requiredTunnel = Application.getTunnelManager().getTunnels()[requiredTunnelName]
+                        if (requiredTunnel == null) {
+                            Toast.makeText(requireContext(), getString(R.string.web_terminal_tunnel_missing, requiredTunnelName), Toast.LENGTH_LONG).show()
                             return@launch
                         }
+                        if (requiredTunnel.state != Tunnel.State.UP) {
+                            Toast.makeText(requireContext(), getString(R.string.web_terminal_starting_tunnel, requiredTunnelName), Toast.LENGTH_SHORT).show()
+                            try {
+                                requiredTunnel.setStateAsync(Tunnel.State.UP)
+                            } catch (e: Throwable) {
+                                Toast.makeText(requireContext(), getString(R.string.web_terminal_tunnel_start_failed, e.message ?: getString(R.string.unknown_error)), Toast.LENGTH_LONG).show()
+                                return@launch
+                            }
+                        }
                     }
+                    if (!waitForWebTerminal(terminal.url)) {
+                        Toast.makeText(requireContext(), getString(R.string.web_terminal_unreachable, terminal.url), Toast.LENGTH_LONG).show()
+                        return@launch
+                    }
+                    openWebTerminalUrl(terminal.url)
+                } finally {
+                    binding?.webTerminalOpen?.isEnabled = true
+                    binding?.webTerminalOpen?.text = getString(R.string.open_terminal)
                 }
-                openWebTerminalUrl(terminal.url)
             }
         }
     }
 
+    private suspend fun waitForWebTerminal(url: String): Boolean {
+        repeat(10) {
+            if (isWebTerminalReachable(url)) return true
+            delay(700)
+        }
+        return false
+    }
+
+    private suspend fun isWebTerminalReachable(url: String): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val healthUrl = if (url.endsWith("/")) "${url}healthz" else "$url/healthz"
+            val connection = URL(healthUrl).openConnection() as HttpURLConnection
+            connection.connectTimeout = 1200
+            connection.readTimeout = 1200
+            connection.requestMethod = "GET"
+            try {
+                connection.responseCode in 200..299
+            } finally {
+                connection.disconnect()
+            }
+        }.getOrDefault(false)
+    }
+
     private fun openWebTerminalUrl(url: String) {
-        val intent = Intent(requireContext(), SecureBrowserActivity::class.java)
-            .putExtra(SecureBrowserActivity.EXTRA_INITIAL_URL, url)
+        val intent = Intent(requireContext(), WebTerminalBrowserActivity::class.java)
+            .putExtra(WebTerminalBrowserActivity.EXTRA_INITIAL_URL, url)
         startActivity(intent)
     }
 }

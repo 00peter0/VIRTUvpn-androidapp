@@ -56,6 +56,7 @@
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_marginEnd="12dp"
                         android:layout_weight="1"
                         android:orientation="vertical">
 
@@ -79,6 +80,14 @@
                             android:textSize="13sp"
                             tools:text="Connected" />
                     </LinearLayout>
+
+                    <com.wireguard.android.widget.ToggleSwitch
+                        android:id="@+id/tunnel_detail_switch"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        app:checked="@{tunnel.state == State.UP}"
+                        app:onBeforeCheckedChanged="@{fragment::setTunnelState}"
+                        tools:checked="true" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -190,6 +199,14 @@
                             android:layout_marginEnd="6dp"
                             android:src="@drawable/ic_web"
                             app:tint="#8899AA" />
+
+                        <View
+                            android:id="@+id/web_terminal_health_dot"
+                            android:layout_width="9dp"
+                            android:layout_height="9dp"
+                            android:layout_marginEnd="7dp"
+                            android:background="@drawable/status_dot_disconnected"
+                            tools:background="@drawable/status_dot_connected" />
 
                         <TextView
                             android:id="@+id/web_terminal_title"

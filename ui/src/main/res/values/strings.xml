@@ -96,6 +96,8 @@
     <string name="vcs_secure_browser_bookmark_exists">Page already saved</string>
     <string name="vcs_secure_browser_bookmark_deleted">Page removed</string>
     <string name="vcs_secure_browser_delete_bookmark_title">Remove quick link?</string>
+    <string name="web_terminal_browser_title">Web Terminal</string>
+    <string name="web_terminal_browser_blocked_detail">Terminal traffic is stopped until the required VPN tunnel is active.</string>
     <string name="vcs_enroll_device">Enroll device</string>
     <string name="vcs_enroll_hint">Paste VirtuVPN enrollment link</string>
     <string name="vcs_enroll_submit">Enroll</string>
@@ -141,6 +143,7 @@
     <string name="dark_theme_summary_on">Currently using dark (night) theme</string>
     <string name="dark_theme_title">Use dark theme</string>
     <string name="delete">Delete</string>
+    <string name="close">Close</string>
     <string name="tv_delete">Select tunnel to delete</string>
     <string name="tv_select_a_storage_drive">Select a storage drive</string>
     <string name="tv_no_file_picker">Please install a file management utility to browse files</string>
@@ -278,9 +281,12 @@
     <string name="web_terminal">Web Terminal</string>
     <string name="open_terminal">Open terminal</string>
     <string name="terminal_url_copied">Terminal URL copied</string>
+    <string name="web_terminal_opening">Opening terminal…</string>
+    <string name="web_terminal_checking">Checking…</string>
     <string name="web_terminal_starting_tunnel">Starting %1$s for terminal…</string>
     <string name="web_terminal_tunnel_missing">Terminal tunnel not found: %1$s</string>
     <string name="web_terminal_tunnel_start_failed">Unable to start terminal tunnel: %1$s</string>
+    <string name="web_terminal_unreachable">Terminal is not reachable through the active tunnel: %1$s</string>
     <string name="stat_duration">Duration</string>
     <string name="tunnel_list_placeholder">Add a tunnel using the button below</string>
     <string name="tunnel_name">Tunnel Name</string>

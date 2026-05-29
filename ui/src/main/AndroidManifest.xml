@@ -72,6 +72,13 @@
             android:parentActivityName=".activity.HomeActivity" />
 
         <activity
+            android:name=".activity.WebTerminalBrowserActivity"
+            android:exported="false"
+            android:label="@string/web_terminal_browser_title"
+            android:parentActivityName=".activity.MainActivity"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name=".activity.MainActivity"
             android:exported="true">
             <intent-filter>
