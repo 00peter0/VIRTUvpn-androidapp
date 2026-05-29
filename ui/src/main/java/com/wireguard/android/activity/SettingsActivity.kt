@@ -17,11 +17,9 @@ import androidx.lifecycle.lifecycleScope
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import com.wireguard.android.Application
-import com.wireguard.android.QuickTileService
 import com.wireguard.android.R
 import com.wireguard.android.backend.WgQuickBackend
 import com.wireguard.android.preference.PreferencesPreferenceDataStore
-import com.wireguard.android.util.AdminKnobs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -62,19 +60,10 @@ class SettingsActivity : AppCompatActivity() {
             addPreferencesFromResource(R.xml.preferences)
             preferenceScreen.initialExpandedChildrenCount = 5
 
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || QuickTileService.isAdded) {
-                val quickTile = preferenceManager.findPreference<Preference>("quick_tile")
-                quickTile?.parent?.removePreference(quickTile)
-                --preferenceScreen.initialExpandedChildrenCount
-            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val darkTheme = preferenceManager.findPreference<Preference>("dark_theme")
                 darkTheme?.parent?.removePreference(darkTheme)
                 --preferenceScreen.initialExpandedChildrenCount
-            }
-            if (AdminKnobs.disableConfigExport) {
-                val zipExporter = preferenceManager.findPreference<Preference>("zip_exporter")
-                zipExporter?.parent?.removePreference(zipExporter)
             }
             val wgQuickOnlyPrefs = arrayOf(
                 preferenceManager.findPreference("tools_installer"),

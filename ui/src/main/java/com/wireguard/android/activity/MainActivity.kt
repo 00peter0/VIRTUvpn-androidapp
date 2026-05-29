@@ -21,6 +21,7 @@ import androidx.lifecycle.lifecycleScope
 import com.wireguard.android.R
 import com.wireguard.android.fragment.TunnelDetailFragment
 import com.wireguard.android.fragment.TunnelEditorFragment
+import com.wireguard.android.fragment.TunnelListFragment
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.vcs.VcsManagedClient
 import kotlinx.coroutines.launch
@@ -62,7 +63,10 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
         actionBar?.apply {
             setDisplayShowHomeEnabled(true)
             setIcon(R.drawable.ic_logo)
-            title = "  Virtu VPN"
+            title = "  ${titleForTunnelSection(intent?.getStringExtra(EXTRA_TUNNEL_SECTION))}"
+        }
+        if (shouldShowHomeOnAppStart(intent, savedInstanceState)) {
+            showHomePage()
         }
         handleVcsEnrollmentIntent(intent)
     }
@@ -70,7 +74,37 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (shouldShowHomeOnAppStart(intent, null)) {
+            showHomePage()
+        }
+        actionBar?.title = "  ${titleForTunnelSection(intent.getStringExtra(EXTRA_TUNNEL_SECTION))}"
+        refreshTunnelSection()
         handleVcsEnrollmentIntent(intent)
+    }
+
+    fun titleForTunnelSection(section: String?): String {
+        return when (section) {
+            TUNNEL_SECTION_VPN_MESH -> getString(R.string.vcs_home_vpn_mesh)
+            TUNNEL_SECTION_AGENT_GATEWAY -> getString(R.string.vcs_home_agent_gateway)
+            TUNNEL_SECTION_MANAGED_ACCESS -> getString(R.string.vcs_home_managed_access)
+            else -> getString(R.string.vcs_tunnels_title)
+        }
+    }
+
+    private fun shouldShowHomeOnAppStart(intent: Intent?, savedInstanceState: Bundle?): Boolean {
+        if (savedInstanceState != null || intent?.data != null) return false
+        if (intent?.hasExtra("selected_tunnel") == true) return false
+        if (intent?.hasExtra(EXTRA_TUNNEL_SECTION) == true) return false
+        return intent?.action == null || intent.action == Intent.ACTION_MAIN
+    }
+
+    private fun showHomePage() {
+        selectedTunnel = null
+        supportFragmentManager.popBackStackImmediate(0, FragmentManager.POP_BACK_STACK_INCLUSIVE)
+    }
+
+    private fun refreshTunnelSection() {
+        (supportFragmentManager.findFragmentByTag("LIST") as? TunnelListFragment)?.refreshTunnelFilter()
     }
 
     private fun handleVcsEnrollmentIntent(intent: Intent?) {
@@ -110,19 +144,17 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
                     try {
                         val result = VcsManagedClient.syncManagedTunnels(this@MainActivity)
                         VcsManagedClient.reportCurrentStates(this@MainActivity)
-                        Toast.makeText(this@MainActivity, getString(R.string.vcs_sync_success, result.imported, result.assigned), Toast.LENGTH_LONG).show()
+                        refreshTunnelSection()
+                        val message = if (result.skippedRunning > 0) {
+                            getString(R.string.vcs_sync_skipped_running, result.skippedRunning)
+                        } else {
+                            getString(R.string.vcs_sync_success, result.imported, result.assigned)
+                        }
+                        Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
                     } catch (e: Throwable) {
                         Toast.makeText(this@MainActivity, getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
                     }
                 }
-                true
-            }
-            R.id.menu_web_dashboard -> {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://virtuvpn.ch/dashboard")))
-                true
-            }
-            R.id.menu_my_account -> {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://virtuvpn.ch/account")))
                 true
             }
             R.id.menu_settings -> {
@@ -156,5 +188,12 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
             }
         }
         return true
+    }
+
+    companion object {
+        const val EXTRA_TUNNEL_SECTION = "com.wireguard.android.extra.TUNNEL_SECTION"
+        const val TUNNEL_SECTION_VPN_MESH = "vpn_mesh"
+        const val TUNNEL_SECTION_AGENT_GATEWAY = "agent_gateway"
+        const val TUNNEL_SECTION_MANAGED_ACCESS = "managed_access"
     }
 }

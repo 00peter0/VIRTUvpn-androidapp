@@ -63,6 +63,9 @@
     <color name="md_theme_dark_scrim">#000000</color>
     
     <!-- Virtu VPN custom colors -->
+    <color name="vcs_top_bar">#071018</color>
+    <color name="vcs_top_bar_text">#FFFFFF</color>
+    <color name="vcs_top_bar_subtitle">#AFC0CC</color>
     <color name="vpn_connected">#00BFA5</color>
     <color name="vpn_disconnected">#78909C</color>
     <color name="vpn_connecting">#FFB74D</color>

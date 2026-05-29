@@ -7,12 +7,40 @@
         <item name="subtitleTextColor">#8899AA</item>
     </style>
 
+    <style name="VirtuVpnTheme.ActionBar" parent="Widget.AppCompat.ActionBar.Solid">
+        <item name="background">@color/vcs_top_bar</item>
+        <item name="titleTextStyle">@style/VirtuVpnTheme.ActionBar.Title</item>
+        <item name="subtitleTextStyle">@style/VirtuVpnTheme.ActionBar.Subtitle</item>
+    </style>
+
+    <style name="VirtuVpnTheme.ActionBar.Title" parent="@style/TextAppearance.AppCompat.Widget.ActionBar.Title">
+        <item name="android:textColor">@color/vcs_top_bar_text</item>
+        <item name="android:textSize">18sp</item>
+    </style>
+
+    <style name="VirtuVpnTheme.ActionBar.Subtitle" parent="@style/TextAppearance.AppCompat.Widget.ActionBar.Subtitle">
+        <item name="android:textColor">@color/vcs_top_bar_subtitle</item>
+    </style>
+
+    <style name="VirtuVpnTheme.ActionBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar">
+        <item name="android:textColorPrimary">@color/vcs_top_bar_text</item>
+        <item name="android:textColorSecondary">@color/vcs_top_bar_subtitle</item>
+        <item name="actionMenuTextColor">@color/vcs_top_bar_text</item>
+        <item name="colorControlNormal">@color/vcs_top_bar_text</item>
+    </style>
+
     <style name="AppThemeBase" parent="WireGuardTheme">
         <item name="materialCardViewStyle">@style/WireGuardTheme.MaterialCardView</item>
         <item name="toolbarStyle">@style/WireGuardTheme.Toolbar</item>
+        <item name="actionBarStyle">@style/VirtuVpnTheme.ActionBar</item>
+        <item name="android:actionBarStyle">@style/VirtuVpnTheme.ActionBar</item>
+        <item name="actionBarTheme">@style/VirtuVpnTheme.ActionBarOverlay</item>
         <item name="bottomSheetDialogTheme">@style/WireGuardTheme.BottomSheetDialog</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@color/vcs_top_bar</item>
+        <item name="android:navigationBarColor">@color/vcs_top_bar</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
     </style>
 
     <style name="AppTheme" parent="AppThemeBase" />

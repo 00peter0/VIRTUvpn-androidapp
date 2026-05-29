@@ -5,7 +5,6 @@
 
     <data>
         <import type="com.wireguard.android.backend.Tunnel.State" />
-        <import type="com.wireguard.android.util.ClipboardUtils" />
         <variable name="fragment" type="com.wireguard.android.fragment.TunnelDetailFragment" />
         <variable name="tunnel" type="com.wireguard.android.model.ObservableTunnel" />
         <variable name="config" type="com.wireguard.config.Config" />
@@ -32,510 +31,215 @@
             android:clickable="true"
             android:focusable="true">
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingBottom="24dp">
-
-            <!-- Connect Button Section -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center"
                 android:orientation="vertical"
-                android:paddingTop="32dp"
-                android:paddingBottom="20dp">
-
-                <ImageView
-                    android:id="@+id/connect_button"
-                    android:layout_width="110dp"
-                    android:layout_height="110dp"
-                    android:background="@{tunnel.state == State.UP ? @drawable/connect_button_connected : @drawable/connect_button_disconnected}"
-                    android:clickable="true"
-                    android:contentDescription="@string/toggle"
-                    android:focusable="true"
-                    android:onClick="@{() -> fragment.toggleTunnel()}"
-                    android:padding="30dp"
-                    android:src="@drawable/ic_power" />
-
-                <TextView
-                    android:id="@+id/status_text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:text="@{tunnel.state == State.UP ? @string/status_connected : @string/status_disconnected}"
-                    android:textColor="@{tunnel.state == State.UP ? @color/vpn_connected : @color/vpn_disconnected}"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    tools:text="Connected" />
-
-                <TextView
-                    android:id="@+id/tunnel_name_text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:text="@{tunnel.name}"
-                    android:textColor="#8899AA"
-                    android:textSize="13sp"
-                    tools:text="geneva" />
-
-                <TextView
-                    android:id="@+id/duration_value"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:textColor="#667788"
-                    android:textSize="12sp"
-                    android:visibility="gone"
-                    tools:text="00:12:34" />
-            </LinearLayout>
-
-            <!-- Stats Row 1: Your IP | Server -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:paddingHorizontal="16dp">
+                android:paddingHorizontal="16dp"
+                android:paddingTop="28dp"
+                android:paddingBottom="24dp">
 
                 <LinearLayout
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="6dp"
-                    android:layout_weight="1"
+                    android:background="@drawable/stat_card_background"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="16dp">
+
+                    <View
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:layout_marginEnd="12dp"
+                        android:background="@{tunnel.state == State.UP ? @drawable/status_dot_connected : @drawable/status_dot_disconnected}" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tunnel_name_text"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@{tunnel.name}"
+                            android:textColor="#FFFFFF"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            tools:text="managed-access-server" />
+
+                        <TextView
+                            android:id="@+id/status_text"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="@{tunnel.state == State.UP ? @string/status_connected : @string/status_disconnected}"
+                            android:textColor="@{tunnel.state == State.UP ? @color/vpn_connected : @color/vpn_disconnected}"
+                            android:textSize="13sp"
+                            tools:text="Connected" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
                     android:background="@drawable/stat_card_background"
                     android:orientation="vertical"
-                    android:padding="12dp">
+                    android:padding="14dp">
+
                     <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:gravity="center_vertical">
+
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:layout_marginEnd="6dp"
-                            android:src="@drawable/ic_device" />
+                            android:src="@drawable/ic_device"
+                            app:tint="#8899AA" />
+
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/stat_your_ip"
                             android:textColor="#8899AA"
-                            android:textSize="11sp" />
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
                     </LinearLayout>
+
                     <TextView
                         android:id="@+id/your_ip_value"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginTop="8dp"
                         android:text="@string/stat_no_data"
                         android:textColor="#FFFFFF"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
+                        android:textIsSelectable="true"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        tools:text="10.7.0.12/32" />
                 </LinearLayout>
 
                 <LinearLayout
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:layout_weight="1"
+                    android:layout_marginTop="12dp"
                     android:background="@drawable/stat_card_background"
                     android:orientation="vertical"
-                    android:padding="12dp">
+                    android:padding="14dp">
+
                     <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:gravity="center_vertical">
+
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:layout_marginEnd="6dp"
-                            android:src="@drawable/ic_server" />
+                            android:src="@drawable/ic_server"
+                            app:tint="#8899AA" />
+
                         <TextView
                             android:id="@+id/server_ip_label"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="@string/stat_server_ip"
+                            android:text="@string/stat_wg_routes"
                             android:textColor="#8899AA"
-                            android:textSize="11sp" />
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
                     </LinearLayout>
+
                     <TextView
                         android:id="@+id/server_ip_value"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginTop="8dp"
+                        android:fontFamily="monospace"
+                        android:lineSpacingExtra="4dp"
                         android:text="@string/stat_no_data"
                         android:textColor="#FFFFFF"
+                        android:textIsSelectable="true"
                         android:textSize="13sp"
-                        android:textStyle="bold" />
+                        tools:text="10.0.0.0/8&#10;172.16.0.0/12&#10;192.168.0.0/16" />
                 </LinearLayout>
-            </LinearLayout>
-
-            <!-- Stats Row 2: Download | Upload Speed -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:orientation="horizontal"
-                android:paddingHorizontal="16dp">
 
                 <LinearLayout
-                    android:layout_width="0dp"
+                    android:id="@+id/web_terminal_card"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="6dp"
-                    android:layout_weight="1"
+                    android:layout_marginTop="12dp"
                     android:background="@drawable/stat_card_background"
                     android:orientation="vertical"
-                    android:padding="12dp">
+                    android:padding="14dp"
+                    android:visibility="gone"
+                    tools:visibility="visible">
+
                     <LinearLayout
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:gravity="center_vertical">
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:layout_marginEnd="6dp"
-                            android:src="@drawable/ic_download" />
+                            android:src="@drawable/ic_web"
+                            app:tint="#8899AA" />
+
                         <TextView
-                            android:layout_width="wrap_content"
+                            android:id="@+id/web_terminal_title"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:text="@string/stat_download"
+                            android:layout_weight="1"
+                            android:text="@string/web_terminal"
                             android:textColor="#8899AA"
-                            android:textSize="11sp" />
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
                     </LinearLayout>
-                    <TextView
-                        android:id="@+id/download_speed_value"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="@string/stat_no_data"
-                        android:textColor="#00BFA5"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
 
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/stat_card_background"
-                    android:orientation="vertical"
-                    android:padding="12dp">
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_vertical">
-                        <ImageView
-                            android:layout_width="16dp"
-                            android:layout_height="16dp"
-                            android:layout_marginEnd="6dp"
-                            android:src="@drawable/ic_upload" />
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/stat_upload"
-                            android:textColor="#8899AA"
-                            android:textSize="11sp" />
-                    </LinearLayout>
                     <TextView
-                        android:id="@+id/upload_speed_value"
-                        android:layout_width="wrap_content"
+                        android:id="@+id/web_terminal_url"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="@string/stat_no_data"
-                        android:textColor="#5EDBC2"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- Stats Row 3: Total Down | Total Up -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:orientation="horizontal"
-                android:paddingHorizontal="16dp">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="6dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/stat_card_background"
-                    android:orientation="vertical"
-                    android:padding="12dp">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/stat_total_down"
-                        android:textColor="#8899AA"
-                        android:textSize="11sp" />
-                    <TextView
-                        android:id="@+id/total_down_value"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="@string/stat_no_data"
+                        android:layout_marginTop="8dp"
+                        android:fontFamily="monospace"
+                        android:lineSpacingExtra="3dp"
                         android:textColor="#FFFFFF"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/stat_card_background"
-                    android:orientation="vertical"
-                    android:padding="12dp">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/stat_total_up"
-                        android:textColor="#8899AA"
-                        android:textSize="11sp" />
-                    <TextView
-                        android:id="@+id/total_up_value"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="@string/stat_no_data"
-                        android:textColor="#FFFFFF"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- Live Traffic Graph -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:layout_marginHorizontal="16dp"
-                android:background="@drawable/stat_card_background"
-                android:orientation="vertical"
-                android:padding="14dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/live_traffic"
-                    android:textColor="#8899AA"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
-
-                <com.wireguard.android.widget.SparklineView
-                    android:id="@+id/sparkline_view"
-                    android:layout_width="match_parent"
-                    android:layout_height="80dp"
-                    android:layout_marginTop="8dp" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:orientation="horizontal">
-                    <View
-                        android:layout_width="10dp"
-                        android:layout_height="3dp"
-                        android:layout_gravity="center_vertical"
-                        android:layout_marginEnd="4dp"
-                        android:background="#00BFA5" />
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/stat_download"
-                        android:textColor="#667788"
-                        android:textSize="10sp" />
-                    <View
-                        android:layout_width="10dp"
-                        android:layout_height="3dp"
-                        android:layout_gravity="center_vertical"
-                        android:layout_marginEnd="4dp"
-                        android:background="#5EDBC2" />
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/stat_upload"
-                        android:textColor="#667788"
-                        android:textSize="10sp" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- Privacy Shield -->
-            <LinearLayout
-                android:id="@+id/privacy_shield_card"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:layout_marginHorizontal="16dp"
-                android:background="@drawable/stat_card_background"
-                android:orientation="vertical"
-                android:padding="14dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center_vertical">
-                    <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:layout_marginEnd="8dp"
-                        android:src="@drawable/ic_shield"
-                        app:tint="#00BFA5" />
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/privacy_shield"
-                        android:textColor="#FFFFFF"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
-                    <TextView
-                        android:id="@+id/privacy_score_text"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="#00BFA5"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        tools:text="100%" />
-                </LinearLayout>
-
-                <!-- Progress bar -->
-                <ProgressBar
-                    android:id="@+id/privacy_progress"
-                    style="@android:style/Widget.ProgressBar.Horizontal"
-                    android:layout_width="match_parent"
-                    android:layout_height="6dp"
-                    android:layout_marginTop="10dp"
-                    android:max="100"
-                    android:progressDrawable="@drawable/privacy_progress_drawable"
-                    tools:progress="100" />
-
-                <!-- Check items -->
-                <TextView
-                    android:id="@+id/check_vpn"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:textSize="12sp"
-                    tools:text="✅ VPN Active" />
-
-                <TextView
-                    android:id="@+id/check_dns"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:textSize="12sp"
-                    tools:text="✅ DNS Protected" />
-
-                <TextView
-                    android:id="@+id/check_ip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:textSize="12sp"
-                    tools:text="✅ IP Hidden" />
-
-                <TextView
-                    android:id="@+id/check_encrypted"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:textSize="12sp"
-                    tools:text="✅ Traffic Encrypted" />
-
-                <!-- WiFi Info -->
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:layout_marginTop="10dp"
-                    android:background="#1A3F5F" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:gravity="center_vertical">
-                    <ImageView
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
-                        android:layout_marginEnd="8dp"
-                        android:src="@drawable/ic_wifi"
-                        app:tint="#8899AA" />
-                    <TextView
-                        android:id="@+id/wifi_info_text"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="#8899AA"
+                        android:textIsSelectable="true"
                         android:textSize="12sp"
-                        tools:text="📶 Home WiFi (trusted)" />
+                        tools:text="http://10.76.1.1:7681/" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:gravity="end"
+                        android:orientation="horizontal">
+
+                        <Button
+                            android:id="@+id/web_terminal_copy"
+                            android:layout_width="wrap_content"
+                            android:layout_height="40dp"
+                            android:minWidth="92dp"
+                            android:text="@string/copy"
+                            android:textAllCaps="false" />
+
+                        <Button
+                            android:id="@+id/web_terminal_open"
+                            android:layout_width="wrap_content"
+                            android:layout_height="40dp"
+                            android:layout_marginStart="8dp"
+                            android:minWidth="92dp"
+                            android:text="@string/open_terminal"
+                            android:textAllCaps="false" />
+                    </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
-
-            <!-- Latency + Quality -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal"
-                android:paddingHorizontal="16dp">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="6dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/stat_card_background"
-                    android:orientation="vertical"
-                    android:padding="12dp">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/stat_latency"
-                        android:textColor="#8899AA"
-                        android:textSize="11sp" />
-                    <TextView
-                        android:id="@+id/latency_value"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:textColor="#00BFA5"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        tools:text="42 ms" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/stat_card_background"
-                    android:orientation="vertical"
-                    android:padding="12dp">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/stat_quality"
-                        android:textColor="#8899AA"
-                        android:textSize="11sp" />
-                    <TextView
-                        android:id="@+id/quality_value"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:textColor="#00BFA5"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        tools:text="Excellent" />
-                </LinearLayout>
-            </LinearLayout>
-
-        </LinearLayout>
         </ScrollView>
     </FrameLayout>
 </layout>

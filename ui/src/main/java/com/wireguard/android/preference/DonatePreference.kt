@@ -33,7 +33,7 @@ class DonatePreference(context: Context, attrs: AttributeSet?) : Preference(cont
         }
 
         val intent = Intent(Intent.ACTION_VIEW)
-        intent.data = "https://virtuvpn.ch/donate".toUri()
+        intent.data = "https://vcs.virtucomputing.com/".toUri()
         try {
             context.startActivity(intent)
         } catch (e: Throwable) {

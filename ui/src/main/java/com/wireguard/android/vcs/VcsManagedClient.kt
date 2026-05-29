@@ -1,11 +1,13 @@
 package com.wireguard.android.vcs
 
+import android.app.DownloadManager
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import com.wireguard.android.Application
 import com.wireguard.android.BuildConfig
+import com.wireguard.android.activity.MainActivity
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.config.Config
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +30,9 @@ object VcsManagedClient {
     private const val KEY_LAST_UPDATE_URL = "last_update_url"
     private const val TIMEOUT_MS = 15_000
 
-    data class SyncResult(val imported: Int, val assigned: Int, val deviceName: String?)
+    data class SyncResult(val imported: Int, val assigned: Int, val deviceName: String?, val updateVersionName: String?, val skippedRunning: Int)
+    data class UpdateCheck(val available: Boolean, val versionName: String?)
+    private data class ImportResult(val localTunnelName: String, val applied: Boolean, val current: Boolean)
 
     suspend fun handleEnrollmentPayload(context: Context, payload: String): SyncResult = withContext(Dispatchers.IO) {
         val parsed = parseEnrollmentPayload(payload)
@@ -37,10 +41,8 @@ object VcsManagedClient {
     }
 
     suspend fun handleEnrollmentUri(context: Context, uri: Uri): SyncResult? = withContext(Dispatchers.IO) {
-        if (uri.scheme != "virtuvpn" || uri.host != "enroll") return@withContext null
-        val token = uri.getQueryParameter("token") ?: return@withContext null
-        val api = uri.getQueryParameter("api") ?: return@withContext null
-        completeEnrollment(context, api, token)
+        val parsed = parseEnrollmentUri(uri) ?: return@withContext null
+        completeEnrollment(context, parsed.apiBaseUrl, parsed.enrollmentToken)
         syncManagedTunnels(context)
     }
 
@@ -48,61 +50,155 @@ object VcsManagedClient {
         val session = requireSession(context)
         val syncUrl = "${session.apiBase}/api/mobile/android/sync?appVersion=${urlEncode(BuildConfig.VERSION_NAME)}&androidVersion=${urlEncode(Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString())}"
         val sync = requestJson("GET", syncUrl, null, session.token)
-        handleUpdateAvailable(context, sync.optJSONObject("update"))
+        val updateVersionName = rememberUpdateAvailable(context, sync.optJSONObject("update"))
         val assignments = sync.optJSONArray("assignments") ?: JSONArray()
+        val commands = sync.optJSONArray("commands") ?: JSONArray()
         val bundledAssignmentIds = mutableSetOf<String>()
         var imported = 0
+        var skippedRunning = 0
         val bundle = sync.optJSONObject("bundle")
+        var bundleLocalTunnelName: String? = null
         if (bundle != null && bundle.optString("config").isNotBlank()) {
-            val localTunnelName = importManagedBundle(context, bundle)
+            val bundleImport = importManagedBundle(context, bundle)
+            val localTunnelName = bundleImport.localTunnelName
+            bundleLocalTunnelName = localTunnelName
             val ids = bundle.optJSONArray("assignmentIds") ?: JSONArray()
             for (i in 0 until ids.length()) bundledAssignmentIds.add(ids.getString(i))
             for (i in 0 until assignments.length()) {
                 val assignment = assignments.getJSONObject(i)
-                if (bundledAssignmentIds.contains(assignment.optString("id"))) assignment.put("localTunnelName", localTunnelName)
+                if (bundledAssignmentIds.contains(assignment.optString("id"))) assignment.put("bundleLocalTunnelName", localTunnelName)
             }
-            imported += 1
+            if (bundleImport.applied) imported += 1
+            if (!bundleImport.current) skippedRunning += 1
         }
         for (i in 0 until assignments.length()) {
             val assignment = assignments.getJSONObject(i)
             if (assignment.optString("status") != "ACTIVE" && assignment.optString("status") != "REISSUE_REQUIRED") continue
-            if (bundledAssignmentIds.contains(assignment.optString("id"))) continue
             if (assignment.optString("kind") != "VPN_ROUTE" && assignment.optString("kind") != "AGENT_GATEWAY_PROFILE") continue
             val assignmentId = assignment.getString("id")
             val provision = requestJson("POST", "${session.apiBase}/api/mobile/android/tunnels/$assignmentId/provision", JSONObject(), session.token)
-            val localTunnelName = importManagedConfig(context, session, provision)
+            val configImport = importManagedConfig(context, session, provision)
+            val localTunnelName = configImport.localTunnelName
             assignment.put("localTunnelName", localTunnelName)
-            imported += 1
+            if (configImport.applied) imported += 1
+            if (!configImport.current) {
+                skippedRunning += 1
+                assignment.put("configUpdateSkipped", "tunnel_running")
+            }
         }
         storeAssignments(context, assignments)
+        processCommands(context, session, commands, assignments, bundleLocalTunnelName)
         val device = sync.optJSONObject("device")
-        SyncResult(imported, assignments.length(), device?.optString("deviceName")?.takeIf { it.isNotBlank() })
+        SyncResult(imported, assignments.length(), device?.optString("deviceName")?.takeIf { it.isNotBlank() }, updateVersionName, skippedRunning)
     }
 
 
-    private fun handleUpdateAvailable(context: Context, update: JSONObject?) {
-        if (update == null || !update.optBoolean("updateAvailable", false)) return
-        val latestVersion = update.optString("latestVersionName").takeIf { it.isNotBlank() } ?: return
-        val apkUrl = update.optString("apkUrl").takeIf { it.isNotBlank() } ?: return
-        openUpdateUrl(context, latestVersion, apkUrl, respectPromptMemory = true)
+    private fun rememberUpdateAvailable(context: Context, update: JSONObject?): String? {
+        if (update == null || !update.optBoolean("updateAvailable", false)) return null
+        val latestVersion = update.optString("latestVersionName").takeIf { it.isNotBlank() } ?: return null
+        val apkUrl = update.optString("apkUrl").takeIf { it.isNotBlank() } ?: return null
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_LAST_UPDATE_PROMPT, latestVersion)
+            .putString(KEY_LAST_UPDATE_URL, apkUrl)
+            .apply()
+        return latestVersion
     }
 
     fun openManagedUpdate(context: Context): Boolean {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val latestVersion = prefs.getString(KEY_LAST_UPDATE_PROMPT, null) ?: return false
         val apkUrl = prefs.getString(KEY_LAST_UPDATE_URL, null) ?: return false
-        return openUpdateUrl(context, latestVersion, apkUrl, respectPromptMemory = false)
+        return downloadStoredUpdate(context, latestVersion, apkUrl)
     }
 
-    private fun openUpdateUrl(context: Context, latestVersion: String, apkUrl: String, respectPromptMemory: Boolean): Boolean {
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (respectPromptMemory && prefs.getString(KEY_LAST_UPDATE_PROMPT, null) == latestVersion) return false
-        prefs.edit().putString(KEY_LAST_UPDATE_URL, apkUrl).apply()
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(apkUrl)).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    suspend fun checkForManagedUpdate(context: Context): UpdateCheck = withContext(Dispatchers.IO) {
+        val session = requireSession(context)
+        val updateUrl = "${session.apiBase}/api/mobile/android/update?appVersion=${urlEncode(BuildConfig.VERSION_NAME)}&androidVersion=${urlEncode(Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString())}"
+        val update = requestJson("GET", updateUrl, null, session.token)
+        val latestVersion = rememberUpdateAvailable(context, update)
+        UpdateCheck(latestVersion != null, latestVersion)
+    }
+
+    fun localTunnelNamesForSection(context: Context, section: String?): Set<String> {
+        if (section.isNullOrBlank()) return emptySet()
+        val assignments = loadAssignments(context)
+        val bundleName = managedBundleTunnelName(assignments)
+        val names = linkedSetOf<String>()
+        for (i in 0 until assignments.length()) {
+            val assignment = assignments.getJSONObject(i)
+            val status = assignment.optString("status")
+            if (status != "ACTIVE" && status != "REISSUE_REQUIRED") continue
+            val localTunnelName = assignment.optString("localTunnelName").takeIf { it.isNotBlank() } ?: continue
+            when (section) {
+                MainActivity.TUNNEL_SECTION_MANAGED_ACCESS -> {
+                    assignment.optString("bundleLocalTunnelName").takeIf { it.isNotBlank() }?.let { names.add(it) }
+                    if (localTunnelName == bundleName) names.add(localTunnelName)
+                }
+                MainActivity.TUNNEL_SECTION_VPN_MESH -> if (assignment.optString("kind") == "VPN_ROUTE" && localTunnelName != bundleName) names.add(localTunnelName)
+                MainActivity.TUNNEL_SECTION_AGENT_GATEWAY -> if (assignment.optString("kind") == "AGENT_GATEWAY_PROFILE" && localTunnelName != bundleName) names.add(localTunnelName)
+            }
         }
+        return names
+    }
+
+    data class WebTerminalLink(
+        val serverName: String?,
+        val url: String,
+        val bindIp: String?,
+        val port: Int?,
+        val requiredTunnelName: String?
+    )
+
+    fun webTerminalForTunnel(context: Context, tunnelName: String?): WebTerminalLink? {
+        if (tunnelName.isNullOrBlank()) return null
+        val assignments = loadAssignments(context)
+        for (i in 0 until assignments.length()) {
+            val assignment = assignments.getJSONObject(i)
+            val localName = assignment.optString("localTunnelName")
+            val bundleName = assignment.optString("bundleLocalTunnelName")
+            if (localName != tunnelName && bundleName != tunnelName) continue
+            val terminal = assignment.optJSONObject("webTerminal") ?: continue
+            val url = terminal.optString("url").takeIf { it.startsWith("http://") || it.startsWith("https://") } ?: continue
+            return WebTerminalLink(
+                serverName = terminal.optString("serverName").takeIf { it.isNotBlank() },
+                url = url,
+                bindIp = terminal.optString("bindIp").takeIf { it.isNotBlank() },
+                port = terminal.optInt("port").takeIf { it > 0 },
+                requiredTunnelName = bundleName.takeIf { it.isNotBlank() } ?: localName.takeIf { it.isNotBlank() }
+            )
+        }
+        return null
+    }
+
+    private fun managedBundleTunnelName(assignments: JSONArray): String? {
+        for (i in 0 until assignments.length()) {
+            val bundleName = assignments.getJSONObject(i).optString("bundleLocalTunnelName").takeIf { it.isNotBlank() }
+            if (bundleName != null) return bundleName
+        }
+        val counts = mutableMapOf<String, Int>()
+        for (i in 0 until assignments.length()) {
+            val name = assignments.getJSONObject(i).optString("localTunnelName").takeIf { it.isNotBlank() } ?: continue
+            counts[name] = (counts[name] ?: 0) + 1
+        }
+        return counts.entries.firstOrNull { it.value > 1 }?.key
+            ?: counts.keys.firstOrNull { it.contains("Managed Access", ignoreCase = true) }
+    }
+
+    private fun downloadStoredUpdate(context: Context, latestVersion: String, apkUrl: String): Boolean {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         return try {
-            context.startActivity(intent)
+            val manager = context.getSystemService(DownloadManager::class.java) ?: return false
+            val fileName = "VirtuVPN-$latestVersion.apk"
+            val request = DownloadManager.Request(Uri.parse(apkUrl))
+                .setTitle(fileName)
+                .setDescription("VirtuVPN update")
+                .setMimeType("application/vnd.android.package-archive")
+                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+                .setAllowedOverMetered(true)
+                .setAllowedOverRoaming(true)
+            manager.enqueue(request)
             prefs.edit().putString(KEY_LAST_UPDATE_PROMPT, latestVersion).putString(KEY_LAST_UPDATE_URL, apkUrl).apply()
             true
         } catch (_: Throwable) {
@@ -130,45 +226,116 @@ object VcsManagedClient {
         }
     }
 
+    private suspend fun processCommands(
+        context: Context,
+        session: Session,
+        commands: JSONArray,
+        assignments: JSONArray,
+        bundleLocalTunnelName: String?
+    ) {
+        for (i in 0 until commands.length()) {
+            val command = commands.getJSONObject(i)
+            val commandId = command.getString("id")
+            val action = command.optString("action")
+            val assignmentId = command.optString("assignmentId").takeIf { it.isNotBlank() && it != "null" }
+            val result = JSONObject()
+            try {
+                val localTunnelName = when (action) {
+                    "managed_bundle_up", "managed_bundle_down" -> bundleLocalTunnelName ?: error("Managed bundle is not imported")
+                    "tunnel_up", "tunnel_down" -> localTunnelNameForAssignment(assignments, assignmentId ?: error("assignmentId is missing"))
+                    "sync_now", "report_state" -> null
+                    else -> error("Unsupported command action: $action")
+                }
+                val state = when (action) {
+                    "managed_bundle_up", "tunnel_up" -> Tunnel.State.UP
+                    "managed_bundle_down", "tunnel_down" -> Tunnel.State.DOWN
+                    else -> null
+                }
+                if (localTunnelName != null && state != null) {
+                    val actualState = setLocalTunnelState(localTunnelName, state)
+                    result.put("state", actualState.name.lowercase(Locale.US))
+                    result.put("localTunnelName", localTunnelName)
+                }
+                if (action == "report_state") reportCurrentStates(context)
+                ackCommand(session, commandId, result.put("ok", true))
+            } catch (e: Throwable) {
+                ackCommand(session, commandId, result.put("ok", false).put("error", e.message ?: e.javaClass.simpleName))
+            }
+        }
+    }
 
-    private suspend fun importManagedBundle(context: Context, bundle: JSONObject): String {
+    private fun localTunnelNameForAssignment(assignments: JSONArray, assignmentId: String): String {
+        for (i in 0 until assignments.length()) {
+            val assignment = assignments.getJSONObject(i)
+            if (assignment.optString("id") == assignmentId) {
+                return assignment.optString("localTunnelName").takeIf { it.isNotBlank() } ?: error("Assignment tunnel is not imported")
+            }
+        }
+        error("Assignment is not stored on this device")
+    }
+
+    private suspend fun setLocalTunnelState(localTunnelName: String, state: Tunnel.State): Tunnel.State = withContext(Dispatchers.Main.immediate) {
+        val tunnel = Application.getTunnelManager().getTunnels()[localTunnelName] ?: error("Tunnel not found: $localTunnelName")
+        tunnel.setStateAsync(state)
+    }
+
+    private fun ackCommand(session: Session, commandId: String, body: JSONObject) {
+        requestJson("POST", "${session.apiBase}/api/mobile/android/commands/$commandId/ack", body, session.token)
+    }
+
+
+    private suspend fun importManagedBundle(context: Context, bundle: JSONObject): ImportResult {
         val configText = bundle.getString("config")
         val preferredName = sanitizeTunnelName(bundle.optString("configFilename", bundle.optString("displayName", "VCS Managed Access")))
         val config = Config.parse(ByteArrayInputStream(configText.toByteArray(StandardCharsets.UTF_8)))
-        withContext(Dispatchers.Main.immediate) {
+        val applied = withContext(Dispatchers.Main.immediate) {
             val manager = Application.getTunnelManager()
             val tunnels = manager.getTunnels()
             val existing = tunnels[preferredName]
             if (existing == null) {
                 manager.create(preferredName, config)
+                ImportResult(preferredName, applied = true, current = true)
+            } else if (existing.getConfigAsync() == config) {
+                ImportResult(preferredName, applied = false, current = true)
+            } else if (existing.state == Tunnel.State.UP) {
+                ImportResult(preferredName, applied = false, current = false)
             } else {
                 existing.setConfigAsync(config)
+                ImportResult(preferredName, applied = true, current = true)
             }
         }
-        return preferredName
+        return applied
     }
 
-    private suspend fun importManagedConfig(context: Context, session: Session, provision: JSONObject): String {
+    private suspend fun importManagedConfig(context: Context, session: Session, provision: JSONObject): ImportResult {
         val configText = provision.getString("config")
         val assignmentId = provision.getString("assignmentId")
         val configVersion = provision.optInt("configVersion", 1)
         val preferredName = sanitizeTunnelName(provision.optString("configFilename", provision.optString("displayName", "vcs-$assignmentId")))
         val config = Config.parse(ByteArrayInputStream(configText.toByteArray(StandardCharsets.UTF_8)))
-        withContext(Dispatchers.Main.immediate) {
+        val applied = withContext(Dispatchers.Main.immediate) {
             val manager = Application.getTunnelManager()
             val tunnels = manager.getTunnels()
             val existing = tunnels[preferredName]
             if (existing == null) {
                 manager.create(preferredName, config)
+                ImportResult(preferredName, applied = true, current = true)
+            } else if (existing.getConfigAsync() == config) {
+                ImportResult(preferredName, applied = false, current = true)
+            } else if (existing.state == Tunnel.State.UP) {
+                ImportResult(preferredName, applied = false, current = false)
             } else {
                 existing.setConfigAsync(config)
+                ImportResult(preferredName, applied = true, current = true)
             }
         }
-        val body = JSONObject()
-            .put("localTunnelName", preferredName)
-            .put("configVersion", configVersion)
-        requestJson("POST", "${session.apiBase}/api/mobile/android/tunnels/$assignmentId/ack-imported", body, session.token)
-        return preferredName
+        if (applied.current) {
+            val body = JSONObject()
+                .put("localTunnelName", preferredName)
+                .put("configVersion", configVersion)
+            requestJson("POST", "${session.apiBase}/api/mobile/android/tunnels/$assignmentId/ack-imported", body, session.token)
+        }
+        return applied
     }
 
     private fun completeEnrollment(context: Context, apiBaseUrl: String, enrollmentToken: String) {
@@ -190,16 +357,28 @@ object VcsManagedClient {
 
     private fun parseEnrollmentPayload(payload: String): EnrollmentPayload {
         val trimmed = payload.trim()
-        if (trimmed.startsWith("virtuvpn://")) {
+        if (trimmed.startsWith("virtuvpn://") || trimmed.startsWith("https://") || trimmed.startsWith("http://")) {
             val uri = Uri.parse(trimmed)
+            return parseEnrollmentUri(uri) ?: error("Enrollment link is not supported")
+        }
+        val json = JSONObject(trimmed)
+        if (json.optString("type") != "vcs_android_enrollment") error("QR is not a VCS Android enrollment payload")
+        return EnrollmentPayload(json.getString("apiBaseUrl"), json.getString("enrollmentToken"))
+    }
+
+    private fun parseEnrollmentUri(uri: Uri): EnrollmentPayload? {
+        if (uri.scheme == "virtuvpn" && uri.host == "enroll") {
             return EnrollmentPayload(
                 uri.getQueryParameter("api") ?: error("Enrollment link is missing api"),
                 uri.getQueryParameter("token") ?: error("Enrollment link is missing token"),
             )
         }
-        val json = JSONObject(trimmed)
-        if (json.optString("type") != "vcs_android_enrollment") error("QR is not a VCS Android enrollment payload")
-        return EnrollmentPayload(json.getString("apiBaseUrl"), json.getString("enrollmentToken"))
+        if ((uri.scheme == "https" || uri.scheme == "http") && uri.path == "/api/mobile/android/enroll/open") {
+            val token = uri.getQueryParameter("token") ?: error("Enrollment link is missing token")
+            val apiBaseUrl = "${uri.scheme}://${uri.authority}"
+            return EnrollmentPayload(apiBaseUrl, token)
+        }
+        return null
     }
 
     private fun requestJson(method: String, url: String, body: JSONObject?, bearerToken: String?): JSONObject {

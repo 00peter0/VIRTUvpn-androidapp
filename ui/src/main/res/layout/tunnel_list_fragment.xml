@@ -45,55 +45,15 @@
 
                 <!-- Header -->
                 <TextView
+                    android:id="@+id/section_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginHorizontal="20dp"
                     android:layout_marginBottom="16dp"
-                    android:text="@string/app_name"
+                    android:text="@string/vcs_tunnels_title"
                     android:textColor="#FFFFFF"
                     android:textSize="24sp"
                     android:textStyle="bold" />
-
-
-                <LinearLayout
-                    android:id="@+id/update_button"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginHorizontal="16dp"
-                    android:layout_marginBottom="12dp"
-                    android:background="@drawable/fastest_button_background"
-                    android:clickable="true"
-                    android:clipToOutline="true"
-                    android:elevation="5dp"
-                    android:focusable="true"
-                    android:foreground="?attr/selectableItemBackground"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:padding="14dp">
-
-                    <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:layout_marginEnd="12dp"
-                        android:src="@drawable/ic_download"
-                        app:tint="#FFFFFF" />
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/vcs_check_updates"
-                        android:textColor="#FFFFFF"
-                        android:textSize="15sp"
-                        android:textStyle="bold" />
-
-                    <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:alpha="0.7"
-                        android:src="@drawable/ic_chevron_right"
-                        app:tint="#FFFFFF" />
-                </LinearLayout>
 
                 <!-- ⚡ Connect to Fastest -->
                 <LinearLayout
@@ -111,7 +71,7 @@
                     android:clipToOutline="true"
                     android:orientation="horizontal"
                     android:padding="18dp"
-                    android:visibility="@{tunnels.size() > 0 ? android.view.View.VISIBLE : android.view.View.GONE}">
+                    android:visibility="gone">
 
                     <ImageView
                         android:layout_width="22dp"
@@ -197,4 +157,3 @@
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 </layout>
-

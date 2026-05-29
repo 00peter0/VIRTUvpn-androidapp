@@ -47,7 +47,7 @@ import kotlin.time.Duration.Companion.seconds
 
 object Updater {
     private const val TAG = "WireGuard/Updater"
-    private const val UPDATE_URL_FMT = "https://virtuvpn.ch/download/%s"
+    private const val UPDATE_URL_FMT = "https://vcs.virtucomputing.com/download/%s"
     private const val APK_NAME_PREFIX = BuildConfig.APPLICATION_ID + "-"
     private const val APK_NAME_SUFFIX = ".apk"
     private const val LATEST_FILE = "latest.sig"

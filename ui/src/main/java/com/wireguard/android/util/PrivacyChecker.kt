@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025-2026 Virtu VPN (virtuvpn.ch). All Rights Reserved.
+ * Copyright © 2025-2026 Virtu VPN (vcs.virtucomputing.com). All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
  * This file is part of Virtu VPN, based on wireguard-android

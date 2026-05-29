@@ -28,8 +28,10 @@ import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import com.wireguard.android.Application
 import com.wireguard.android.R
+import com.wireguard.android.activity.MainActivity
 import com.wireguard.android.activity.TunnelCreatorActivity
 import com.wireguard.android.backend.Tunnel
+import com.wireguard.android.databinding.ObservableKeyedArrayList
 import com.wireguard.android.databinding.ObservableKeyedRecyclerViewAdapter.RowConfigurationHandler
 import com.wireguard.android.databinding.TunnelListFragmentBinding
 import com.wireguard.android.databinding.TunnelListItemBinding
@@ -52,7 +54,9 @@ class TunnelListFragment : BaseFragment() {
     private var actionMode: ActionMode? = null
     private var backPressedCallback: OnBackPressedCallback? = null
     private var binding: TunnelListFragmentBinding? = null
+    private var displayedTunnels: ObservableKeyedArrayList<String, ObservableTunnel>? = null
     private var pingActive = false
+    private var managedSyncActive = false
 
     private val tunnelFileImportResultLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { data ->
         if (data == null) return@registerForActivityResult
@@ -116,7 +120,6 @@ class TunnelListFragment : BaseFragment() {
         val bottomSheet = AddTunnelsSheet()
         binding?.apply {
             fastestButton.setOnClickListener { onFastestButtonClicked() }
-            updateButton.setOnClickListener { onUpdateButtonClicked() }
 
             createFab.setOnClickListener {
                 if (childFragmentManager.findFragmentByTag("BOTTOM_SHEET") != null)
@@ -152,21 +155,9 @@ class TunnelListFragment : BaseFragment() {
 
     // ── Smart Server Picker ──
 
-    private fun onUpdateButtonClicked() {
-        lifecycleScope.launch {
-            try {
-                VcsManagedClient.syncManagedTunnels(requireContext())
-                val opened = VcsManagedClient.openManagedUpdate(requireContext())
-                showSnackbar(getString(if (opened) R.string.vcs_update_opened else R.string.vcs_update_none))
-            } catch (e: Throwable) {
-                showSnackbar(getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName))
-            }
-        }
-    }
-
     private fun onFastestButtonClicked() {
         lifecycleScope.launch {
-            val tunnels = Application.getTunnelManager().getTunnels()
+            val tunnels = displayedTunnels ?: Application.getTunnelManager().getTunnels()
             val fastest = PingManager.findFastest(tunnels)
             if (fastest != null) {
                 selectedTunnel = fastest
@@ -190,7 +181,7 @@ class TunnelListFragment : BaseFragment() {
     private fun startPingTest() {
         lifecycleScope.launch {
             try {
-                val tunnels = Application.getTunnelManager().getTunnels()
+                val tunnels = displayedTunnels ?: Application.getTunnelManager().getTunnels()
                 PingManager.pingAll(tunnels)
             } catch (e: Throwable) {
                 Log.e(TAG, "Ping test failed", e)
@@ -201,8 +192,10 @@ class TunnelListFragment : BaseFragment() {
     override fun onResume() {
         super.onResume()
         pingActive = true
+        managedSyncActive = true
         // Initial ping immediately
         startPingTest()
+        startManagedSyncLoop()
         // Refresh every 30 seconds
         lifecycleScope.launch {
             while (pingActive) {
@@ -214,7 +207,23 @@ class TunnelListFragment : BaseFragment() {
 
     override fun onStop() {
         pingActive = false
+        managedSyncActive = false
         super.onStop()
+    }
+
+    private fun startManagedSyncLoop() {
+        lifecycleScope.launch {
+            while (managedSyncActive) {
+                try {
+                    VcsManagedClient.syncManagedTunnels(requireContext())
+                    VcsManagedClient.reportCurrentStates(requireContext())
+                    refreshTunnelFilter()
+                } catch (e: Throwable) {
+                    Log.d(TAG, "Managed access sync skipped", e)
+                }
+                delay(15_000)
+            }
+        }
     }
 
     // ── Lifecycle ──
@@ -233,8 +242,9 @@ class TunnelListFragment : BaseFragment() {
         binding ?: return
         lifecycleScope.launch {
             val tunnels = Application.getTunnelManager().getTunnels()
-            if (newTunnel != null) viewForTunnel(newTunnel, tunnels)?.setSingleSelected(true)
-            if (oldTunnel != null) viewForTunnel(oldTunnel, tunnels)?.setSingleSelected(false)
+            val visibleTunnels = displayedTunnels ?: tunnels
+            if (newTunnel != null) viewForTunnel(newTunnel, visibleTunnels)?.setSingleSelected(true)
+            if (oldTunnel != null) viewForTunnel(oldTunnel, visibleTunnels)?.setSingleSelected(false)
         }
     }
 
@@ -260,7 +270,7 @@ class TunnelListFragment : BaseFragment() {
         super.onViewStateRestored(savedInstanceState)
         binding ?: return
         binding!!.fragment = this
-        lifecycleScope.launch { binding!!.tunnels = Application.getTunnelManager().getTunnels() }
+        lifecycleScope.launch { refreshTunnelFilter() }
         binding!!.rowConfigurationHandler = object : RowConfigurationHandler<TunnelListItemBinding, ObservableTunnel> {
             override fun onConfigureRow(binding: TunnelListItemBinding, item: ObservableTunnel, position: Int) {
                 binding.fragment = this@TunnelListFragment
@@ -284,9 +294,9 @@ class TunnelListFragment : BaseFragment() {
                 binding.tunnelName.setOnLongClickListener(deleteLongClick)
                 binding.chevron.setOnLongClickListener(deleteLongClick)
                 if (actionMode != null)
-                    (binding.tunnelListItem as MultiselectableRelativeLayout).setMultiSelected(actionModeListener.checkedItems.contains(position))
+                    binding.tunnelListItem.setMultiSelected(actionModeListener.checkedItems.contains(position))
                 else
-                    (binding.tunnelListItem as MultiselectableRelativeLayout).setSingleSelected(selectedTunnel == item)
+                    binding.tunnelListItem.setSingleSelected(selectedTunnel == item)
             }
         }
     }
@@ -299,6 +309,30 @@ class TunnelListFragment : BaseFragment() {
                 .show()
         else
             Toast.makeText(activity ?: Application.get(), message, Toast.LENGTH_SHORT).show()
+    }
+
+    fun refreshTunnelFilter() {
+        val activeBinding = binding ?: return
+        lifecycleScope.launch {
+            val allTunnels = Application.getTunnelManager().getTunnels()
+            val section = requireActivity().intent?.getStringExtra(MainActivity.EXTRA_TUNNEL_SECTION)
+            val sectionTitle = (requireActivity() as? MainActivity)?.titleForTunnelSection(section)
+                ?: getString(R.string.vcs_tunnels_title)
+            val names = VcsManagedClient.localTunnelNamesForSection(requireContext(), section)
+            val filtered = if (section.isNullOrBlank()) {
+                allTunnels
+            } else {
+                ObservableKeyedArrayList<String, ObservableTunnel>().apply {
+                    addAll(allTunnels.filter { names.contains(it.name) })
+                }
+            }
+            displayedTunnels = filtered
+            activeBinding.tunnels = filtered
+            activeBinding.sectionTitle.text = sectionTitle
+            activeBinding.fastestButton.visibility =
+                if (section == MainActivity.TUNNEL_SECTION_VPN_MESH && filtered.isNotEmpty()) View.VISIBLE else View.GONE
+            activeBinding.tunnelList.adapter?.notifyDataSetChanged()
+        }
     }
 
     private fun viewForTunnel(tunnel: ObservableTunnel, tunnels: List<*>): MultiselectableRelativeLayout? {
@@ -325,7 +359,7 @@ class TunnelListFragment : BaseFragment() {
                     }
                     activity.lifecycleScope.launch {
                         try {
-                            val tunnels = Application.getTunnelManager().getTunnels()
+                            val tunnels = displayedTunnels ?: Application.getTunnelManager().getTunnels()
                             val tunnelsToDelete = ArrayList<ObservableTunnel>()
                             for (position in copyCheckedItems) tunnelsToDelete.add(tunnels[position])
                             val futures = tunnelsToDelete.map { async(SupervisorJob()) { it.deleteAsync() } }
@@ -340,7 +374,7 @@ class TunnelListFragment : BaseFragment() {
                 }
                 R.id.menu_action_select_all -> {
                     lifecycleScope.launch {
-                        val tunnels = Application.getTunnelManager().getTunnels()
+                        val tunnels = displayedTunnels ?: Application.getTunnelManager().getTunnels()
                         for (i in 0 until tunnels.size) setItemChecked(i, true)
                     }
                     true
@@ -412,4 +446,3 @@ class TunnelListFragment : BaseFragment() {
         private const val TAG = "WireGuard/TunnelListFragment"
     }
 }
-

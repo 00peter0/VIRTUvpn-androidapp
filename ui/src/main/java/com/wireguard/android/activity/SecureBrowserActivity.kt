@@ -1,0 +1,564 @@
+/*
+ * Copyright © 2026 Virtu VPN. All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+package com.wireguard.android.activity
+
+import android.annotation.SuppressLint
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.util.TypedValue
+import android.view.MotionEvent
+import android.view.View
+import android.view.ViewGroup
+import android.webkit.CookieManager
+import android.webkit.HttpAuthHandler
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import com.wireguard.android.Application
+import com.wireguard.android.R
+import com.wireguard.android.databinding.SecureBrowserActivityBinding
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import org.json.JSONArray
+import java.io.ByteArrayInputStream
+
+class SecureBrowserActivity : AppCompatActivity() {
+    private lateinit var binding: SecureBrowserActivityBinding
+    private var monitorJob: Job? = null
+    private var navigationDragActive = false
+    private var navigationDownRawX = 0f
+    private var navigationDownRawY = 0f
+    private var navigationStartX = 0f
+    private var navigationStartY = 0f
+    @Volatile
+    private var blocked = true
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = SecureBrowserActivityBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        supportActionBar?.apply {
+            setDisplayHomeAsUpEnabled(true)
+            setDisplayShowHomeEnabled(true)
+            setIcon(R.drawable.ic_logo)
+            title = "  ${getString(R.string.vcs_secure_browser_title)}"
+        }
+
+        configureWebView(binding.secureWebview)
+        renderQuickLinks()
+        configureMovableNavigation()
+        updateNavigationButtons()
+        binding.goButton.setOnClickListener { openTypedUrl() }
+        binding.savePageButton.setOnClickListener { saveCurrentPage() }
+        binding.browserBackButton.setOnClickListener { navigateBack() }
+        binding.browserForwardButton.setOnClickListener { navigateForward() }
+        binding.browserReloadButton.setOnClickListener { reloadPage() }
+        binding.urlInput.setOnEditorActionListener { _, _, _ ->
+            openTypedUrl()
+            true
+        }
+        intent.getStringExtra(EXTRA_INITIAL_URL)?.takeIf { it.isNotBlank() }?.let {
+            binding.urlInput.setText(it)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        monitorJob = lifecycleScope.launch {
+            while (isActive) {
+                setBrowserAllowed(isSecureBrowserAllowed())
+                delay(300)
+            }
+        }
+    }
+
+    override fun onPause() {
+        monitorJob?.cancel()
+        monitorJob = null
+        lockBrowser(showToast = false)
+        super.onPause()
+    }
+
+    override fun onDestroy() {
+        binding.secureWebview.stopLoading()
+        binding.secureWebview.loadUrl("about:blank")
+        binding.secureWebview.destroy()
+        super.onDestroy()
+    }
+
+    override fun onSupportNavigateUp(): Boolean {
+        finish()
+        return true
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun configureWebView(webView: WebView) {
+        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, false)
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            databaseEnabled = false
+            allowFileAccess = false
+            allowContentAccess = false
+            allowFileAccessFromFileURLs = false
+            allowUniversalAccessFromFileURLs = false
+            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            setSupportMultipleWindows(false)
+            mediaPlaybackRequiresUserGesture = true
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                safeBrowsingEnabled = true
+            }
+        }
+        webView.setDownloadListener { _, _, _, _, _ ->
+            Toast.makeText(this, R.string.vcs_secure_browser_blocked_detail, Toast.LENGTH_SHORT).show()
+        }
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                if (blocked || !isAllowedBrowserUrl(request.url)) {
+                    lockBrowser(showToast = blocked.not())
+                    return true
+                }
+                return false
+            }
+
+            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+                if (blocked || !isAllowedBrowserUrl(request.url)) return blockedResponse()
+                return null
+            }
+
+            override fun onPageFinished(view: WebView, url: String?) {
+                super.onPageFinished(view, url)
+                if (!url.isNullOrBlank() && url != "about:blank") {
+                    binding.urlInput.setText(url)
+                }
+                updateNavigationButtons()
+            }
+
+            override fun onReceivedHttpAuthRequest(view: WebView, handler: HttpAuthHandler, host: String, realm: String) {
+                val credentials = credentialsForHost(host)
+                if (credentials == null) {
+                    handler.cancel()
+                    return
+                }
+                handler.proceed(credentials.first, credentials.second)
+            }
+        }
+    }
+
+    private fun openTypedUrl() {
+        val url = normalizeUrl(binding.urlInput.text?.toString().orEmpty())
+        if (url == null) return
+        val uri = Uri.parse(url)
+        if (!isAllowedBrowserUrl(uri)) {
+            Toast.makeText(this, R.string.vcs_secure_browser_blocked_public_http, Toast.LENGTH_LONG).show()
+            return
+        }
+        lifecycleScope.launch {
+            if (!isSecureBrowserAllowed()) {
+                setBrowserAllowed(false)
+                Toast.makeText(this@SecureBrowserActivity, R.string.vcs_secure_browser_stopped, Toast.LENGTH_LONG).show()
+                return@launch
+            }
+            setBrowserAllowed(true)
+            binding.secureWebview.loadUrl(url)
+            updateNavigationButtons()
+        }
+    }
+
+    private fun navigateBack() {
+        if (blocked || !binding.secureWebview.canGoBack()) return
+        binding.secureWebview.goBack()
+        updateNavigationButtons()
+    }
+
+    private fun navigateForward() {
+        if (blocked || !binding.secureWebview.canGoForward()) return
+        binding.secureWebview.goForward()
+        updateNavigationButtons()
+    }
+
+    private fun reloadPage() {
+        if (blocked || binding.secureWebview.url.isNullOrBlank() || binding.secureWebview.url == "about:blank") return
+        binding.secureWebview.reload()
+        updateNavigationButtons()
+    }
+
+    private fun updateNavigationButtons() {
+        val canNavigate = !blocked
+        binding.browserBackButton.isEnabled = canNavigate && binding.secureWebview.canGoBack()
+        binding.browserForwardButton.isEnabled = canNavigate && binding.secureWebview.canGoForward()
+        binding.browserReloadButton.isEnabled = canNavigate &&
+            !binding.secureWebview.url.isNullOrBlank() &&
+            binding.secureWebview.url != "about:blank"
+        setButtonAlpha(binding.browserBackButton)
+        setButtonAlpha(binding.browserForwardButton)
+        setButtonAlpha(binding.browserReloadButton)
+    }
+
+    private fun setButtonAlpha(view: View) {
+        view.alpha = if (view.isEnabled) 1f else 0.42f
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun configureMovableNavigation() {
+        val dragTouchListener = View.OnTouchListener { view, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    navigationDownRawX = event.rawX
+                    navigationDownRawY = event.rawY
+                    navigationStartX = binding.browserNavigationPad.x
+                    navigationStartY = binding.browserNavigationPad.y
+                    false
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    if (!navigationDragActive) return@OnTouchListener false
+                    moveNavigationPad(
+                        navigationStartX + event.rawX - navigationDownRawX,
+                        navigationStartY + event.rawY - navigationDownRawY
+                    )
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    if (!navigationDragActive) return@OnTouchListener false
+                    navigationDragActive = false
+                    binding.browserViewContainer.requestDisallowInterceptTouchEvent(false)
+                    saveNavigationPadPosition()
+                    true
+                }
+                else -> false
+            }
+        }
+        val dragLongClickListener = View.OnLongClickListener {
+            navigationDragActive = true
+            binding.browserViewContainer.requestDisallowInterceptTouchEvent(true)
+            true
+        }
+        listOf(
+            binding.browserNavigationPad,
+            binding.browserReloadButton,
+            binding.browserBackButton,
+            binding.browserForwardButton
+        ).forEach { view ->
+            view.setOnTouchListener(dragTouchListener)
+            view.setOnLongClickListener(dragLongClickListener)
+        }
+
+        binding.browserNavigationPad.post { restoreNavigationPadPosition() }
+    }
+
+    private fun moveNavigationPad(targetX: Float, targetY: Float) {
+        val parent = binding.browserViewContainer
+        val pad = binding.browserNavigationPad
+        val maxX = (parent.width - pad.width).coerceAtLeast(0).toFloat()
+        val maxY = (parent.height - pad.height).coerceAtLeast(0).toFloat()
+        pad.x = targetX.coerceIn(0f, maxX)
+        pad.y = targetY.coerceIn(0f, maxY)
+    }
+
+    private fun saveNavigationPadPosition() {
+        getPreferences(MODE_PRIVATE)
+            .edit()
+            .putFloat(PREF_NAVIGATION_PAD_X, binding.browserNavigationPad.x)
+            .putFloat(PREF_NAVIGATION_PAD_Y, binding.browserNavigationPad.y)
+            .apply()
+    }
+
+    private fun restoreNavigationPadPosition() {
+        val preferences = getPreferences(MODE_PRIVATE)
+        if (!preferences.contains(PREF_NAVIGATION_PAD_X) || !preferences.contains(PREF_NAVIGATION_PAD_Y)) return
+        moveNavigationPad(
+            preferences.getFloat(PREF_NAVIGATION_PAD_X, binding.browserNavigationPad.x),
+            preferences.getFloat(PREF_NAVIGATION_PAD_Y, binding.browserNavigationPad.y)
+        )
+    }
+
+    private fun normalizeUrl(value: String): String? {
+        val trimmed = value.trim()
+        if (trimmed.isBlank()) return null
+        val withScheme = if (trimmed.contains("://")) trimmed else "https://$trimmed"
+        val uri = Uri.parse(withScheme)
+        val scheme = uri.scheme?.lowercase()
+        if (scheme != "https" && scheme != "http") return null
+        if (uri.host.isNullOrBlank()) return null
+        return uri.toString()
+    }
+
+    private fun credentialsForHost(host: String): Pair<String, String>? {
+        val candidates = listOf(
+            binding.urlInput.text?.toString().orEmpty(),
+            binding.secureWebview.originalUrl.orEmpty(),
+            binding.secureWebview.url.orEmpty(),
+            intent.getStringExtra(EXTRA_INITIAL_URL).orEmpty()
+        )
+        for (candidate in candidates) {
+            val uri = runCatching { Uri.parse(candidate) }.getOrNull() ?: continue
+            val uriHost = uri.host ?: continue
+            if (!uriHost.equals(host, ignoreCase = true)) continue
+            val userInfo = uri.encodedUserInfo ?: uri.userInfo ?: continue
+            val parts = userInfo.split(":", limit = 2)
+            if (parts.size != 2 || parts[0].isBlank() || parts[1].isBlank()) continue
+            return Uri.decode(parts[0]) to Uri.decode(parts[1])
+        }
+        return null
+    }
+
+    private fun renderQuickLinks() {
+        binding.quickLinksRow.removeAllViews()
+        bookmarkedUrls().forEach { url ->
+            binding.quickLinksRow.addView(quickLinkButton(bookmarkLabel(url), url))
+        }
+    }
+
+    private fun quickLinkButton(label: String, url: String): TextView {
+        return TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                dp(40)
+            ).also {
+                it.marginEnd = dp(8)
+            }
+            background = getDrawable(R.drawable.fastest_button_background)
+            val outValue = TypedValue()
+            theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
+            foreground = getDrawable(outValue.resourceId)
+            isClickable = true
+            isFocusable = true
+            gravity = android.view.Gravity.CENTER
+            minWidth = dp(96)
+            setPadding(dp(16), 0, dp(16), 0)
+            text = label
+            setTextColor(getColor(android.R.color.white))
+            textSize = 13f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setOnClickListener {
+                binding.urlInput.setText(url)
+                openTypedUrl()
+            }
+            setOnLongClickListener {
+                confirmDeleteBookmark(url)
+                true
+            }
+        }
+    }
+
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
+
+    private fun saveCurrentPage() {
+        val currentValue = binding.secureWebview.url?.takeUnless { it == "about:blank" }
+            ?: binding.urlInput.text?.toString().orEmpty()
+        val url = normalizeUrl(currentValue)
+        if (url == null) return
+        val uri = Uri.parse(url)
+        if (!isAllowedBrowserUrl(uri)) {
+            Toast.makeText(this, R.string.vcs_secure_browser_blocked_public_http, Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val urls = bookmarkedUrls().toMutableList()
+        if (urls.any { it.equals(url, ignoreCase = true) }) {
+            Toast.makeText(this, R.string.vcs_secure_browser_bookmark_exists, Toast.LENGTH_SHORT).show()
+            return
+        }
+        urls.add(url)
+        saveBookmarkedUrls(urls)
+        renderQuickLinks()
+        Toast.makeText(this, R.string.vcs_secure_browser_bookmark_saved, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun confirmDeleteBookmark(url: String) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.vcs_secure_browser_delete_bookmark_title)
+            .setMessage(bookmarkLabel(url))
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.delete) { _, _ -> deleteBookmark(url) }
+            .show()
+    }
+
+    private fun deleteBookmark(url: String) {
+        val hiddenDefaults = hiddenDefaultBookmarks().toMutableSet()
+        if (DEFAULT_BOOKMARKS.any { it.equals(url, ignoreCase = true) }) {
+            hiddenDefaults.add(url.lowercase())
+        }
+        val urls = bookmarkedUrls()
+            .filterNot { it.equals(url, ignoreCase = true) }
+        saveBookmarkedUrls(urls, hiddenDefaults)
+        renderQuickLinks()
+        Toast.makeText(this, R.string.vcs_secure_browser_bookmark_deleted, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun bookmarkedUrls(): List<String> {
+        val stored = getPreferences(MODE_PRIVATE).getString(PREF_BOOKMARKS, null)
+        val saved = if (stored.isNullOrBlank()) {
+            emptyList()
+        } else {
+            runCatching {
+                val array = JSONArray(stored)
+                (0 until array.length()).mapNotNull { index -> array.optString(index).takeIf { it.isNotBlank() } }
+            }.getOrDefault(emptyList())
+        }
+        val hiddenDefaults = hiddenDefaultBookmarks()
+        val defaults = DEFAULT_BOOKMARKS.filterNot { hiddenDefaults.contains(it.lowercase()) }
+        return (defaults + saved).distinctBy { it.lowercase() }
+    }
+
+    private fun saveBookmarkedUrls(urls: List<String>, hiddenDefaults: Set<String> = hiddenDefaultBookmarks()) {
+        val customUrls = urls.filterNot { url ->
+            DEFAULT_BOOKMARKS.any { it.equals(url, ignoreCase = true) }
+        }
+        getPreferences(MODE_PRIVATE)
+            .edit()
+            .putString(PREF_BOOKMARKS, JSONArray(customUrls).toString())
+            .putString(PREF_HIDDEN_DEFAULT_BOOKMARKS, JSONArray(hiddenDefaults.toList()).toString())
+            .apply()
+    }
+
+    private fun hiddenDefaultBookmarks(): Set<String> {
+        val stored = getPreferences(MODE_PRIVATE).getString(PREF_HIDDEN_DEFAULT_BOOKMARKS, null)
+        if (stored.isNullOrBlank()) return emptySet()
+        return runCatching {
+            val array = JSONArray(stored)
+            (0 until array.length()).mapNotNull { index ->
+                array.optString(index).takeIf { it.isNotBlank() }?.lowercase()
+            }.toSet()
+        }.getOrDefault(emptySet())
+    }
+
+    private fun bookmarkLabel(url: String): String {
+        val uri = Uri.parse(url)
+        if (url.equals(GOOGLE_URL, ignoreCase = true)) return getString(R.string.vcs_secure_browser_bookmark_google)
+        return uri.host?.removePrefix("www.") ?: url
+    }
+
+    private suspend fun isSecureBrowserAllowed(): Boolean = withContext(Dispatchers.IO) {
+        val tunnelUp = runCatching { Application.getBackend().runningTunnelNames.isNotEmpty() }.getOrDefault(false)
+        tunnelUp && hasVpnNetwork()
+    }
+
+    private fun setBrowserAllowed(allowed: Boolean) {
+        if (allowed) {
+            blocked = false
+            binding.vpnBlocker.visibility = View.GONE
+            binding.secureWebview.visibility = View.VISIBLE
+            val initialUrl = binding.urlInput.text?.toString().orEmpty()
+            if (binding.secureWebview.url.isNullOrBlank() || binding.secureWebview.url == "about:blank") {
+                normalizeUrl(initialUrl)?.takeIf { isAllowedBrowserUrl(Uri.parse(it)) }?.let { binding.secureWebview.loadUrl(it) }
+            }
+        } else {
+            lockBrowser(showToast = !blocked)
+            binding.secureWebview.visibility = View.GONE
+            binding.vpnBlocker.visibility = View.VISIBLE
+        }
+        updateNavigationButtons()
+    }
+
+    private fun lockBrowser(showToast: Boolean) {
+        if (showToast) {
+            Toast.makeText(this, R.string.vcs_secure_browser_stopped, Toast.LENGTH_LONG).show()
+        }
+        if (!blocked) {
+            stopBrowser()
+        }
+        blocked = true
+    }
+
+    private fun stopBrowser() {
+        binding.secureWebview.stopLoading()
+        binding.secureWebview.loadUrl("about:blank")
+    }
+
+    private fun blockedResponse(): WebResourceResponse =
+        WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream(ByteArray(0)))
+
+    private fun hasVpnNetwork(): Boolean {
+        val connectivityManager = getSystemService(ConnectivityManager::class.java) ?: return false
+        val activeNetwork = connectivityManager.activeNetwork
+        val activeCaps = activeNetwork?.let { connectivityManager.getNetworkCapabilities(it) }
+        if (activeCaps?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true) return true
+
+        return connectivityManager.allNetworks.any { network ->
+            connectivityManager.getNetworkCapabilities(network)
+                ?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+        }
+    }
+
+    private fun isAllowedBrowserUrl(uri: Uri): Boolean {
+        return when (uri.scheme?.lowercase()) {
+            "https" -> !uri.host.isNullOrBlank()
+            "http" -> isPrivateHttpHost(uri.host)
+            "wss" -> !uri.host.isNullOrBlank()
+            "ws" -> isPrivateHttpHost(uri.host)
+            "about", "data", "blob" -> true
+            else -> false
+        }
+    }
+
+    private fun isPrivateHttpHost(host: String?): Boolean {
+        val normalized = host
+            ?.trim()
+            ?.lowercase()
+            ?.removePrefix("[")
+            ?.removeSuffix("]")
+            ?: return false
+        if (normalized == "localhost") return true
+        if (!normalized.contains('.')) return true
+        if (normalized.endsWith(".local") ||
+            normalized.endsWith(".lan") ||
+            normalized.endsWith(".internal") ||
+            normalized.endsWith(".home") ||
+            normalized.endsWith(".test") ||
+            normalized.endsWith(".vcs")
+        ) return true
+        return isPrivateIpv4(normalized) || isPrivateIpv6(normalized)
+    }
+
+    private fun isPrivateIpv4(host: String): Boolean {
+        val octets = host.split('.')
+        if (octets.size != 4) return false
+        val values = octets.map { it.toIntOrNull() ?: return false }
+        if (values.any { it !in 0..255 }) return false
+        val first = values[0]
+        val second = values[1]
+        return first == 10 ||
+            first == 127 ||
+            first == 169 && second == 254 ||
+            first == 172 && second in 16..31 ||
+            first == 192 && second == 168 ||
+            first == 100 && second in 64..127
+    }
+
+    private fun isPrivateIpv6(host: String): Boolean {
+        return host == "::1" ||
+            host.startsWith("fc") ||
+            host.startsWith("fd") ||
+            host.startsWith("fe80:")
+    }
+
+    companion object {
+        private const val PREF_BOOKMARKS = "secure_browser_bookmarks"
+        private const val PREF_HIDDEN_DEFAULT_BOOKMARKS = "secure_browser_hidden_default_bookmarks"
+        private const val PREF_NAVIGATION_PAD_X = "secure_browser_navigation_pad_x"
+        private const val PREF_NAVIGATION_PAD_Y = "secure_browser_navigation_pad_y"
+        const val EXTRA_INITIAL_URL = "com.wireguard.android.extra.SECURE_BROWSER_INITIAL_URL"
+        private const val GOOGLE_URL = "https://www.google.com/"
+        private val DEFAULT_BOOKMARKS = listOf(GOOGLE_URL)
+    }
+}
