@@ -290,14 +290,15 @@ object VcsManagedClient {
             val result = JSONObject()
             try {
                 val localTunnelName = when (action) {
-                    "managed_bundle_up", "managed_bundle_down" -> bundleLocalTunnelName ?: error("Managed bundle is not imported")
+                    // managed_cluster_* are the current names; managed_bundle_* kept for backward compatibility.
+                    "managed_cluster_up", "managed_cluster_down", "managed_bundle_up", "managed_bundle_down" -> bundleLocalTunnelName ?: error("Managed cluster is not imported")
                     "tunnel_up", "tunnel_down" -> localTunnelNameForAssignment(assignments, assignmentId ?: error("assignmentId is missing"))
                     "sync_now", "report_state" -> null
                     else -> error("Unsupported command action: $action")
                 }
                 val state = when (action) {
-                    "managed_bundle_up", "tunnel_up" -> Tunnel.State.UP
-                    "managed_bundle_down", "tunnel_down" -> Tunnel.State.DOWN
+                    "managed_cluster_up", "managed_bundle_up", "tunnel_up" -> Tunnel.State.UP
+                    "managed_cluster_down", "managed_bundle_down", "tunnel_down" -> Tunnel.State.DOWN
                     else -> null
                 }
                 if (localTunnelName != null && state != null) {
