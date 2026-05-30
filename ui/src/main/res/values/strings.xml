@@ -339,8 +339,8 @@
     <string name="vcs_sync_running">Syncing VCS tunnels…</string>
     <string name="vcs_sync_no_assignments">Sync complete: no tunnels are assigned to this device</string>
     <string name="vcs_sync_checked_no_imports">Sync complete: checked %1$d assigned tunnels, nothing new imported</string>
-    <string name="vcs_sync_bundle_pending">Managed Access is ready to finish in VCS App. Build the bundle there, then sync again.</string>
-    <string name="vcs_managed_access_pending_empty">Managed Access is prepared in VCS App. Build the bundle there, then sync again to show it here.</string>
+    <string name="vcs_sync_bundle_pending">Managed Access is ready to finish in VCS App. Build the cluster there, then sync again.</string>
+    <string name="vcs_managed_access_pending_empty">Managed Access is prepared in VCS App. Build the cluster there, then sync again to show it here.</string>
     <string name="vcs_sync_skipped_running">Sync found %1$d tunnel config update(s), but the tunnel is running. Turn the tunnel off and sync again to apply safely.</string>
     <string name="vcs_sync_success">VCS sync complete: imported %1$d of %2$d assigned tunnels</string>
     <string name="vcs_sync_error">VCS sync failed: %1$s</string>
