@@ -88,7 +88,7 @@ class TunnelListFragment : BaseFragment() {
                 if (qrCode.contains("vcs_android_enrollment") || qrCode.startsWith("virtuvpn://enroll")) {
                     try {
                         val result = VcsManagedClient.handleEnrollmentPayload(activity, qrCode)
-                        showSnackbar(getString(R.string.vcs_sync_success, result.imported, result.assigned))
+                        showSnackbar(syncResultMessage(result))
                     } catch (e: Throwable) {
                         showSnackbar(getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName))
                     }
@@ -226,6 +226,16 @@ class TunnelListFragment : BaseFragment() {
         }
     }
 
+    private fun syncResultMessage(result: VcsManagedClient.SyncResult): String {
+        return when {
+            result.skippedRunning > 0 -> getString(R.string.vcs_sync_skipped_running, result.skippedRunning)
+            result.pendingBundleAssignments > 0 -> getString(R.string.vcs_sync_bundle_pending, result.pendingBundleAssignments)
+            result.assigned == 0 -> getString(R.string.vcs_sync_no_assignments)
+            result.imported == 0 -> getString(R.string.vcs_sync_checked_no_imports, result.assigned)
+            else -> getString(R.string.vcs_sync_success, result.imported, result.assigned)
+        }
+    }
+
     // ── Lifecycle ──
 
     override fun onDestroyView() {
@@ -329,6 +339,16 @@ class TunnelListFragment : BaseFragment() {
             displayedTunnels = filtered
             activeBinding.tunnels = filtered
             activeBinding.sectionTitle.text = sectionTitle
+            val pendingManagedAccess = if (section == MainActivity.TUNNEL_SECTION_MANAGED_ACCESS) {
+                VcsManagedClient.pendingManagedAccessAssignments(requireContext())
+            } else {
+                0
+            }
+            activeBinding.emptyStateText.text = if (pendingManagedAccess > 0 && filtered.isEmpty()) {
+                getString(R.string.vcs_managed_access_pending_empty, pendingManagedAccess)
+            } else {
+                getString(R.string.tunnel_list_placeholder)
+            }
             activeBinding.fastestButton.visibility =
                 if (section == MainActivity.TUNNEL_SECTION_VPN_MESH && filtered.isNotEmpty()) View.VISIBLE else View.GONE
             activeBinding.tunnelList.adapter?.notifyDataSetChanged()

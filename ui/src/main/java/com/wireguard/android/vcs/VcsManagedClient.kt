@@ -26,11 +26,19 @@ object VcsManagedClient {
     private const val KEY_ACCESS_TOKEN = "access_token"
     private const val KEY_DEVICE_ID = "device_id"
     private const val KEY_ASSIGNMENTS = "assignments"
+    private const val KEY_PENDING_BUNDLE_ASSIGNMENTS = "pending_bundle_assignments"
     private const val KEY_LAST_UPDATE_PROMPT = "last_update_prompt"
     private const val KEY_LAST_UPDATE_URL = "last_update_url"
     private const val TIMEOUT_MS = 15_000
 
-    data class SyncResult(val imported: Int, val assigned: Int, val deviceName: String?, val updateVersionName: String?, val skippedRunning: Int)
+    data class SyncResult(
+        val imported: Int,
+        val assigned: Int,
+        val deviceName: String?,
+        val updateVersionName: String?,
+        val skippedRunning: Int,
+        val pendingBundleAssignments: Int
+    )
     data class UpdateCheck(val available: Boolean, val versionName: String?)
     private data class ImportResult(val localTunnelName: String, val applied: Boolean, val current: Boolean)
 
@@ -52,6 +60,13 @@ object VcsManagedClient {
         val sync = requestJson("GET", syncUrl, null, session.token)
         val updateVersionName = rememberUpdateAvailable(context, sync.optJSONObject("update"))
         val assignments = sync.optJSONArray("assignments") ?: JSONArray()
+        val bundleAssignments = sync.optJSONArray("bundleAssignments") ?: JSONArray()
+        val bundleState = sync.optJSONObject("bundleState")
+        val pendingBundleAssignments = if (bundleState?.optString("status") == "PENDING_BUILD") {
+            bundleState.optInt("selectedCount", bundleAssignments.length())
+        } else {
+            0
+        }
         val commands = sync.optJSONArray("commands") ?: JSONArray()
         val bundledAssignmentIds = mutableSetOf<String>()
         var imported = 0
@@ -67,6 +82,11 @@ object VcsManagedClient {
             for (i in 0 until assignments.length()) {
                 val assignment = assignments.getJSONObject(i)
                 if (bundledAssignmentIds.contains(assignment.optString("id"))) assignment.put("bundleLocalTunnelName", localTunnelName)
+            }
+            for (i in 0 until bundleAssignments.length()) {
+                val assignment = bundleAssignments.getJSONObject(i)
+                assignment.put("bundleLocalTunnelName", localTunnelName)
+                assignment.put("localTunnelName", localTunnelName)
             }
             if (bundleImport.applied) imported += 1
             if (!bundleImport.current) skippedRunning += 1
@@ -86,10 +106,23 @@ object VcsManagedClient {
                 assignment.put("configUpdateSkipped", "tunnel_running")
             }
         }
-        storeAssignments(context, assignments)
-        processCommands(context, session, commands, assignments, bundleLocalTunnelName)
+        val storedAssignments = JSONArray()
+        for (i in 0 until assignments.length()) storedAssignments.put(assignments.getJSONObject(i))
+        if (bundleLocalTunnelName != null) {
+            for (i in 0 until bundleAssignments.length()) storedAssignments.put(bundleAssignments.getJSONObject(i))
+        }
+        storeAssignments(context, storedAssignments)
+        storePendingBundleAssignments(context, pendingBundleAssignments)
+        processCommands(context, session, commands, storedAssignments, bundleLocalTunnelName)
         val device = sync.optJSONObject("device")
-        SyncResult(imported, assignments.length(), device?.optString("deviceName")?.takeIf { it.isNotBlank() }, updateVersionName, skippedRunning)
+        SyncResult(
+            imported,
+            storedAssignments.length() + pendingBundleAssignments,
+            device?.optString("deviceName")?.takeIf { it.isNotBlank() },
+            updateVersionName,
+            skippedRunning,
+            pendingBundleAssignments
+        )
     }
 
 
@@ -140,6 +173,10 @@ object VcsManagedClient {
             }
         }
         return names
+    }
+
+    fun pendingManagedAccessAssignments(context: Context): Int {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(KEY_PENDING_BUNDLE_ASSIGNMENTS, 0)
     }
 
     data class WebTerminalLink(
@@ -427,6 +464,10 @@ object VcsManagedClient {
 
     private fun storeAssignments(context: Context, assignments: JSONArray) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_ASSIGNMENTS, assignments.toString()).apply()
+    }
+
+    private fun storePendingBundleAssignments(context: Context, count: Int) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt(KEY_PENDING_BUNDLE_ASSIGNMENTS, count).apply()
     }
 
     private fun loadAssignments(context: Context): JSONArray {

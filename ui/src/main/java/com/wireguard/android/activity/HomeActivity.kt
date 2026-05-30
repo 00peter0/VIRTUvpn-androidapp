@@ -88,6 +88,7 @@ class HomeActivity : AppCompatActivity() {
     private fun syncResultMessage(result: VcsManagedClient.SyncResult): String {
         return when {
             result.skippedRunning > 0 -> getString(R.string.vcs_sync_skipped_running, result.skippedRunning)
+            result.pendingBundleAssignments > 0 -> getString(R.string.vcs_sync_bundle_pending, result.pendingBundleAssignments)
             result.assigned == 0 -> getString(R.string.vcs_sync_no_assignments)
             result.imported == 0 -> getString(R.string.vcs_sync_checked_no_imports, result.assigned)
             else -> getString(R.string.vcs_sync_success, result.imported, result.assigned)

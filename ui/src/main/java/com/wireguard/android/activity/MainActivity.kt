@@ -107,12 +107,22 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
         (supportFragmentManager.findFragmentByTag("LIST") as? TunnelListFragment)?.refreshTunnelFilter()
     }
 
+    private fun syncResultMessage(result: VcsManagedClient.SyncResult): String {
+        return when {
+            result.skippedRunning > 0 -> getString(R.string.vcs_sync_skipped_running, result.skippedRunning)
+            result.pendingBundleAssignments > 0 -> getString(R.string.vcs_sync_bundle_pending, result.pendingBundleAssignments)
+            result.assigned == 0 -> getString(R.string.vcs_sync_no_assignments)
+            result.imported == 0 -> getString(R.string.vcs_sync_checked_no_imports, result.assigned)
+            else -> getString(R.string.vcs_sync_success, result.imported, result.assigned)
+        }
+    }
+
     private fun handleVcsEnrollmentIntent(intent: Intent?) {
         val uri = intent?.data ?: return
         lifecycleScope.launch {
             try {
                 val result = VcsManagedClient.handleEnrollmentUri(this@MainActivity, uri) ?: return@launch
-                Toast.makeText(this@MainActivity, getString(R.string.vcs_sync_success, result.imported, result.assigned), Toast.LENGTH_LONG).show()
+                Toast.makeText(this@MainActivity, syncResultMessage(result), Toast.LENGTH_LONG).show()
             } catch (e: Throwable) {
                 Toast.makeText(this@MainActivity, getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
             }
@@ -145,12 +155,7 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
                         val result = VcsManagedClient.syncManagedTunnels(this@MainActivity)
                         VcsManagedClient.reportCurrentStates(this@MainActivity)
                         refreshTunnelSection()
-                        val message = if (result.skippedRunning > 0) {
-                            getString(R.string.vcs_sync_skipped_running, result.skippedRunning)
-                        } else {
-                            getString(R.string.vcs_sync_success, result.imported, result.assigned)
-                        }
-                        Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@MainActivity, syncResultMessage(result), Toast.LENGTH_LONG).show()
                     } catch (e: Throwable) {
                         Toast.makeText(this@MainActivity, getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
                     }
