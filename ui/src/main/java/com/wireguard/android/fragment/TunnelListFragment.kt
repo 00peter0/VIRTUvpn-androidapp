@@ -117,32 +117,30 @@ class TunnelListFragment : BaseFragment() {
     ): View? {
         super.onCreateView(inflater, container, savedInstanceState)
         binding = TunnelListFragmentBinding.inflate(inflater, container, false)
-        val bottomSheet = AddTunnelsSheet()
         binding?.apply {
             fastestButton.setOnClickListener { onFastestButtonClicked() }
 
+            // Adding tunnels is locked to VCS sync — the FAB (VCS logo) runs a sync.
             createFab.setOnClickListener {
-                if (childFragmentManager.findFragmentByTag("BOTTOM_SHEET") != null)
-                    return@setOnClickListener
-                childFragmentManager.setFragmentResultListener(AddTunnelsSheet.REQUEST_KEY_NEW_TUNNEL, viewLifecycleOwner) { _, bundle ->
-                    when (bundle.getString(AddTunnelsSheet.REQUEST_METHOD)) {
-                        AddTunnelsSheet.REQUEST_CREATE -> {
-                            startActivity(Intent(requireActivity(), TunnelCreatorActivity::class.java))
-                        }
-                        AddTunnelsSheet.REQUEST_IMPORT -> {
-                            tunnelFileImportResultLauncher.launch("*/*")
-                        }
-                        AddTunnelsSheet.REQUEST_SCAN -> {
-                            qrImportResultLauncher.launch(
-                                ScanOptions()
-                                    .setOrientationLocked(false)
-                                    .setBeepEnabled(false)
-                                    .setPrompt(getString(R.string.qr_code_hint))
-                            )
-                        }
+                val ctx = requireContext()
+                showSnackbar(getString(R.string.vcs_sync_running))
+                lifecycleScope.launch {
+                    try {
+                        val result = VcsManagedClient.syncManagedTunnels(ctx)
+                        VcsManagedClient.reportCurrentStates(ctx)
+                        showSnackbar(
+                            when {
+                                result.skippedRunning > 0 -> getString(R.string.vcs_sync_skipped_running, result.skippedRunning)
+                                result.pendingBundleAssignments > 0 -> getString(R.string.vcs_sync_bundle_pending, result.pendingBundleAssignments)
+                                result.assigned == 0 -> getString(R.string.vcs_sync_no_assignments)
+                                result.imported == 0 -> getString(R.string.vcs_sync_checked_no_imports, result.assigned)
+                                else -> getString(R.string.vcs_sync_success, result.imported, result.assigned)
+                            }
+                        )
+                    } catch (e: Throwable) {
+                        showSnackbar(getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName))
                     }
                 }
-                bottomSheet.showNow(childFragmentManager, "BOTTOM_SHEET")
             }
             executePendingBindings()
             snackbarUpdateShower.attach(mainContainer, createFab)

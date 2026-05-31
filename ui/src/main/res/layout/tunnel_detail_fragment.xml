@@ -37,12 +37,14 @@
                 android:orientation="vertical"
                 android:paddingHorizontal="16dp"
                 android:paddingTop="28dp"
-                android:paddingBottom="24dp">
+                android:paddingBottom="96dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/stat_card_background"
+                    android:background="@drawable/fastest_button_background"
+                    android:clipToOutline="true"
+                    android:elevation="5dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:padding="16dp">
@@ -75,7 +77,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:text="@{tunnel.state == State.UP ? @string/status_connected : @string/status_disconnected}"
+                            android:text="@{tunnel.state == State.UP ? @string/status_vpn_live : @string/status_disconnected}"
                             android:textColor="@{tunnel.state == State.UP ? @color/vpn_connected : @color/vpn_disconnected}"
                             android:textSize="13sp"
                             tools:text="Connected" />
@@ -91,15 +93,21 @@
                 </LinearLayout>
 
                 <LinearLayout
+                    android:id="@+id/public_identity_card"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:background="@drawable/stat_card_background"
+                    android:background="@drawable/fastest_button_background"
+                    android:clickable="true"
+                    android:clipToOutline="true"
+                    android:elevation="5dp"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"
                     android:orientation="vertical"
                     android:padding="14dp">
 
                     <LinearLayout
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="center_vertical">
 
@@ -107,36 +115,67 @@
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:layout_marginEnd="6dp"
-                            android:src="@drawable/ic_device"
-                            app:tint="#8899AA" />
+                            android:src="@drawable/ic_web"
+                            app:tint="#AFC0CC" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/stat_public_identity"
+                            android:textColor="#AFC0CC"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="@string/stat_your_ip"
-                            android:textColor="#8899AA"
-                            android:textSize="12sp"
-                            android:textStyle="bold" />
+                            android:text="@string/stat_tap_recheck"
+                            android:textColor="#7FA8B8"
+                            android:textSize="10sp" />
                     </LinearLayout>
 
                     <TextView
-                        android:id="@+id/your_ip_value"
+                        android:id="@+id/public_identity_ip"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:text="@string/stat_no_data"
+                        android:fontFamily="monospace"
+                        android:text="@string/stat_checking"
                         android:textColor="#FFFFFF"
                         android:textIsSelectable="true"
-                        android:textSize="14sp"
+                        android:textSize="16sp"
                         android:textStyle="bold"
-                        tools:text="10.7.0.12/32" />
+                        tools:text="51.77.67.19" />
+
+                    <TextView
+                        android:id="@+id/public_identity_ipv6"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="monospace"
+                        android:textColor="#AFC0CC"
+                        android:textIsSelectable="true"
+                        android:textSize="12sp"
+                        tools:text="2a01:4f8:c17::1" />
+
+                    <TextView
+                        android:id="@+id/public_identity_geo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:textColor="#AFC0CC"
+                        android:textSize="13sp"
+                        tools:text="🇸🇰 Slovakia · Bratislava" />
                 </LinearLayout>
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:background="@drawable/stat_card_background"
+                    android:background="@drawable/fastest_button_background"
+                    android:clipToOutline="true"
+                    android:elevation="5dp"
                     android:orientation="vertical"
                     android:padding="14dp">
 
@@ -156,8 +195,8 @@
                             android:id="@+id/server_ip_label"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="@string/stat_wg_routes"
-                            android:textColor="#8899AA"
+                            android:text="@string/stat_public_ip"
+                            android:textColor="#AFC0CC"
                             android:textSize="12sp"
                             android:textStyle="bold" />
                     </LinearLayout>
@@ -168,12 +207,79 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:fontFamily="monospace"
-                        android:lineSpacingExtra="4dp"
                         android:text="@string/stat_no_data"
                         android:textColor="#FFFFFF"
                         android:textIsSelectable="true"
-                        android:textSize="13sp"
-                        tools:text="10.0.0.0/8&#10;172.16.0.0/12&#10;192.168.0.0/16" />
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        tools:text="51.77.67.19" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/dns_card"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/fastest_button_background"
+                    android:clickable="true"
+                    android:clipToOutline="true"
+                    android:elevation="5dp"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:layout_marginEnd="6dp"
+                            android:src="@drawable/ic_server"
+                            app:tint="#AFC0CC" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/stat_dns"
+                            android:textColor="#AFC0CC"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/dns_test_link"
+                            android:textColor="#7FA8B8"
+                            android:textSize="10sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/dns_value"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:fontFamily="monospace"
+                        android:text="@string/stat_no_data"
+                        android:textColor="#FFFFFF"
+                        android:textIsSelectable="true"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        tools:text="10.76.0.1" />
+
+                    <TextView
+                        android:id="@+id/dns_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:textColor="#86EFAC"
+                        android:textSize="12sp"
+                        tools:text="Protected — queries tunnel through the VPN" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -181,7 +287,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:background="@drawable/stat_card_background"
+                    android:background="@drawable/fastest_button_background"
+                    android:clipToOutline="true"
+                    android:elevation="5dp"
                     android:orientation="vertical"
                     android:padding="14dp"
                     android:visibility="gone"
@@ -214,7 +322,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="@string/web_terminal"
-                            android:textColor="#8899AA"
+                            android:textColor="#AFC0CC"
                             android:textSize="12sp"
                             android:textStyle="bold" />
                     </LinearLayout>
@@ -258,5 +366,55 @@
                 </LinearLayout>
             </LinearLayout>
         </ScrollView>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:background="#E6050A12"
+            android:elevation="8dp"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="16dp">
+
+            <TextView
+                android:id="@+id/home_button"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/fastest_button_background"
+                android:clickable="true"
+                android:clipToOutline="true"
+                android:elevation="5dp"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground"
+                android:gravity="center"
+                android:singleLine="true"
+                android:text="@string/vcs_home_title"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/secure_browser_button"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/fastest_button_background"
+                android:clickable="true"
+                android:clipToOutline="true"
+                android:elevation="5dp"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground"
+                android:gravity="center"
+                android:singleLine="true"
+                android:text="@string/vcs_home_secure_browser"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
     </FrameLayout>
 </layout>

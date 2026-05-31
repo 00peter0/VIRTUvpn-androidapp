@@ -149,19 +149,6 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
                 true
             }
             R.id.menu_action_save -> false
-            R.id.menu_vcs_sync -> {
-                lifecycleScope.launch {
-                    try {
-                        val result = VcsManagedClient.syncManagedTunnels(this@MainActivity)
-                        VcsManagedClient.reportCurrentStates(this@MainActivity)
-                        refreshTunnelSection()
-                        Toast.makeText(this@MainActivity, syncResultMessage(result), Toast.LENGTH_LONG).show()
-                    } catch (e: Throwable) {
-                        Toast.makeText(this@MainActivity, getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
-                    }
-                }
-                true
-            }
             R.id.menu_settings -> {
                 startActivity(Intent(this, SettingsActivity::class.java))
                 true

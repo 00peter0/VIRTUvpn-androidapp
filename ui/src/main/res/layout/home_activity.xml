@@ -165,45 +165,6 @@
         </LinearLayout>
 
         <LinearLayout
-            android:id="@+id/agent_gateway_button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:background="@drawable/fastest_button_background"
-            android:clickable="true"
-            android:clipToOutline="true"
-            android:elevation="5dp"
-            android:focusable="true"
-            android:foreground="?attr/selectableItemBackground"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:padding="16dp">
-
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_marginEnd="12dp"
-                android:src="@drawable/ic_server"
-                app:tint="#FFFFFF" />
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/vcs_home_agent_gateway"
-                android:textColor="#FFFFFF"
-                android:textSize="15sp"
-                android:textStyle="bold" />
-
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:alpha="0.7"
-                android:src="@drawable/ic_chevron_right"
-                app:tint="#FFFFFF" />
-        </LinearLayout>
-
-        <LinearLayout
             android:id="@+id/managed_access_button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

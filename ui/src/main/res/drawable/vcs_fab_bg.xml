@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark circular backdrop behind the launch-icon sync button so the logo sits
+     on a darker corner with a drop shadow (via elevation) around it. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <gradient
+        android:type="radial"
+        android:gradientRadius="60%p"
+        android:startColor="#11202E"
+        android:endColor="#060C14" />
+    <stroke android:width="1dp" android:color="#1AFFFFFF" />
+</shape>

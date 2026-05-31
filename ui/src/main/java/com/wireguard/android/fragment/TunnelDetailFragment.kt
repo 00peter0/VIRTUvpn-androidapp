@@ -11,6 +11,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.Menu
@@ -24,6 +26,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import com.wireguard.android.Application
 import com.wireguard.android.R
+import com.wireguard.android.activity.HomeActivity
+import com.wireguard.android.activity.SecureBrowserActivity
 import com.wireguard.android.activity.WebTerminalBrowserActivity
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.databinding.TunnelDetailFragmentBinding
@@ -34,6 +38,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -55,6 +60,18 @@ class TunnelDetailFragment : BaseFragment(), MenuProvider {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         requireActivity().addMenuProvider(this, viewLifecycleOwner, Lifecycle.State.RESUMED)
+        binding?.homeButton?.setOnClickListener {
+            startActivity(Intent(requireContext(), HomeActivity::class.java))
+        }
+        binding?.secureBrowserButton?.setOnClickListener {
+            startActivity(Intent(requireContext(), SecureBrowserActivity::class.java))
+        }
+        binding?.publicIdentityCard?.setOnClickListener { refreshPublicIdentity() }
+        binding?.dnsCard?.setOnClickListener {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://dnscheck.tools")))
+            } catch (_: Throwable) {}
+        }
     }
 
     override fun onDestroyView() {
@@ -99,24 +116,92 @@ class TunnelDetailFragment : BaseFragment(), MenuProvider {
     private fun updateIpInfo(config: Config?) {
         val binding = binding ?: return
         if (config == null) return
-        val addresses = config.`interface`.addresses
-        binding.yourIpValue.text = if (addresses.isNotEmpty()) {
-            addresses.joinToString("\n") { it.toString() }
+        // Public IP of the VPN mesh: the endpoint host the device connects to,
+        // not the internal WireGuard route addresses.
+        binding.serverIpLabel.text = getString(R.string.stat_public_ip)
+        val endpoint = config.peers.firstOrNull()?.endpoint
+        binding.serverIpValue.text = if (endpoint != null && endpoint.isPresent) {
+            endpoint.get().host
         } else getString(R.string.stat_no_data)
 
-        val allowedIps = config.peers
-            .flatMap { peer -> peer.allowedIps }
-            .map { it.toString() }
-            .distinct()
-            .sortedWith(compareBy<String> { !it.contains(":") }.thenBy { it })
-            .joinToString("\n")
-        binding.serverIpLabel.text = getString(R.string.stat_wg_routes)
-        binding.serverIpValue.text = if (allowedIps.isNotEmpty()) {
-            allowedIps
+        // DNS check: are queries pinned to a VPN DNS (no leak) or unset (leak risk)?
+        val dnsServers = config.`interface`.dnsServers
+        if (dnsServers.isNotEmpty()) {
+            binding.dnsValue.text = dnsServers.joinToString(", ") { it.hostAddress ?: it.toString() }
+            binding.dnsStatus.text = getString(R.string.dns_protected)
+            binding.dnsStatus.setTextColor(Color.parseColor("#86EFAC"))
         } else {
-            val endpoint = config.peers.firstOrNull()?.endpoint
-            if (endpoint != null && endpoint.isPresent) endpoint.get().host else getString(R.string.stat_no_data)
+            binding.dnsValue.text = getString(R.string.dns_not_set)
+            binding.dnsStatus.text = getString(R.string.dns_leak_risk)
+            binding.dnsStatus.setTextColor(Color.parseColor("#FBBF24"))
         }
+
+        refreshPublicIdentity()
+    }
+
+    // "Internet sees you as" — the apparent public identity as seen from the
+    // public internet through the current tunnel (egress IP + geo). Reflects the
+    // VPN exit for full-tunnel routes, or the device's own connection otherwise.
+    private fun refreshPublicIdentity() {
+        val binding = binding ?: return
+        binding.publicIdentityIp.text = getString(R.string.stat_checking)
+        binding.publicIdentityIpv6.text = ""
+        binding.publicIdentityGeo.text = ""
+        lifecycleScope.launch {
+            // Force IPv4 and IPv6 egress separately (plain-text echo endpoints).
+            val ip4 = withContext(Dispatchers.IO) { fetchText("https://ipv4.icanhazip.com") }
+            val ip6 = withContext(Dispatchers.IO) { fetchText("https://ipv6.icanhazip.com") }
+            val b = binding ?: return@launch
+            if (ip4.isNullOrBlank() && ip6.isNullOrBlank()) {
+                b.publicIdentityIp.text = getString(R.string.stat_no_data)
+                b.publicIdentityIpv6.text = ""
+                b.publicIdentityGeo.text = ""
+                return@launch
+            }
+            b.publicIdentityIp.text = ip4?.takeIf { it.isNotBlank() } ?: getString(R.string.stat_no_data)
+            b.publicIdentityIpv6.text = if (!ip6.isNullOrBlank()) "IPv6  $ip6" else getString(R.string.stat_no_ipv6)
+
+            // Geo + ISP for the primary egress IP, as the internet sees you.
+            val geoIp = ip4?.takeIf { it.isNotBlank() } ?: ip6
+            if (!geoIp.isNullOrBlank()) {
+                val geo = withContext(Dispatchers.IO) { fetchText("https://ipwho.is/$geoIp") }
+                val b2 = binding ?: return@launch
+                if (geo != null) {
+                    try {
+                        val json = JSONObject(geo)
+                        if (json.optBoolean("success", false)) {
+                            val country = json.optString("country")
+                            val iso = json.optString("country_code")
+                            val city = json.optString("city")
+                            val isp = json.optJSONObject("connection")?.optString("isp") ?: ""
+                            b2.publicIdentityGeo.text = listOf("${flagEmoji(iso)} $country".trim(), city, isp)
+                                .filter { it.isNotBlank() }
+                                .joinToString(" · ")
+                        }
+                    } catch (_: Throwable) {}
+                }
+            }
+        }
+    }
+
+    private fun fetchText(url: String): String? = try {
+        val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+            connectTimeout = 6000
+            readTimeout = 6000
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("User-Agent", "VirtuVPN")
+        }
+        conn.inputStream.bufferedReader().use { it.readText() }.trim()
+    } catch (_: Throwable) {
+        null
+    }
+
+    private fun flagEmoji(iso2: String): String {
+        if (iso2.length != 2) return ""
+        val cc = iso2.uppercase()
+        if (!cc.all { it in 'A'..'Z' }) return ""
+        val base = 0x1F1E6
+        return String(Character.toChars(base + (cc[0] - 'A'))) + String(Character.toChars(base + (cc[1] - 'A')))
     }
 
     private fun updateWebTerminalInfo(tunnelName: String?) {

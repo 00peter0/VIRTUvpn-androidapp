@@ -40,7 +40,6 @@ class HomeActivity : AppCompatActivity() {
 
         binding.vpnMeshButton.setOnClickListener { openVpnApp(MainActivity.TUNNEL_SECTION_VPN_MESH) }
         binding.secureBrowserButton.setOnClickListener { startActivity(Intent(this, SecureBrowserActivity::class.java)) }
-        binding.agentGatewayButton.setOnClickListener { openVpnApp(MainActivity.TUNNEL_SECTION_AGENT_GATEWAY) }
         binding.managedAccessButton.setOnClickListener { openVpnApp(MainActivity.TUNNEL_SECTION_MANAGED_ACCESS) }
         binding.enrollButton.setOnClickListener { showEnrollDialog() }
         binding.syncButton.setOnClickListener { syncManagedAccess() }

@@ -147,14 +147,24 @@
             </LinearLayout>
         </ScrollView>
 
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
+        <!-- Adding tunnels is locked to VCS sync; this round launch-icon button
+             triggers a sync. A plain ImageButton (not a Material FAB, which shrinks
+             and re-centers its icon) so the round logo fills the whole button. -->
+        <ImageButton
             android:id="@+id/create_fab"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
             android:layout_gravity="bottom|end"
             android:layout_margin="@dimen/fab_margin"
+            android:background="@drawable/vcs_fab_bg"
+            android:clipToOutline="true"
+            android:contentDescription="@string/vcs_sync_now"
+            android:elevation="12dp"
+            android:foreground="?attr/selectableItemBackgroundBorderless"
             android:nextFocusUp="@id/tunnel_list"
-            app:srcCompat="@drawable/ic_action_add_white" />
+            android:padding="7dp"
+            android:scaleType="fitCenter"
+            android:src="@mipmap/ic_launcher_round" />
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 </layout>

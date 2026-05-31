@@ -67,7 +67,7 @@
     <string name="allow_remote_control_intents_title">Allow remote control apps</string>
     <string name="allowed_ips">Allowed IPs</string>
     <string name="app_name" translatable="false">Virtu VPN</string>
-    <string name="vcs_home_subtitle">Secure private access for VPN Mesh, Agent Gateway, and Managed Access.</string>
+    <string name="vcs_home_subtitle">Secure private access for VPN Mesh and Managed Access.</string>
     <string name="vcs_home_vpn_mesh">VPN Mesh</string>
     <string name="vcs_home_agent_gateway">Agent Gateway</string>
     <string name="vcs_home_managed_access">Managed Access</string>
@@ -272,12 +272,23 @@
     <string name="stat_your_ip">Your IP</string>
     <string name="stat_server_ip">Server</string>
     <string name="stat_wg_routes">WG routes</string>
+    <string name="stat_public_ip">Public IP</string>
+    <string name="status_vpn_live">VPN is live</string>
     <string name="stat_download">Download</string>
     <string name="stat_upload">Upload</string>
     <string name="stat_total_down">Total ↓</string>
     <string name="stat_total_up">Total ↑</string>
     <string name="stat_speed_format">%s/s</string>
     <string name="stat_no_data">—</string>
+    <string name="stat_public_identity">Internet sees you as</string>
+    <string name="stat_checking">Checking…</string>
+    <string name="stat_tap_recheck">Tap to re-check</string>
+    <string name="stat_no_ipv6">No IPv6</string>
+    <string name="stat_dns">DNS</string>
+    <string name="dns_protected">Protected — queries tunnel through the VPN</string>
+    <string name="dns_leak_risk">Leak risk — no VPN DNS set</string>
+    <string name="dns_not_set">Not set</string>
+    <string name="dns_test_link">Test ↗ dnscheck.tools</string>
     <string name="web_terminal">Web Terminal</string>
     <string name="open_terminal">Open terminal</string>
     <string name="terminal_url_copied">Terminal URL copied</string>
