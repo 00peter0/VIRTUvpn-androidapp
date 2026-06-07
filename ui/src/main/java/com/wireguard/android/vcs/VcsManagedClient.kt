@@ -326,7 +326,7 @@ object VcsManagedClient {
                 .setDescription("VirtuVPN update")
                 .setMimeType("application/vnd.android.package-archive")
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                .setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS, fileName)
+                .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
                 .setAllowedOverMetered(true)
                 .setAllowedOverRoaming(true)
             val downloadId = manager.enqueue(request)
@@ -362,7 +362,11 @@ object VcsManagedClient {
                     else -> return
                 }
                 Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                if (status.first == DownloadManager.STATUS_FAILED) openUpdateUrl(context, apkUrl)
+                if (status.first == DownloadManager.STATUS_SUCCESSFUL) {
+                    openDownloadedUpdate(context, manager, downloadId, apkUrl)
+                } else if (status.first == DownloadManager.STATUS_FAILED) {
+                    openUpdateUrl(context, apkUrl)
+                }
             }
         }
         val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
@@ -397,6 +401,20 @@ object VcsManagedClient {
             DownloadManager.ERROR_UNKNOWN -> "unknown download error"
             in 400..599 -> "server returned HTTP $reason"
             else -> "download error code $reason"
+        }
+    }
+
+    private fun openDownloadedUpdate(context: Context, manager: DownloadManager, downloadId: Long, apkUrl: String): Boolean {
+        val uri = manager.getUriForDownloadedFile(downloadId) ?: return openUpdateUrl(context, apkUrl)
+        val intent = Intent(Intent.ACTION_VIEW)
+            .setDataAndType(uri, "application/vnd.android.package-archive")
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        return runCatching {
+            context.startActivity(intent)
+            true
+        }.getOrElse {
+            openUpdateUrl(context, apkUrl)
         }
     }
 
