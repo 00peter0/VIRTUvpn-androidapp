@@ -32,6 +32,7 @@ import com.wireguard.android.databinding.HomeActivityBinding
 import com.wireguard.android.databinding.VcsSignInDialogBinding
 import com.wireguard.android.util.HotspotDetector
 import com.wireguard.android.util.VcsDialogs
+import com.wireguard.android.util.VpnRouterManager
 import com.wireguard.android.vcs.VcsManagedClient
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -48,6 +49,8 @@ class HomeActivity : AppCompatActivity() {
     private var lastAutomaticUpdateCheckAt = 0L
     private var promptedUpdateVersionName: String? = null
     private var vpnStatusJob: Job? = null
+    private var vpnRouterActionRunning = false
+    private var lastVpnRouterStatus: VpnRouterManager.Status? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,9 +70,11 @@ class HomeActivity : AppCompatActivity() {
         binding.syncButton.setOnClickListener { syncManagedAccess() }
         binding.checkUpdatesButton.setOnClickListener { checkUpdates() }
         binding.openVpnSettingsButton.setOnClickListener { openVpnSettings() }
+        binding.vpnRouterButton.setOnClickListener { if (requireEnrolledForDeviceAction()) toggleVpnRouter() }
         updateSignedInState()
         updateVpnStatus()
         updateKillSwitchStatus()
+        updateVpnRouterStatus()
     }
 
     override fun onStart() {
@@ -90,6 +95,7 @@ class HomeActivity : AppCompatActivity() {
         refreshHotspotState()
         updateVpnStatus()
         updateKillSwitchStatus()
+        updateVpnRouterStatus()
         detectVpnAppUpdateIfNeeded()
     }
 
@@ -134,6 +140,7 @@ class HomeActivity : AppCompatActivity() {
         if (hotspotActive == active) return
         hotspotActive = active
         updateKillSwitchStatus()
+        updateVpnRouterStatus()
     }
 
     private fun startVpnStatusMonitor() {
@@ -363,7 +370,8 @@ class HomeActivity : AppCompatActivity() {
         ).forEach { setProtectedButtonState(it, signedIn) }
         listOf(
             binding.syncButton,
-            binding.checkUpdatesButton
+            binding.checkUpdatesButton,
+            binding.vpnRouterButton
         ).forEach { setProtectedButtonState(it, signedIn || enrolled) }
         binding.enrollButtonLabel.setText(R.string.vcs_enroll_device)
         invalidateOptionsMenu()
@@ -474,6 +482,93 @@ class HomeActivity : AppCompatActivity() {
         )
     }
 
+    private fun updateVpnRouterStatus() {
+        if (vpnRouterActionRunning) return
+        binding.vpnRouterStatus.setText(R.string.vcs_vpn_router_checking)
+        binding.vpnRouterStatus.setTextColor(Color.parseColor("#AFC0CC"))
+        lifecycleScope.launch {
+            val status = runCatching {
+                VpnRouterManager.getStatus(this@HomeActivity)
+            }.getOrElse { e ->
+                VpnRouterManager.Status(
+                    availability = VpnRouterManager.Availability.ERROR,
+                    detail = e.message ?: e.javaClass.simpleName
+                )
+            }
+            renderVpnRouterStatus(status)
+        }
+    }
+
+    private fun toggleVpnRouter() {
+        if (vpnRouterActionRunning) return
+        vpnRouterActionRunning = true
+        binding.vpnRouterButton.isEnabled = false
+        binding.vpnRouterButton.alpha = 0.58f
+        binding.vpnRouterStatus.setText(R.string.vcs_vpn_router_checking)
+        binding.vpnRouterStatus.setTextColor(Color.parseColor("#AFC0CC"))
+        lifecycleScope.launch {
+            val current = lastVpnRouterStatus ?: runCatching {
+                VpnRouterManager.getStatus(this@HomeActivity)
+            }.getOrNull()
+            val status = runCatching {
+                if (current?.canDisable == true) {
+                    VpnRouterManager.disable(this@HomeActivity)
+                } else {
+                    VpnRouterManager.enable(this@HomeActivity)
+                }
+            }.getOrElse { e ->
+                VpnRouterManager.Status(
+                    availability = VpnRouterManager.Availability.ERROR,
+                    activeTunnel = current?.activeTunnel,
+                    tetherInterfaces = current?.tetherInterfaces.orEmpty(),
+                    detail = e.message ?: e.javaClass.simpleName
+                )
+            }
+            vpnRouterActionRunning = false
+            renderVpnRouterStatus(status)
+        }
+    }
+
+    private fun renderVpnRouterStatus(status: VpnRouterManager.Status) {
+        lastVpnRouterStatus = status
+        val tunnel = status.activeTunnel ?: getString(R.string.vcs_vpn_status_no_tunnel)
+        val interfaces = status.tetherInterfaces.takeIf { it.isNotEmpty() }?.joinToString(", ")
+            ?: getString(R.string.vcs_vpn_router_no_interfaces)
+        when (status.availability) {
+            VpnRouterManager.Availability.ENABLED -> {
+                binding.vpnRouterStatus.text = getString(R.string.vcs_vpn_router_on, tunnel, interfaces)
+                binding.vpnRouterStatus.setTextColor(Color.parseColor("#86EFAC"))
+            }
+            VpnRouterManager.Availability.READY -> {
+                binding.vpnRouterStatus.text = getString(R.string.vcs_vpn_router_ready, tunnel, interfaces)
+                binding.vpnRouterStatus.setTextColor(Color.parseColor("#AFC0CC"))
+            }
+            VpnRouterManager.Availability.WAITING_FOR_TUNNEL -> {
+                binding.vpnRouterStatus.setText(R.string.vcs_vpn_router_waiting_tunnel)
+                binding.vpnRouterStatus.setTextColor(Color.parseColor("#FBBF24"))
+            }
+            VpnRouterManager.Availability.WAITING_FOR_HOTSPOT -> {
+                binding.vpnRouterStatus.setText(R.string.vcs_vpn_router_waiting_hotspot)
+                binding.vpnRouterStatus.setTextColor(Color.parseColor("#FBBF24"))
+            }
+            VpnRouterManager.Availability.UNSUPPORTED -> {
+                binding.vpnRouterStatus.setText(R.string.vcs_vpn_router_unsupported)
+                binding.vpnRouterStatus.setTextColor(Color.parseColor("#FBBF24"))
+            }
+            VpnRouterManager.Availability.ERROR -> {
+                binding.vpnRouterStatus.text = getString(R.string.vcs_vpn_router_error, status.detail ?: "unknown error")
+                binding.vpnRouterStatus.setTextColor(Color.parseColor("#F87171"))
+            }
+        }
+        binding.vpnRouterButton.setText(
+            if (status.canDisable) R.string.vcs_vpn_router_disable else R.string.vcs_vpn_router_enable
+        )
+        val hasRouterAccess = VcsManagedClient.hasSession(this) || VcsManagedClient.hasAccountSession(this)
+        binding.vpnRouterButton.isEnabled = hasRouterAccess && !vpnRouterActionRunning && (status.canEnable || status.canDisable)
+        binding.vpnRouterButton.alpha = if (binding.vpnRouterButton.isEnabled) 1f else 0.58f
+        updateKillSwitchStatus()
+    }
+
     private fun updateKillSwitchStatus() {
         binding.killSwitchStatus.setText(R.string.vcs_kill_switch_checking)
         binding.killSwitchStatus.setTextColor(Color.parseColor("#AFC0CC"))
@@ -483,7 +578,10 @@ class HomeActivity : AppCompatActivity() {
                 backend.isAlwaysOn && backend.isLockdownEnabled
             }.getOrDefault(false)
             val activeHotspot = hotspotActive || HotspotDetector.isWifiHotspotActive(this@HomeActivity)
-            if (activeHotspot) {
+            if (activeHotspot && lastVpnRouterStatus?.availability == VpnRouterManager.Availability.ENABLED) {
+                binding.killSwitchStatus.setText(R.string.vcs_hotspot_vpn_router_active)
+                binding.killSwitchStatus.setTextColor(Color.parseColor("#86EFAC"))
+            } else if (activeHotspot) {
                 binding.killSwitchStatus.setText(R.string.vcs_hotspot_vpn_bypass_warning)
                 binding.killSwitchStatus.setTextColor(Color.parseColor("#F87171"))
             } else if (protected) {
