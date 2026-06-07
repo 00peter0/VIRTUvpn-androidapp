@@ -143,7 +143,7 @@ object VcsManagedClient {
 
     suspend fun syncManagedTunnels(context: Context): SyncResult = withContext(Dispatchers.IO) {
         val session = requireSession(context)
-        val syncUrl = "${session.apiBase}/api/mobile/android/sync?appVersion=${urlEncode(BuildConfig.VERSION_NAME)}&androidVersion=${urlEncode(Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString())}"
+        val syncUrl = "${session.apiBase}/api/mobile/android/sync?appVersion=${urlEncode(BuildConfig.VERSION_NAME)}&appVersionCode=${BuildConfig.VERSION_CODE}&androidVersion=${urlEncode(Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString())}"
         val sync = requestJson("GET", syncUrl, null, session.token)
         val updateVersionName = rememberUpdateAvailable(context, sync.optJSONObject("update"))
         val assignments = sync.optJSONArray("assignments") ?: JSONArray()
@@ -234,7 +234,7 @@ object VcsManagedClient {
 
     suspend fun checkForManagedUpdate(context: Context): UpdateCheck = withContext(Dispatchers.IO) {
         val session = requireSession(context)
-        val updateUrl = "${session.apiBase}/api/mobile/android/update?appVersion=${urlEncode(BuildConfig.VERSION_NAME)}&androidVersion=${urlEncode(Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString())}"
+        val updateUrl = "${session.apiBase}/api/mobile/android/update?appVersion=${urlEncode(BuildConfig.VERSION_NAME)}&appVersionCode=${BuildConfig.VERSION_CODE}&androidVersion=${urlEncode(Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString())}"
         val update = requestJson("GET", updateUrl, null, session.token)
         val latestVersion = rememberUpdateAvailable(context, update)
         UpdateCheck(latestVersion != null, latestVersion)
@@ -480,6 +480,7 @@ object VcsManagedClient {
             .put("enrollmentToken", enrollmentToken)
             .put("deviceName", Build.MODEL ?: "Android device")
             .put("appVersion", BuildConfig.VERSION_NAME)
+            .put("appVersionCode", BuildConfig.VERSION_CODE)
             .put("androidVersion", Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString())
             .put("devicePublicKey", JSONObject.NULL)
             .put("metadata", JSONObject().put("manufacturer", Build.MANUFACTURER).put("sdk", Build.VERSION.SDK_INT))

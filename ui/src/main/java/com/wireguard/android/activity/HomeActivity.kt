@@ -13,6 +13,7 @@ import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.provider.Settings
 import android.text.InputType
 import android.view.Menu
@@ -39,6 +40,9 @@ class HomeActivity : AppCompatActivity() {
     private var hotspotActive = false
     private var hotspotCallback: AutoCloseable? = null
     private var hotspotReceiver: BroadcastReceiver? = null
+    private var updateCheckRunning = false
+    private var lastAutomaticUpdateCheckAt = 0L
+    private var promptedUpdateVersionName: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,6 +81,7 @@ class HomeActivity : AppCompatActivity() {
         updateSignedInState()
         refreshHotspotState()
         updateKillSwitchStatus()
+        detectVpnAppUpdateIfNeeded()
     }
 
     private fun startHotspotWarningMonitor() {
@@ -153,7 +158,7 @@ class HomeActivity : AppCompatActivity() {
                 VcsManagedClient.reportCurrentStates(this@HomeActivity)
                 Toast.makeText(this@HomeActivity, syncResultMessage(result), Toast.LENGTH_LONG).show()
                 result.updateVersionName?.let { version ->
-                    Toast.makeText(this@HomeActivity, getString(R.string.vcs_update_available, version), Toast.LENGTH_LONG).show()
+                    showUpdateDownloadDialog(version)
                 }
             } catch (e: Throwable) {
                 Toast.makeText(this@HomeActivity, getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
@@ -211,16 +216,39 @@ class HomeActivity : AppCompatActivity() {
 
     private fun checkUpdates() {
         if (!requireEnrolledForDeviceAction()) return
+        detectVpnAppUpdate(showNoUpdate = true, forcePrompt = true)
+    }
+
+    private fun detectVpnAppUpdateIfNeeded() {
+        if (!VcsManagedClient.hasSession(this)) return
+        val now = SystemClock.elapsedRealtime()
+        if (lastAutomaticUpdateCheckAt > 0 && now - lastAutomaticUpdateCheckAt < AUTO_UPDATE_CHECK_INTERVAL_MS) return
+        lastAutomaticUpdateCheckAt = now
+        detectVpnAppUpdate(showNoUpdate = false, forcePrompt = false)
+    }
+
+    private fun detectVpnAppUpdate(showNoUpdate: Boolean, forcePrompt: Boolean) {
+        if (updateCheckRunning) return
+        updateCheckRunning = true
         lifecycleScope.launch {
             try {
                 val update = VcsManagedClient.checkForManagedUpdate(this@HomeActivity)
                 if (update.available && update.versionName != null) {
-                    showUpdateDownloadDialog(update.versionName)
+                    if (forcePrompt || promptedUpdateVersionName != update.versionName) {
+                        promptedUpdateVersionName = update.versionName
+                        showUpdateDownloadDialog(update.versionName)
+                    } else if (showNoUpdate) {
+                        Toast.makeText(this@HomeActivity, getString(R.string.vcs_update_available, update.versionName), Toast.LENGTH_LONG).show()
+                    }
                 } else {
-                    Toast.makeText(this@HomeActivity, R.string.vcs_update_none, Toast.LENGTH_LONG).show()
+                    if (showNoUpdate) Toast.makeText(this@HomeActivity, R.string.vcs_update_none, Toast.LENGTH_LONG).show()
                 }
             } catch (e: Throwable) {
-                Toast.makeText(this@HomeActivity, getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
+                if (showNoUpdate) {
+                    Toast.makeText(this@HomeActivity, getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
+                }
+            } finally {
+                updateCheckRunning = false
             }
         }
     }
@@ -416,5 +444,6 @@ class HomeActivity : AppCompatActivity() {
         private const val EXTRA_WIFI_AP_STATE = "wifi_state"
         private const val WIFI_AP_STATE_ENABLING = 12
         private const val WIFI_AP_STATE_ENABLED = 13
+        private const val AUTO_UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000L
     }
 }
