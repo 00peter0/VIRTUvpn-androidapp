@@ -318,23 +318,26 @@ object VcsManagedClient {
 
     private fun downloadStoredUpdate(context: Context, latestVersion: String, apkUrl: String): UpdateDownloadStart? {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val fileName = updateDownloadFileName(latestVersion)
         return try {
-            val manager = context.getSystemService(DownloadManager::class.java) ?: return null
-            val fileName = updateDownloadFileName(latestVersion)
+            val manager = context.getSystemService(DownloadManager::class.java) ?: return if (openUpdateUrl(context, apkUrl)) UpdateDownloadStart(-1L, fileName) else null
             val request = DownloadManager.Request(updateDownloadUri(apkUrl))
                 .setTitle(fileName)
                 .setDescription("VirtuVPN update")
                 .setMimeType("application/vnd.android.package-archive")
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+                .setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS, fileName)
                 .setAllowedOverMetered(true)
                 .setAllowedOverRoaming(true)
             val downloadId = manager.enqueue(request)
-            observeUpdateDownload(context.applicationContext, manager, downloadId, fileName)
+            observeUpdateDownload(context.applicationContext, manager, downloadId, fileName, apkUrl)
             prefs.edit().putString(KEY_LAST_UPDATE_PROMPT, latestVersion).putString(KEY_LAST_UPDATE_URL, apkUrl).apply()
             UpdateDownloadStart(downloadId, fileName)
         } catch (_: Throwable) {
-            null
+            if (!openUpdateUrl(context, apkUrl)) null else {
+                prefs.edit().putString(KEY_LAST_UPDATE_PROMPT, latestVersion).putString(KEY_LAST_UPDATE_URL, apkUrl).apply()
+                UpdateDownloadStart(-1L, fileName)
+            }
         }
     }
 
@@ -343,7 +346,7 @@ object VcsManagedClient {
         return "VirtuVPN-$safeVersion-${System.currentTimeMillis()}.apk"
     }
 
-    private fun observeUpdateDownload(context: Context, manager: DownloadManager, downloadId: Long, fileName: String) {
+    private fun observeUpdateDownload(context: Context, manager: DownloadManager, downloadId: Long, fileName: String, apkUrl: String) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(receiverContext: Context, intent: Intent) {
                 val completedId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
@@ -359,6 +362,7 @@ object VcsManagedClient {
                     else -> return
                 }
                 Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                if (status.first == DownloadManager.STATUS_FAILED) openUpdateUrl(context, apkUrl)
             }
         }
         val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
@@ -401,6 +405,15 @@ object VcsManagedClient {
         if (!uri.path.orEmpty().endsWith("/api/mobile/android/update/apk")) return uri
         if (uri.getQueryParameter("download") == "1") return uri
         return uri.buildUpon().appendQueryParameter("download", "1").build()
+    }
+
+    private fun openUpdateUrl(context: Context, apkUrl: String): Boolean {
+        val intent = Intent(Intent.ACTION_VIEW, updateDownloadUri(apkUrl))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return runCatching {
+            context.startActivity(intent)
+            true
+        }.getOrDefault(false)
     }
 
     private fun urlEncode(value: String): String = java.net.URLEncoder.encode(value, StandardCharsets.UTF_8.name())
