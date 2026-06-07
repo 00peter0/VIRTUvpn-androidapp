@@ -120,6 +120,16 @@
                 android:textColor="#AFC0CC"
                 android:textSize="13sp" />
 
+            <TextView
+                android:id="@+id/kill_switch_hotspot_solution"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/vcs_hotspot_solution_direct_tunnel"
+                android:textColor="#FDE68A"
+                android:textSize="13sp"
+                android:visibility="gone" />
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

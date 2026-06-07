@@ -485,12 +485,15 @@ class HomeActivity : AppCompatActivity() {
             if (activeHotspot) {
                 binding.killSwitchStatus.setText(R.string.vcs_hotspot_vpn_bypass_warning)
                 binding.killSwitchStatus.setTextColor(Color.parseColor("#F87171"))
+                binding.killSwitchHotspotSolution.visibility = View.VISIBLE
             } else if (protected) {
                 binding.killSwitchStatus.setText(R.string.vcs_kill_switch_protected)
                 binding.killSwitchStatus.setTextColor(Color.parseColor("#86EFAC"))
+                binding.killSwitchHotspotSolution.visibility = View.GONE
             } else {
                 binding.killSwitchStatus.setText(R.string.vcs_kill_switch_unprotected)
                 binding.killSwitchStatus.setTextColor(Color.parseColor("#FBBF24"))
+                binding.killSwitchHotspotSolution.visibility = View.GONE
             }
         }
     }
