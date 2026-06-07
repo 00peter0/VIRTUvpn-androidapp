@@ -76,7 +76,7 @@
             android:exported="false"
             android:label="@string/web_terminal_browser_title"
             android:parentActivityName=".activity.MainActivity"
-            android:windowSoftInputMode="adjustResize" />
+            android:windowSoftInputMode="adjustNothing" />
 
         <activity
             android:name=".activity.MainActivity"
