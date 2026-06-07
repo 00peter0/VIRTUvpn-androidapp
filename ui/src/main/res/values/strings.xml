@@ -371,7 +371,10 @@
     <string name="vcs_update_download_title">Update available</string>
     <string name="vcs_update_download_message">Version %1$s is available. Download the APK now?</string>
     <string name="vcs_update_download_failed">Unable to open update download</string>
-    <string name="vcs_update_opened">VirtuVPN update download started</string>
+    <string name="vcs_update_download_failed_detail">VirtuVPN update download failed: %1$s</string>
+    <string name="vcs_update_download_reason_unknown">unknown download error</string>
+    <string name="vcs_update_download_complete">VirtuVPN update downloaded to Downloads: %1$s</string>
+    <string name="vcs_update_opened">VirtuVPN update download started: %1$s</string>
     <string name="vcs_update_none">No update available</string>
     <string name="vcs_sync_running">Syncing VCS tunnels…</string>
     <string name="vcs_sync_no_assignments">Sync complete: no tunnels are assigned to this device</string>

@@ -1,12 +1,17 @@
 package com.wireguard.android.vcs
 
 import android.app.DownloadManager
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.widget.Toast
 import com.wireguard.android.Application
 import com.wireguard.android.BuildConfig
+import com.wireguard.android.R
 import com.wireguard.android.activity.MainActivity
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.config.Config
@@ -48,6 +53,7 @@ object VcsManagedClient {
         val pendingBundleAssignments: Int
     )
     data class UpdateCheck(val available: Boolean, val versionName: String?)
+    data class UpdateDownloadStart(val downloadId: Long, val fileName: String)
     data class SessionInfo(val apiBase: String, val deviceId: String?)
     data class AccountInfo(
         val apiBase: String,
@@ -225,10 +231,10 @@ object VcsManagedClient {
         return latestVersion
     }
 
-    fun openManagedUpdate(context: Context): Boolean {
+    fun openManagedUpdate(context: Context): UpdateDownloadStart? {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val latestVersion = prefs.getString(KEY_LAST_UPDATE_PROMPT, null) ?: return false
-        val apkUrl = prefs.getString(KEY_LAST_UPDATE_URL, null) ?: return false
+        val latestVersion = prefs.getString(KEY_LAST_UPDATE_PROMPT, null) ?: return null
+        val apkUrl = prefs.getString(KEY_LAST_UPDATE_URL, null) ?: return null
         return downloadStoredUpdate(context, latestVersion, apkUrl)
     }
 
@@ -314,11 +320,11 @@ object VcsManagedClient {
             ?: counts.keys.firstOrNull { it.contains("Managed Access", ignoreCase = true) }
     }
 
-    private fun downloadStoredUpdate(context: Context, latestVersion: String, apkUrl: String): Boolean {
+    private fun downloadStoredUpdate(context: Context, latestVersion: String, apkUrl: String): UpdateDownloadStart? {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         return try {
-            val manager = context.getSystemService(DownloadManager::class.java) ?: return false
-            val fileName = "VirtuVPN-$latestVersion.apk"
+            val manager = context.getSystemService(DownloadManager::class.java) ?: return null
+            val fileName = updateDownloadFileName(latestVersion)
             val request = DownloadManager.Request(updateDownloadUri(apkUrl))
                 .setTitle(fileName)
                 .setDescription("VirtuVPN update")
@@ -327,11 +333,70 @@ object VcsManagedClient {
                 .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
                 .setAllowedOverMetered(true)
                 .setAllowedOverRoaming(true)
-            manager.enqueue(request)
+            val downloadId = manager.enqueue(request)
+            observeUpdateDownload(context.applicationContext, manager, downloadId, fileName)
             prefs.edit().putString(KEY_LAST_UPDATE_PROMPT, latestVersion).putString(KEY_LAST_UPDATE_URL, apkUrl).apply()
-            true
+            UpdateDownloadStart(downloadId, fileName)
         } catch (_: Throwable) {
-            false
+            null
+        }
+    }
+
+    private fun updateDownloadFileName(latestVersion: String): String {
+        val safeVersion = latestVersion.replace(Regex("[^A-Za-z0-9._-]"), "_")
+        return "VirtuVPN-$safeVersion-${System.currentTimeMillis()}.apk"
+    }
+
+    private fun observeUpdateDownload(context: Context, manager: DownloadManager, downloadId: Long, fileName: String) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(receiverContext: Context, intent: Intent) {
+                val completedId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
+                if (completedId != downloadId) return
+                runCatching { receiverContext.unregisterReceiver(this) }
+                val status = updateDownloadStatus(manager, downloadId)
+                val message = when (status?.first) {
+                    DownloadManager.STATUS_SUCCESSFUL -> context.getString(R.string.vcs_update_download_complete, fileName)
+                    DownloadManager.STATUS_FAILED -> context.getString(
+                        R.string.vcs_update_download_failed_detail,
+                        status.second ?: context.getString(R.string.vcs_update_download_reason_unknown)
+                    )
+                    else -> return
+                }
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            }
+        }
+        val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            context.registerReceiver(receiver, filter)
+        }
+    }
+
+    private fun updateDownloadStatus(manager: DownloadManager, downloadId: Long): Pair<Int, String?>? {
+        manager.query(DownloadManager.Query().setFilterById(downloadId))?.use { cursor ->
+            if (!cursor.moveToFirst()) return null
+            val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+            val reason = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON))
+            return status to if (status == DownloadManager.STATUS_FAILED) updateDownloadFailureReason(reason) else null
+        }
+        return null
+    }
+
+    private fun updateDownloadFailureReason(reason: Int): String {
+        return when (reason) {
+            DownloadManager.ERROR_CANNOT_RESUME -> "cannot resume download"
+            DownloadManager.ERROR_DEVICE_NOT_FOUND -> "download storage is unavailable"
+            DownloadManager.ERROR_FILE_ALREADY_EXISTS -> "download file already exists"
+            DownloadManager.ERROR_FILE_ERROR -> "storage write failed"
+            DownloadManager.ERROR_HTTP_DATA_ERROR -> "network data error"
+            DownloadManager.ERROR_INSUFFICIENT_SPACE -> "not enough storage space"
+            DownloadManager.ERROR_TOO_MANY_REDIRECTS -> "too many redirects"
+            DownloadManager.ERROR_UNHANDLED_HTTP_CODE -> "server rejected the download"
+            DownloadManager.ERROR_UNKNOWN -> "unknown download error"
+            in 400..599 -> "server returned HTTP $reason"
+            else -> "download error code $reason"
         }
     }
 

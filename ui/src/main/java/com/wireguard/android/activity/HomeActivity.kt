@@ -309,14 +309,33 @@ class HomeActivity : AppCompatActivity() {
             message = getString(R.string.vcs_update_download_message, versionName),
             negative = VcsDialogs.action(this, android.R.string.cancel),
             positive = VcsDialogs.action(this, R.string.stat_download, primary = true) {
-                val opened = VcsManagedClient.openManagedUpdate(this)
-                Toast.makeText(
-                    this,
-                    if (opened) R.string.vcs_update_opened else R.string.vcs_update_download_failed,
-                    Toast.LENGTH_LONG
-                ).show()
+                downloadLatestUpdate()
             }
         )
+    }
+
+    private fun downloadLatestUpdate() {
+        if (updateCheckRunning) return
+        updateCheckRunning = true
+        lifecycleScope.launch {
+            try {
+                val update = VcsManagedClient.checkForManagedUpdate(this@HomeActivity)
+                if (!update.available) {
+                    Toast.makeText(this@HomeActivity, R.string.vcs_update_none, Toast.LENGTH_LONG).show()
+                    return@launch
+                }
+                val download = VcsManagedClient.openManagedUpdate(this@HomeActivity)
+                Toast.makeText(
+                    this@HomeActivity,
+                    if (download != null) getString(R.string.vcs_update_opened, download.fileName) else getString(R.string.vcs_update_download_failed),
+                    Toast.LENGTH_LONG
+                ).show()
+            } catch (e: Throwable) {
+                Toast.makeText(this@HomeActivity, getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
+            } finally {
+                updateCheckRunning = false
+            }
+        }
     }
 
     private fun requireSignedInForHome(): Boolean {
