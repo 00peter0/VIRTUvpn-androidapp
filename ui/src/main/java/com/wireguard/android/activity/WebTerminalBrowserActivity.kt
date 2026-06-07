@@ -24,6 +24,7 @@ import androidx.lifecycle.lifecycleScope
 import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.databinding.WebTerminalBrowserActivityBinding
+import com.wireguard.android.vcs.VcsAuthGate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -41,6 +42,7 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!VcsAuthGate.requireSignedIn(this)) return
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
         binding = WebTerminalBrowserActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -61,6 +63,7 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (!VcsAuthGate.requireSignedIn(this) || !::binding.isInitialized) return
         monitorJob = lifecycleScope.launch {
             while (isActive) {
                 setTerminalAllowed(isTerminalAllowed())
@@ -72,14 +75,16 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
     override fun onPause() {
         monitorJob?.cancel()
         monitorJob = null
-        lockTerminal(showToast = false)
+        if (::binding.isInitialized) lockTerminal(showToast = false)
         super.onPause()
     }
 
     override fun onDestroy() {
-        binding.terminalWebview.stopLoading()
-        binding.terminalWebview.loadUrl("about:blank")
-        binding.terminalWebview.destroy()
+        if (::binding.isInitialized) {
+            binding.terminalWebview.stopLoading()
+            binding.terminalWebview.loadUrl("about:blank")
+            binding.terminalWebview.destroy()
+        }
         super.onDestroy()
     }
 

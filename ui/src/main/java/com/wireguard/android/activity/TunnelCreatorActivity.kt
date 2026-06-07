@@ -7,6 +7,7 @@ package com.wireguard.android.activity
 import android.os.Bundle
 import com.wireguard.android.R
 import com.wireguard.android.model.ObservableTunnel
+import com.wireguard.android.vcs.VcsAuthGate
 
 /**
  * Standalone activity for creating tunnels.
@@ -14,6 +15,7 @@ import com.wireguard.android.model.ObservableTunnel
 class TunnelCreatorActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!VcsAuthGate.requireSignedIn(this)) return
         setContentView(R.layout.tunnel_creator_activity)
     }
 

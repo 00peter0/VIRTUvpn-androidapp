@@ -30,6 +30,7 @@ import androidx.lifecycle.lifecycleScope
 import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.databinding.SecureBrowserActivityBinding
+import com.wireguard.android.vcs.VcsAuthGate
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -52,6 +53,7 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!VcsAuthGate.requireSignedIn(this)) return
         binding = SecureBrowserActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -82,6 +84,7 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (!VcsAuthGate.requireSignedIn(this) || !::binding.isInitialized) return
         monitorJob = lifecycleScope.launch {
             while (isActive) {
                 setBrowserAllowed(isSecureBrowserAllowed())
@@ -93,14 +96,16 @@ class SecureBrowserActivity : AppCompatActivity() {
     override fun onPause() {
         monitorJob?.cancel()
         monitorJob = null
-        lockBrowser(showToast = false)
+        if (::binding.isInitialized) lockBrowser(showToast = false)
         super.onPause()
     }
 
     override fun onDestroy() {
-        binding.secureWebview.stopLoading()
-        binding.secureWebview.loadUrl("about:blank")
-        binding.secureWebview.destroy()
+        if (::binding.isInitialized) {
+            binding.secureWebview.stopLoading()
+            binding.secureWebview.loadUrl("about:blank")
+            binding.secureWebview.destroy()
+        }
         super.onDestroy()
     }
 

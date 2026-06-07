@@ -23,6 +23,7 @@ import com.wireguard.android.fragment.TunnelDetailFragment
 import com.wireguard.android.fragment.TunnelEditorFragment
 import com.wireguard.android.fragment.TunnelListFragment
 import com.wireguard.android.model.ObservableTunnel
+import com.wireguard.android.vcs.VcsAuthGate
 import com.wireguard.android.vcs.VcsManagedClient
 import kotlinx.coroutines.launch
 
@@ -30,6 +31,7 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
     private var actionBar: ActionBar? = null
     private var isTwoPaneLayout = false
     private var backPressedCallback: OnBackPressedCallback? = null
+    private var enrollmentIntentPending = false
 
     private fun handleBackPressed() {
         val backStackEntries = supportFragmentManager.backStackEntryCount
@@ -53,6 +55,7 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!allowsUnsignedEnrollment(intent) && !VcsAuthGate.requireSignedIn(this)) return
         setContentView(R.layout.main_activity)
         actionBar = supportActionBar
         isTwoPaneLayout = findViewById<View?>(R.id.master_detail_wrapper) != null
@@ -71,15 +74,25 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
         handleVcsEnrollmentIntent(intent)
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (!enrollmentIntentPending) VcsAuthGate.requireSignedIn(this)
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (!allowsUnsignedEnrollment(intent) && !VcsAuthGate.requireSignedIn(this)) return
         if (shouldShowHomeOnAppStart(intent, null)) {
             showHomePage()
         }
         actionBar?.title = "  ${titleForTunnelSection(intent.getStringExtra(EXTRA_TUNNEL_SECTION))}"
         refreshTunnelSection()
         handleVcsEnrollmentIntent(intent)
+    }
+
+    private fun allowsUnsignedEnrollment(intent: Intent?): Boolean {
+        return VcsManagedClient.isEnrollmentUri(intent?.data)
     }
 
     fun titleForTunnelSection(section: String?): String {
@@ -119,12 +132,19 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
 
     private fun handleVcsEnrollmentIntent(intent: Intent?) {
         val uri = intent?.data ?: return
+        if (!VcsManagedClient.isEnrollmentUri(uri)) return
+        enrollmentIntentPending = true
         lifecycleScope.launch {
             try {
                 val result = VcsManagedClient.handleEnrollmentUri(this@MainActivity, uri) ?: return@launch
                 Toast.makeText(this@MainActivity, syncResultMessage(result), Toast.LENGTH_LONG).show()
             } catch (e: Throwable) {
                 Toast.makeText(this@MainActivity, getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
+            } finally {
+                enrollmentIntentPending = false
+                if (!VcsManagedClient.hasSession(this@MainActivity)) {
+                    VcsAuthGate.requireSignedIn(this@MainActivity)
+                }
             }
         }
     }

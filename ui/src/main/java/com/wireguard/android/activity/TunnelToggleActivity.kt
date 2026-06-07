@@ -20,6 +20,7 @@ import com.wireguard.android.R
 import com.wireguard.android.backend.GoBackend
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.util.ErrorMessages
+import com.wireguard.android.vcs.VcsAuthGate
 import kotlinx.coroutines.launch
 
 class TunnelToggleActivity : AppCompatActivity() {
@@ -47,6 +48,7 @@ class TunnelToggleActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!VcsAuthGate.requireSignedIn(this)) return
         lifecycleScope.launch {
             if (Application.getBackend() is GoBackend) {
                 try {

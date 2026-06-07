@@ -50,6 +50,7 @@ import com.wireguard.android.util.QuantityFormatter
 import com.wireguard.android.util.TunnelImporter
 import com.wireguard.android.util.UserKnobs
 import com.wireguard.android.util.applicationScope
+import com.wireguard.android.vcs.VcsAuthGate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -122,6 +123,7 @@ class TvMainActivity : AppCompatActivity() {
             }
         }
         super.onCreate(savedInstanceState)
+        if (!VcsAuthGate.requireSignedIn(this)) return
         binding = TvActivityBinding.inflate(layoutInflater)
         lifecycleScope.launch {
             binding.tunnels = Application.getTunnelManager().getTunnels()

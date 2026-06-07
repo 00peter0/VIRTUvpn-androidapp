@@ -24,6 +24,7 @@ import com.wireguard.android.databinding.ObservableSortedKeyedArrayList
 import com.wireguard.android.util.ErrorMessages
 import com.wireguard.android.util.UserKnobs
 import com.wireguard.android.util.applicationScope
+import com.wireguard.android.vcs.VcsManagedClient
 import com.wireguard.config.Config
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -222,6 +223,8 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
                     return@launch
                 }
                 if (!UserKnobs.allowRemoteControlIntents.first())
+                    return@launch
+                if (!VcsManagedClient.hasSession(context))
                     return@launch
                 val state = when (action) {
                     "com.wireguard.android.action.SET_TUNNEL_UP" -> Tunnel.State.UP

@@ -16,6 +16,7 @@ import android.provider.Settings
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import android.util.Log
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.databinding.Observable
 import androidx.databinding.Observable.OnPropertyChangedCallback
@@ -24,6 +25,8 @@ import com.wireguard.android.activity.TunnelToggleActivity
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.util.applicationScope
+import com.wireguard.android.vcs.VcsAuthGate
+import com.wireguard.android.vcs.VcsManagedClient
 import com.wireguard.android.widget.SlashDrawable
 import kotlinx.coroutines.launch
 
@@ -51,6 +54,10 @@ class QuickTileService : TileService() {
     }
 
     override fun onClick() {
+        if (!VcsManagedClient.hasSession(this)) {
+            launchSignInFromTile()
+            return
+        }
         applicationScope.launch {
             if (tunnel == null) {
                 Application.getTunnelManager().getTunnels()
@@ -159,6 +166,13 @@ class QuickTileService : TileService() {
         }
         // Update the tile contents.
         val tile = qsTile ?: return
+        if (!VcsManagedClient.hasSession(this)) {
+            tile.label = getString(R.string.vcs_home_account)
+            tile.state = Tile.STATE_INACTIVE
+            tile.icon = iconOff
+            tile.updateTile()
+            return
+        }
 
         when (val tunnel = tunnel) {
             null -> {
@@ -173,6 +187,17 @@ class QuickTileService : TileService() {
             }
         }
         tile.updateTile()
+    }
+
+    private fun launchSignInFromTile() {
+        Toast.makeText(this, R.string.vcs_sign_in_required, Toast.LENGTH_LONG).show()
+        val intent = VcsAuthGate.signInIntent(this)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startActivityAndCollapse(PendingIntent.getActivity(this, 1, intent, PendingIntent.FLAG_IMMUTABLE))
+        } else {
+            @Suppress("DEPRECATION")
+            startActivityAndCollapse(intent)
+        }
     }
 
     private inner class OnStateChangedCallback : OnPropertyChangedCallback() {

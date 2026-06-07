@@ -10,6 +10,7 @@ import android.content.Intent
 import android.util.Log
 import com.wireguard.android.backend.WgQuickBackend
 import com.wireguard.android.util.applicationScope
+import com.wireguard.android.vcs.VcsManagedClient
 import kotlinx.coroutines.launch
 
 class BootShutdownReceiver : BroadcastReceiver() {
@@ -19,6 +20,10 @@ class BootShutdownReceiver : BroadcastReceiver() {
             if (Application.getBackend() !is WgQuickBackend) return@launch
             val tunnelManager = Application.getTunnelManager()
             if (Intent.ACTION_BOOT_COMPLETED == action) {
+                if (!VcsManagedClient.hasSession(context)) {
+                    Log.i(TAG, "Broadcast receiver skipped restore: VCS sign-in required")
+                    return@launch
+                }
                 Log.i(TAG, "Broadcast receiver restoring state (boot)")
                 tunnelManager.restoreState(false)
             } else if (Intent.ACTION_SHUTDOWN == action) {

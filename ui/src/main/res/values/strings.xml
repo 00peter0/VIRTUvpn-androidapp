@@ -75,6 +75,17 @@
     <string name="vcs_home_title">Home</string>
     <string name="vcs_tunnels_title">Tunnels</string>
     <string name="vcs_home_account">Sign in VCS</string>
+    <string name="vcs_sign_in">Sign in VCS</string>
+    <string name="vcs_sign_in_required">Sign in to VCS to use Virtu VPN.</string>
+    <string name="vcs_account_title">VCS Account</string>
+    <string name="vcs_account_signed_in">This device is linked to VCS.</string>
+    <string name="vcs_account_api_base">Server: %1$s</string>
+    <string name="vcs_account_device_id">Device: %1$s</string>
+    <string name="vcs_account_open_dashboard">Open dashboard</string>
+    <string name="vcs_account_sign_out">Sign out</string>
+    <string name="vcs_signed_out">Signed out of VCS.</string>
+    <string name="vcs_sign_out_confirm_title">Sign out of VCS?</string>
+    <string name="vcs_sign_out_confirm_message">Managed assignments and update credentials will be cleared. Local VPN configs remain on this device.</string>
     <string name="vcs_kill_switch_title">Kill switch</string>
     <string name="vcs_kill_switch_checking">Checking Android VPN lockdown…</string>
     <string name="vcs_kill_switch_protected">Protected: Always-on VPN and block-without-VPN are enabled</string>

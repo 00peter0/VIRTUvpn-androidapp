@@ -40,7 +40,33 @@ object VcsManagedClient {
         val pendingBundleAssignments: Int
     )
     data class UpdateCheck(val available: Boolean, val versionName: String?)
+    data class SessionInfo(val apiBase: String, val deviceId: String?)
     private data class ImportResult(val localTunnelName: String, val applied: Boolean, val current: Boolean)
+
+    fun hasSession(context: Context): Boolean = loadSession(context) != null
+
+    fun sessionInfo(context: Context): SessionInfo? {
+        return loadSession(context)?.let { SessionInfo(it.apiBase, it.deviceId) }
+    }
+
+    fun clearSession(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .remove(KEY_API_BASE)
+            .remove(KEY_ACCESS_TOKEN)
+            .remove(KEY_DEVICE_ID)
+            .remove(KEY_ASSIGNMENTS)
+            .remove(KEY_PENDING_BUNDLE_ASSIGNMENTS)
+            .remove(KEY_LAST_UPDATE_PROMPT)
+            .remove(KEY_LAST_UPDATE_URL)
+            .apply()
+    }
+
+    fun isEnrollmentUri(uri: Uri?): Boolean {
+        if (uri == null) return false
+        val scheme = uri.scheme?.lowercase(Locale.US)
+        return scheme == "virtuvpn" && uri.host == "enroll" ||
+            (scheme == "https" || scheme == "http") && uri.path == "/api/mobile/android/enroll/open"
+    }
 
     suspend fun handleEnrollmentPayload(context: Context, payload: String): SyncResult = withContext(Dispatchers.IO) {
         val parsed = parseEnrollmentPayload(payload)
@@ -454,7 +480,7 @@ object VcsManagedClient {
         return if (text.isBlank()) JSONObject() else JSONObject(text)
     }
 
-    private fun requireSession(context: Context): Session = loadSession(context) ?: error("Enroll this device from VCS App first")
+    private fun requireSession(context: Context): Session = loadSession(context) ?: error("Sign in to VCS first")
 
     private fun loadSession(context: Context): Session? {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

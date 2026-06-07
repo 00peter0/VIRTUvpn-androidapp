@@ -20,6 +20,7 @@ import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.backend.WgQuickBackend
 import com.wireguard.android.preference.PreferencesPreferenceDataStore
+import com.wireguard.android.vcs.VcsAuthGate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -30,11 +31,17 @@ import kotlinx.coroutines.withContext
 class SettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!VcsAuthGate.requireSignedIn(this)) return
         if (supportFragmentManager.findFragmentById(android.R.id.content) == null) {
             supportFragmentManager.commit {
                 add(android.R.id.content, SettingsFragment())
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        VcsAuthGate.requireSignedIn(this)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {

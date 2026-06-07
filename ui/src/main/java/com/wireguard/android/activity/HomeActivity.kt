@@ -12,6 +12,7 @@ import android.provider.Settings
 import android.text.InputType
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -38,18 +39,20 @@ class HomeActivity : AppCompatActivity() {
             title = "  ${getString(R.string.vcs_home_title)}"
         }
 
-        binding.vpnMeshButton.setOnClickListener { openVpnApp(MainActivity.TUNNEL_SECTION_VPN_MESH) }
-        binding.secureBrowserButton.setOnClickListener { startActivity(Intent(this, SecureBrowserActivity::class.java)) }
-        binding.managedAccessButton.setOnClickListener { openVpnApp(MainActivity.TUNNEL_SECTION_MANAGED_ACCESS) }
-        binding.enrollButton.setOnClickListener { showEnrollDialog() }
+        binding.vpnMeshButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_VPN_MESH) }
+        binding.secureBrowserButton.setOnClickListener { if (requireSignedInForHome()) startActivity(Intent(this, SecureBrowserActivity::class.java)) }
+        binding.managedAccessButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_MANAGED_ACCESS) }
+        binding.enrollButton.setOnClickListener { if (VcsManagedClient.hasSession(this)) showAccountDialog() else showEnrollDialog() }
         binding.syncButton.setOnClickListener { syncManagedAccess() }
         binding.checkUpdatesButton.setOnClickListener { checkUpdates() }
         binding.openVpnSettingsButton.setOnClickListener { openVpnSettings() }
+        updateSignedInState()
         updateKillSwitchStatus()
     }
 
     override fun onResume() {
         super.onResume()
+        updateSignedInState()
         updateKillSwitchStatus()
     }
 
@@ -58,10 +61,17 @@ class HomeActivity : AppCompatActivity() {
         return true
     }
 
+    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
+        menu.findItem(R.id.menu_vcs_account)?.setTitle(
+            if (VcsManagedClient.hasSession(this)) R.string.vcs_account_title else R.string.vcs_home_account
+        )
+        return super.onPrepareOptionsMenu(menu)
+    }
+
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.menu_vcs_account -> {
-                openSection("/dashboard")
+                if (VcsManagedClient.hasSession(this)) showAccountDialog() else showEnrollDialog()
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -69,6 +79,7 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun syncManagedAccess() {
+        if (!requireSignedInForHome()) return
         lifecycleScope.launch {
             try {
                 Toast.makeText(this@HomeActivity, R.string.vcs_sync_running, Toast.LENGTH_SHORT).show()
@@ -103,7 +114,7 @@ class HomeActivity : AppCompatActivity() {
             setPadding(32, 20, 32, 20)
         }
         AlertDialog.Builder(this)
-            .setTitle(R.string.vcs_enroll_device)
+            .setTitle(R.string.vcs_sign_in)
             .setView(input)
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(R.string.vcs_enroll_submit) { _, _ ->
@@ -119,11 +130,14 @@ class HomeActivity : AppCompatActivity() {
                 Toast.makeText(this@HomeActivity, syncResultMessage(result), Toast.LENGTH_LONG).show()
             } catch (e: Throwable) {
                 Toast.makeText(this@HomeActivity, getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
+            } finally {
+                updateSignedInState()
             }
         }
     }
 
     private fun checkUpdates() {
+        if (!requireSignedInForHome()) return
         lifecycleScope.launch {
             try {
                 val update = VcsManagedClient.checkForManagedUpdate(this@HomeActivity)
@@ -150,6 +164,66 @@ class HomeActivity : AppCompatActivity() {
                     if (opened) R.string.vcs_update_opened else R.string.vcs_update_download_failed,
                     Toast.LENGTH_LONG
                 ).show()
+            }
+            .show()
+    }
+
+    private fun requireSignedInForHome(): Boolean {
+        if (VcsManagedClient.hasSession(this)) return true
+        Toast.makeText(this, R.string.vcs_sign_in_required, Toast.LENGTH_LONG).show()
+        showEnrollDialog()
+        return false
+    }
+
+    private fun updateSignedInState() {
+        val signedIn = VcsManagedClient.hasSession(this)
+        listOf(
+            binding.vpnMeshButton,
+            binding.managedAccessButton,
+            binding.secureBrowserButton,
+            binding.syncButton,
+            binding.checkUpdatesButton
+        ).forEach { setProtectedButtonState(it, signedIn) }
+        binding.enrollButtonLabel.setText(if (signedIn) R.string.vcs_account_title else R.string.vcs_sign_in)
+        invalidateOptionsMenu()
+    }
+
+    private fun setProtectedButtonState(view: View, signedIn: Boolean) {
+        view.isEnabled = signedIn
+        view.alpha = if (signedIn) 1f else 0.42f
+    }
+
+    private fun showAccountDialog() {
+        val session = VcsManagedClient.sessionInfo(this)
+        val message = buildString {
+            append(getString(R.string.vcs_account_signed_in))
+            session?.apiBase?.takeIf { it.isNotBlank() }?.let {
+                append("\n")
+                append(getString(R.string.vcs_account_api_base, it))
+            }
+            session?.deviceId?.takeIf { it.isNotBlank() }?.let {
+                append("\n")
+                append(getString(R.string.vcs_account_device_id, it))
+            }
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.vcs_account_title)
+            .setMessage(message)
+            .setNegativeButton(R.string.vcs_account_sign_out) { _, _ -> showSignOutConfirmDialog() }
+            .setNeutralButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.vcs_account_open_dashboard) { _, _ -> openSection("/dashboard") }
+            .show()
+    }
+
+    private fun showSignOutConfirmDialog() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.vcs_sign_out_confirm_title)
+            .setMessage(R.string.vcs_sign_out_confirm_message)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.vcs_account_sign_out) { _, _ ->
+                VcsManagedClient.clearSession(this)
+                updateSignedInState()
+                Toast.makeText(this, R.string.vcs_signed_out, Toast.LENGTH_LONG).show()
             }
             .show()
     }
