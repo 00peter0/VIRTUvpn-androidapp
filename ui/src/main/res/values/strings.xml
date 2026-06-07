@@ -117,6 +117,7 @@
     <string name="web_terminal_browser_title">Web Terminal</string>
     <string name="web_terminal_browser_blocked_detail">Terminal traffic is stopped until the required VPN tunnel is active.</string>
     <string name="vcs_enroll_device">Enroll device</string>
+    <string name="vcs_enroll_required">Enroll this device from VCS App first.</string>
     <string name="vcs_enroll_hint">Paste VirtuVPN enrollment link</string>
     <string name="vcs_enroll_submit">Enroll</string>
     <string name="vcs_sync_now">Sync now</string>

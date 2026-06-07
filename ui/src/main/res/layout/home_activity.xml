@@ -148,7 +148,7 @@
                 app:tint="#FFFFFF" />
 
             <TextView
-                android:id="@+id/enroll_button_label"
+                android:id="@+id/vpn_mesh_button_label"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -227,6 +227,7 @@
                 app:tint="#FFFFFF" />
 
             <TextView
+                android:id="@+id/enroll_button_label"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"

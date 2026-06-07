@@ -82,7 +82,7 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun syncManagedAccess() {
-        if (!requireSignedInForHome()) return
+        if (!requireEnrolledForDeviceAction()) return
         lifecycleScope.launch {
             try {
                 Toast.makeText(this@HomeActivity, R.string.vcs_sync_running, Toast.LENGTH_SHORT).show()
@@ -140,7 +140,7 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun checkUpdates() {
-        if (!requireSignedInForHome()) return
+        if (!requireEnrolledForDeviceAction()) return
         lifecycleScope.launch {
             try {
                 val update = VcsManagedClient.checkForManagedUpdate(this@HomeActivity)
@@ -178,15 +178,25 @@ class HomeActivity : AppCompatActivity() {
         return false
     }
 
+    private fun requireEnrolledForDeviceAction(): Boolean {
+        if (VcsManagedClient.hasSession(this)) return true
+        Toast.makeText(this, R.string.vcs_enroll_required, Toast.LENGTH_LONG).show()
+        showEnrollDialog()
+        return false
+    }
+
     private fun updateSignedInState() {
         val signedIn = VcsManagedClient.hasAccountSession(this)
+        val enrolled = VcsManagedClient.hasSession(this)
         listOf(
             binding.vpnMeshButton,
             binding.managedAccessButton,
-            binding.secureBrowserButton,
+            binding.secureBrowserButton
+        ).forEach { setProtectedButtonState(it, signedIn) }
+        listOf(
             binding.syncButton,
             binding.checkUpdatesButton
-        ).forEach { setProtectedButtonState(it, signedIn) }
+        ).forEach { setProtectedButtonState(it, enrolled) }
         binding.enrollButtonLabel.setText(R.string.vcs_enroll_device)
         invalidateOptionsMenu()
     }
