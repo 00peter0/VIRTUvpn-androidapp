@@ -13,6 +13,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.databinding.ConfigNamingDialogFragmentBinding
+import com.wireguard.android.util.VcsDialogs
 import com.wireguard.config.BadConfigException
 import com.wireguard.config.Config
 import kotlinx.coroutines.launch
@@ -64,6 +65,7 @@ class ConfigNamingDialogFragment : DialogFragment() {
         alertDialogBuilder.setPositiveButton(R.string.create_tunnel) { _, _ -> createTunnelAndDismiss() }
         alertDialogBuilder.setNegativeButton(R.string.cancel) { _, _ -> dismiss() }
         val dialog = alertDialogBuilder.create()
+        dialog.setOnShowListener { VcsDialogs.applyDefaultStyle(dialog) }
         dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
         return dialog
     }

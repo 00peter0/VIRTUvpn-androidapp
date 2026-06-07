@@ -18,7 +18,11 @@
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/tunnel_name_text_layout"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:textColorHint="#8EA2AE"
+            app:boxBackgroundColor="#111C25"
+            app:boxStrokeColor="#5EEAD4"
+            app:hintTextColor="#8EA2AE">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/tunnel_name_text"
@@ -27,6 +31,8 @@
                 android:hint="@string/tunnel_name"
                 android:imeOptions="actionDone"
                 android:inputType="textNoSuggestions|textVisiblePassword"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#8EA2AE"
                 app:filter="@{NameInputFilter.newInstance()}">
 
                 <requestFocus />

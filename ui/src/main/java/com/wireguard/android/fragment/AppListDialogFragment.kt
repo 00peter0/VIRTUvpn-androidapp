@@ -27,6 +27,7 @@ import com.wireguard.android.databinding.AppListDialogFragmentBinding
 import com.wireguard.android.databinding.ObservableKeyedArrayList
 import com.wireguard.android.model.ApplicationData
 import com.wireguard.android.util.ErrorMessages
+import com.wireguard.android.util.VcsDialogs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -125,6 +126,7 @@ class AppListDialogFragment : DialogFragment() {
         loadData()
         val dialog = alertDialogBuilder.create()
         dialog.setOnShowListener {
+            VcsDialogs.applyDefaultStyle(dialog)
             button = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
             setButtonText()
             dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener { _ ->

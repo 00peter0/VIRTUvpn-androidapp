@@ -20,6 +20,7 @@ import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.backend.WgQuickBackend
 import com.wireguard.android.preference.PreferencesPreferenceDataStore
+import com.wireguard.android.util.VcsDialogs
 import com.wireguard.android.vcs.VcsAuthGate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -91,9 +92,10 @@ class SettingsActivity : AppCompatActivity() {
                 true
             }
             preferenceManager.findPreference<Preference>("open_source_licenses")?.setOnPreferenceClickListener {
-                com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
-                    .setTitle("Open Source Licenses")
-                    .setMessage(
+                VcsDialogs.show(
+                    context = requireContext(),
+                    title = "Open Source Licenses",
+                    message =
                         "WireGuard for Android\n" +
                         "Copyright © 2017-2025 WireGuard LLC. All Rights Reserved.\n" +
                         "Licensed under the Apache License, Version 2.0\n\n" +
@@ -102,10 +104,9 @@ class SettingsActivity : AppCompatActivity() {
                         "Unless required by applicable law or agreed to in writing, " +
                         "software distributed under the License is distributed on an " +
                         "\"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, " +
-                        "either express or implied."
-                    )
-                    .setPositiveButton("OK", null)
-                    .show()
+                        "either express or implied.",
+                    positive = VcsDialogs.action("OK", primary = true)
+                )
                 true
             }
             val kernelModuleEnabler = preferenceManager.findPreference<Preference>("kernel_module_enabler")

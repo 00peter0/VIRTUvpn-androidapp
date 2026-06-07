@@ -51,6 +51,7 @@
             android:maxLines="1"
             android:text="@{key}"
             android:textAppearance="?attr/textAppearanceBodyLarge"
+            android:textColor="#E5F2F7"
             tools:text="@tools:sample/full_names" />
 
         <CheckBox

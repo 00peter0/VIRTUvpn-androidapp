@@ -24,13 +24,18 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:background="@android:color/transparent"
         android:orientation="vertical">
 
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/tabs"
             style="@style/Widget.Material3.TabLayout.OnSurface"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:background="@android:color/transparent"
+            app:tabIndicatorColor="#5EEAD4"
+            app:tabSelectedTextColor="#FFFFFF"
+            app:tabTextColor="#8EA2AE">
 
             <com.google.android.material.tabs.TabItem
                 android:layout_width="wrap_content"

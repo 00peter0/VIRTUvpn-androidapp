@@ -30,6 +30,7 @@ import androidx.lifecycle.lifecycleScope
 import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.databinding.SecureBrowserActivityBinding
+import com.wireguard.android.util.VcsDialogs
 import com.wireguard.android.vcs.VcsAuthGate
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -390,12 +391,13 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun confirmDeleteBookmark(url: String) {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.vcs_secure_browser_delete_bookmark_title)
-            .setMessage(bookmarkLabel(url))
-            .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(R.string.delete) { _, _ -> deleteBookmark(url) }
-            .show()
+        VcsDialogs.show(
+            context = this,
+            title = getString(R.string.vcs_secure_browser_delete_bookmark_title),
+            message = bookmarkLabel(url),
+            negative = VcsDialogs.action(this, android.R.string.cancel),
+            positive = VcsDialogs.action(this, R.string.delete, primary = true) { deleteBookmark(url) }
+        )
     }
 
     private fun deleteBookmark(url: String) {

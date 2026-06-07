@@ -24,6 +24,7 @@ import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.databinding.HomeActivityBinding
 import com.wireguard.android.databinding.VcsSignInDialogBinding
+import com.wireguard.android.util.VcsDialogs
 import com.wireguard.android.vcs.VcsManagedClient
 import kotlinx.coroutines.launch
 
@@ -114,16 +115,23 @@ class HomeActivity : AppCompatActivity() {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI or InputType.TYPE_TEXT_FLAG_MULTI_LINE
             minLines = 3
             setSingleLine(false)
-            setPadding(32, 20, 32, 20)
+            setBackgroundResource(R.drawable.vcs_dialog_input_background)
+            setHintTextColor(Color.parseColor("#8EA2AE"))
+            setPadding(32, 24, 32, 24)
+            setTextColor(Color.WHITE)
         }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.vcs_enroll_device)
-            .setView(input)
-            .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(R.string.vcs_enroll_submit) { _, _ ->
+        val dialog = VcsDialogs.show(
+            context = this,
+            title = getString(R.string.vcs_enroll_device),
+            customView = input,
+            negative = VcsDialogs.action(this, android.R.string.cancel),
+            positive = VcsDialogs.action(this, R.string.vcs_enroll_submit, primary = true) {
                 enrollFromText(input.text?.toString().orEmpty())
-            }
-            .show()
+            },
+            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
+        )
+        input.requestFocus()
+        dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
     }
 
     private fun enrollFromText(value: String) {
@@ -156,11 +164,12 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun showUpdateDownloadDialog(versionName: String) {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.vcs_update_download_title)
-            .setMessage(getString(R.string.vcs_update_download_message, versionName))
-            .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(R.string.stat_download) { _, _ ->
+        VcsDialogs.show(
+            context = this,
+            title = getString(R.string.vcs_update_download_title),
+            message = getString(R.string.vcs_update_download_message, versionName),
+            negative = VcsDialogs.action(this, android.R.string.cancel),
+            positive = VcsDialogs.action(this, R.string.stat_download, primary = true) {
                 val opened = VcsManagedClient.openManagedUpdate(this)
                 Toast.makeText(
                     this,
@@ -168,7 +177,7 @@ class HomeActivity : AppCompatActivity() {
                     Toast.LENGTH_LONG
                 ).show()
             }
-            .show()
+        )
     }
 
     private fun requireSignedInForHome(): Boolean {
@@ -282,26 +291,28 @@ class HomeActivity : AppCompatActivity() {
                 append(getString(R.string.vcs_account_api_base, it))
             }
         }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.vcs_account_title)
-            .setMessage(message)
-            .setNegativeButton(R.string.vcs_account_sign_out) { _, _ -> showSignOutConfirmDialog() }
-            .setNeutralButton(android.R.string.cancel, null)
-            .setPositiveButton(R.string.vcs_account_open_dashboard) { _, _ -> openSection("/dashboard") }
-            .show()
+        VcsDialogs.show(
+            context = this,
+            title = getString(R.string.vcs_account_title),
+            message = message,
+            negative = VcsDialogs.action(this, R.string.vcs_account_sign_out) { showSignOutConfirmDialog() },
+            neutral = VcsDialogs.action(this, android.R.string.cancel),
+            positive = VcsDialogs.action(this, R.string.vcs_account_open_dashboard, primary = true) { openSection("/dashboard") }
+        )
     }
 
     private fun showSignOutConfirmDialog() {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.vcs_sign_out_confirm_title)
-            .setMessage(R.string.vcs_sign_out_confirm_message)
-            .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(R.string.vcs_account_sign_out) { _, _ ->
+        VcsDialogs.show(
+            context = this,
+            title = getString(R.string.vcs_sign_out_confirm_title),
+            message = getString(R.string.vcs_sign_out_confirm_message),
+            negative = VcsDialogs.action(this, android.R.string.cancel),
+            positive = VcsDialogs.action(this, R.string.vcs_account_sign_out, primary = true) {
                 VcsManagedClient.clearAllVcsState(this)
                 updateSignedInState()
                 Toast.makeText(this, R.string.vcs_signed_out, Toast.LENGTH_LONG).show()
             }
-            .show()
+        )
     }
 
     private fun updateKillSwitchStatus() {

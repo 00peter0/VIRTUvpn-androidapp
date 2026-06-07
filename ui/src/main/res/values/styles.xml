@@ -35,6 +35,8 @@
         <item name="actionBarStyle">@style/VirtuVpnTheme.ActionBar</item>
         <item name="android:actionBarStyle">@style/VirtuVpnTheme.ActionBar</item>
         <item name="actionBarTheme">@style/VirtuVpnTheme.ActionBarOverlay</item>
+        <item name="alertDialogTheme">@style/VirtuVpnTheme.AlertDialog</item>
+        <item name="materialAlertDialogTheme">@style/VirtuVpnTheme.MaterialAlertDialog</item>
         <item name="bottomSheetDialogTheme">@style/WireGuardTheme.BottomSheetDialog</item>
         <item name="android:statusBarColor">@color/vcs_top_bar</item>
         <item name="android:navigationBarColor">@color/vcs_top_bar</item>
@@ -53,6 +55,28 @@
     <style name="WireGuardTheme.BottomSheetDialog" parent="ThemeOverlay.Material3.BottomSheetDialog">
         <item name="android:windowIsFloating">false</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <style name="VirtuVpnTheme.AlertDialog" parent="ThemeOverlay.AppCompat.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/vcs_dialog_background</item>
+        <item name="android:textColorPrimary">#FFFFFF</item>
+        <item name="android:textColorSecondary">#B8C8D2</item>
+        <item name="colorAccent">#5EEAD4</item>
+        <item name="android:colorAccent">#5EEAD4</item>
+        <item name="android:windowMinWidthMajor">90%</item>
+        <item name="android:windowMinWidthMinor">90%</item>
+    </style>
+
+    <style name="VirtuVpnTheme.MaterialAlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="android:windowBackground">@drawable/vcs_dialog_background</item>
+        <item name="android:textColorPrimary">#FFFFFF</item>
+        <item name="android:textColorSecondary">#B8C8D2</item>
+        <item name="colorPrimary">#5EEAD4</item>
+        <item name="colorOnSurface">#FFFFFF</item>
+        <item name="colorSurface">#071016</item>
+        <item name="android:colorAccent">#5EEAD4</item>
+        <item name="android:windowMinWidthMajor">90%</item>
+        <item name="android:windowMinWidthMinor">90%</item>
     </style>
 
     <style name="NoBackgroundTheme" parent="AppTheme">

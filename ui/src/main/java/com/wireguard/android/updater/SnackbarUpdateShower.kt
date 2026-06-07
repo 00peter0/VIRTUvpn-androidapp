@@ -12,12 +12,12 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.BaseTransientBottomBar
 import com.google.android.material.snackbar.Snackbar
 import com.wireguard.android.R
 import com.wireguard.android.util.ErrorMessages
 import com.wireguard.android.util.QuantityFormatter
+import com.wireguard.android.util.VcsDialogs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -147,10 +147,12 @@ class SnackbarUpdateShower(private val fragment: Fragment) {
                 }
 
                 is Updater.Progress.Corrupt -> {
-                    MaterialAlertDialogBuilder(context)
-                        .setTitle(R.string.updater_corrupt_title)
-                        .setMessage(R.string.updater_corrupt_message)
-                        .setPositiveButton(R.string.updater_corrupt_navigate) { _, _ ->
+                    VcsDialogs.show(
+                        context = context,
+                        title = context.getString(R.string.updater_corrupt_title),
+                        message = context.getString(R.string.updater_corrupt_message),
+                        cancelable = false,
+                        positive = VcsDialogs.action(context, R.string.updater_corrupt_navigate, primary = true) {
                             val intent = Intent(Intent.ACTION_VIEW)
                             intent.data = Uri.parse(progress.downloadUrl)
                             try {
@@ -158,14 +160,16 @@ class SnackbarUpdateShower(private val fragment: Fragment) {
                             } catch (e: Throwable) {
                                 Toast.makeText(context, ErrorMessages[e], Toast.LENGTH_SHORT).show()
                             }
-                        }.setCancelable(false).setOnDismissListener {
+                        },
+                        onDismiss = {
                             val intent = Intent(Intent.ACTION_MAIN)
                             intent.addCategory(Intent.CATEGORY_HOME)
                             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             context.startActivity(intent)
                             System.exit(0)
-                        }.show()
+                        }
+                    )
                 }
             }
         }.launchIn(fragment.lifecycleScope)

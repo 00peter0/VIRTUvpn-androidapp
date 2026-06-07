@@ -33,7 +33,6 @@ import androidx.databinding.ObservableField
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.GridLayoutManager.SpanSizeLookup
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.backend.GoBackend
@@ -49,6 +48,7 @@ import com.wireguard.android.util.ErrorMessages
 import com.wireguard.android.util.QuantityFormatter
 import com.wireguard.android.util.TunnelImporter
 import com.wireguard.android.util.UserKnobs
+import com.wireguard.android.util.VcsDialogs
 import com.wireguard.android.util.applicationScope
 import com.wireguard.android.vcs.VcsAuthGate
 import kotlinx.coroutines.Dispatchers
@@ -213,8 +213,11 @@ class TvMainActivity : AppCompatActivity() {
                 try {
                     tunnelFileImportResultLauncher.launch(arrayOf("*/*"))
                 } catch (_: Throwable) {
-                    MaterialAlertDialogBuilder(binding.root.context).setMessage(R.string.tv_no_file_picker).setCancelable(false)
-                        .setPositiveButton(android.R.string.ok) { _, _ ->
+                    VcsDialogs.show(
+                        context = binding.root.context,
+                        message = getString(R.string.tv_no_file_picker),
+                        cancelable = false,
+                        positive = VcsDialogs.action(this, android.R.string.ok, primary = true) {
                             try {
                                 startActivity(Intent(Intent.ACTION_VIEW).apply {
                                     data = Uri.parse("https://play.google.com/store/apps/details?id=com.cxinventor.file.explorer")
@@ -222,7 +225,8 @@ class TvMainActivity : AppCompatActivity() {
                                 })
                             } catch (_: Throwable) {
                             }
-                        }.show()
+                        }
+                    )
                 }
             }
         }
