@@ -43,7 +43,7 @@ class HomeActivity : AppCompatActivity() {
         binding.vpnMeshButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_VPN_MESH) }
         binding.secureBrowserButton.setOnClickListener { if (requireSignedInForHome()) startActivity(Intent(this, SecureBrowserActivity::class.java)) }
         binding.managedAccessButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_MANAGED_ACCESS) }
-        binding.enrollButton.setOnClickListener { if (requireSignedInForHome()) showEnrollDialog() }
+        binding.enrollButton.setOnClickListener { showEnrollDialog() }
         binding.syncButton.setOnClickListener { syncManagedAccess() }
         binding.checkUpdatesButton.setOnClickListener { checkUpdates() }
         binding.openVpnSettingsButton.setOnClickListener { openVpnSettings() }
