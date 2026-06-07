@@ -374,9 +374,9 @@ class HomeActivity : AppCompatActivity() {
         ).forEach { setProtectedButtonState(it, signedIn) }
         listOf(
             binding.syncButton,
-            binding.checkUpdatesButton,
-            binding.vpnRouterButton
+            binding.checkUpdatesButton
         ).forEach { setProtectedButtonState(it, signedIn || enrolled) }
+        updateVpnRouterButtonState(lastVpnRouterStatus)
         binding.enrollButtonLabel.setText(R.string.vcs_enroll_device)
         invalidateOptionsMenu()
     }
@@ -581,13 +581,18 @@ class HomeActivity : AppCompatActivity() {
                 binding.vpnRouterStatus.setTextColor(Color.parseColor("#F87171"))
             }
         }
+        updateVpnRouterButtonState(status)
+        updateKillSwitchStatus()
+    }
+
+    private fun updateVpnRouterButtonState(status: VpnRouterManager.Status?) {
         binding.vpnRouterButton.setText(
-            if (status.canDisable) R.string.vcs_vpn_router_disable else R.string.vcs_vpn_router_enable
+            if (status?.canDisable == true) R.string.vcs_vpn_router_disable else R.string.vcs_vpn_router_enable
         )
         val hasRouterAccess = VcsManagedClient.hasSession(this) || VcsManagedClient.hasAccountSession(this)
-        binding.vpnRouterButton.isEnabled = hasRouterAccess && !vpnRouterActionRunning && (status.canEnable || status.canDisable)
+        val canToggleRouter = status?.let { it.canEnable || it.canDisable } == true
+        binding.vpnRouterButton.isEnabled = hasRouterAccess && !vpnRouterActionRunning && canToggleRouter
         binding.vpnRouterButton.alpha = if (binding.vpnRouterButton.isEnabled) 1f else 0.58f
-        updateKillSwitchStatus()
     }
 
     private fun updateKillSwitchStatus() {
