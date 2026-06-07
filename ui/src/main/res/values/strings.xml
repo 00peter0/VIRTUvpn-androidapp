@@ -78,6 +78,8 @@
     <string name="vcs_sign_in">Sign in VCS</string>
     <string name="vcs_sign_in_email">Email</string>
     <string name="vcs_sign_in_password">Password</string>
+    <string name="vcs_sign_in_running">Signing in…</string>
+    <string name="vcs_sign_in_required_fields">Email and password are required.</string>
     <string name="vcs_sign_in_required">Sign in to VCS to use Virtu VPN.</string>
     <string name="vcs_sign_in_failed">VCS sign in failed: %1$s</string>
     <string name="vcs_signed_in_as">Signed in as %1$s</string>

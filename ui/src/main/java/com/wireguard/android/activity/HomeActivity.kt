@@ -6,6 +6,7 @@ package com.wireguard.android.activity
 
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
@@ -13,8 +14,8 @@ import android.text.InputType
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.WindowManager
 import android.widget.EditText
-import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -22,6 +23,7 @@ import androidx.lifecycle.lifecycleScope
 import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.databinding.HomeActivityBinding
+import com.wireguard.android.databinding.VcsSignInDialogBinding
 import com.wireguard.android.vcs.VcsManagedClient
 import kotlinx.coroutines.launch
 
@@ -195,33 +197,46 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun showSignInDialog() {
-        val emailInput = EditText(this).apply {
-            hint = getString(R.string.vcs_sign_in_email)
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
-            setSingleLine(true)
-        }
-        val passwordInput = EditText(this).apply {
-            hint = getString(R.string.vcs_sign_in_password)
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-            setSingleLine(true)
-        }
-        val form = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(32, 12, 32, 0)
-            addView(emailInput)
-            addView(passwordInput)
-        }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.vcs_sign_in)
-            .setView(form)
-            .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(R.string.vcs_sign_in) { _, _ ->
-                signIn(emailInput.text?.toString().orEmpty(), passwordInput.text?.toString().orEmpty())
+        val dialogBinding = VcsSignInDialogBinding.inflate(layoutInflater)
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogBinding.root)
+            .create()
+        val submit = {
+            val email = dialogBinding.emailInput.text?.toString().orEmpty()
+            val password = dialogBinding.passwordInput.text?.toString().orEmpty()
+            if (email.isBlank() || password.isBlank()) {
+                Toast.makeText(this, R.string.vcs_sign_in_required_fields, Toast.LENGTH_LONG).show()
+            } else {
+                setSignInDialogBusy(dialogBinding, true)
+                signIn(
+                    email,
+                    password,
+                    onSuccess = { dialog.dismiss() },
+                    onFinished = { setSignInDialogBusy(dialogBinding, false) }
+                )
             }
-            .show()
+        }
+        dialogBinding.cancelButton.setOnClickListener { dialog.dismiss() }
+        dialogBinding.signInButton.setOnClickListener { submit() }
+        dialogBinding.passwordInput.setOnEditorActionListener { _, _, _ ->
+            submit()
+            true
+        }
+        dialog.show()
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
+        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.9f).toInt(), WindowManager.LayoutParams.WRAP_CONTENT)
+        dialogBinding.emailInput.requestFocus()
     }
 
-    private fun signIn(email: String, password: String) {
+    private fun setSignInDialogBusy(dialogBinding: VcsSignInDialogBinding, busy: Boolean) {
+        dialogBinding.signInButton.isEnabled = !busy
+        dialogBinding.cancelButton.isEnabled = !busy
+        dialogBinding.signInButton.alpha = if (busy) 0.62f else 1f
+        dialogBinding.signInButton.setText(if (busy) R.string.vcs_sign_in_running else R.string.vcs_sign_in)
+    }
+
+    private fun signIn(email: String, password: String, onSuccess: () -> Unit = {}, onFinished: () -> Unit = {}) {
         lifecycleScope.launch {
             try {
                 val account = VcsManagedClient.signInAccount(this@HomeActivity, baseUrl, email, password)
@@ -231,8 +246,11 @@ class HomeActivity : AppCompatActivity() {
                     getString(R.string.vcs_signed_in_as, account.email ?: getString(R.string.vcs_account_title)),
                     Toast.LENGTH_LONG
                 ).show()
+                onSuccess()
             } catch (e: Throwable) {
                 Toast.makeText(this@HomeActivity, getString(R.string.vcs_sign_in_failed, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
+            } finally {
+                onFinished()
             }
         }
     }
