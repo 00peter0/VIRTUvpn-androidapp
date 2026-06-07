@@ -25,6 +25,7 @@ import com.wireguard.android.model.TunnelManager
 import com.wireguard.android.updater.Updater
 import com.wireguard.android.util.RootShell
 import com.wireguard.android.util.ToolsInstaller
+import com.wireguard.android.util.TunnelConnectivityMonitor
 import com.wireguard.android.util.UserKnobs
 import com.wireguard.android.util.applicationScope
 import kotlinx.coroutines.CompletableDeferred
@@ -48,6 +49,7 @@ class Application : android.app.Application() {
     private lateinit var preferencesDataStore: DataStore<Preferences>
     private lateinit var toolsInstaller: ToolsInstaller
     private lateinit var tunnelManager: TunnelManager
+    private lateinit var tunnelConnectivityMonitor: TunnelConnectivityMonitor
 
     override fun attachBaseContext(context: Context) {
         super.attachBaseContext(context)
@@ -108,6 +110,8 @@ class Application : android.app.Application() {
         }
         tunnelManager = TunnelManager(FileConfigStore(applicationContext))
         tunnelManager.onCreate()
+        tunnelConnectivityMonitor = TunnelConnectivityMonitor(applicationContext)
+        tunnelConnectivityMonitor.start()
         coroutineScope.launch(Dispatchers.IO) {
             try {
                 backend = determineBackend()
@@ -125,6 +129,7 @@ class Application : android.app.Application() {
     }
 
     override fun onTerminate() {
+        if (::tunnelConnectivityMonitor.isInitialized) tunnelConnectivityMonitor.stop()
         coroutineScope.cancel()
         super.onTerminate()
     }

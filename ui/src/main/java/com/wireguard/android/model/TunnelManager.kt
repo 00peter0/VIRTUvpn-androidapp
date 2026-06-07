@@ -31,6 +31,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -210,6 +211,30 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
         if (throwable != null)
             throw throwable
         newState
+    }
+
+    suspend fun restartRunningTunnelsAfterConnectivityRestored() = withContext(Dispatchers.Main.immediate) {
+        if (!haveLoaded) return@withContext
+        val targets = tunnelMap
+            .filter { it.state == Tunnel.State.UP }
+            .map { tunnel -> tunnel to tunnel.getConfigAsync() }
+        if (targets.isEmpty()) return@withContext
+
+        Log.i(TAG, "Restarting ${targets.size} running tunnel(s) after internet connectivity restored")
+        val backend = getBackend()
+        for ((tunnel, config) in targets) {
+            try {
+                withContext(Dispatchers.IO) { backend.setState(tunnel, Tunnel.State.DOWN, null) }
+                delay(350)
+                val newState = withContext(Dispatchers.IO) { backend.setState(tunnel, Tunnel.State.UP, config) }
+                tunnel.onStateChanged(newState)
+                if (newState == Tunnel.State.UP) lastUsedTunnel = tunnel
+            } catch (e: Throwable) {
+                Log.e(TAG, "Unable to restart tunnel ${tunnel.name} after connectivity restored", e)
+                runCatching { getTunnelState(tunnel) }
+            }
+        }
+        saveState()
     }
 
     class IntentReceiver : BroadcastReceiver() {
