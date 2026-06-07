@@ -88,13 +88,9 @@ object VcsManagedClient {
 
     suspend fun signInAccount(context: Context, apiBaseUrl: String, email: String, password: String): AccountInfo = withContext(Dispatchers.IO) {
         val normalizedBase = normalizeApiBase(apiBaseUrl)
-        val body = JSONObject()
+        val body = deviceRegistrationBody()
             .put("email", email.trim())
             .put("password", password)
-            .put("deviceName", Build.MODEL ?: "Android device")
-            .put("appVersion", BuildConfig.VERSION_NAME)
-            .put("androidVersion", Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString())
-            .put("metadata", JSONObject().put("manufacturer", Build.MANUFACTURER).put("sdk", Build.VERSION.SDK_INT))
         val response = requestJson("POST", "$normalizedBase/api/mobile/android/auth/login", body, null)
         storeAccountSession(context, normalizedBase, response)
     }
@@ -410,7 +406,7 @@ object VcsManagedClient {
     private fun urlEncode(value: String): String = java.net.URLEncoder.encode(value, StandardCharsets.UTF_8.name())
 
     suspend fun reportCurrentStates(context: Context) = withContext(Dispatchers.IO) {
-        val session = loadSession(context) ?: return@withContext
+        val session = loadSession(context) ?: restoreManagedSessionFromAccount(context) ?: return@withContext
         val assignments = loadAssignments(context)
         val tunnels = Application.getTunnelManager().getTunnels()
         for (i in 0 until assignments.length()) {
@@ -541,21 +537,11 @@ object VcsManagedClient {
     }
 
     private fun completeEnrollment(context: Context, apiBaseUrl: String, enrollmentToken: String) {
-        val body = JSONObject()
+        val body = deviceRegistrationBody()
             .put("enrollmentToken", enrollmentToken)
-            .put("deviceName", Build.MODEL ?: "Android device")
-            .put("appVersion", BuildConfig.VERSION_NAME)
-            .put("appVersionCode", BuildConfig.VERSION_CODE)
-            .put("androidVersion", Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString())
             .put("devicePublicKey", JSONObject.NULL)
-            .put("metadata", JSONObject().put("manufacturer", Build.MANUFACTURER).put("sdk", Build.VERSION.SDK_INT))
         val response = requestJson("POST", "${apiBaseUrl.trimEnd('/')}/api/mobile/android/enroll/complete", body, null)
-        val device = response.getJSONObject("device")
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putString(KEY_API_BASE, apiBaseUrl.trimEnd('/'))
-            .putString(KEY_ACCESS_TOKEN, response.getString("accessToken"))
-            .putString(KEY_DEVICE_ID, device.getString("id"))
-            .apply()
+        storeManagedDeviceSession(context, apiBaseUrl.trimEnd('/'), response.getString("accessToken"), response.getJSONObject("device").getString("id"))
     }
 
     private fun parseEnrollmentPayload(payload: String): EnrollmentPayload {
@@ -607,7 +593,21 @@ object VcsManagedClient {
         return if (text.isBlank()) JSONObject() else JSONObject(text)
     }
 
-    private fun requireSession(context: Context): Session = loadSession(context) ?: error("Enroll this device from VCS App first")
+    private fun requireSession(context: Context): Session =
+        loadSession(context)
+            ?: restoreManagedSessionFromAccount(context)
+            ?: error("Sign in to VCS to use Virtu VPN.")
+
+    private fun deviceRegistrationBody(): JSONObject {
+        return JSONObject()
+            .put("deviceName", Build.MODEL ?: "Android device")
+            .put("appVersion", BuildConfig.VERSION_NAME)
+            .put("appVersionCode", BuildConfig.VERSION_CODE)
+            .put("androidVersion", Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString())
+            .put("devicePublicKey", JSONObject.NULL)
+            .put("deviceModel", Build.MODEL ?: "Android device")
+            .put("metadata", JSONObject().put("manufacturer", Build.MANUFACTURER).put("sdk", Build.VERSION.SDK_INT))
+    }
 
     private fun normalizeApiBase(value: String): String {
         val trimmed = value.trim().ifBlank { DEFAULT_API_BASE }
@@ -638,6 +638,7 @@ object VcsManagedClient {
             .putString(KEY_ACCOUNT_ROLE, account.role)
             .putString(KEY_ACCOUNT_TENANT_NAME, account.tenantName)
             .apply()
+        storeManagedDeviceSessionFromResponse(context, apiBase, response)
         return account.toInfo()
     }
 
@@ -669,6 +670,29 @@ object VcsManagedClient {
         val apiBase = prefs.getString(KEY_API_BASE, null) ?: return null
         val token = prefs.getString(KEY_ACCESS_TOKEN, null) ?: return null
         return Session(apiBase, token, prefs.getString(KEY_DEVICE_ID, null))
+    }
+
+    private fun restoreManagedSessionFromAccount(context: Context): Session? {
+        val account = loadAccountSession(context) ?: return null
+        val response = requestJson("POST", "${account.apiBase}/api/mobile/android/auth/device", deviceRegistrationBody(), account.token)
+        return storeManagedDeviceSessionFromResponse(context, account.apiBase, response)
+    }
+
+    private fun storeManagedDeviceSessionFromResponse(context: Context, apiBase: String, response: JSONObject): Session? {
+        val accessToken = response.optString("deviceAccessToken").takeIf { it.isNotBlank() }
+            ?: response.optString("accessToken").takeIf { it.isNotBlank() }
+            ?: return null
+        val deviceId = response.optJSONObject("device")?.optString("id")?.takeIf { it.isNotBlank() }
+        storeManagedDeviceSession(context, apiBase, accessToken, deviceId)
+        return Session(apiBase, accessToken, deviceId)
+    }
+
+    private fun storeManagedDeviceSession(context: Context, apiBase: String, accessToken: String, deviceId: String?) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putString(KEY_API_BASE, apiBase.trimEnd('/'))
+            .putString(KEY_ACCESS_TOKEN, accessToken)
+            .putString(KEY_DEVICE_ID, deviceId)
+            .apply()
     }
 
     private fun storeAssignments(context: Context, assignments: JSONArray) {

@@ -269,7 +269,7 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun detectVpnAppUpdateIfNeeded() {
-        if (!VcsManagedClient.hasSession(this)) return
+        if (!VcsManagedClient.hasSession(this) && !VcsManagedClient.hasAccountSession(this)) return
         val now = SystemClock.elapsedRealtime()
         if (lastAutomaticUpdateCheckAt > 0 && now - lastAutomaticUpdateCheckAt < AUTO_UPDATE_CHECK_INTERVAL_MS) return
         lastAutomaticUpdateCheckAt = now
@@ -347,8 +347,9 @@ class HomeActivity : AppCompatActivity() {
 
     private fun requireEnrolledForDeviceAction(): Boolean {
         if (VcsManagedClient.hasSession(this)) return true
-        Toast.makeText(this, R.string.vcs_enroll_required, Toast.LENGTH_LONG).show()
-        showEnrollDialog()
+        if (VcsManagedClient.hasAccountSession(this)) return true
+        Toast.makeText(this, R.string.vcs_sign_in_required, Toast.LENGTH_LONG).show()
+        showSignInDialog()
         return false
     }
 
@@ -363,7 +364,7 @@ class HomeActivity : AppCompatActivity() {
         listOf(
             binding.syncButton,
             binding.checkUpdatesButton
-        ).forEach { setProtectedButtonState(it, enrolled) }
+        ).forEach { setProtectedButtonState(it, signedIn || enrolled) }
         binding.enrollButtonLabel.setText(R.string.vcs_enroll_device)
         invalidateOptionsMenu()
     }
