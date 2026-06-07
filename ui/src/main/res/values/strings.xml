@@ -103,7 +103,7 @@
     <string name="vcs_kill_switch_checking">Checking Android VPN lockdown…</string>
     <string name="vcs_kill_switch_protected">Protected: Always-on VPN and block-without-VPN are enabled</string>
     <string name="vcs_kill_switch_unprotected">Not protected: enable Always-on VPN and Block connections without VPN in Android VPN settings</string>
-    <string name="vcs_hotspot_vpn_bypass_warning">Warning: hotspot clients are not protected by this Android VPN. Install a tunnel on each connected device.</string>
+    <string name="vcs_hotspot_vpn_bypass_warning">MOBILE HOTSPOT WARNING: connected devices are not protected by this Android VPN. Install a tunnel on each connected device.</string>
     <string name="vcs_open_vpn_settings">Open VPN settings</string>
     <string name="vcs_secure_browser_title">Secure Browser</string>
     <string name="vcs_secure_browser_hint">https://example.com</string>
