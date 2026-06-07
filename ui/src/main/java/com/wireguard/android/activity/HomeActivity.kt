@@ -192,8 +192,8 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun setProtectedButtonState(view: View, signedIn: Boolean) {
-        view.isEnabled = signedIn
-        view.alpha = if (signedIn) 1f else 0.42f
+        view.isEnabled = true
+        view.alpha = if (signedIn) 1f else 0.58f
     }
 
     private fun showSignInDialog() {

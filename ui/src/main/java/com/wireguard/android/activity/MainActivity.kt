@@ -141,12 +141,18 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
             } catch (e: Throwable) {
                 Toast.makeText(this@MainActivity, getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
             } finally {
-                enrollmentIntentPending = false
-                if (!VcsManagedClient.hasAccountSession(this@MainActivity)) {
-                    VcsAuthGate.requireSignedIn(this@MainActivity)
-                }
+                finishEnrollmentFlow()
             }
         }
+    }
+
+    private fun finishEnrollmentFlow() {
+        enrollmentIntentPending = false
+        startActivity(
+            Intent(this, HomeActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        )
+        finish()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
