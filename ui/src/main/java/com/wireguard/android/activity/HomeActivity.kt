@@ -14,6 +14,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -42,7 +43,7 @@ class HomeActivity : AppCompatActivity() {
         binding.vpnMeshButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_VPN_MESH) }
         binding.secureBrowserButton.setOnClickListener { if (requireSignedInForHome()) startActivity(Intent(this, SecureBrowserActivity::class.java)) }
         binding.managedAccessButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_MANAGED_ACCESS) }
-        binding.enrollButton.setOnClickListener { if (VcsManagedClient.hasSession(this)) showAccountDialog() else showEnrollDialog() }
+        binding.enrollButton.setOnClickListener { if (requireSignedInForHome()) showEnrollDialog() }
         binding.syncButton.setOnClickListener { syncManagedAccess() }
         binding.checkUpdatesButton.setOnClickListener { checkUpdates() }
         binding.openVpnSettingsButton.setOnClickListener { openVpnSettings() }
@@ -63,7 +64,7 @@ class HomeActivity : AppCompatActivity() {
 
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
         menu.findItem(R.id.menu_vcs_account)?.setTitle(
-            if (VcsManagedClient.hasSession(this)) R.string.vcs_account_title else R.string.vcs_home_account
+            if (VcsManagedClient.hasAccountSession(this)) R.string.vcs_account_title else R.string.vcs_home_account
         )
         return super.onPrepareOptionsMenu(menu)
     }
@@ -71,7 +72,7 @@ class HomeActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.menu_vcs_account -> {
-                if (VcsManagedClient.hasSession(this)) showAccountDialog() else showEnrollDialog()
+                if (VcsManagedClient.hasAccountSession(this)) showAccountDialog() else showSignInDialog()
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -114,7 +115,7 @@ class HomeActivity : AppCompatActivity() {
             setPadding(32, 20, 32, 20)
         }
         AlertDialog.Builder(this)
-            .setTitle(R.string.vcs_sign_in)
+            .setTitle(R.string.vcs_enroll_device)
             .setView(input)
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(R.string.vcs_enroll_submit) { _, _ ->
@@ -169,14 +170,14 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun requireSignedInForHome(): Boolean {
-        if (VcsManagedClient.hasSession(this)) return true
+        if (VcsManagedClient.hasAccountSession(this)) return true
         Toast.makeText(this, R.string.vcs_sign_in_required, Toast.LENGTH_LONG).show()
-        showEnrollDialog()
+        showSignInDialog()
         return false
     }
 
     private fun updateSignedInState() {
-        val signedIn = VcsManagedClient.hasSession(this)
+        val signedIn = VcsManagedClient.hasAccountSession(this)
         listOf(
             binding.vpnMeshButton,
             binding.managedAccessButton,
@@ -184,7 +185,7 @@ class HomeActivity : AppCompatActivity() {
             binding.syncButton,
             binding.checkUpdatesButton
         ).forEach { setProtectedButtonState(it, signedIn) }
-        binding.enrollButtonLabel.setText(if (signedIn) R.string.vcs_account_title else R.string.vcs_sign_in)
+        binding.enrollButtonLabel.setText(R.string.vcs_enroll_device)
         invalidateOptionsMenu()
     }
 
@@ -193,17 +194,64 @@ class HomeActivity : AppCompatActivity() {
         view.alpha = if (signedIn) 1f else 0.42f
     }
 
+    private fun showSignInDialog() {
+        val emailInput = EditText(this).apply {
+            hint = getString(R.string.vcs_sign_in_email)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+            setSingleLine(true)
+        }
+        val passwordInput = EditText(this).apply {
+            hint = getString(R.string.vcs_sign_in_password)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setSingleLine(true)
+        }
+        val form = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 12, 32, 0)
+            addView(emailInput)
+            addView(passwordInput)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.vcs_sign_in)
+            .setView(form)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.vcs_sign_in) { _, _ ->
+                signIn(emailInput.text?.toString().orEmpty(), passwordInput.text?.toString().orEmpty())
+            }
+            .show()
+    }
+
+    private fun signIn(email: String, password: String) {
+        lifecycleScope.launch {
+            try {
+                val account = VcsManagedClient.signInAccount(this@HomeActivity, baseUrl, email, password)
+                updateSignedInState()
+                Toast.makeText(
+                    this@HomeActivity,
+                    getString(R.string.vcs_signed_in_as, account.email ?: getString(R.string.vcs_account_title)),
+                    Toast.LENGTH_LONG
+                ).show()
+            } catch (e: Throwable) {
+                Toast.makeText(this@HomeActivity, getString(R.string.vcs_sign_in_failed, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     private fun showAccountDialog() {
-        val session = VcsManagedClient.sessionInfo(this)
+        val account = VcsManagedClient.accountInfo(this)
         val message = buildString {
             append(getString(R.string.vcs_account_signed_in))
-            session?.apiBase?.takeIf { it.isNotBlank() }?.let {
+            account?.email?.takeIf { it.isNotBlank() }?.let {
+                append("\n")
+                append(getString(R.string.vcs_account_email, it))
+            }
+            account?.tenantName?.takeIf { it.isNotBlank() }?.let {
+                append("\n")
+                append(getString(R.string.vcs_account_tenant, it))
+            }
+            account?.apiBase?.takeIf { it.isNotBlank() }?.let {
                 append("\n")
                 append(getString(R.string.vcs_account_api_base, it))
-            }
-            session?.deviceId?.takeIf { it.isNotBlank() }?.let {
-                append("\n")
-                append(getString(R.string.vcs_account_device_id, it))
             }
         }
         AlertDialog.Builder(this)
@@ -221,7 +269,7 @@ class HomeActivity : AppCompatActivity() {
             .setMessage(R.string.vcs_sign_out_confirm_message)
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(R.string.vcs_account_sign_out) { _, _ ->
-                VcsManagedClient.clearSession(this)
+                VcsManagedClient.clearAllVcsState(this)
                 updateSignedInState()
                 Toast.makeText(this, R.string.vcs_signed_out, Toast.LENGTH_LONG).show()
             }

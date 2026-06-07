@@ -224,7 +224,7 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
                 }
                 if (!UserKnobs.allowRemoteControlIntents.first())
                     return@launch
-                if (!VcsManagedClient.hasSession(context))
+                if (!VcsManagedClient.hasAccountSession(context))
                     return@launch
                 val state = when (action) {
                     "com.wireguard.android.action.SET_TUNNEL_UP" -> Tunnel.State.UP

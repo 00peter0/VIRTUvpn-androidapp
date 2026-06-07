@@ -142,7 +142,7 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
                 Toast.makeText(this@MainActivity, getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
             } finally {
                 enrollmentIntentPending = false
-                if (!VcsManagedClient.hasSession(this@MainActivity)) {
+                if (!VcsManagedClient.hasAccountSession(this@MainActivity)) {
                     VcsAuthGate.requireSignedIn(this@MainActivity)
                 }
             }

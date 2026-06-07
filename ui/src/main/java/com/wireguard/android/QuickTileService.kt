@@ -54,7 +54,7 @@ class QuickTileService : TileService() {
     }
 
     override fun onClick() {
-        if (!VcsManagedClient.hasSession(this)) {
+        if (!VcsManagedClient.hasAccountSession(this)) {
             launchSignInFromTile()
             return
         }
@@ -166,7 +166,7 @@ class QuickTileService : TileService() {
         }
         // Update the tile contents.
         val tile = qsTile ?: return
-        if (!VcsManagedClient.hasSession(this)) {
+        if (!VcsManagedClient.hasAccountSession(this)) {
             tile.label = getString(R.string.vcs_home_account)
             tile.state = Tile.STATE_INACTIVE
             tile.icon = iconOff

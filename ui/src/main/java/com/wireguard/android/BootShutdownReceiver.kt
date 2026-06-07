@@ -20,7 +20,7 @@ class BootShutdownReceiver : BroadcastReceiver() {
             if (Application.getBackend() !is WgQuickBackend) return@launch
             val tunnelManager = Application.getTunnelManager()
             if (Intent.ACTION_BOOT_COMPLETED == action) {
-                if (!VcsManagedClient.hasSession(context)) {
+                if (!VcsManagedClient.hasAccountSession(context)) {
                     Log.i(TAG, "Broadcast receiver skipped restore: VCS sign-in required")
                     return@launch
                 }

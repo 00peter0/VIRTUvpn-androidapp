@@ -9,7 +9,7 @@ import com.wireguard.android.activity.HomeActivity
 
 object VcsAuthGate {
     fun requireSignedIn(activity: Activity): Boolean {
-        if (VcsManagedClient.hasSession(activity)) return true
+        if (VcsManagedClient.hasAccountSession(activity)) return true
         Toast.makeText(activity, R.string.vcs_sign_in_required, Toast.LENGTH_LONG).show()
         activity.startActivity(signInIntent(activity))
         activity.finish()

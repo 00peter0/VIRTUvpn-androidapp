@@ -22,6 +22,14 @@ import java.util.Locale
 
 object VcsManagedClient {
     private const val PREFS = "vcs_managed_client"
+    private const val DEFAULT_API_BASE = "https://vcs.virtucomputing.com"
+    private const val KEY_ACCOUNT_API_BASE = "account_api_base"
+    private const val KEY_ACCOUNT_ACCESS_TOKEN = "account_access_token"
+    private const val KEY_ACCOUNT_EXPIRES_AT = "account_expires_at"
+    private const val KEY_ACCOUNT_EMAIL = "account_email"
+    private const val KEY_ACCOUNT_NAME = "account_name"
+    private const val KEY_ACCOUNT_ROLE = "account_role"
+    private const val KEY_ACCOUNT_TENANT_NAME = "account_tenant_name"
     private const val KEY_API_BASE = "api_base"
     private const val KEY_ACCESS_TOKEN = "access_token"
     private const val KEY_DEVICE_ID = "device_id"
@@ -41,12 +49,65 @@ object VcsManagedClient {
     )
     data class UpdateCheck(val available: Boolean, val versionName: String?)
     data class SessionInfo(val apiBase: String, val deviceId: String?)
+    data class AccountInfo(
+        val apiBase: String,
+        val email: String?,
+        val name: String?,
+        val role: String?,
+        val tenantName: String?,
+        val expiresAtMillis: Long
+    )
     private data class ImportResult(val localTunnelName: String, val applied: Boolean, val current: Boolean)
+    private data class AccountSession(
+        val apiBase: String,
+        val token: String,
+        val expiresAtMillis: Long,
+        val email: String?,
+        val name: String?,
+        val role: String?,
+        val tenantName: String?
+    )
 
     fun hasSession(context: Context): Boolean = loadSession(context) != null
 
+    fun hasAccountSession(context: Context): Boolean = loadAccountSession(context) != null
+
+    fun accountInfo(context: Context): AccountInfo? {
+        return loadAccountSession(context)?.toInfo()
+    }
+
     fun sessionInfo(context: Context): SessionInfo? {
         return loadSession(context)?.let { SessionInfo(it.apiBase, it.deviceId) }
+    }
+
+    suspend fun signInAccount(context: Context, apiBaseUrl: String, email: String, password: String): AccountInfo = withContext(Dispatchers.IO) {
+        val normalizedBase = normalizeApiBase(apiBaseUrl)
+        val body = JSONObject()
+            .put("email", email.trim())
+            .put("password", password)
+            .put("deviceName", Build.MODEL ?: "Android device")
+            .put("appVersion", BuildConfig.VERSION_NAME)
+            .put("androidVersion", Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString())
+            .put("metadata", JSONObject().put("manufacturer", Build.MANUFACTURER).put("sdk", Build.VERSION.SDK_INT))
+        val response = requestJson("POST", "$normalizedBase/api/mobile/android/auth/login", body, null)
+        storeAccountSession(context, normalizedBase, response)
+    }
+
+    fun clearAccountSession(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .remove(KEY_ACCOUNT_API_BASE)
+            .remove(KEY_ACCOUNT_ACCESS_TOKEN)
+            .remove(KEY_ACCOUNT_EXPIRES_AT)
+            .remove(KEY_ACCOUNT_EMAIL)
+            .remove(KEY_ACCOUNT_NAME)
+            .remove(KEY_ACCOUNT_ROLE)
+            .remove(KEY_ACCOUNT_TENANT_NAME)
+            .apply()
+    }
+
+    fun clearAllVcsState(context: Context) {
+        clearAccountSession(context)
+        clearSession(context)
     }
 
     fun clearSession(context: Context) {
@@ -480,7 +541,62 @@ object VcsManagedClient {
         return if (text.isBlank()) JSONObject() else JSONObject(text)
     }
 
-    private fun requireSession(context: Context): Session = loadSession(context) ?: error("Sign in to VCS first")
+    private fun requireSession(context: Context): Session = loadSession(context) ?: error("Enroll this device from VCS App first")
+
+    private fun normalizeApiBase(value: String): String {
+        val trimmed = value.trim().ifBlank { DEFAULT_API_BASE }
+        val withScheme = if (trimmed.contains("://")) trimmed else "https://$trimmed"
+        return withScheme.trimEnd('/')
+    }
+
+    private fun storeAccountSession(context: Context, apiBase: String, response: JSONObject): AccountInfo {
+        val user = response.optJSONObject("user")
+        val tenant = response.optJSONObject("tenant")
+        val expiresIn = response.optLong("expiresIn", 60 * 60 * 24).coerceAtLeast(60)
+        val expiresAtMillis = System.currentTimeMillis() + expiresIn * 1000
+        val account = AccountSession(
+            apiBase = apiBase,
+            token = response.getString("accessToken"),
+            expiresAtMillis = expiresAtMillis,
+            email = user?.optString("email")?.takeIf { it.isNotBlank() },
+            name = user?.optString("name")?.takeIf { it.isNotBlank() && it != "null" },
+            role = user?.optString("role")?.takeIf { it.isNotBlank() },
+            tenantName = tenant?.optString("name")?.takeIf { it.isNotBlank() }
+        )
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putString(KEY_ACCOUNT_API_BASE, account.apiBase)
+            .putString(KEY_ACCOUNT_ACCESS_TOKEN, account.token)
+            .putLong(KEY_ACCOUNT_EXPIRES_AT, account.expiresAtMillis)
+            .putString(KEY_ACCOUNT_EMAIL, account.email)
+            .putString(KEY_ACCOUNT_NAME, account.name)
+            .putString(KEY_ACCOUNT_ROLE, account.role)
+            .putString(KEY_ACCOUNT_TENANT_NAME, account.tenantName)
+            .apply()
+        return account.toInfo()
+    }
+
+    private fun AccountSession.toInfo(): AccountInfo {
+        return AccountInfo(apiBase, email, name, role, tenantName, expiresAtMillis)
+    }
+
+    private fun loadAccountSession(context: Context): AccountSession? {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val token = prefs.getString(KEY_ACCOUNT_ACCESS_TOKEN, null) ?: return null
+        val expiresAt = prefs.getLong(KEY_ACCOUNT_EXPIRES_AT, 0)
+        if (expiresAt > 0 && expiresAt <= System.currentTimeMillis()) {
+            clearAccountSession(context)
+            return null
+        }
+        return AccountSession(
+            apiBase = prefs.getString(KEY_ACCOUNT_API_BASE, DEFAULT_API_BASE) ?: DEFAULT_API_BASE,
+            token = token,
+            expiresAtMillis = expiresAt,
+            email = prefs.getString(KEY_ACCOUNT_EMAIL, null),
+            name = prefs.getString(KEY_ACCOUNT_NAME, null),
+            role = prefs.getString(KEY_ACCOUNT_ROLE, null),
+            tenantName = prefs.getString(KEY_ACCOUNT_TENANT_NAME, null)
+        )
+    }
 
     private fun loadSession(context: Context): Session? {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
