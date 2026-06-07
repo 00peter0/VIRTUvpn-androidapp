@@ -4,10 +4,14 @@
  */
 package com.wireguard.android.activity
 
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.text.InputType
@@ -24,6 +28,7 @@ import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.databinding.HomeActivityBinding
 import com.wireguard.android.databinding.VcsSignInDialogBinding
+import com.wireguard.android.util.HotspotDetector
 import com.wireguard.android.util.VcsDialogs
 import com.wireguard.android.vcs.VcsManagedClient
 import kotlinx.coroutines.launch
@@ -31,6 +36,9 @@ import kotlinx.coroutines.launch
 class HomeActivity : AppCompatActivity() {
     private lateinit var binding: HomeActivityBinding
     private val baseUrl = "https://vcs.virtucomputing.com"
+    private var hotspotActive = false
+    private var hotspotCallback: AutoCloseable? = null
+    private var hotspotReceiver: BroadcastReceiver? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,9 +62,63 @@ class HomeActivity : AppCompatActivity() {
         updateKillSwitchStatus()
     }
 
+    override fun onStart() {
+        super.onStart()
+        startHotspotWarningMonitor()
+    }
+
+    override fun onStop() {
+        stopHotspotWarningMonitor()
+        super.onStop()
+    }
+
     override fun onResume() {
         super.onResume()
         updateSignedInState()
+        refreshHotspotState()
+        updateKillSwitchStatus()
+    }
+
+    private fun startHotspotWarningMonitor() {
+        refreshHotspotState()
+        hotspotCallback = HotspotDetector.registerWifiHotspotCallback(this) { active ->
+            setHotspotActive(active)
+        }
+        if (hotspotReceiver != null) return
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                val state = intent.getIntExtra(EXTRA_WIFI_AP_STATE, -1)
+                val active = state == WIFI_AP_STATE_ENABLING || state == WIFI_AP_STATE_ENABLED ||
+                    HotspotDetector.isWifiHotspotActive(context)
+                setHotspotActive(active)
+            }
+        }
+        val filter = IntentFilter(ACTION_WIFI_AP_STATE_CHANGED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(receiver, filter)
+        }
+        hotspotReceiver = receiver
+    }
+
+    private fun stopHotspotWarningMonitor() {
+        hotspotCallback?.close()
+        hotspotCallback = null
+        hotspotReceiver?.let { receiver ->
+            runCatching { unregisterReceiver(receiver) }
+        }
+        hotspotReceiver = null
+    }
+
+    private fun refreshHotspotState() {
+        hotspotActive = HotspotDetector.isWifiHotspotActive(this)
+    }
+
+    private fun setHotspotActive(active: Boolean) {
+        if (hotspotActive == active) return
+        hotspotActive = active
         updateKillSwitchStatus()
     }
 
@@ -323,7 +385,11 @@ class HomeActivity : AppCompatActivity() {
                 val backend = Application.getBackend()
                 backend.isAlwaysOn && backend.isLockdownEnabled
             }.getOrDefault(false)
-            if (protected) {
+            val activeHotspot = hotspotActive || HotspotDetector.isWifiHotspotActive(this@HomeActivity)
+            if (activeHotspot) {
+                binding.killSwitchStatus.setText(R.string.vcs_hotspot_vpn_bypass_warning)
+                binding.killSwitchStatus.setTextColor(Color.parseColor("#F87171"))
+            } else if (protected) {
                 binding.killSwitchStatus.setText(R.string.vcs_kill_switch_protected)
                 binding.killSwitchStatus.setTextColor(Color.parseColor("#86EFAC"))
             } else {
@@ -343,5 +409,12 @@ class HomeActivity : AppCompatActivity() {
 
     private fun openSection(path: String) {
         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$baseUrl$path")))
+    }
+
+    companion object {
+        private const val ACTION_WIFI_AP_STATE_CHANGED = "android.net.wifi.WIFI_AP_STATE_CHANGED"
+        private const val EXTRA_WIFI_AP_STATE = "wifi_state"
+        private const val WIFI_AP_STATE_ENABLING = 12
+        private const val WIFI_AP_STATE_ENABLED = 13
     }
 }
