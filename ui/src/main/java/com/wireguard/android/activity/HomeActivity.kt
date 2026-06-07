@@ -51,6 +51,8 @@ class HomeActivity : AppCompatActivity() {
     private var vpnStatusJob: Job? = null
     private var vpnRouterActionRunning = false
     private var lastVpnRouterStatus: VpnRouterManager.Status? = null
+    private var deviceHeartbeatRunning = false
+    private var lastDeviceHeartbeatAt = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,6 +74,7 @@ class HomeActivity : AppCompatActivity() {
         binding.openVpnSettingsButton.setOnClickListener { openVpnSettings() }
         binding.vpnRouterButton.setOnClickListener { if (requireEnrolledForDeviceAction()) toggleVpnRouter() }
         updateSignedInState()
+        reportDeviceHeartbeatIfNeeded()
         updateVpnStatus()
         updateKillSwitchStatus()
         updateVpnRouterStatus()
@@ -92,6 +95,7 @@ class HomeActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         updateSignedInState()
+        reportDeviceHeartbeatIfNeeded()
         refreshHotspotState()
         updateVpnStatus()
         updateKillSwitchStatus()
@@ -377,6 +381,23 @@ class HomeActivity : AppCompatActivity() {
         invalidateOptionsMenu()
     }
 
+    private fun reportDeviceHeartbeatIfNeeded() {
+        if (deviceHeartbeatRunning) return
+        if (!VcsManagedClient.hasSession(this) && !VcsManagedClient.hasAccountSession(this)) return
+        val now = SystemClock.elapsedRealtime()
+        if (lastDeviceHeartbeatAt > 0 && now - lastDeviceHeartbeatAt < DEVICE_HEARTBEAT_INTERVAL_MS) return
+        deviceHeartbeatRunning = true
+        lastDeviceHeartbeatAt = now
+        lifecycleScope.launch {
+            val reported = runCatching {
+                VcsManagedClient.reportDeviceHeartbeat(this@HomeActivity)
+            }.isSuccess
+            deviceHeartbeatRunning = false
+            if (!reported) lastDeviceHeartbeatAt = 0L
+            if (reported) updateSignedInState()
+        }
+    }
+
     private fun setProtectedButtonState(view: View, signedIn: Boolean) {
         view.isEnabled = true
         view.alpha = if (signedIn) 1f else 0.58f
@@ -613,5 +634,6 @@ class HomeActivity : AppCompatActivity() {
         private const val WIFI_AP_STATE_ENABLED = 13
         private const val AUTO_UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000L
         private const val VPN_STATUS_REFRESH_INTERVAL_MS = 2_000L
+        private const val DEVICE_HEARTBEAT_INTERVAL_MS = 60_000L
     }
 }

@@ -242,6 +242,11 @@ object VcsManagedClient {
         UpdateCheck(latestVersion != null, latestVersion)
     }
 
+    suspend fun reportDeviceHeartbeat(context: Context) = withContext(Dispatchers.IO) {
+        val session = requireSession(context)
+        requestJson("POST", "${session.apiBase}/api/mobile/android/device/heartbeat", deviceRegistrationBody(), session.token)
+    }
+
     fun localTunnelNamesForSection(context: Context, section: String?): Set<String> {
         if (section.isNullOrBlank()) return emptySet()
         val assignments = loadAssignments(context)
