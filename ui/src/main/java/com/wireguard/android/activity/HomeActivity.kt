@@ -27,11 +27,15 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.wireguard.android.Application
 import com.wireguard.android.R
+import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.databinding.HomeActivityBinding
 import com.wireguard.android.databinding.VcsSignInDialogBinding
 import com.wireguard.android.util.HotspotDetector
 import com.wireguard.android.util.VcsDialogs
 import com.wireguard.android.vcs.VcsManagedClient
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class HomeActivity : AppCompatActivity() {
@@ -43,6 +47,7 @@ class HomeActivity : AppCompatActivity() {
     private var updateCheckRunning = false
     private var lastAutomaticUpdateCheckAt = 0L
     private var promptedUpdateVersionName: String? = null
+    private var vpnStatusJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,15 +68,18 @@ class HomeActivity : AppCompatActivity() {
         binding.checkUpdatesButton.setOnClickListener { checkUpdates() }
         binding.openVpnSettingsButton.setOnClickListener { openVpnSettings() }
         updateSignedInState()
+        updateVpnStatus()
         updateKillSwitchStatus()
     }
 
     override fun onStart() {
         super.onStart()
         startHotspotWarningMonitor()
+        startVpnStatusMonitor()
     }
 
     override fun onStop() {
+        stopVpnStatusMonitor()
         stopHotspotWarningMonitor()
         super.onStop()
     }
@@ -80,6 +88,7 @@ class HomeActivity : AppCompatActivity() {
         super.onResume()
         updateSignedInState()
         refreshHotspotState()
+        updateVpnStatus()
         updateKillSwitchStatus()
         detectVpnAppUpdateIfNeeded()
     }
@@ -125,6 +134,46 @@ class HomeActivity : AppCompatActivity() {
         if (hotspotActive == active) return
         hotspotActive = active
         updateKillSwitchStatus()
+    }
+
+    private fun startVpnStatusMonitor() {
+        if (vpnStatusJob != null) return
+        vpnStatusJob = lifecycleScope.launch {
+            while (isActive) {
+                refreshVpnStatus()
+                delay(VPN_STATUS_REFRESH_INTERVAL_MS)
+            }
+        }
+    }
+
+    private fun stopVpnStatusMonitor() {
+        vpnStatusJob?.cancel()
+        vpnStatusJob = null
+    }
+
+    private fun updateVpnStatus() {
+        lifecycleScope.launch {
+            refreshVpnStatus()
+        }
+    }
+
+    private suspend fun refreshVpnStatus() {
+        val runningTunnels = runCatching {
+            Application.getTunnelManager().getTunnels()
+                .filter { tunnel -> tunnel.state == Tunnel.State.UP }
+                .map { tunnel -> tunnel.name }
+        }.getOrDefault(emptyList())
+
+        if (runningTunnels.isNotEmpty()) {
+            binding.vpnStatusValue.setText(R.string.vcs_vpn_status_connected)
+            binding.vpnStatusValue.setTextColor(Color.parseColor("#86EFAC"))
+            binding.vpnStatusTunnel.text = getString(R.string.vcs_vpn_status_tunnel, runningTunnels.joinToString(", "))
+        } else {
+            binding.vpnStatusValue.setText(R.string.vcs_vpn_status_disconnected)
+            binding.vpnStatusValue.setTextColor(Color.parseColor("#FBBF24"))
+            binding.vpnStatusTunnel.setText(R.string.vcs_vpn_status_no_tunnel)
+        }
+        binding.vpnStatusTunnel.setTextColor(Color.parseColor("#AFC0CC"))
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -445,5 +494,6 @@ class HomeActivity : AppCompatActivity() {
         private const val WIFI_AP_STATE_ENABLING = 12
         private const val WIFI_AP_STATE_ENABLED = 13
         private const val AUTO_UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000L
+        private const val VPN_STATUS_REFRESH_INTERVAL_MS = 2_000L
     }
 }

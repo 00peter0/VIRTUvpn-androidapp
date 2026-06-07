@@ -52,6 +52,46 @@
             android:textSize="15sp" />
 
         <LinearLayout
+            android:id="@+id/vpn_status_panel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/fastest_button_background"
+            android:clipToOutline="true"
+            android:elevation="5dp"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/vpn_status_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/vcs_vpn_status_title"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/vpn_status_value"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/vcs_vpn_status_checking"
+                android:textColor="#AFC0CC"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/vpn_status_tunnel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/vcs_vpn_status_no_tunnel"
+                android:textColor="#AFC0CC"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <LinearLayout
             android:id="@+id/kill_switch_panel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

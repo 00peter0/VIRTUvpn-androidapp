@@ -93,6 +93,12 @@
     <string name="vcs_signed_out">Signed out of VCS.</string>
     <string name="vcs_sign_out_confirm_title">Sign out of VCS?</string>
     <string name="vcs_sign_out_confirm_message">Account session, managed assignments and update credentials will be cleared. Local VPN configs remain on this device.</string>
+    <string name="vcs_vpn_status_title">VPN status</string>
+    <string name="vcs_vpn_status_checking">Checking VPN state...</string>
+    <string name="vcs_vpn_status_connected">VPN is ON</string>
+    <string name="vcs_vpn_status_disconnected">VPN is OFF</string>
+    <string name="vcs_vpn_status_tunnel">Active tunnel: %1$s</string>
+    <string name="vcs_vpn_status_no_tunnel">No active tunnel</string>
     <string name="vcs_kill_switch_title">Kill switch</string>
     <string name="vcs_kill_switch_checking">Checking Android VPN lockdown…</string>
     <string name="vcs_kill_switch_protected">Protected: Always-on VPN and block-without-VPN are enabled</string>
