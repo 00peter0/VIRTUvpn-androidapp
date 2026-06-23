@@ -5,10 +5,14 @@
 package com.wireguard.android.activity
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.MotionEvent
+import android.view.View
 import android.view.WindowManager
+import android.view.inputmethod.InputMethodManager
 import android.webkit.CookieManager
 import android.webkit.HttpAuthHandler
 import android.webkit.WebResourceRequest
@@ -110,6 +114,14 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
         }
         webView.isVerticalScrollBarEnabled = false
         webView.isHorizontalScrollBarEnabled = false
+        webView.isFocusable = true
+        webView.isFocusableInTouchMode = true
+        webView.setOnTouchListener { view, event ->
+            if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_DOWN) {
+                focusTerminalWebView(view)
+            }
+            false
+        }
         webView.setDownloadListener { _, _, _, _, _ ->
             Toast.makeText(this, R.string.web_terminal_browser_blocked_detail, Toast.LENGTH_SHORT).show()
         }
@@ -128,6 +140,18 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
                 return null
             }
 
+            override fun onPageFinished(view: WebView, url: String) {
+                super.onPageFinished(view, url)
+                focusTerminalWebView(view)
+                view.postDelayed({
+                    focusTerminalWebView(view)
+                    view.evaluateJavascript(
+                        "try{document.getElementById('terminal')&&document.getElementById('terminal').click();window.term&&window.term.focus&&window.term.focus();}catch(e){}",
+                        null
+                    )
+                }, 250)
+            }
+
             override fun onReceivedHttpAuthRequest(view: WebView, handler: HttpAuthHandler, host: String, realm: String) {
                 val credentials = credentialsForHost(host)
                 if (credentials == null) {
@@ -139,6 +163,12 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
         }
     }
 
+    private fun focusTerminalWebView(view: View) {
+        view.requestFocus()
+        val inputMethod = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+        inputMethod?.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT)
+    }
+
     private fun loadTerminal() {
         val url = terminalUrl
         if (url.isNullOrBlank()) {
@@ -148,6 +178,7 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
         }
         binding.terminalBlocker.visibility = android.view.View.GONE
         binding.terminalWebview.visibility = android.view.View.VISIBLE
+        focusTerminalWebView(binding.terminalWebview)
         binding.terminalWebview.loadUrl(url)
     }
 
