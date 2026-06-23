@@ -131,16 +131,14 @@ object VcsManagedClient {
             (scheme == "https" || scheme == "http") && uri.path == "/api/mobile/android/enroll/open"
     }
 
-    suspend fun handleEnrollmentPayload(context: Context, payload: String): SyncResult = withContext(Dispatchers.IO) {
+    suspend fun handleEnrollmentPayload(context: Context, payload: String): EnrollResult = withContext(Dispatchers.IO) {
         val parsed = parseEnrollmentPayload(payload)
         completeEnrollment(context, parsed.apiBaseUrl, parsed.enrollmentToken)
-        syncManagedTunnels(context)
     }
 
-    suspend fun handleEnrollmentUri(context: Context, uri: Uri): SyncResult? = withContext(Dispatchers.IO) {
+    suspend fun handleEnrollmentUri(context: Context, uri: Uri): EnrollResult? = withContext(Dispatchers.IO) {
         val parsed = parseEnrollmentUri(uri) ?: return@withContext null
         completeEnrollment(context, parsed.apiBaseUrl, parsed.enrollmentToken)
-        syncManagedTunnels(context)
     }
 
     suspend fun syncManagedTunnels(context: Context): SyncResult = withContext(Dispatchers.IO) {
@@ -572,12 +570,14 @@ object VcsManagedClient {
         return applied
     }
 
-    private fun completeEnrollment(context: Context, apiBaseUrl: String, enrollmentToken: String) {
+    private fun completeEnrollment(context: Context, apiBaseUrl: String, enrollmentToken: String): EnrollResult {
         val body = deviceRegistrationBody()
             .put("enrollmentToken", enrollmentToken)
             .put("devicePublicKey", JSONObject.NULL)
         val response = requestJson("POST", "${apiBaseUrl.trimEnd('/')}/api/mobile/android/enroll/complete", body, null)
-        storeManagedDeviceSession(context, apiBaseUrl.trimEnd('/'), response.getString("accessToken"), response.getJSONObject("device").getString("id"))
+        val device = response.getJSONObject("device")
+        storeManagedDeviceSession(context, apiBaseUrl.trimEnd('/'), response.getString("accessToken"), device.getString("id"))
+        return EnrollResult(device.optString("deviceName").ifBlank { null })
     }
 
     private fun parseEnrollmentPayload(payload: String): EnrollmentPayload {
@@ -750,5 +750,7 @@ object VcsManagedClient {
     }
 
     private data class EnrollmentPayload(val apiBaseUrl: String, val enrollmentToken: String)
+
+    data class EnrollResult(val deviceName: String?)
     private data class Session(val apiBase: String, val token: String, val deviceId: String?)
 }

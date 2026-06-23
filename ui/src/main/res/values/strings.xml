@@ -139,6 +139,9 @@
     <string name="vcs_enroll_required">Enroll this device from VCS App first.</string>
     <string name="vcs_enroll_hint">Paste VirtuVPN enrollment link</string>
     <string name="vcs_enroll_submit">Enroll</string>
+    <string name="vcs_enroll_this_device">this device</string>
+    <string name="vcs_enroll_success">%1$s enrolled. Run Sync now to import Managed Access.</string>
+    <string name="vcs_enroll_error">Enrollment failed: %1$s</string>
     <string name="vcs_sync_now">Sync now</string>
     <string name="bad_config_context">%1$s\'s %2$s</string>
     <string name="bad_config_context_top_level">%s</string>

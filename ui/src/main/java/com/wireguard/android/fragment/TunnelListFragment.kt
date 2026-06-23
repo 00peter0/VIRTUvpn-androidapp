@@ -88,9 +88,9 @@ class TunnelListFragment : BaseFragment() {
                 if (qrCode.contains("vcs_android_enrollment") || qrCode.startsWith("virtuvpn://enroll")) {
                     try {
                         val result = VcsManagedClient.handleEnrollmentPayload(activity, qrCode)
-                        showSnackbar(syncResultMessage(result))
+                        showSnackbar(enrollResultMessage(result))
                     } catch (e: Throwable) {
-                        showSnackbar(getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName))
+                        showSnackbar(getString(R.string.vcs_enroll_error, e.message ?: e.javaClass.simpleName))
                     }
                 } else {
                     TunnelImporter.importTunnel(parentFragmentManager, qrCode) { showSnackbar(it) }
@@ -232,6 +232,10 @@ class TunnelListFragment : BaseFragment() {
             result.imported == 0 -> getString(R.string.vcs_sync_checked_no_imports, result.assigned)
             else -> getString(R.string.vcs_sync_success, result.imported, result.assigned)
         }
+    }
+
+    private fun enrollResultMessage(result: VcsManagedClient.EnrollResult): String {
+        return getString(R.string.vcs_enroll_success, result.deviceName ?: getString(R.string.vcs_enroll_this_device))
     }
 
     // ── Lifecycle ──

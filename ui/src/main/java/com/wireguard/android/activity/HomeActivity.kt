@@ -236,6 +236,10 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
+    private fun enrollResultMessage(result: VcsManagedClient.EnrollResult): String {
+        return getString(R.string.vcs_enroll_success, result.deviceName ?: getString(R.string.vcs_enroll_this_device))
+    }
+
     private fun showEnrollDialog() {
         val input = EditText(this).apply {
             hint = getString(R.string.vcs_enroll_hint)
@@ -265,9 +269,9 @@ class HomeActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val result = VcsManagedClient.handleEnrollmentPayload(this@HomeActivity, value)
-                Toast.makeText(this@HomeActivity, syncResultMessage(result), Toast.LENGTH_LONG).show()
+                Toast.makeText(this@HomeActivity, enrollResultMessage(result), Toast.LENGTH_LONG).show()
             } catch (e: Throwable) {
-                Toast.makeText(this@HomeActivity, getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
+                Toast.makeText(this@HomeActivity, getString(R.string.vcs_enroll_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
             } finally {
                 updateSignedInState()
             }

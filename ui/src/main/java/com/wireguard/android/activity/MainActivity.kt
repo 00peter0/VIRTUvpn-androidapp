@@ -130,6 +130,10 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
         }
     }
 
+    private fun enrollResultMessage(result: VcsManagedClient.EnrollResult): String {
+        return getString(R.string.vcs_enroll_success, result.deviceName ?: getString(R.string.vcs_enroll_this_device))
+    }
+
     private fun handleVcsEnrollmentIntent(intent: Intent?) {
         val uri = intent?.data ?: return
         if (!VcsManagedClient.isEnrollmentUri(uri)) return
@@ -137,9 +141,9 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
         lifecycleScope.launch {
             try {
                 val result = VcsManagedClient.handleEnrollmentUri(this@MainActivity, uri) ?: return@launch
-                Toast.makeText(this@MainActivity, syncResultMessage(result), Toast.LENGTH_LONG).show()
+                Toast.makeText(this@MainActivity, enrollResultMessage(result), Toast.LENGTH_LONG).show()
             } catch (e: Throwable) {
-                Toast.makeText(this@MainActivity, getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
+                Toast.makeText(this@MainActivity, getString(R.string.vcs_enroll_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
             } finally {
                 finishEnrollmentFlow()
             }
