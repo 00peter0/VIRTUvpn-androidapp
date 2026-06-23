@@ -254,10 +254,6 @@ class TunnelDetailFragment : BaseFragment(), MenuProvider {
                             }
                         }
                     }
-                    if (!waitForWebTerminal(terminal.url)) {
-                        Toast.makeText(requireContext(), getString(R.string.web_terminal_unreachable, terminal.url), Toast.LENGTH_LONG).show()
-                        return@launch
-                    }
                     openWebTerminalUrl(terminal.url)
                 } finally {
                     binding?.webTerminalOpen?.isEnabled = true

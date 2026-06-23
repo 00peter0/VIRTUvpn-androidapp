@@ -5,8 +5,6 @@
 package com.wireguard.android.activity
 
 import android.annotation.SuppressLint
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -25,20 +23,11 @@ import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.databinding.WebTerminalBrowserActivityBinding
 import com.wireguard.android.vcs.VcsAuthGate
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.ByteArrayInputStream
 
 class WebTerminalBrowserActivity : AppCompatActivity() {
     private lateinit var binding: WebTerminalBrowserActivityBinding
-    private var monitorJob: Job? = null
     private var terminalUrl: String? = null
-    @Volatile
-    private var blocked = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,23 +48,16 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
             ?.let { normalizeUrl(it) }
 
         configureWebView(binding.terminalWebview)
+        loadTerminal()
     }
 
     override fun onResume() {
         super.onResume()
         if (!VcsAuthGate.requireSignedIn(this) || !::binding.isInitialized) return
-        monitorJob = lifecycleScope.launch {
-            while (isActive) {
-                setTerminalAllowed(isTerminalAllowed())
-                delay(300)
-            }
-        }
+        if (binding.terminalWebview.url.isNullOrBlank() || binding.terminalWebview.url == "about:blank") loadTerminal()
     }
 
     override fun onPause() {
-        monitorJob?.cancel()
-        monitorJob = null
-        if (::binding.isInitialized) lockTerminal(showToast = false)
         super.onPause()
     }
 
@@ -95,7 +77,7 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        if (!blocked && binding.terminalWebview.canGoBack()) {
+        if (binding.terminalWebview.canGoBack()) {
             binding.terminalWebview.goBack()
             return
         }
@@ -134,15 +116,15 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 if (handleTerminalCommand(request.url)) return true
-                if (blocked || !isAllowedTerminalUrl(request.url)) {
-                    lockTerminal(showToast = blocked.not())
+                if (!isAllowedTerminalUrl(request.url)) {
+                    Toast.makeText(this@WebTerminalBrowserActivity, R.string.web_terminal_browser_blocked_detail, Toast.LENGTH_SHORT).show()
                     return true
                 }
                 return false
             }
 
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-                if (blocked || !isAllowedTerminalUrl(request.url)) return blockedResponse()
+                if (!isAllowedTerminalUrl(request.url)) return blockedResponse()
                 return null
             }
 
@@ -157,8 +139,19 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
         }
     }
 
+    private fun loadTerminal() {
+        val url = terminalUrl
+        if (url.isNullOrBlank()) {
+            binding.terminalWebview.visibility = android.view.View.GONE
+            binding.terminalBlocker.visibility = android.view.View.VISIBLE
+            return
+        }
+        binding.terminalBlocker.visibility = android.view.View.GONE
+        binding.terminalWebview.visibility = android.view.View.VISIBLE
+        binding.terminalWebview.loadUrl(url)
+    }
+
     private fun reloadTerminal() {
-        if (blocked) return
         val url = terminalUrl ?: return
         binding.terminalWebview.loadUrl(url)
     }
@@ -170,38 +163,6 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
             "close" -> finish()
         }
         return true
-    }
-
-    private suspend fun isTerminalAllowed(): Boolean = withContext(Dispatchers.IO) {
-        val tunnelUp = runCatching { Application.getBackend().runningTunnelNames.isNotEmpty() }.getOrDefault(false)
-        tunnelUp && hasVpnNetwork()
-    }
-
-    private fun setTerminalAllowed(allowed: Boolean) {
-        if (allowed) {
-            blocked = false
-            binding.terminalBlocker.visibility = android.view.View.GONE
-            binding.terminalWebview.visibility = android.view.View.VISIBLE
-            val url = terminalUrl
-            if (!url.isNullOrBlank() && (binding.terminalWebview.url.isNullOrBlank() || binding.terminalWebview.url == "about:blank")) {
-                binding.terminalWebview.loadUrl(url)
-            }
-        } else {
-            lockTerminal(showToast = !blocked)
-            binding.terminalWebview.visibility = android.view.View.GONE
-            binding.terminalBlocker.visibility = android.view.View.VISIBLE
-        }
-    }
-
-    private fun lockTerminal(showToast: Boolean) {
-        if (showToast) {
-            Toast.makeText(this, R.string.vcs_secure_browser_stopped, Toast.LENGTH_LONG).show()
-        }
-        if (!blocked) {
-            binding.terminalWebview.stopLoading()
-            binding.terminalWebview.loadUrl("about:blank")
-        }
-        blocked = true
     }
 
     private fun normalizeUrl(value: String): String? {
@@ -276,18 +237,6 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
             host.startsWith("fc") ||
             host.startsWith("fd") ||
             host.startsWith("fe80:")
-    }
-
-    private fun hasVpnNetwork(): Boolean {
-        val connectivityManager = getSystemService(ConnectivityManager::class.java) ?: return false
-        val activeNetwork = connectivityManager.activeNetwork
-        val activeCaps = activeNetwork?.let { connectivityManager.getNetworkCapabilities(it) }
-        if (activeCaps?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true) return true
-
-        return connectivityManager.allNetworks.any { network ->
-            connectivityManager.getNetworkCapabilities(network)
-                ?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
-        }
     }
 
     private fun blockedResponse(): WebResourceResponse =
