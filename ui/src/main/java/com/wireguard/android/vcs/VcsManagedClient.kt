@@ -260,7 +260,7 @@ object VcsManagedClient {
                     assignment.optString("bundleLocalTunnelName").takeIf { it.isNotBlank() }?.let { names.add(it) }
                     if (localTunnelName == bundleName) names.add(localTunnelName)
                 }
-                MainActivity.TUNNEL_SECTION_VPN_MESH -> if (assignment.optString("kind") == "VPN_ROUTE" && localTunnelName != bundleName) names.add(localTunnelName)
+                MainActivity.TUNNEL_SECTION_VPN_MESH -> if (assignment.optString("kind") == "VPN_ROUTE") names.add(localTunnelName)
                 MainActivity.TUNNEL_SECTION_AGENT_GATEWAY -> if (assignment.optString("kind") == "AGENT_GATEWAY_PROFILE" && localTunnelName != bundleName) names.add(localTunnelName)
             }
         }
