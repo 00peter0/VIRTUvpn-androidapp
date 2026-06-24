@@ -529,8 +529,6 @@ object VcsManagedClient {
                 ImportResult(preferredName, applied = true, current = true)
             } else if (existing.getConfigAsync() == config) {
                 ImportResult(preferredName, applied = false, current = true)
-            } else if (existing.state == Tunnel.State.UP) {
-                ImportResult(preferredName, applied = false, current = false)
             } else {
                 existing.setConfigAsync(config)
                 ImportResult(preferredName, applied = true, current = true)
