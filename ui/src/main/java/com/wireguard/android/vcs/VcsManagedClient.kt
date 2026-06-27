@@ -23,6 +23,7 @@ import java.io.ByteArrayInputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
+import java.time.Instant
 import java.util.Locale
 
 object VcsManagedClient {
@@ -451,11 +452,15 @@ object VcsManagedClient {
             val tunnelName = assignment.optString("localTunnelName")
             val tunnel = tunnels[tunnelName] ?: continue
             val stats = runCatching { tunnel.getStatisticsAsync() }.getOrNull()
+            val latestHandshakeAt = stats?.peers()
+                ?.mapNotNull { peer -> stats.peer(peer)?.latestHandshakeEpochMillis()?.takeIf { it > 0L } }
+                ?.maxOrNull()
             val body = JSONObject()
                 .put("state", tunnel.state.name.lowercase(Locale.US))
                 .put("rxBytes", stats?.totalRx())
                 .put("txBytes", stats?.totalTx())
                 .put("metadata", JSONObject().put("localTunnelName", tunnel.name))
+            if (latestHandshakeAt != null) body.put("latestHandshakeAt", Instant.ofEpochMilli(latestHandshakeAt).toString())
             requestJson("POST", "${session.apiBase}/api/mobile/android/tunnels/${assignment.getString("id")}/state", body, session.token)
         }
     }
