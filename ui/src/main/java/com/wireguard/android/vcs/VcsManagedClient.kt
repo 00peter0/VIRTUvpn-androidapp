@@ -41,6 +41,7 @@ object VcsManagedClient {
     private const val KEY_DEVICE_ID = "device_id"
     private const val KEY_ASSIGNMENTS = "assignments"
     private const val KEY_PENDING_BUNDLE_ASSIGNMENTS = "pending_bundle_assignments"
+    private const val KEY_PENDING_TUNNEL_ACTIVATIONS = "pending_tunnel_activations"
     private const val KEY_LAST_UPDATE_PROMPT = "last_update_prompt"
     private const val KEY_LAST_UPDATE_URL = "last_update_url"
     private const val TIMEOUT_MS = 15_000
@@ -459,7 +460,7 @@ object VcsManagedClient {
                 .put("state", tunnel.state.name.lowercase(Locale.US))
                 .put("rxBytes", stats?.totalRx())
                 .put("txBytes", stats?.totalTx())
-                .put("metadata", JSONObject().put("localTunnelName", tunnel.name))
+                .put("metadata", metadataWithPendingActivation(context, tunnel.name, tunnel.state))
             if (latestHandshakeAt != null) body.put("latestHandshakeAt", Instant.ofEpochMilli(latestHandshakeAt).toString())
             requestJson("POST", "${session.apiBase}/api/mobile/android/tunnels/${assignment.getString("id")}/state", body, session.token)
         }
@@ -472,6 +473,8 @@ object VcsManagedClient {
         actualState: Tunnel.State?,
         error: Throwable? = null
     ) = withContext(Dispatchers.IO) {
+        val metadata = activationMetadata(tunnelName, requestedState, actualState, error)
+        storePendingActivation(context, tunnelName, metadata)
         val session = loadSession(context) ?: restoreManagedSessionFromAccount(context) ?: return@withContext
         val assignments = assignmentsForLocalTunnel(context, tunnelName)
         if (assignments.isEmpty()) return@withContext
@@ -481,17 +484,6 @@ object VcsManagedClient {
         val latestHandshakeAt = stats?.peers()
             ?.mapNotNull { peer -> stats.peer(peer)?.latestHandshakeEpochMillis()?.takeIf { it > 0L } }
             ?.maxOrNull()
-        val metadata = JSONObject()
-            .put("localTunnelName", tunnelName)
-            .put("requestedState", requestedState.name.lowercase(Locale.US))
-            .put("actualState", (actualState ?: tunnel?.state)?.name?.lowercase(Locale.US) ?: "unknown")
-            .put("activationSource", "android_tunnel_manager")
-            .put("vpnServiceStarted", error == null && actualState == Tunnel.State.UP)
-            .put("errorType", error?.javaClass?.simpleName ?: JSONObject.NULL)
-            .put("errorMessage", error?.message ?: JSONObject.NULL)
-            .put("appVersion", BuildConfig.VERSION_NAME)
-            .put("appVersionCode", BuildConfig.VERSION_CODE)
-            .put("androidVersion", Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString())
         val body = JSONObject()
             .put("state", (actualState ?: Tunnel.State.DOWN).name.lowercase(Locale.US))
             .put("appState", "tunnel_transition")
@@ -571,6 +563,50 @@ object VcsManagedClient {
     private suspend fun setLocalTunnelState(localTunnelName: String, state: Tunnel.State): Tunnel.State = withContext(Dispatchers.Main.immediate) {
         val tunnel = Application.getTunnelManager().getTunnels()[localTunnelName] ?: error("Tunnel not found: $localTunnelName")
         tunnel.setStateAsync(state)
+    }
+
+    private fun activationMetadata(
+        tunnelName: String,
+        requestedState: Tunnel.State,
+        actualState: Tunnel.State?,
+        error: Throwable?
+    ) = JSONObject()
+        .put("localTunnelName", tunnelName)
+        .put("requestedState", requestedState.name.lowercase(Locale.US))
+        .put("actualState", actualState?.name?.lowercase(Locale.US) ?: "unknown")
+        .put("activationSource", "android_tunnel_manager")
+        .put("vpnServiceStarted", error == null && actualState == Tunnel.State.UP)
+        .put("errorType", error?.javaClass?.simpleName ?: JSONObject.NULL)
+        .put("errorMessage", error?.message ?: JSONObject.NULL)
+        .put("appVersion", BuildConfig.VERSION_NAME)
+        .put("appVersionCode", BuildConfig.VERSION_CODE)
+        .put("androidVersion", Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString())
+        .put("observedAt", Instant.now().toString())
+
+    private fun metadataWithPendingActivation(context: Context, tunnelName: String, actualState: Tunnel.State): JSONObject {
+        val metadata = JSONObject().put("localTunnelName", tunnelName)
+        val activation = pendingActivation(context, tunnelName) ?: return metadata
+        if (activation.optString("actualState").isBlank() || activation.optString("actualState") == "unknown") {
+            activation.put("actualState", actualState.name.lowercase(Locale.US))
+            activation.put("vpnServiceStarted", actualState == Tunnel.State.UP)
+        }
+        for (key in activation.keys()) metadata.put(key, activation.opt(key))
+        return metadata
+    }
+
+    private fun storePendingActivation(context: Context, tunnelName: String, metadata: JSONObject) {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val all = JSONObject(prefs.getString(KEY_PENDING_TUNNEL_ACTIVATIONS, "{}") ?: "{}")
+        all.put(tunnelName, metadata)
+        prefs.edit().putString(KEY_PENDING_TUNNEL_ACTIVATIONS, all.toString()).apply()
+    }
+
+    private fun pendingActivation(context: Context, tunnelName: String): JSONObject? {
+        val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_PENDING_TUNNEL_ACTIVATIONS, "{}") ?: "{}"
+        val all = JSONObject(raw)
+        val metadata = all.optJSONObject(tunnelName) ?: return null
+        val observedAt = runCatching { Instant.parse(metadata.optString("observedAt")) }.getOrNull() ?: return metadata
+        return if (Instant.now().minusSeconds(300).isBefore(observedAt)) metadata else null
     }
 
     private fun ackCommand(session: Session, commandId: String, body: JSONObject) {
