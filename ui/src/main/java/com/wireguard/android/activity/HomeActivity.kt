@@ -218,9 +218,19 @@ class HomeActivity : AppCompatActivity() {
                     refreshVpnStatus()
                     return@launch
                 }
-                target.setStateAsync(if (checked) Tunnel.State.UP else Tunnel.State.DOWN)
+                val requestedState = if (checked) Tunnel.State.UP else Tunnel.State.DOWN
+                val actualState = target.setStateAsync(requestedState)
+                VcsManagedClient.reportTunnelTransition(this@HomeActivity, target.name, requestedState, actualState)
                 VcsManagedClient.reportCurrentStates(this@HomeActivity)
             } catch (e: Throwable) {
+                val manager = Application.getTunnelManager()
+                val targetName = vpnStatusToggleTargetName
+                    ?: manager.lastUsedTunnel?.name
+                val target = targetName?.let { manager.getTunnels()[it] }
+                if (target != null) {
+                    val requestedState = if (checked) Tunnel.State.UP else Tunnel.State.DOWN
+                    VcsManagedClient.reportTunnelTransition(this@HomeActivity, target.name, requestedState, target.state, e)
+                }
                 Toast.makeText(this@HomeActivity, getString(R.string.vcs_vpn_status_toggle_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
             } finally {
                 refreshVpnStatus()
