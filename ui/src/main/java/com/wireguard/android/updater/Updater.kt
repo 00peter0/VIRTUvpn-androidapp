@@ -371,6 +371,9 @@ object Updater {
         if (BuildConfig.DEBUG)
             return
 
+        if (BuildConfig.BUILD_TYPE == "vcsinstall")
+            return
+
         val context = Application.get()
 
         if (installerIsGooglePlay(context))
