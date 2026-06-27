@@ -175,6 +175,9 @@ object VcsManagedClient {
                 assignment.put("bundleLocalTunnelName", localTunnelName)
                 assignment.put("localTunnelName", localTunnelName)
             }
+            if (bundleImport.current) {
+                ackManagedBundleImport(session, bundle, localTunnelName)
+            }
             if (bundleImport.applied) imported += 1
             if (!bundleImport.current) skippedRunning += 1
         }
@@ -515,6 +518,22 @@ object VcsManagedClient {
         requestJson("POST", "${session.apiBase}/api/mobile/android/commands/$commandId/ack", body, session.token)
     }
 
+    private fun ackTunnelImported(session: Session, assignmentId: String, localTunnelName: String, configVersion: Int, bundleImport: Boolean = false) {
+        val body = JSONObject()
+            .put("localTunnelName", localTunnelName)
+            .put("configVersion", configVersion)
+        if (bundleImport) body.put("bundleImport", true)
+        requestJson("POST", "${session.apiBase}/api/mobile/android/tunnels/$assignmentId/ack-imported", body, session.token)
+    }
+
+    private fun ackManagedBundleImport(session: Session, bundle: JSONObject, localTunnelName: String) {
+        val configVersion = bundle.optInt("configVersion", 1)
+        val ids = bundle.optJSONArray("assignmentIds") ?: return
+        for (i in 0 until ids.length()) {
+            val assignmentId = ids.optString(i).takeIf { it.isNotBlank() } ?: continue
+            ackTunnelImported(session, assignmentId, localTunnelName, configVersion, bundleImport = true)
+        }
+    }
 
     private suspend fun importManagedBundle(context: Context, bundle: JSONObject): ImportResult {
         val configText = bundle.getString("config")
@@ -560,10 +579,7 @@ object VcsManagedClient {
             }
         }
         if (applied.current) {
-            val body = JSONObject()
-                .put("localTunnelName", preferredName)
-                .put("configVersion", configVersion)
-            requestJson("POST", "${session.apiBase}/api/mobile/android/tunnels/$assignmentId/ack-imported", body, session.token)
+            ackTunnelImported(session, assignmentId, preferredName, configVersion)
         }
         return applied
     }
