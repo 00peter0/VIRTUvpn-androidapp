@@ -465,6 +465,46 @@ object VcsManagedClient {
         }
     }
 
+    suspend fun reportTunnelTransition(
+        context: Context,
+        tunnelName: String,
+        requestedState: Tunnel.State,
+        actualState: Tunnel.State?,
+        error: Throwable? = null
+    ) = withContext(Dispatchers.IO) {
+        val session = loadSession(context) ?: restoreManagedSessionFromAccount(context) ?: return@withContext
+        val assignments = assignmentsForLocalTunnel(context, tunnelName)
+        if (assignments.isEmpty()) return@withContext
+        val tunnels = Application.getTunnelManager().getTunnels()
+        val tunnel = tunnels[tunnelName]
+        val stats = if (tunnel != null) runCatching { tunnel.getStatisticsAsync() }.getOrNull() else null
+        val latestHandshakeAt = stats?.peers()
+            ?.mapNotNull { peer -> stats.peer(peer)?.latestHandshakeEpochMillis()?.takeIf { it > 0L } }
+            ?.maxOrNull()
+        val metadata = JSONObject()
+            .put("localTunnelName", tunnelName)
+            .put("requestedState", requestedState.name.lowercase(Locale.US))
+            .put("actualState", (actualState ?: tunnel?.state)?.name?.lowercase(Locale.US) ?: "unknown")
+            .put("activationSource", "android_tunnel_manager")
+            .put("vpnServiceStarted", error == null && actualState == Tunnel.State.UP)
+            .put("errorType", error?.javaClass?.simpleName ?: JSONObject.NULL)
+            .put("errorMessage", error?.message ?: JSONObject.NULL)
+            .put("appVersion", BuildConfig.VERSION_NAME)
+            .put("appVersionCode", BuildConfig.VERSION_CODE)
+            .put("androidVersion", Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString())
+        val body = JSONObject()
+            .put("state", (actualState ?: Tunnel.State.DOWN).name.lowercase(Locale.US))
+            .put("appState", "tunnel_transition")
+            .put("rxBytes", stats?.totalRx())
+            .put("txBytes", stats?.totalTx())
+            .put("metadata", metadata)
+        if (error != null) body.put("error", error.message ?: error.javaClass.simpleName)
+        if (latestHandshakeAt != null) body.put("latestHandshakeAt", Instant.ofEpochMilli(latestHandshakeAt).toString())
+        for (assignment in assignments) {
+            requestJson("POST", "${session.apiBase}/api/mobile/android/tunnels/${assignment.getString("id")}/state", body, session.token)
+        }
+    }
+
     private suspend fun processCommands(
         context: Context,
         session: Session,
@@ -512,6 +552,20 @@ object VcsManagedClient {
             }
         }
         error("Assignment is not stored on this device")
+    }
+
+    private fun assignmentsForLocalTunnel(context: Context, tunnelName: String): List<JSONObject> {
+        val assignments = loadAssignments(context)
+        val matches = mutableListOf<JSONObject>()
+        for (i in 0 until assignments.length()) {
+            val assignment = assignments.getJSONObject(i)
+            val status = assignment.optString("status")
+            if (status != "ACTIVE" && status != "REISSUE_REQUIRED") continue
+            val localName = assignment.optString("localTunnelName")
+            val bundleName = assignment.optString("bundleLocalTunnelName")
+            if (localName == tunnelName || bundleName == tunnelName) matches.add(assignment)
+        }
+        return matches
     }
 
     private suspend fun setLocalTunnelState(localTunnelName: String, state: Tunnel.State): Tunnel.State = withContext(Dispatchers.Main.immediate) {

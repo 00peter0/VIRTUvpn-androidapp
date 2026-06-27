@@ -208,6 +208,10 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
         }
         tunnel.onStateChanged(newState)
         saveState()
+        applicationScope.launch {
+            runCatching { VcsManagedClient.reportTunnelTransition(context, tunnel.name, state, newState, throwable) }
+                .onFailure { Log.d(TAG, "Unable to report VCS tunnel transition for ${tunnel.name}", it) }
+        }
         if (throwable != null)
             throw throwable
         newState
