@@ -217,6 +217,18 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
         newState
     }
 
+    fun reportTunnelStateRequest(
+        tunnel: ObservableTunnel,
+        requestedState: Tunnel.State,
+        actualState: Tunnel.State?,
+        throwable: Throwable? = null
+    ) {
+        applicationScope.launch {
+            runCatching { VcsManagedClient.reportTunnelTransition(context, tunnel.name, requestedState, actualState, throwable) }
+                .onFailure { Log.d(TAG, "Unable to report VCS tunnel state request for ${tunnel.name}", it) }
+        }
+    }
+
     suspend fun restartRunningTunnelsAfterConnectivityRestored() = withContext(Dispatchers.Main.immediate) {
         if (!haveLoaded) return@withContext
         val targets = tunnelMap
