@@ -89,6 +89,29 @@
                 android:text="@string/vcs_vpn_status_no_tunnel"
                 android:textColor="#AFC0CC"
                 android:textSize="13sp" />
+
+            <LinearLayout
+                android:id="@+id/vpn_status_toggle_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/vpn_status_toggle_label"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/vcs_vpn_status_toggle_unavailable"
+                    android:textColor="#DCE7F0"
+                    android:textSize="13sp" />
+
+                <com.wireguard.android.widget.ToggleSwitch
+                    android:id="@+id/vpn_status_toggle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout

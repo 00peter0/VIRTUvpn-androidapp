@@ -34,6 +34,7 @@ import com.wireguard.android.util.HotspotDetector
 import com.wireguard.android.util.VcsDialogs
 import com.wireguard.android.util.VpnRouterManager
 import com.wireguard.android.vcs.VcsManagedClient
+import com.wireguard.android.widget.ToggleSwitch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -53,6 +54,7 @@ class HomeActivity : AppCompatActivity() {
     private var lastVpnRouterStatus: VpnRouterManager.Status? = null
     private var deviceHeartbeatRunning = false
     private var lastDeviceHeartbeatAt = 0L
+    private var vpnStatusToggleTargetName: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -73,6 +75,11 @@ class HomeActivity : AppCompatActivity() {
         binding.checkUpdatesButton.setOnClickListener { checkUpdates() }
         binding.openVpnSettingsButton.setOnClickListener { openVpnSettings() }
         binding.vpnRouterButton.setOnClickListener { if (requireEnrolledForDeviceAction()) toggleVpnRouter() }
+        binding.vpnStatusToggle.setOnBeforeCheckedChangeListener(object : ToggleSwitch.OnBeforeCheckedChangeListener {
+            override fun onBeforeCheckedChanged(toggleSwitch: ToggleSwitch?, checked: Boolean) {
+                toggleHomeVpnStatus(checked)
+            }
+        })
         updateSignedInState()
         reportDeviceHeartbeatIfNeeded()
         updateVpnStatus()
@@ -169,22 +176,57 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private suspend fun refreshVpnStatus() {
-        val runningTunnels = runCatching {
-            Application.getTunnelManager().getTunnels()
-                .filter { tunnel -> tunnel.state == Tunnel.State.UP }
-                .map { tunnel -> tunnel.name }
-        }.getOrDefault(emptyList())
+        val manager = Application.getTunnelManager()
+        val tunnels = runCatching { manager.getTunnels().toList() }.getOrDefault(emptyList())
+        val runningTunnels = tunnels.filter { tunnel -> tunnel.state == Tunnel.State.UP }
+        val runningTunnelNames = runningTunnels.map { tunnel -> tunnel.name }
+        val targetTunnel = runningTunnels.firstOrNull()
+            ?: manager.lastUsedTunnel?.takeIf { tunnel -> tunnels.any { it.name == tunnel.name } }
+            ?: tunnels.firstOrNull()
+        vpnStatusToggleTargetName = targetTunnel?.name
 
-        if (runningTunnels.isNotEmpty()) {
+        if (runningTunnelNames.isNotEmpty()) {
             binding.vpnStatusValue.setText(R.string.vcs_vpn_status_connected)
             binding.vpnStatusValue.setTextColor(Color.parseColor("#86EFAC"))
-            binding.vpnStatusTunnel.text = getString(R.string.vcs_vpn_status_tunnel, runningTunnels.joinToString(", "))
+            binding.vpnStatusTunnel.text = getString(R.string.vcs_vpn_status_tunnel, runningTunnelNames.joinToString(", "))
         } else {
             binding.vpnStatusValue.setText(R.string.vcs_vpn_status_disconnected)
             binding.vpnStatusValue.setTextColor(Color.parseColor("#FBBF24"))
             binding.vpnStatusTunnel.setText(R.string.vcs_vpn_status_no_tunnel)
         }
         binding.vpnStatusTunnel.setTextColor(Color.parseColor("#AFC0CC"))
+        binding.vpnStatusToggle.isEnabled = targetTunnel != null
+        binding.vpnStatusToggle.setCheckedInternal(runningTunnelNames.isNotEmpty())
+        binding.vpnStatusToggleLabel.text = when {
+            targetTunnel == null -> getString(R.string.vcs_vpn_status_toggle_unavailable)
+            runningTunnelNames.isNotEmpty() -> getString(R.string.vcs_vpn_status_toggle_on, targetTunnel.name)
+            else -> getString(R.string.vcs_vpn_status_toggle_off, targetTunnel.name)
+        }
+    }
+
+    private fun toggleHomeVpnStatus(checked: Boolean) {
+        lifecycleScope.launch {
+            try {
+                val manager = Application.getTunnelManager()
+                val tunnels = manager.getTunnels()
+                val targetName = vpnStatusToggleTargetName
+                    ?: manager.lastUsedTunnel?.name
+                    ?: tunnels.firstOrNull()?.name
+                val target = targetName?.let { tunnels[it] } ?: tunnels.firstOrNull()
+                if (target == null) {
+                    Toast.makeText(this@HomeActivity, R.string.vcs_vpn_status_toggle_unavailable, Toast.LENGTH_SHORT).show()
+                    refreshVpnStatus()
+                    return@launch
+                }
+                target.setStateAsync(if (checked) Tunnel.State.UP else Tunnel.State.DOWN)
+                VcsManagedClient.reportCurrentStates(this@HomeActivity)
+            } catch (e: Throwable) {
+                Toast.makeText(this@HomeActivity, getString(R.string.vcs_vpn_status_toggle_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
+            } finally {
+                refreshVpnStatus()
+                updateVpnRouterStatus()
+            }
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
