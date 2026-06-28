@@ -72,19 +72,23 @@ object VpnRouterManager {
     }
 
     private suspend fun detect(context: Context): Status {
-        val backend = Application.getBackend()
-        if (backend !is WgQuickBackend) {
+        val installed = runCatching { isRuleChainInstalled() }.getOrElse { e ->
             return Status(
                 availability = Availability.UNSUPPORTED,
-                detail = "kernel backend required"
+                detail = e.message ?: "root required"
             )
         }
 
-        val runningTunnel = backend.runningTunnelNames.sorted().firstOrNull()
-            ?: return Status(availability = Availability.WAITING_FOR_TUNNEL)
+        val runningTunnel = readVpnInterfaces().firstOrNull()
+        if (runningTunnel == null) {
+            return Status(
+                availability = if (installed) Availability.ENABLED else Availability.WAITING_FOR_TUNNEL,
+                detail = if (installed) "router rules installed; no active VPN interface detected" else null
+            )
+        }
         val tetherInterfaces = readTetherInterfaces(runningTunnel)
         val hotspotActive = HotspotDetector.isWifiHotspotActive(context)
-        if (isRuleChainInstalled()) {
+        if (installed) {
             return Status(
                 availability = Availability.ENABLED,
                 activeTunnel = runningTunnel,
@@ -111,15 +115,33 @@ object VpnRouterManager {
         )
     }
 
+    private suspend fun readVpnInterfaces(): List<String> {
+        val names = linkedSetOf<String>()
+        val backend = Application.getBackend()
+        if (backend is WgQuickBackend) {
+            names += backend.runningTunnelNames
+        }
+        names += readUpInterfaces()
+            .filter { name -> isValidInterfaceName(name) }
+            .filter { name -> isVpnInterfaceCandidate(name) }
+        return names.toList().sortedWith(compareBy(::vpnInterfacePriority, { it }))
+    }
+
     private fun readTetherInterfaces(activeTunnel: String): List<String> {
+        return readUpInterfaces().asSequence()
+            .filter { name -> isValidInterfaceName(name) }
+            .filterNot { name -> name == activeTunnel || name == "lo" }
+            .filter { name -> isTetherInterfaceCandidate(name) }
+            .distinct()
+            .toList()
+    }
+
+    private fun readUpInterfaces(): List<String> {
         val output = mutableListOf<String>()
         val exit = Application.getRootShell().run(output, "ip -o link show up 2>/dev/null || ip -o link show 2>/dev/null")
         if (exit != 0) return emptyList()
         return output.asSequence()
             .mapNotNull { line -> line.substringAfter(": ", "").substringBefore(":").substringBefore("@").trim() }
-            .filter { name -> isValidInterfaceName(name) }
-            .filterNot { name -> name == activeTunnel || name == "lo" }
-            .filter { name -> isTetherInterfaceCandidate(name) }
             .distinct()
             .toList()
     }
@@ -158,6 +180,10 @@ object VpnRouterManager {
                 "allow VPN return traffic",
                 "iptables -A $FORWARD_CHAIN -i $tunnel -o $downstream -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT || " +
                     "iptables -A $FORWARD_CHAIN -i $tunnel -o $downstream -m state --state RELATED,ESTABLISHED -j ACCEPT"
+            )
+            checkedRun(
+                "block hotspot bypass traffic",
+                "iptables -A $FORWARD_CHAIN -i $downstream -j REJECT"
             )
         }
     }
@@ -201,6 +227,20 @@ object VpnRouterManager {
             lower.startsWith("bt-pan") ||
             lower.startsWith("pan") ||
             lower.startsWith("p2p")
+    }
+
+    private fun isVpnInterfaceCandidate(name: String): Boolean {
+        val lower = name.lowercase(Locale.ROOT)
+        return lower.startsWith("tun") || lower.startsWith("wg")
+    }
+
+    private fun vpnInterfacePriority(name: String): Int {
+        val lower = name.lowercase(Locale.ROOT)
+        return when {
+            lower.startsWith("wg") -> 0
+            lower.startsWith("tun") -> 1
+            else -> 2
+        }
     }
 
     private const val TAG = "VirtuVPN/Router"

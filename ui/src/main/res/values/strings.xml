@@ -116,7 +116,7 @@
     <string name="vcs_vpn_router_ready">Ready: %1$s can route hotspot traffic via %2$s</string>
     <string name="vcs_vpn_router_waiting_tunnel">Start a VPN tunnel first.</string>
     <string name="vcs_vpn_router_waiting_hotspot">Turn on MOBILE HOTSPOT to detect router interfaces.</string>
-    <string name="vcs_vpn_router_unsupported">VPN router needs root and the kernel WireGuard backend.</string>
+    <string name="vcs_vpn_router_unsupported">VPN router needs root and an active VPN interface.</string>
     <string name="vcs_vpn_router_error">VPN router error: %1$s</string>
     <string name="vcs_vpn_router_no_interfaces">no hotspot interface</string>
     <string name="vcs_vpn_router_enable">Enable router</string>

@@ -74,7 +74,7 @@ class HomeActivity : AppCompatActivity() {
         binding.syncButton.setOnClickListener { syncManagedAccess() }
         binding.checkUpdatesButton.setOnClickListener { checkUpdates() }
         binding.openVpnSettingsButton.setOnClickListener { openVpnSettings() }
-        binding.vpnRouterButton.setOnClickListener { if (requireEnrolledForDeviceAction()) toggleVpnRouter() }
+        binding.vpnRouterButton.setOnClickListener { toggleVpnRouter() }
         binding.vpnStatusToggle.setOnBeforeCheckedChangeListener(object : ToggleSwitch.OnBeforeCheckedChangeListener {
             override fun onBeforeCheckedChanged(toggleSwitch: ToggleSwitch?, checked: Boolean) {
                 toggleHomeVpnStatus(checked)
@@ -645,9 +645,8 @@ class HomeActivity : AppCompatActivity() {
         binding.vpnRouterButton.setText(
             if (status?.canDisable == true) R.string.vcs_vpn_router_disable else R.string.vcs_vpn_router_enable
         )
-        val hasRouterAccess = VcsManagedClient.hasSession(this) || VcsManagedClient.hasAccountSession(this)
         val canToggleRouter = status?.let { it.canEnable || it.canDisable } == true
-        binding.vpnRouterButton.isEnabled = hasRouterAccess && !vpnRouterActionRunning && canToggleRouter
+        binding.vpnRouterButton.isEnabled = !vpnRouterActionRunning && canToggleRouter
         binding.vpnRouterButton.alpha = if (binding.vpnRouterButton.isEnabled) 1f else 0.58f
     }
 
