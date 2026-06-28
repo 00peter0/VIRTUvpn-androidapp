@@ -338,6 +338,7 @@ object VpnRouterManager {
                 "iptables -I FORWARD 1 -j $FORWARD_CHAIN"
         )
         checkedRun("masquerade VPN egress", "iptables -t nat -A $NAT_CHAIN -o $tunnel -j MASQUERADE")
+        checkedRun("clear stale hotspot VPN routes", "while ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY 2>/dev/null; do :; done")
         downstreams.forEach { downstream ->
             checkedRun(
                 "route hotspot UDP DNS",
@@ -370,15 +371,7 @@ object VpnRouterManager {
     }
 
     private fun removeRules() {
-        readUpInterfaces()
-            .filter { name -> isValidInterfaceName(name) }
-            .filter { name -> isTetherInterfaceCandidate(name) }
-            .forEach { downstream ->
-                checkedRun(
-                    "remove hotspot VPN route",
-                    "ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY iif $downstream 2>/dev/null || true"
-                )
-            }
+        checkedRun("remove hotspot VPN routes", "while ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY 2>/dev/null; do :; done")
         checkedRun("flush route cache", "ip route flush cache 2>/dev/null || true")
         checkedRun(
             "detach NAT chain",
