@@ -9,6 +9,8 @@ import android.util.Log
 import com.wireguard.android.Application
 import com.wireguard.android.backend.WgQuickBackend
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
@@ -67,17 +69,19 @@ object VpnRouterManager {
     }
 
     suspend fun reconcile(context: Context): Status = withContext(Dispatchers.IO) {
+        routerMutex.withLock {
         val appContext = context.applicationContext
         val status = detect(appContext)
-        if (status.availability != Availability.ENABLED) return@withContext status
+        if (status.availability != Availability.ENABLED) return@withLock status
         val tunnelName = status.activeTunnel ?: return@withContext status
-        if (status.tetherInterfaces.isEmpty()) return@withContext status
+        if (status.tetherInterfaces.isEmpty()) return@withLock status
         try {
             installRules(appContext, tunnelName, status.tetherInterfaces)
             detect(appContext)
         } catch (e: Throwable) {
             Log.e(TAG, "Unable to reconcile VPN router", e)
             status.copy(availability = Availability.ERROR, detail = e.message ?: e.javaClass.simpleName)
+        }
         }
     }
 
@@ -98,12 +102,13 @@ object VpnRouterManager {
     }
 
     suspend fun enable(context: Context): Status = withContext(Dispatchers.IO) {
+        routerMutex.withLock {
         val appContext = context.applicationContext
         val status = detect(appContext)
-        if (!status.canEnable && !status.canDisable) return@withContext status
-        val tunnelName = status.activeTunnel ?: return@withContext status.copy(availability = Availability.WAITING_FOR_TUNNEL)
+        if (!status.canEnable && !status.canDisable) return@withLock status
+        val tunnelName = status.activeTunnel ?: return@withLock status.copy(availability = Availability.WAITING_FOR_TUNNEL)
         val tetherInterfaces = status.tetherInterfaces
-        if (tetherInterfaces.isEmpty()) return@withContext status.copy(availability = Availability.WAITING_FOR_HOTSPOT)
+        if (tetherInterfaces.isEmpty()) return@withLock status.copy(availability = Availability.WAITING_FOR_HOTSPOT)
         try {
             installRules(appContext, tunnelName, tetherInterfaces)
             detect(appContext)
@@ -111,9 +116,11 @@ object VpnRouterManager {
             Log.e(TAG, "Unable to enable VPN router", e)
             status.copy(availability = Availability.ERROR, detail = e.message ?: e.javaClass.simpleName)
         }
+        }
     }
 
     suspend fun disable(context: Context): Status = withContext(Dispatchers.IO) {
+        routerMutex.withLock {
         val appContext = context.applicationContext
         val prior = runCatching { detect(appContext) }.getOrNull()
         try {
@@ -127,6 +134,7 @@ object VpnRouterManager {
                 tetherInterfaces = prior?.tetherInterfaces.orEmpty(),
                 detail = e.message ?: e.javaClass.simpleName
             )
+        }
         }
     }
 
@@ -259,6 +267,7 @@ object VpnRouterManager {
         val exit = Application.getRootShell().run(output, "ip -o link show up 2>/dev/null || ip -o link show 2>/dev/null")
         if (exit != 0) return emptyList()
         return output.asSequence()
+            .filter { line -> hasUsableLinkState(line) }
             .mapNotNull { line -> line.substringAfter(": ", "").substringBefore(":").substringBefore("@").trim() }
             .distinct()
             .toList()
@@ -407,6 +416,13 @@ object VpnRouterManager {
         return name.length in 1..64 && INTERFACE_NAME_REGEX.matches(name)
     }
 
+    private fun hasUsableLinkState(line: String): Boolean {
+        val name = line.substringAfter(": ", "").substringBefore(":").substringBefore("@").trim()
+        if (name == "lo") return true
+        if (isVpnInterfaceCandidate(name)) return true
+        return line.contains("LOWER_UP") && !line.contains("NO-CARRIER")
+    }
+
     private fun isIpv4Address(address: String): Boolean {
         val parts = address.split(".")
         return parts.size == 4 && parts.all { part ->
@@ -470,5 +486,6 @@ object VpnRouterManager {
     private const val FORWARD_CHAIN = "VIRTUVPN_ROUTER_FWD"
     private const val HOTSPOT_VPN_RULE_PRIORITY = 20900
     private const val MAX_DNS_RESOLVERS = 2
+    private val routerMutex = Mutex()
     private val INTERFACE_NAME_REGEX = Regex("^[A-Za-z0-9_.:=-]+$")
 }
