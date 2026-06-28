@@ -26,15 +26,18 @@ import com.wireguard.android.util.RootShell
 import com.wireguard.android.util.ToolsInstaller
 import com.wireguard.android.util.TunnelConnectivityMonitor
 import com.wireguard.android.util.UserKnobs
+import com.wireguard.android.util.VpnRouterManager
 import com.wireguard.android.util.applicationScope
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.lang.ref.WeakReference
@@ -111,6 +114,7 @@ class Application : android.app.Application() {
         tunnelManager.onCreate()
         tunnelConnectivityMonitor = TunnelConnectivityMonitor(applicationContext)
         tunnelConnectivityMonitor.start()
+        startVpnRouterReconcileMonitor()
         coroutineScope.launch(Dispatchers.IO) {
             try {
                 backend = determineBackend()
@@ -131,9 +135,26 @@ class Application : android.app.Application() {
         super.onTerminate()
     }
 
+    private fun startVpnRouterReconcileMonitor() {
+        coroutineScope.launch(Dispatchers.IO) {
+            while (isActive) {
+                delay(VPN_ROUTER_RECONCILE_INTERVAL_MS)
+                runCatching {
+                    val status = VpnRouterManager.getStatus(applicationContext)
+                    if (status.availability == VpnRouterManager.Availability.ENABLED) {
+                        VpnRouterManager.reconcile(applicationContext)
+                    }
+                }.onFailure {
+                    Log.d(TAG, "VPN router reconcile monitor skipped", it)
+                }
+            }
+        }
+    }
+
     companion object {
         val USER_AGENT = String.format(Locale.ENGLISH, "WireGuard/%s (Android %d; %s; %s; %s %s; %s)", BuildConfig.VERSION_NAME, Build.VERSION.SDK_INT, if (Build.SUPPORTED_ABIS.isNotEmpty()) Build.SUPPORTED_ABIS[0] else "unknown ABI", Build.BOARD, Build.MANUFACTURER, Build.MODEL, Build.FINGERPRINT)
         private const val TAG = "WireGuard/Application"
+        private const val VPN_ROUTER_RECONCILE_INTERVAL_MS = 5_000L
         private lateinit var weakSelf: WeakReference<Application>
 
         fun get(): Application {

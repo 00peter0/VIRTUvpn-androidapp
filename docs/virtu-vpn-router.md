@@ -93,10 +93,13 @@ Default:
 Selectable router resolvers:
 
 - Fast: `1.1.1.1`, low-latency general resolver with no content filtering.
-- Reliable: `8.8.8.8`, globally available resolver with strong compatibility.
 - Recommended secure: `9.9.9.9`, malware blocking and DNSSEC validation. This is
   the typical security-focused configuration, but it can be slower.
 - Kid friendly: `1.1.1.3`, blocks malware and adult content for hotspot clients.
+
+Google Public DNS is intentionally not offered for router mode because it can
+expose EDNS Client Subnet data in resolver tests. Existing saved `google`
+preferences are migrated to Quad9 during DNS mode resolution.
 
 DNS settings apply only to hotspot clients while VPN Router is enabled. Phone and
 non-root DNS behavior remain unchanged.
@@ -105,6 +108,30 @@ The active resolver is applied with hotspot-only DNAT rules for TCP/UDP port 53.
 When Copy DNS from tunnel is selected, VirtuVPN first tries the active
 Virtu/WireGuard tunnel config, then Android resolver properties, then falls back
 to Quad9 secure DNS if no tunnel resolver can be read.
+
+## IPv6 leak handling
+
+VPN Router currently treats IPv6 as protected only when the active VPN provider
+offers a usable IPv6 tunnel route. Many Android VPN providers expose IPv4-only
+tunnels, and Android tethering can still advertise or route IPv6 on the hotspot
+side. That creates an IPv6 leak risk because IPv4 NAT/DNS router rules do not
+cover IPv6 packets.
+
+The production-safe default is therefore to block hotspot-client IPv6 forwarding
+while VPN Router is enabled. Clients keep IPv4 internet through the VPN tunnel,
+but IPv6 tests should show no reachable client IPv6 path unless full IPv6
+router support is explicitly added later.
+
+VPN Router also disables Android tethering offload while router mode is enabled.
+Hardware/BPF offload can bypass ordinary iptables/ip6tables chains on some
+devices, which would make the router phone scan look clean while hotspot clients
+still leak. The previous offload setting is restored when router mode is
+disabled.
+
+Android tethering may also refresh its DNS forwarders from the cellular upstream
+after hotspot clients are already connected. VPN Router reconciles those
+forwarders back to the selected router resolver so clients do not fall back to
+mobile-provider DNS during later scans.
 
 ## Reconcile
 

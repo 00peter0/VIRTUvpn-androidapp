@@ -32,7 +32,6 @@ class VpnRouterActivity : AppCompatActivity() {
         routerDnsGroup.setOnCheckedChangeListener { _, checkedId ->
             val mode = when (checkedId) {
                 R.id.router_dns_cloudflare -> VpnRouterManager.DnsMode.CLOUDFLARE
-                R.id.router_dns_google -> VpnRouterManager.DnsMode.GOOGLE
                 R.id.router_dns_quad9 -> VpnRouterManager.DnsMode.QUAD9
                 R.id.router_dns_family -> VpnRouterManager.DnsMode.FAMILY
                 else -> VpnRouterManager.DnsMode.COPY_TUNNEL
@@ -91,7 +90,6 @@ class VpnRouterActivity : AppCompatActivity() {
     private fun renderDnsMode() {
         val checkedId = when (VpnRouterManager.getDnsMode(this)) {
             VpnRouterManager.DnsMode.CLOUDFLARE -> R.id.router_dns_cloudflare
-            VpnRouterManager.DnsMode.GOOGLE -> R.id.router_dns_google
             VpnRouterManager.DnsMode.QUAD9 -> R.id.router_dns_quad9
             VpnRouterManager.DnsMode.FAMILY -> R.id.router_dns_family
             VpnRouterManager.DnsMode.COPY_TUNNEL -> R.id.router_dns_copy_tunnel

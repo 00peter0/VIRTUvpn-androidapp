@@ -31,6 +31,7 @@ import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.databinding.SecureBrowserActivityBinding
 import com.wireguard.android.util.VcsDialogs
+import com.wireguard.android.util.VpnRouterManager
 import com.wireguard.android.vcs.VcsAuthGate
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -456,9 +457,13 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private suspend fun isSecureBrowserAllowed(): Boolean = withContext(Dispatchers.IO) {
-        val tunnelUp = runCatching { Application.getBackend().runningTunnelNames.isNotEmpty() }.getOrDefault(false)
-        tunnelUp && hasVpnNetwork()
+        hasVpnNetwork() || isVpnRouterActive()
     }
+
+    private suspend fun isVpnRouterActive(): Boolean =
+        runCatching {
+            VpnRouterManager.getStatus(this@SecureBrowserActivity).availability == VpnRouterManager.Availability.ENABLED
+        }.getOrDefault(false)
 
     private fun setBrowserAllowed(allowed: Boolean) {
         if (allowed) {

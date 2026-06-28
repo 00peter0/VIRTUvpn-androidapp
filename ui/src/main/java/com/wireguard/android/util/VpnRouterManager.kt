@@ -30,12 +30,12 @@ object VpnRouterManager {
     enum class DnsMode(val preferenceValue: String, val resolvers: List<String>) {
         COPY_TUNNEL("copy_tunnel", emptyList()),
         CLOUDFLARE("cloudflare", listOf("1.1.1.1", "1.0.0.1")),
-        GOOGLE("google", listOf("8.8.8.8", "8.8.4.4")),
         QUAD9("quad9", listOf("9.9.9.9", "149.112.112.112")),
         FAMILY("family", listOf("1.1.1.3", "1.0.0.3"));
 
         companion object {
             fun fromPreference(value: String?): DnsMode {
+                if (value == "google") return QUAD9
                 return values().firstOrNull { it.preferenceValue == value } ?: COPY_TUNNEL
             }
         }
@@ -73,7 +73,7 @@ object VpnRouterManager {
         val appContext = context.applicationContext
         val status = detect(appContext)
         if (status.availability != Availability.ENABLED) return@withLock status
-        val tunnelName = status.activeTunnel ?: return@withContext status
+        val tunnelName = status.activeTunnel ?: return@withLock status
         if (status.tetherInterfaces.isEmpty()) return@withLock status
         try {
             installRules(appContext, tunnelName, status.tetherInterfaces)
@@ -227,6 +227,7 @@ object VpnRouterManager {
             .filter { name -> isValidInterfaceName(name) }
             .filterNot { name -> name in excluded }
             .filterNot { name -> isVpnInterfaceCandidate(name) }
+            .filter { name -> isPhysicalUplinkCandidate(name) }
             .distinct()
             .toList()
         val uplinks = routeUplinks.ifEmpty {
@@ -322,20 +323,25 @@ object VpnRouterManager {
         val downstreams = tetherInterfaces.map(::checkedInterfaceName)
         val uplinks = readUplinkInterfaces(readUpInterfaces(), activeTunnel, downstreams)
             .map { uplink -> checkedInterfaceName(uplink.interfaceName) }
-        val dnsResolver = runCatching { resolveDnsResolvers(context, activeTunnel).firstOrNull() }
-            .getOrElse { DnsMode.QUAD9.resolvers.first() }
-            ?: DnsMode.QUAD9.resolvers.first()
+        val dnsResolvers = runCatching { resolveDnsResolvers(context, activeTunnel) }
+            .getOrElse { DnsMode.QUAD9.resolvers }
+            .ifEmpty { DnsMode.QUAD9.resolvers }
+        val dnsResolver = dnsResolvers.first()
         val vpnOwnerUid = readVpnOwnerUid()
 
+        disableTetherOffload(context)
+        overrideTetherDnsForwarders(dnsResolvers)
         checkedRun("enable IPv4 forwarding", "sysctl -w net.ipv4.ip_forward=1 >/dev/null")
         checkedRun("prepare NAT chain", "iptables -t nat -N $NAT_CHAIN 2>/dev/null || true")
         checkedRun("prepare DNS chain", "iptables -t nat -N $DNS_CHAIN 2>/dev/null || true")
         checkedRun("prepare forward chain", "iptables -N $FORWARD_CHAIN 2>/dev/null || true")
         checkedRun("prepare output chain", "iptables -N $OUTPUT_CHAIN 2>/dev/null || true")
+        checkedRun("prepare IPv6 forward chain", "ip6tables -N $IPV6_FORWARD_CHAIN 2>/dev/null || true")
         checkedRun("clear NAT chain", "iptables -t nat -F $NAT_CHAIN")
         checkedRun("clear DNS chain", "iptables -t nat -F $DNS_CHAIN")
         checkedRun("clear forward chain", "iptables -F $FORWARD_CHAIN")
         checkedRun("clear output chain", "iptables -F $OUTPUT_CHAIN")
+        checkedRun("clear IPv6 forward chain", "ip6tables -F $IPV6_FORWARD_CHAIN")
         checkedRun(
             "attach NAT chain",
             "iptables -t nat -D POSTROUTING -j $NAT_CHAIN 2>/dev/null || true; " +
@@ -355,6 +361,11 @@ object VpnRouterManager {
             "attach output chain",
             "iptables -D OUTPUT -j $OUTPUT_CHAIN 2>/dev/null || true; " +
                 "iptables -I OUTPUT 1 -j $OUTPUT_CHAIN"
+        )
+        checkedRun(
+            "attach IPv6 forward chain",
+            "ip6tables -D FORWARD -j $IPV6_FORWARD_CHAIN 2>/dev/null || true; " +
+                "ip6tables -I FORWARD 1 -j $IPV6_FORWARD_CHAIN"
         )
         checkedRun("masquerade VPN egress", "iptables -t nat -A $NAT_CHAIN -o $tunnel -j MASQUERADE")
         checkedRun("allow phone VPN egress", "iptables -A $OUTPUT_CHAIN -o $tunnel -j RETURN")
@@ -394,6 +405,10 @@ object VpnRouterManager {
                 "block hotspot bypass traffic",
                 "iptables -A $FORWARD_CHAIN -i $downstream -j REJECT"
             )
+            checkedRun(
+                "block hotspot IPv6 bypass traffic",
+                "ip6tables -A $IPV6_FORWARD_CHAIN -i $downstream -j REJECT"
+            )
         }
         checkedRun("flush route cache", "ip route flush cache 2>/dev/null || true")
     }
@@ -417,6 +432,10 @@ object VpnRouterManager {
             "detach output chain",
             "iptables -D OUTPUT -j $OUTPUT_CHAIN 2>/dev/null || true"
         )
+        checkedRun(
+            "detach IPv6 forward chain",
+            "ip6tables -D FORWARD -j $IPV6_FORWARD_CHAIN 2>/dev/null || true"
+        )
         checkedRun("clear NAT chain", "iptables -t nat -F $NAT_CHAIN 2>/dev/null || true")
         checkedRun("delete NAT chain", "iptables -t nat -X $NAT_CHAIN 2>/dev/null || true")
         checkedRun("clear DNS chain", "iptables -t nat -F $DNS_CHAIN 2>/dev/null || true")
@@ -425,6 +444,39 @@ object VpnRouterManager {
         checkedRun("delete forward chain", "iptables -X $FORWARD_CHAIN 2>/dev/null || true")
         checkedRun("clear output chain", "iptables -F $OUTPUT_CHAIN 2>/dev/null || true")
         checkedRun("delete output chain", "iptables -X $OUTPUT_CHAIN 2>/dev/null || true")
+        checkedRun("clear IPv6 forward chain", "ip6tables -F $IPV6_FORWARD_CHAIN 2>/dev/null || true")
+        checkedRun("delete IPv6 forward chain", "ip6tables -X $IPV6_FORWARD_CHAIN 2>/dev/null || true")
+        restoreTetherOffload()
+    }
+
+    private fun disableTetherOffload(context: Context) {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (!prefs.contains(KEY_TETHER_OFFLOAD_PREVIOUS)) {
+            prefs.edit().putString(KEY_TETHER_OFFLOAD_PREVIOUS, readGlobalSetting(TETHER_OFFLOAD_DISABLED_SETTING) ?: "").apply()
+        }
+        checkedRun("disable tether offload", "settings put global $TETHER_OFFLOAD_DISABLED_SETTING 1")
+    }
+
+    private fun restoreTetherOffload() {
+        val prefs = Application.get().applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (!prefs.contains(KEY_TETHER_OFFLOAD_PREVIOUS)) return
+        val previous = prefs.getString(KEY_TETHER_OFFLOAD_PREVIOUS, "") ?: ""
+        if (previous.isBlank() || previous == "null") {
+            checkedRun("restore tether offload", "settings delete global $TETHER_OFFLOAD_DISABLED_SETTING 2>/dev/null || true")
+        } else {
+            checkedRun("restore tether offload", "settings put global $TETHER_OFFLOAD_DISABLED_SETTING $previous")
+        }
+        prefs.edit().remove(KEY_TETHER_OFFLOAD_PREVIOUS).apply()
+    }
+
+    private fun overrideTetherDnsForwarders(resolvers: List<String>) {
+        val netId = readTetherDnsNetworkId() ?: return
+        val dnsArgs = resolvers
+            .filter { resolver -> isIpv4Address(resolver) }
+            .take(MAX_DNS_RESOLVERS)
+            .joinToString(" ")
+        if (dnsArgs.isBlank()) return
+        checkedRun("override tether DNS forwarders", "ndc tether dns set $netId $dnsArgs")
     }
 
     private fun checkedRun(label: String, command: String) {
@@ -445,6 +497,23 @@ object VpnRouterManager {
         )
         if (exit != 0) return null
         return output.firstOrNull()?.trim()?.toIntOrNull()
+    }
+
+    private fun readGlobalSetting(name: String): String? {
+        val output = mutableListOf<String>()
+        val exit = Application.getRootShell().run(output, "settings get global $name 2>/dev/null")
+        if (exit != 0) return null
+        return output.firstOrNull()?.trim()
+    }
+
+    private fun readTetherDnsNetworkId(): String? {
+        val output = mutableListOf<String>()
+        val exit = Application.getRootShell().run(
+            output,
+            "dumpsys tethering 2>/dev/null | sed -n 's/.*SET DNS forwarders: network=\\([0-9][0-9]*\\).*/\\1/p' | tail -1"
+        )
+        if (exit != 0) return null
+        return output.firstOrNull()?.trim()?.takeIf { id -> id.all { it.isDigit() } }
     }
 
     private fun isValidInterfaceName(name: String): Boolean {
@@ -516,10 +585,13 @@ object VpnRouterManager {
     private const val TAG = "VirtuVPN/Router"
     private const val PREFS = "virtuvpn_router"
     private const val KEY_DNS_MODE = "dns_mode"
+    private const val KEY_TETHER_OFFLOAD_PREVIOUS = "tether_offload_previous"
+    private const val TETHER_OFFLOAD_DISABLED_SETTING = "tether_offload_disabled"
     private const val NAT_CHAIN = "VIRTUVPN_ROUTER"
     private const val DNS_CHAIN = "VIRTUVPN_ROUTER_DNS"
     private const val FORWARD_CHAIN = "VIRTUVPN_ROUTER_FWD"
     private const val OUTPUT_CHAIN = "VIRTUVPN_ROUTER_OUT"
+    private const val IPV6_FORWARD_CHAIN = "VIRTUVPN_ROUTER6_FWD"
     private const val HOTSPOT_VPN_RULE_PRIORITY = 20900
     private const val MAX_DNS_RESOLVERS = 2
     private val routerMutex = Mutex()

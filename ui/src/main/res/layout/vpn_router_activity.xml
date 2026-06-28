@@ -201,15 +201,6 @@
                         android:textSize="14sp" />
 
                     <RadioButton
-                        android:id="@+id/router_dns_google"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:buttonTint="#3B82F6"
-                        android:text="@string/vcs_vpn_router_dns_google"
-                        android:textColor="#FFFFFF"
-                        android:textSize="14sp" />
-
-                    <RadioButton
                         android:id="@+id/router_dns_quad9"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
