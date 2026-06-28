@@ -232,16 +232,6 @@
     <string name="type_name_go_userspace">Implémentation Go en espace utilisateur</string>
     <string name="type_name_kernel_module">Module noyau</string>
     <string name="unknown_error">Erreur inconnue</string>
-    <string name="updater_avalable">Une mise à jour est disponible. Veuillez mettre l\'application à jour.</string>
-    <string name="updater_action">Télécharger &amp; Mettre à jour</string>
-    <string name="updater_rechecking">Récupération des métadonnées de la mise à jour…</string>
-    <string name="updater_download_progress">Téléchargement de la mise à jour : %1$s / %2$s (%3$.2f%%)</string>
-    <string name="updater_download_progress_nototal">Téléchargement de la mise à jour : %s</string>
-    <string name="updater_installing">Installation de la mise à jour…</string>
-    <string name="updater_failure">Erreur lors de la mise à jour : %s. Nous réessaierons dans un instant…</string>
-    <string name="updater_corrupt_title">Application corrompue</string>
-    <string name="updater_corrupt_message">Cette application est corrompue. Veuillez réinstaller le fichier APK depuis le site ci-dessous. Ensuite, désinstallez cette application puis réinstallez-la à l\'aide du fichier APK téléchargé.</string>
-    <string name="updater_corrupt_navigate">Accéder au site internet</string>
     <string name="version_summary">%1$s backend %2$s</string>
     <string name="version_summary_checking">Vérification de la version %s du backend</string>
     <string name="version_summary_unknown">Version %s inconnue</string>

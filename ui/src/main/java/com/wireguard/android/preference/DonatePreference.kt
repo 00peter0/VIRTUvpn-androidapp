@@ -8,11 +8,11 @@ package com.wireguard.android.preference
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.util.AttributeSet
 import android.widget.Toast
 import androidx.preference.Preference
 import com.wireguard.android.R
-import com.wireguard.android.updater.Updater
 import com.wireguard.android.util.ErrorMessages
 import com.wireguard.android.util.VcsDialogs
 import androidx.core.net.toUri
@@ -24,7 +24,7 @@ class DonatePreference(context: Context, attrs: AttributeSet?) : Preference(cont
 
     override fun onClick() {
         /* Google Play Store forbids links to our donation page. */
-        if (Updater.installerIsGooglePlay(context)) {
+        if (installerIsGooglePlay(context)) {
             VcsDialogs.show(
                 context = context,
                 title = context.getString(R.string.donate_title),
@@ -41,5 +41,19 @@ class DonatePreference(context: Context, attrs: AttributeSet?) : Preference(cont
         } catch (e: Throwable) {
             Toast.makeText(context, ErrorMessages[e], Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun installerIsGooglePlay(context: Context): Boolean {
+        val installer = try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                context.packageManager.getInstallSourceInfo(context.packageName).installingPackageName
+            } else {
+                @Suppress("DEPRECATION")
+                context.packageManager.getInstallerPackageName(context.packageName)
+            }
+        } catch (_: Throwable) {
+            null
+        }
+        return installer == "com.android.vending"
     }
 }

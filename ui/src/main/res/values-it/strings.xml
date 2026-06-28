@@ -232,16 +232,6 @@
     <string name="type_name_go_userspace">Spazio utente Go</string>
     <string name="type_name_kernel_module">Modulo kernel</string>
     <string name="unknown_error">Errore sconosciuto</string>
-    <string name="updater_avalable">È disponibile un aggiornamento dell\'app. Si prega di aggiornare ora.</string>
-    <string name="updater_action">Scarica e aggiorna</string>
-    <string name="updater_rechecking">Recupero metadati aggiornamento…</string>
-    <string name="updater_download_progress">Scaricamento aggiornamento: %1$s / %2$s (%3$.2f%%)</string>
-    <string name="updater_download_progress_nototal">Scaricamento aggiornamento: %s</string>
-    <string name="updater_installing">Installazione aggiornamento…</string>
-    <string name="updater_failure">Aggiornamento fallito: %s. Riprovo momentaneamente…</string>
-    <string name="updater_corrupt_title">Applicazione danneggiata</string>
-    <string name="updater_corrupt_message">Questa applicazione è danneggiata. Riscarica l\'APK dal sito collegato qui sotto. Dopo, disinstalla questa applicazione e reinstallala dall\'APK scaricato.</string>
-    <string name="updater_corrupt_navigate">Apri sito web</string>
     <string name="version_summary">Backend %1$s %2$s</string>
     <string name="version_summary_checking">Controllo versione backend %s</string>
     <string name="version_summary_unknown">Versione %s sconosciuta</string>

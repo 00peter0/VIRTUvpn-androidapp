@@ -232,16 +232,6 @@
     <string name="type_name_go_userspace">Go userspace</string>
     <string name="type_name_kernel_module">Kernelmodul</string>
     <string name="unknown_error">Unbekannter Fehler</string>
-    <string name="updater_avalable">Ein Anwendungsupdate ist verfügbar. Bitte jetzt aktualisieren.</string>
-    <string name="updater_action">Herunterladen und aktualisieren</string>
-    <string name="updater_rechecking">Rufe Update-Metadaten ab…</string>
-    <string name="updater_download_progress">Update wird heruntergeladen: %1$s / %2$s (%3$.2f%%)</string>
-    <string name="updater_download_progress_nototal">Update wird heruntergeladen: %s</string>
-    <string name="updater_installing">Installiere Update…</string>
-    <string name="updater_failure">Fehler beim Aktualisieren: %s. Es wird in Kürze erneut versucht…</string>
-    <string name="updater_corrupt_title">Anwendung beschädigt</string>
-    <string name="updater_corrupt_message">Diese Anwendung ist beschädigt. Bitte laden Sie die APK erneut von der unten verlinkten Website herunter. Deinstallieren Sie danach diese Anwendung und installieren Sie sie mit der heruntergeladenen APK neu.</string>
-    <string name="updater_corrupt_navigate">Webseite aufrufen</string>
     <string name="version_summary">%1$s Backend %2$s</string>
     <string name="version_summary_checking">Überprüfe %s Backend-Version</string>
     <string name="version_summary_unknown">Unbekannte %s Version</string>
