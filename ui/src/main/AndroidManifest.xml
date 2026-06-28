@@ -74,6 +74,12 @@
             android:parentActivityName=".activity.HomeActivity" />
 
         <activity
+            android:name=".activity.VpnRouterActivity"
+            android:exported="false"
+            android:label="@string/vcs_vpn_router_page_title"
+            android:parentActivityName=".activity.HomeActivity" />
+
+        <activity
             android:name=".activity.WebTerminalBrowserActivity"
             android:exported="false"
             android:label="@string/web_terminal_browser_title"

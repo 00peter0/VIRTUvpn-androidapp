@@ -75,6 +75,7 @@ class HomeActivity : AppCompatActivity() {
         binding.checkUpdatesButton.setOnClickListener { checkUpdates() }
         binding.openVpnSettingsButton.setOnClickListener { openVpnSettings() }
         binding.vpnRouterButton.setOnClickListener { toggleVpnRouter() }
+        binding.vpnRouterPageButton.setOnClickListener { startActivity(Intent(this, VpnRouterActivity::class.java)) }
         binding.vpnStatusToggle.setOnBeforeCheckedChangeListener(object : ToggleSwitch.OnBeforeCheckedChangeListener {
             override fun onBeforeCheckedChanged(toggleSwitch: ToggleSwitch?, checked: Boolean) {
                 toggleHomeVpnStatus(checked)
@@ -565,7 +566,12 @@ class HomeActivity : AppCompatActivity() {
         binding.vpnRouterStatus.setTextColor(Color.parseColor("#AFC0CC"))
         lifecycleScope.launch {
             val status = runCatching {
-                VpnRouterManager.getStatus(this@HomeActivity)
+                val current = VpnRouterManager.getStatus(this@HomeActivity)
+                if (current.availability == VpnRouterManager.Availability.ENABLED) {
+                    VpnRouterManager.reconcile(this@HomeActivity)
+                } else {
+                    current
+                }
             }.getOrElse { e ->
                 VpnRouterManager.Status(
                     availability = VpnRouterManager.Availability.ERROR,
@@ -660,8 +666,14 @@ class HomeActivity : AppCompatActivity() {
             }.getOrDefault(false)
             val activeHotspot = hotspotActive || HotspotDetector.isWifiHotspotActive(this@HomeActivity)
             if (activeHotspot && lastVpnRouterStatus?.availability == VpnRouterManager.Availability.ENABLED) {
-                binding.killSwitchStatus.setText(R.string.vcs_hotspot_vpn_router_active)
-                binding.killSwitchStatus.setTextColor(Color.parseColor("#86EFAC"))
+                binding.killSwitchStatus.setText(
+                    if (protected) {
+                        R.string.vcs_hotspot_vpn_router_active
+                    } else {
+                        R.string.vcs_kill_switch_off_router_active
+                    }
+                )
+                binding.killSwitchStatus.setTextColor(if (protected) Color.parseColor("#86EFAC") else Color.parseColor("#AFC0CC"))
             } else if (activeHotspot) {
                 binding.killSwitchStatus.setText(R.string.vcs_hotspot_vpn_bypass_warning)
                 binding.killSwitchStatus.setTextColor(Color.parseColor("#F87171"))
