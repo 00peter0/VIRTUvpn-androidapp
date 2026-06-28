@@ -73,7 +73,9 @@ class HomeActivity : AppCompatActivity() {
         binding.enrollButton.setOnClickListener { showEnrollDialog() }
         binding.syncButton.setOnClickListener { syncManagedAccess() }
         binding.checkUpdatesButton.setOnClickListener { checkUpdates() }
-        binding.openVpnSettingsButton.setOnClickListener { openVpnSettings() }
+        binding.openVpnSettingsButton.setOnClickListener {
+            if (lastVpnRouterStatus?.availability != VpnRouterManager.Availability.ENABLED) openVpnSettings()
+        }
         binding.vpnRouterButton.setOnClickListener { toggleVpnRouter() }
         binding.vpnRouterPageButton.setOnClickListener { startActivity(Intent(this, VpnRouterActivity::class.java)) }
         binding.vpnStatusToggle.setOnBeforeCheckedChangeListener(object : ToggleSwitch.OnBeforeCheckedChangeListener {
@@ -644,6 +646,7 @@ class HomeActivity : AppCompatActivity() {
             }
         }
         updateVpnRouterButtonState(status)
+        updateOpenVpnSettingsButtonState(status)
         updateKillSwitchStatus()
     }
 
@@ -685,6 +688,14 @@ class HomeActivity : AppCompatActivity() {
                 binding.killSwitchStatus.setTextColor(Color.parseColor("#FBBF24"))
             }
         }
+    }
+
+    private fun updateOpenVpnSettingsButtonState(status: VpnRouterManager.Status? = lastVpnRouterStatus) {
+        val routerActive = status?.availability == VpnRouterManager.Availability.ENABLED
+        binding.openVpnSettingsButton.isEnabled = !routerActive
+        binding.openVpnSettingsButton.isClickable = !routerActive
+        binding.openVpnSettingsButton.isFocusable = !routerActive
+        binding.openVpnSettingsButton.alpha = if (routerActive) 0.42f else 1f
     }
 
     private fun openVpnSettings() {
