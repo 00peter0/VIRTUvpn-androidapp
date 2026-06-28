@@ -10,7 +10,6 @@ import android.widget.RadioGroup
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.util.VpnRouterManager
 import kotlinx.coroutines.launch
@@ -18,7 +17,6 @@ import kotlinx.coroutines.launch
 class VpnRouterActivity : AppCompatActivity() {
     private lateinit var routerStatus: TextView
     private lateinit var routerUplinkStatus: TextView
-    private lateinit var phoneKillSwitchStatus: TextView
     private lateinit var routerProtectionStatus: TextView
     private lateinit var routerDnsGroup: RadioGroup
 
@@ -29,7 +27,6 @@ class VpnRouterActivity : AppCompatActivity() {
         setContentView(R.layout.vpn_router_activity)
         routerStatus = findViewById(R.id.router_status)
         routerUplinkStatus = findViewById(R.id.router_uplink_status)
-        phoneKillSwitchStatus = findViewById(R.id.phone_kill_switch_status)
         routerProtectionStatus = findViewById(R.id.router_protection_status)
         routerDnsGroup = findViewById(R.id.router_dns_group)
         routerDnsGroup.setOnCheckedChangeListener { _, checkedId ->
@@ -75,17 +72,8 @@ class VpnRouterActivity : AppCompatActivity() {
                         detail = e.message ?: e.javaClass.simpleName
                     )
                 }
-            val phoneProtected = runCatching {
-                val backend = Application.getBackend()
-                backend.isAlwaysOn && backend.isLockdownEnabled
-            }.getOrDefault(false)
-
             renderRouterStatus(router)
             renderDnsMode()
-            phoneKillSwitchStatus.setText(
-                if (phoneProtected) R.string.vcs_kill_switch_protected else R.string.vcs_kill_switch_unprotected
-            )
-            phoneKillSwitchStatus.setTextColor(if (phoneProtected) GREEN else YELLOW)
 
             routerProtectionStatus.setText(
                 if (router.availability == VpnRouterManager.Availability.ENABLED) {
