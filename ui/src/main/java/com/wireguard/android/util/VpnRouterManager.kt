@@ -164,14 +164,21 @@ object VpnRouterManager {
         checkedRun("clear forward chain", "iptables -F $FORWARD_CHAIN")
         checkedRun(
             "attach NAT chain",
-            "iptables -t nat -C POSTROUTING -j $NAT_CHAIN 2>/dev/null || iptables -t nat -A POSTROUTING -j $NAT_CHAIN"
+            "iptables -t nat -D POSTROUTING -j $NAT_CHAIN 2>/dev/null || true; " +
+                "iptables -t nat -I POSTROUTING 1 -j $NAT_CHAIN"
         )
         checkedRun(
             "attach forward chain",
-            "iptables -C FORWARD -j $FORWARD_CHAIN 2>/dev/null || iptables -A FORWARD -j $FORWARD_CHAIN"
+            "iptables -D FORWARD -j $FORWARD_CHAIN 2>/dev/null || true; " +
+                "iptables -I FORWARD 1 -j $FORWARD_CHAIN"
         )
         checkedRun("masquerade VPN egress", "iptables -t nat -A $NAT_CHAIN -o $tunnel -j MASQUERADE")
         downstreams.forEach { downstream ->
+            checkedRun(
+                "route hotspot traffic to VPN",
+                "ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY iif $downstream 2>/dev/null || true; " +
+                    "ip rule add pref $HOTSPOT_VPN_RULE_PRIORITY iif $downstream lookup $tunnel"
+            )
             checkedRun(
                 "allow hotspot to VPN forwarding",
                 "iptables -A $FORWARD_CHAIN -i $downstream -o $tunnel -j ACCEPT"
@@ -186,9 +193,20 @@ object VpnRouterManager {
                 "iptables -A $FORWARD_CHAIN -i $downstream -j REJECT"
             )
         }
+        checkedRun("flush route cache", "ip route flush cache 2>/dev/null || true")
     }
 
     private fun removeRules() {
+        readUpInterfaces()
+            .filter { name -> isValidInterfaceName(name) }
+            .filter { name -> isTetherInterfaceCandidate(name) }
+            .forEach { downstream ->
+                checkedRun(
+                    "remove hotspot VPN route",
+                    "ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY iif $downstream 2>/dev/null || true"
+                )
+            }
+        checkedRun("flush route cache", "ip route flush cache 2>/dev/null || true")
         checkedRun(
             "detach NAT chain",
             "iptables -t nat -D POSTROUTING -j $NAT_CHAIN 2>/dev/null || true"
@@ -246,5 +264,6 @@ object VpnRouterManager {
     private const val TAG = "VirtuVPN/Router"
     private const val NAT_CHAIN = "VIRTUVPN_ROUTER"
     private const val FORWARD_CHAIN = "VIRTUVPN_ROUTER_FWD"
+    private const val HOTSPOT_VPN_RULE_PRIORITY = 20900
     private val INTERFACE_NAME_REGEX = Regex("^[A-Za-z0-9_.:=-]+$")
 }
