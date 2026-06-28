@@ -26,6 +26,9 @@ import java.net.URLDecoder
 object VpnRouterGuestServer {
     const val PORT = 8787
     private const val TAG = "VirtuVPN/GuestServer"
+    private const val INSTALL_URL = "https://vcs.virtucomputing.com/api/mobile/android/apk/guest"
+    private const val SECURE_BROWSER_INTENT =
+        "intent://secure-browser#Intent;scheme=virtuvpn;package=com.virtuvpn.android;S.browser_fallback_url=https%3A%2F%2Fvcs.virtucomputing.com%2Fapi%2Fmobile%2Fandroid%2Fapk%2Fguest;end"
     private var serverJob: Job? = null
     @Volatile
     private var serverSocket: ServerSocket? = null
@@ -68,14 +71,8 @@ object VpnRouterGuestServer {
                     VpnRouterManager.allowGuestPortalBypass(client.inetAddress.hostAddress.orEmpty())
                     respondHtml(client.getOutputStream(), ignoredHtml(context))
                 }
-                path.startsWith("/virtuvpn-router/secure-browser") -> respondRedirect(
-                    client.getOutputStream(),
-                    "virtuvpn://secure-browser"
-                )
-                path.startsWith("/virtuvpn-router/install") -> respondRedirect(
-                    client.getOutputStream(),
-                    "/api/mobile/android/apk/install"
-                )
+                path.startsWith("/virtuvpn-router/secure-browser") -> respondRedirect(client.getOutputStream(), SECURE_BROWSER_INTENT)
+                path.startsWith("/virtuvpn-router/install") -> respondRedirect(client.getOutputStream(), INSTALL_URL)
                 else -> respondHtml(client.getOutputStream(), portalHtml(context, path))
             }
         }
@@ -158,8 +155,8 @@ object VpnRouterGuestServer {
                 <h1 class="title">Open secure browsing</h1>
                 <p class="copy">This hotspot is routed through VPN. For the safest browsing, open VirtuVPN Secure Browser so regular browser data such as local WebRTC addresses stays hidden.</p>
                 <div class="actions">
-                  <a class="primary" href="/virtuvpn-router/secure-browser">Open Secure Browser</a>
-                  <a class="secondary" href="/virtuvpn-router/install">Install VirtuVPN APK</a>
+                  <a class="primary" id="openSecureBrowser" href="$SECURE_BROWSER_INTENT">Open Secure Browser</a>
+                  <a class="secondary" href="$INSTALL_URL">Install VirtuVPN APK</a>
                   <form method="get" action="/virtuvpn-router/ignore">
                     <label class="check"><input required type="checkbox"> <span>I do not need secure browsing and want to use a regular browser on this device.</span></label>
                     <button class="secondary button" type="submit">OK, continue without protection</button>
@@ -168,6 +165,14 @@ object VpnRouterGuestServer {
                 <div class="status">Router guest protection is active.</div>
                 <p class="muted">Original request: ${next}</p>
               </main>
+              <script>
+                const openButton = document.getElementById('openSecureBrowser');
+                if (openButton) {
+                  openButton.addEventListener('click', () => {
+                    setTimeout(() => { window.location.href = '$INSTALL_URL'; }, 1400);
+                  });
+                }
+              </script>
             </body>
             </html>
         """.trimIndent()
