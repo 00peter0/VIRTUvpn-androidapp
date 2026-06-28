@@ -101,6 +101,16 @@ object VpnRouterManager {
             .apply()
     }
 
+    fun allowGuestPortalBypass(clientIp: String) {
+        if (!isIpv4Address(clientIp)) return
+        runCatching {
+            Application.getRootShell().run(
+                null,
+                "iptables -t nat -I $PORTAL_CHAIN 1 -s $clientIp -j RETURN 2>/dev/null || true"
+            )
+        }
+    }
+
     suspend fun enable(context: Context): Status = withContext(Dispatchers.IO) {
         routerMutex.withLock {
         val appContext = context.applicationContext
@@ -323,6 +333,7 @@ object VpnRouterManager {
         val downstreams = tetherInterfaces.map(::checkedInterfaceName)
         val uplinks = readUplinkInterfaces(readUpInterfaces(), activeTunnel, downstreams)
             .map { uplink -> checkedInterfaceName(uplink.interfaceName) }
+        val portalAddress = downstreams.firstNotNullOfOrNull { downstream -> readIpv4Address(downstream) }
         val dnsResolvers = runCatching { resolveDnsResolvers(context, activeTunnel) }
             .getOrElse { DnsMode.QUAD9.resolvers }
             .ifEmpty { DnsMode.QUAD9.resolvers }
@@ -334,11 +345,13 @@ object VpnRouterManager {
         checkedRun("enable IPv4 forwarding", "sysctl -w net.ipv4.ip_forward=1 >/dev/null")
         checkedRun("prepare NAT chain", "iptables -t nat -N $NAT_CHAIN 2>/dev/null || true")
         checkedRun("prepare DNS chain", "iptables -t nat -N $DNS_CHAIN 2>/dev/null || true")
+        checkedRun("prepare portal chain", "iptables -t nat -N $PORTAL_CHAIN 2>/dev/null || true")
         checkedRun("prepare forward chain", "iptables -N $FORWARD_CHAIN 2>/dev/null || true")
         checkedRun("prepare output chain", "iptables -N $OUTPUT_CHAIN 2>/dev/null || true")
         checkedRun("prepare IPv6 forward chain", "ip6tables -N $IPV6_FORWARD_CHAIN 2>/dev/null || true")
         checkedRun("clear NAT chain", "iptables -t nat -F $NAT_CHAIN")
         checkedRun("clear DNS chain", "iptables -t nat -F $DNS_CHAIN")
+        checkedRun("clear portal chain", "iptables -t nat -F $PORTAL_CHAIN")
         checkedRun("clear forward chain", "iptables -F $FORWARD_CHAIN")
         checkedRun("clear output chain", "iptables -F $OUTPUT_CHAIN")
         checkedRun("clear IPv6 forward chain", "ip6tables -F $IPV6_FORWARD_CHAIN")
@@ -351,6 +364,11 @@ object VpnRouterManager {
             "attach DNS chain",
             "iptables -t nat -D PREROUTING -j $DNS_CHAIN 2>/dev/null || true; " +
                 "iptables -t nat -I PREROUTING 1 -j $DNS_CHAIN"
+        )
+        checkedRun(
+            "attach portal chain",
+            "iptables -t nat -D PREROUTING -j $PORTAL_CHAIN 2>/dev/null || true; " +
+                "iptables -t nat -I PREROUTING 1 -j $PORTAL_CHAIN"
         )
         checkedRun(
             "attach forward chain",
@@ -379,6 +397,12 @@ object VpnRouterManager {
         checkedRun("finish output chain", "iptables -A $OUTPUT_CHAIN -j RETURN")
         checkedRun("clear stale hotspot VPN routes", "while ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY 2>/dev/null; do :; done")
         downstreams.forEach { downstream ->
+            if (portalAddress != null) {
+                checkedRun(
+                    "route guest portal HTTP",
+                    "iptables -t nat -A $PORTAL_CHAIN -i $downstream -p tcp --dport 80 -j DNAT --to-destination $portalAddress:${VpnRouterGuestServer.PORT}"
+                )
+            }
             checkedRun(
                 "route hotspot UDP DNS",
                 "iptables -t nat -A $DNS_CHAIN -i $downstream -p udp --dport 53 -j DNAT --to-destination $dnsResolver"
@@ -425,6 +449,10 @@ object VpnRouterManager {
             "iptables -t nat -D PREROUTING -j $DNS_CHAIN 2>/dev/null || true"
         )
         checkedRun(
+            "detach portal chain",
+            "iptables -t nat -D PREROUTING -j $PORTAL_CHAIN 2>/dev/null || true"
+        )
+        checkedRun(
             "detach forward chain",
             "iptables -D FORWARD -j $FORWARD_CHAIN 2>/dev/null || true"
         )
@@ -440,6 +468,8 @@ object VpnRouterManager {
         checkedRun("delete NAT chain", "iptables -t nat -X $NAT_CHAIN 2>/dev/null || true")
         checkedRun("clear DNS chain", "iptables -t nat -F $DNS_CHAIN 2>/dev/null || true")
         checkedRun("delete DNS chain", "iptables -t nat -X $DNS_CHAIN 2>/dev/null || true")
+        checkedRun("clear portal chain", "iptables -t nat -F $PORTAL_CHAIN 2>/dev/null || true")
+        checkedRun("delete portal chain", "iptables -t nat -X $PORTAL_CHAIN 2>/dev/null || true")
         checkedRun("clear forward chain", "iptables -F $FORWARD_CHAIN 2>/dev/null || true")
         checkedRun("delete forward chain", "iptables -X $FORWARD_CHAIN 2>/dev/null || true")
         checkedRun("clear output chain", "iptables -F $OUTPUT_CHAIN 2>/dev/null || true")
@@ -504,6 +534,16 @@ object VpnRouterManager {
         val exit = Application.getRootShell().run(output, "settings get global $name 2>/dev/null")
         if (exit != 0) return null
         return output.firstOrNull()?.trim()
+    }
+
+    private fun readIpv4Address(interfaceName: String): String? {
+        val output = mutableListOf<String>()
+        val exit = Application.getRootShell().run(
+            output,
+            "ip -4 -o addr show dev ${checkedInterfaceName(interfaceName)} 2>/dev/null | sed -n 's/.* inet \\([0-9.]*\\)\\/.*/\\1/p' | head -1"
+        )
+        if (exit != 0) return null
+        return output.firstOrNull()?.trim()?.takeIf(::isIpv4Address)
     }
 
     private fun readTetherDnsNetworkId(): String? {
@@ -589,6 +629,7 @@ object VpnRouterManager {
     private const val TETHER_OFFLOAD_DISABLED_SETTING = "tether_offload_disabled"
     private const val NAT_CHAIN = "VIRTUVPN_ROUTER"
     private const val DNS_CHAIN = "VIRTUVPN_ROUTER_DNS"
+    private const val PORTAL_CHAIN = "VIRTUVPN_ROUTER_PORTAL"
     private const val FORWARD_CHAIN = "VIRTUVPN_ROUTER_FWD"
     private const val OUTPUT_CHAIN = "VIRTUVPN_ROUTER_OUT"
     private const val IPV6_FORWARD_CHAIN = "VIRTUVPN_ROUTER6_FWD"

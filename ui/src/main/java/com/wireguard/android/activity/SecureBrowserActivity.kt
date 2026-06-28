@@ -41,6 +41,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import org.json.JSONArray
 import java.io.ByteArrayInputStream
+import java.net.HttpURLConnection
+import java.net.URL
 
 class SecureBrowserActivity : AppCompatActivity() {
     private lateinit var binding: SecureBrowserActivityBinding
@@ -457,7 +459,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private suspend fun isSecureBrowserAllowed(): Boolean = withContext(Dispatchers.IO) {
-        hasVpnNetwork() || hasVirtuRouterClientNetwork() || isVpnRouterActive()
+        hasVpnNetwork() || hasVirtuRouterGuestProtocol() || hasVirtuRouterClientNetwork() || isVpnRouterActive()
     }
 
     private suspend fun isVpnRouterActive(): Boolean =
@@ -523,6 +525,28 @@ class SecureBrowserActivity : AppCompatActivity() {
         }
     }
 
+    private fun hasVirtuRouterGuestProtocol(): Boolean {
+        val connectivityManager = getSystemService(ConnectivityManager::class.java) ?: return false
+        val activeNetwork = connectivityManager.activeNetwork ?: return false
+        val activeCaps = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
+        if (!activeCaps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return false
+        val gateway = connectivityManager.getLinkProperties(activeNetwork)
+            ?.routes
+            ?.firstOrNull { route -> route.isDefaultRoute && route.gateway != null }
+            ?.gateway
+            ?.hostAddress
+            ?: return false
+        return runCatching {
+            val connection = activeNetwork.openConnection(URL("http://$gateway:$VIRTU_ROUTER_GUEST_PORT/virtuvpn-router/status")) as HttpURLConnection
+            connection.connectTimeout = 700
+            connection.readTimeout = 700
+            connection.useCaches = false
+            val body = connection.inputStream.bufferedReader().use { it.readText() }
+            connection.disconnect()
+            body.contains("\"product\":\"VirtuVPN\"") && body.contains("\"router\":true")
+        }.getOrDefault(false)
+    }
+
     private fun isAllowedBrowserUrl(uri: Uri): Boolean {
         return when (uri.scheme?.lowercase()) {
             "https" -> !uri.host.isNullOrBlank()
@@ -583,6 +607,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         const val EXTRA_INITIAL_URL = "com.wireguard.android.extra.SECURE_BROWSER_INITIAL_URL"
         private const val GOOGLE_URL = "https://www.google.com/"
         private const val VIRTU_ROUTER_CLIENT_SUBNET_PREFIX = "192.168.115."
+        private const val VIRTU_ROUTER_GUEST_PORT = 8787
         private val DEFAULT_BOOKMARKS = listOf(GOOGLE_URL)
     }
 }

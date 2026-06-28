@@ -133,6 +133,23 @@ after hotspot clients are already connected. VPN Router reconciles those
 forwarders back to the selected router resolver so clients do not fall back to
 mobile-provider DNS during later scans.
 
+## Guest protocol and portal
+
+VPN Router exposes a local guest protocol on the router phone while the app
+process is alive:
+
+- `http://<router-gateway>:8787/virtuvpn-router/status` returns a VirtuVPN router
+  marker for client apps.
+- hotspot HTTP traffic is redirected to a VirtuVPN guest page while router mode is
+  enabled.
+- the guest page recommends VirtuVPN Secure Browser for safest browsing, links to
+  VirtuVPN install/open actions, and offers an explicit regular-browser bypass.
+- choosing the regular-browser bypass inserts a client-IP return rule in the
+  router portal chain so the page stops appearing for that hotspot session.
+
+Client-side Secure Browser detection prefers the guest protocol marker and only
+uses the known Samsung `192.168.115.0/24` hotspot subnet as a fallback heuristic.
+
 ## Reconcile
 
 When router rules are already enabled, the Home page and VPN Router page reconcile

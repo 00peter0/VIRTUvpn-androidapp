@@ -69,9 +69,16 @@
 
         <activity
             android:name=".activity.SecureBrowserActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="@string/vcs_secure_browser_title"
-            android:parentActivityName=".activity.HomeActivity" />
+            android:parentActivityName=".activity.HomeActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="virtuvpn" android:host="secure-browser" />
+            </intent-filter>
+        </activity>
 
         <activity
             android:name=".activity.VpnRouterActivity"
