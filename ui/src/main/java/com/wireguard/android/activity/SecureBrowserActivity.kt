@@ -16,6 +16,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.HttpAuthHandler
+import android.webkit.PermissionRequest
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
@@ -32,7 +34,6 @@ import com.wireguard.android.R
 import com.wireguard.android.databinding.SecureBrowserActivityBinding
 import com.wireguard.android.util.VcsDialogs
 import com.wireguard.android.util.VpnRouterManager
-import com.wireguard.android.vcs.VcsAuthGate
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -57,7 +58,6 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (!VcsAuthGate.requireSignedIn(this)) return
         binding = SecureBrowserActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -88,7 +88,7 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (!VcsAuthGate.requireSignedIn(this) || !::binding.isInitialized) return
+        if (!::binding.isInitialized) return
         monitorJob = lifecycleScope.launch {
             while (isActive) {
                 setBrowserAllowed(isSecureBrowserAllowed())
@@ -132,8 +132,14 @@ class SecureBrowserActivity : AppCompatActivity() {
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             setSupportMultipleWindows(false)
             mediaPlaybackRequiresUserGesture = true
+            setGeolocationEnabled(false)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 safeBrowsingEnabled = true
+            }
+        }
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onPermissionRequest(request: PermissionRequest) {
+                request.deny()
             }
         }
         webView.setDownloadListener { _, _, _, _, _ ->
@@ -153,8 +159,14 @@ class SecureBrowserActivity : AppCompatActivity() {
                 return null
             }
 
+            override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
+                super.onPageStarted(view, url, favicon)
+                injectWebRtcProtection(view)
+            }
+
             override fun onPageFinished(view: WebView, url: String?) {
                 super.onPageFinished(view, url)
+                injectWebRtcProtection(view)
                 if (!url.isNullOrBlank() && url != "about:blank") {
                     binding.urlInput.setText(url)
                 }
@@ -502,6 +514,11 @@ class SecureBrowserActivity : AppCompatActivity() {
     private fun blockedResponse(): WebResourceResponse =
         WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream(ByteArray(0)))
 
+    private fun injectWebRtcProtection(webView: WebView) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) return
+        webView.evaluateJavascript(WEBRTC_PROTECTION_SCRIPT, null)
+    }
+
     private fun hasVpnNetwork(): Boolean {
         val connectivityManager = getSystemService(ConnectivityManager::class.java) ?: return false
         val activeNetwork = connectivityManager.activeNetwork
@@ -609,5 +626,27 @@ class SecureBrowserActivity : AppCompatActivity() {
         private const val VIRTU_ROUTER_CLIENT_SUBNET_PREFIX = "192.168.115."
         private const val VIRTU_ROUTER_GUEST_PORT = 8787
         private val DEFAULT_BOOKMARKS = listOf(GOOGLE_URL)
+        private const val WEBRTC_PROTECTION_SCRIPT = """
+            (function() {
+              if (window.__virtuvpnWebRtcProtection) return;
+              Object.defineProperty(window, '__virtuvpnWebRtcProtection', { value: true, configurable: false });
+              var blocked = function() {
+                throw new DOMException('WebRTC is disabled by VirtuVPN Secure Browser', 'SecurityError');
+              };
+              var rejected = function() {
+                return Promise.reject(new DOMException('WebRTC is disabled by VirtuVPN Secure Browser', 'SecurityError'));
+              };
+              try { Object.defineProperty(window, 'RTCPeerConnection', { value: blocked, configurable: false }); } catch (e) { window.RTCPeerConnection = blocked; }
+              try { Object.defineProperty(window, 'webkitRTCPeerConnection', { value: blocked, configurable: false }); } catch (e) { window.webkitRTCPeerConnection = blocked; }
+              try { Object.defineProperty(window, 'mozRTCPeerConnection', { value: blocked, configurable: false }); } catch (e) { window.mozRTCPeerConnection = blocked; }
+              if (navigator.mediaDevices) {
+                try { navigator.mediaDevices.getUserMedia = rejected; } catch (e) {}
+                try { navigator.mediaDevices.enumerateDevices = function() { return Promise.resolve([]); }; } catch (e) {}
+              }
+              try { navigator.getUserMedia = function() {}; } catch (e) {}
+              try { navigator.webkitGetUserMedia = function() {}; } catch (e) {}
+              try { navigator.mozGetUserMedia = function() {}; } catch (e) {}
+            })();
+        """
     }
 }
