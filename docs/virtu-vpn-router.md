@@ -59,15 +59,27 @@ When enabled, the app installs root rules that:
 - attach a VirtuVPN NAT chain at the start of `POSTROUTING`,
 - attach a VirtuVPN DNS chain at the start of `PREROUTING`,
 - attach a VirtuVPN forwarding chain at the start of `FORWARD`,
+- attach a VirtuVPN phone-output chain at the start of `OUTPUT`,
 - add a policy route for each hotspot interface to the active VPN table,
 - redirect hotspot client TCP/UDP DNS on port 53 to the selected router DNS
   resolver,
+- allow the router phone's own internet traffic only through the VPN interface,
+- allow the active VPN provider UID or WireGuard fwmark to use the physical
+  uplink for tunnel transport,
+- reject other router-phone traffic on physical uplinks while router mode is on,
 - allow hotspot-to-VPN forwarding,
 - allow established VPN return traffic to hotspot clients,
 - reject hotspot forwarding to any non-VPN path.
 
 This gives hotspot clients a fail-closed router path. If the VPN interface is not
 available, clients should not silently bypass through the phone uplink.
+
+The router phone also gets its own lockdown while router mode is enabled. Normal
+phone internet must go through the active VPN interface. The physical uplink is
+kept available only for the VPN transport itself, so the tunnel can stay alive
+without allowing ordinary phone apps to bypass the VPN. When router mode is
+disabled, these OUTPUT rules are removed and the phone returns to normal mobile
+internet behavior.
 
 ## DNS
 
@@ -111,13 +123,14 @@ The VPN Router page shows:
 
 - router status,
 - detected uplink,
-- phone kill switch status,
 - router protection status,
 - router DNS options.
 
-When router protection is active, hotspot clients are protected by router rules
-even if the phone kill switch is off. The phone kill switch still protects only
-the phone's own traffic.
+When router protection is active, hotspot clients stay associated with WiFi but
+only receive internet through the VPN tunnel. If the tunnel path is unavailable,
+client internet stops instead of falling back to the phone uplink. The router
+phone itself is also locked down so ordinary phone traffic cannot use mobile data
+outside the VPN while router mode is enabled.
 
 ## Implementation Phases
 

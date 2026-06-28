@@ -320,17 +320,22 @@ object VpnRouterManager {
     private suspend fun installRules(context: Context, activeTunnel: String, tetherInterfaces: List<String>) {
         val tunnel = checkedInterfaceName(activeTunnel)
         val downstreams = tetherInterfaces.map(::checkedInterfaceName)
+        val uplinks = readUplinkInterfaces(readUpInterfaces(), activeTunnel, downstreams)
+            .map { uplink -> checkedInterfaceName(uplink.interfaceName) }
         val dnsResolver = runCatching { resolveDnsResolvers(context, activeTunnel).firstOrNull() }
-            .getOrElse { DnsMode.QUAD9.resolvers }
+            .getOrElse { DnsMode.QUAD9.resolvers.first() }
             ?: DnsMode.QUAD9.resolvers.first()
+        val vpnOwnerUid = readVpnOwnerUid()
 
         checkedRun("enable IPv4 forwarding", "sysctl -w net.ipv4.ip_forward=1 >/dev/null")
         checkedRun("prepare NAT chain", "iptables -t nat -N $NAT_CHAIN 2>/dev/null || true")
         checkedRun("prepare DNS chain", "iptables -t nat -N $DNS_CHAIN 2>/dev/null || true")
         checkedRun("prepare forward chain", "iptables -N $FORWARD_CHAIN 2>/dev/null || true")
+        checkedRun("prepare output chain", "iptables -N $OUTPUT_CHAIN 2>/dev/null || true")
         checkedRun("clear NAT chain", "iptables -t nat -F $NAT_CHAIN")
         checkedRun("clear DNS chain", "iptables -t nat -F $DNS_CHAIN")
         checkedRun("clear forward chain", "iptables -F $FORWARD_CHAIN")
+        checkedRun("clear output chain", "iptables -F $OUTPUT_CHAIN")
         checkedRun(
             "attach NAT chain",
             "iptables -t nat -D POSTROUTING -j $NAT_CHAIN 2>/dev/null || true; " +
@@ -346,7 +351,21 @@ object VpnRouterManager {
             "iptables -D FORWARD -j $FORWARD_CHAIN 2>/dev/null || true; " +
                 "iptables -I FORWARD 1 -j $FORWARD_CHAIN"
         )
+        checkedRun(
+            "attach output chain",
+            "iptables -D OUTPUT -j $OUTPUT_CHAIN 2>/dev/null || true; " +
+                "iptables -I OUTPUT 1 -j $OUTPUT_CHAIN"
+        )
         checkedRun("masquerade VPN egress", "iptables -t nat -A $NAT_CHAIN -o $tunnel -j MASQUERADE")
+        checkedRun("allow phone VPN egress", "iptables -A $OUTPUT_CHAIN -o $tunnel -j RETURN")
+        checkedRun("allow WireGuard fwmark transport", "iptables -A $OUTPUT_CHAIN -m mark --mark 0x20000 -j RETURN || true")
+        if (vpnOwnerUid != null) {
+            checkedRun("allow active VPN provider transport", "iptables -A $OUTPUT_CHAIN -m owner --uid-owner $vpnOwnerUid -j RETURN")
+        }
+        uplinks.forEach { uplink ->
+            checkedRun("block phone uplink bypass", "iptables -A $OUTPUT_CHAIN -o $uplink -j REJECT")
+        }
+        checkedRun("finish output chain", "iptables -A $OUTPUT_CHAIN -j RETURN")
         checkedRun("clear stale hotspot VPN routes", "while ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY 2>/dev/null; do :; done")
         downstreams.forEach { downstream ->
             checkedRun(
@@ -394,12 +413,18 @@ object VpnRouterManager {
             "detach forward chain",
             "iptables -D FORWARD -j $FORWARD_CHAIN 2>/dev/null || true"
         )
+        checkedRun(
+            "detach output chain",
+            "iptables -D OUTPUT -j $OUTPUT_CHAIN 2>/dev/null || true"
+        )
         checkedRun("clear NAT chain", "iptables -t nat -F $NAT_CHAIN 2>/dev/null || true")
         checkedRun("delete NAT chain", "iptables -t nat -X $NAT_CHAIN 2>/dev/null || true")
         checkedRun("clear DNS chain", "iptables -t nat -F $DNS_CHAIN 2>/dev/null || true")
         checkedRun("delete DNS chain", "iptables -t nat -X $DNS_CHAIN 2>/dev/null || true")
         checkedRun("clear forward chain", "iptables -F $FORWARD_CHAIN 2>/dev/null || true")
         checkedRun("delete forward chain", "iptables -X $FORWARD_CHAIN 2>/dev/null || true")
+        checkedRun("clear output chain", "iptables -F $OUTPUT_CHAIN 2>/dev/null || true")
+        checkedRun("delete output chain", "iptables -X $OUTPUT_CHAIN 2>/dev/null || true")
     }
 
     private fun checkedRun(label: String, command: String) {
@@ -410,6 +435,16 @@ object VpnRouterManager {
     private fun checkedInterfaceName(name: String): String {
         if (!isValidInterfaceName(name)) throw IllegalArgumentException("invalid interface name: $name")
         return name
+    }
+
+    private fun readVpnOwnerUid(): Int? {
+        val output = mutableListOf<String>()
+        val exit = Application.getRootShell().run(
+            output,
+            "dumpsys connectivity 2>/dev/null | sed -n '/ni{VPN CONNECTED/,/factorySerialNumber/p' | sed -n 's/.*OwnerUid: \\([0-9][0-9]*\\).*/\\1/p' | head -1"
+        )
+        if (exit != 0) return null
+        return output.firstOrNull()?.trim()?.toIntOrNull()
     }
 
     private fun isValidInterfaceName(name: String): Boolean {
@@ -484,6 +519,7 @@ object VpnRouterManager {
     private const val NAT_CHAIN = "VIRTUVPN_ROUTER"
     private const val DNS_CHAIN = "VIRTUVPN_ROUTER_DNS"
     private const val FORWARD_CHAIN = "VIRTUVPN_ROUTER_FWD"
+    private const val OUTPUT_CHAIN = "VIRTUVPN_ROUTER_OUT"
     private const val HOTSPOT_VPN_RULE_PRIORITY = 20900
     private const val MAX_DNS_RESOLVERS = 2
     private val routerMutex = Mutex()
