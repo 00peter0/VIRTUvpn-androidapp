@@ -5,12 +5,16 @@
 package com.wireguard.android.util
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.util.Log
+import com.wireguard.android.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.OutputStream
@@ -59,6 +63,7 @@ object VpnRouterGuestServer {
             val path = requestLine.split(' ').getOrNull(1).orEmpty().ifBlank { "/" }
             when {
                 path.startsWith("/virtuvpn-router/status") -> respondJson(client.getOutputStream())
+                path.startsWith("/brand/virtuvpn-android-icon.png") -> respondIcon(context, client.getOutputStream())
                 path.startsWith("/virtuvpn-router/ignore") -> {
                     VpnRouterManager.allowGuestPortalBypass(client.inetAddress.hostAddress.orEmpty())
                     respondHtml(client.getOutputStream(), ignoredHtml(context))
@@ -99,8 +104,22 @@ object VpnRouterGuestServer {
         writeResponse(output, "200 OK", "text/html; charset=utf-8", html)
     }
 
+    private fun respondIcon(context: Context, output: OutputStream) {
+        val icon = BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher)
+        if (icon == null) {
+            writeResponse(output, "404 Not Found", "text/plain; charset=utf-8", "Not found")
+            return
+        }
+        val buffer = ByteArrayOutputStream()
+        icon.compress(Bitmap.CompressFormat.PNG, 100, buffer)
+        writeResponse(output, "200 OK", "image/png", buffer.toByteArray())
+    }
+
     private fun writeResponse(output: OutputStream, status: String, contentType: String, body: String) {
-        val bytes = body.toByteArray()
+        writeResponse(output, status, contentType, body.toByteArray())
+    }
+
+    private fun writeResponse(output: OutputStream, status: String, contentType: String, bytes: ByteArray) {
         val response = buildString {
             append("HTTP/1.1 ").append(status).append("\r\n")
             append("Content-Type: ").append(contentType).append("\r\n")
@@ -119,49 +138,34 @@ object VpnRouterGuestServer {
             <!doctype html>
             <html lang="en">
             <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <meta charset="utf-8" />
+              <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
               <title>VirtuVPN Router</title>
               <style>
-                :root{color-scheme:dark;background:#06121f;color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-                *{box-sizing:border-box}body{margin:0;min-height:100vh;background:#06121f}
-                .wrap{max-width:760px;margin:0 auto;padding:32px 18px}
-                .brand{display:flex;align-items:center;gap:12px;margin-bottom:28px}
-                .logo{width:42px;height:42px;border-radius:10px;background:#0ea5e9;display:grid;place-items:center;font-weight:800;color:white}
-                h1{font-size:28px;line-height:1.15;margin:0 0 12px}
-                p{color:#cbd5e1;line-height:1.55;margin:0 0 18px}
-                .panel{border:1px solid #1e3a5f;background:#0b1b2e;border-radius:8px;padding:20px;margin:18px 0}
-                .steps{padding-left:20px;color:#dbeafe;line-height:1.6}
-                .actions{display:grid;gap:10px;margin-top:22px}
-                a,button{font:inherit;border:0;border-radius:8px;padding:13px 16px;text-align:center;text-decoration:none}
-                .primary{background:#38bdf8;color:#031827;font-weight:700}
-                .secondary{background:#122945;color:#e0f2fe;border:1px solid #25638f}
-                .danger{background:transparent;color:#cbd5e1;text-decoration:underline}
-                .check{display:flex;gap:10px;align-items:flex-start;color:#cbd5e1;font-size:14px}
-                .check input{margin-top:3px}
-                .muted{font-size:13px;color:#94a3b8}
+                :root{color-scheme:dark;--bg:#030607;--panel:#07100d;--line:rgba(255,255,255,.13);--text:#eefdf7;--muted:#8aa49a;--green:#10b981;--cyan:#67e8f9}
+                *{box-sizing:border-box} body{margin:0;min-height:100svh;display:grid;place-items:center;background:radial-gradient(circle at 50% 0%,rgba(16,185,129,.18),transparent 36%),linear-gradient(180deg,#07100d 0%,#020403 100%);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;padding:22px}
+                main{width:min(430px,100%);border:1px solid var(--line);border-radius:18px;background:linear-gradient(180deg,rgba(12,25,20,.92),rgba(3,7,6,.96));padding:24px 20px 22px;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.09),inset 0 -2px 0 rgba(0,0,0,.45)}
+                .iconButton{width:124px;height:124px;margin:0 auto 18px;border-radius:26px;border:1px solid rgba(110,231,183,.6);background:linear-gradient(180deg,rgba(16,185,129,.28),rgba(3,7,6,.98));display:grid;place-items:center;box-shadow:0 18px 42px rgba(0,0,0,.52),0 0 34px rgba(16,185,129,.22),inset 0 1px 0 rgba(255,255,255,.18),inset 0 -4px 0 rgba(0,0,0,.38);overflow:hidden}
+                .iconButton img{width:124px;height:124px;object-fit:cover;display:block;filter:drop-shadow(0 3px 8px rgba(0,0,0,.45))}
+                .eyebrow{margin:0 0 6px;text-transform:uppercase;letter-spacing:.18em;color:rgba(110,231,183,.86);font-size:11px;font-weight:800}.title{margin:0;font-size:25px;line-height:1.08;font-weight:850;letter-spacing:0}.copy{margin:12px auto 0;max-width:330px;color:var(--muted);font-size:14px;line-height:1.5}.actions{display:grid;gap:10px;margin-top:20px}.primary,.secondary{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:13px;text-decoration:none;font-weight:850;font-size:15px;letter-spacing:0}.button{appearance:none;width:100%;cursor:pointer}.primary{background:linear-gradient(180deg,#34d399,#059669);color:#02120b;border:1px solid rgba(167,243,208,.72);box-shadow:0 14px 28px rgba(5,150,105,.24),inset 0 1px 0 rgba(255,255,255,.38),inset 0 -2px 0 rgba(0,0,0,.22)}.secondary{color:#cffafe;border:1px solid rgba(103,232,249,.28);background:rgba(8,145,178,.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+                .status{margin-top:14px;color:rgba(238,253,247,.45);font-size:12px}.check{display:flex;gap:10px;text-align:left;color:var(--muted);font-size:13px;line-height:1.45;margin:2px 0 0}.check input{width:18px;height:18px;margin:1px 0 0;accent-color:#10b981}.muted{margin-top:10px;color:rgba(238,253,247,.38);font-size:11px;overflow-wrap:anywhere}
               </style>
             </head>
             <body>
-              <main class="wrap">
-                <div class="brand"><div class="logo">V</div><strong>VirtuVPN Router</strong></div>
-                <h1>Browse this hotspot safely</h1>
-                <p>This WiFi is routed through the VPN router. For the safest browsing, use VirtuVPN Secure Browser so local browser data such as WebRTC local IP is not exposed by a regular browser.</p>
-                <section class="panel">
-                  <ol class="steps">
-                    <li>Install or open VirtuVPN on this device.</li>
-                    <li>Open Secure Browser inside VirtuVPN.</li>
-                    <li>Use Secure Browser for leak tests, banking, admin panels, and sensitive browsing.</li>
-                  </ol>
-                </section>
+              <main>
+                <div class="iconButton" aria-hidden="true"><img src="/brand/virtuvpn-android-icon.png" alt="" /></div>
+                <p class="eyebrow">VirtuVPN Router</p>
+                <h1 class="title">Open secure browsing</h1>
+                <p class="copy">This hotspot is routed through VPN. For the safest browsing, open VirtuVPN Secure Browser so regular browser data such as local WebRTC addresses stays hidden.</p>
                 <div class="actions">
                   <a class="primary" href="/virtuvpn-router/secure-browser">Open Secure Browser</a>
-                  <a class="secondary" href="/virtuvpn-router/install">Install VirtuVPN</a>
+                  <a class="secondary" href="/virtuvpn-router/install">Install VirtuVPN APK</a>
                   <form method="get" action="/virtuvpn-router/ignore">
-                    <label class="check"><input required type="checkbox"> <span>I understand this regular browser can expose local browser data. I do not need Secure Browser on this device.</span></label>
-                    <button class="danger" type="submit">Continue with regular browser</button>
+                    <label class="check"><input required type="checkbox"> <span>I do not need secure browsing and want to use a regular browser on this device.</span></label>
+                    <button class="secondary button" type="submit">OK, continue without protection</button>
                   </form>
                 </div>
+                <div class="status">Router guest protection is active.</div>
                 <p class="muted">Original request: ${next}</p>
               </main>
             </body>
@@ -172,12 +176,29 @@ object VpnRouterGuestServer {
     private fun ignoredHtml(context: Context): String =
         """
             <!doctype html>
-            <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>VirtuVPN Router</title><style>
-            body{margin:0;background:#06121f;color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;display:grid;place-items:center;min-height:100vh}
-            div{max-width:520px;padding:24px;text-align:center}button{border:0;border-radius:8px;background:#38bdf8;color:#031827;font-weight:700;padding:12px 18px}
-            p{color:#cbd5e1}
-            </style></head><body><div><h1>OK</h1><p>This browser will continue without VirtuVPN Secure Browser prompts on this hotspot session.</p><button onclick="location.href='http://example.com'">OK</button></div></body></html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8" />
+              <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+              <title>VirtuVPN Router</title>
+              <style>
+                :root{color-scheme:dark;--line:rgba(255,255,255,.13);--text:#eefdf7;--muted:#8aa49a}
+                *{box-sizing:border-box} body{margin:0;min-height:100svh;display:grid;place-items:center;background:radial-gradient(circle at 50% 0%,rgba(16,185,129,.18),transparent 36%),linear-gradient(180deg,#07100d 0%,#020403 100%);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;padding:22px}
+                main{width:min(430px,100%);border:1px solid var(--line);border-radius:18px;background:linear-gradient(180deg,rgba(12,25,20,.92),rgba(3,7,6,.96));padding:24px 20px 22px;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.09),inset 0 -2px 0 rgba(0,0,0,.45)}
+                .iconButton{width:124px;height:124px;margin:0 auto 18px;border-radius:26px;border:1px solid rgba(110,231,183,.6);background:linear-gradient(180deg,rgba(16,185,129,.28),rgba(3,7,6,.98));display:grid;place-items:center;box-shadow:0 18px 42px rgba(0,0,0,.52),0 0 34px rgba(16,185,129,.22),inset 0 1px 0 rgba(255,255,255,.18),inset 0 -4px 0 rgba(0,0,0,.38);overflow:hidden}.iconButton img{width:124px;height:124px;object-fit:cover;display:block;filter:drop-shadow(0 3px 8px rgba(0,0,0,.45))}
+                .eyebrow{margin:0 0 6px;text-transform:uppercase;letter-spacing:.18em;color:rgba(110,231,183,.86);font-size:11px;font-weight:800}.title{margin:0;font-size:25px;line-height:1.08;font-weight:850;letter-spacing:0}.copy{margin:12px auto 0;max-width:330px;color:var(--muted);font-size:14px;line-height:1.5}.actions{display:grid;gap:10px;margin-top:20px}.primary{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:13px;text-decoration:none;font-weight:850;font-size:15px;letter-spacing:0;background:linear-gradient(180deg,#34d399,#059669);color:#02120b;border:1px solid rgba(167,243,208,.72);box-shadow:0 14px 28px rgba(5,150,105,.24),inset 0 1px 0 rgba(255,255,255,.38),inset 0 -2px 0 rgba(0,0,0,.22)}
+              </style>
+            </head>
+            <body>
+              <main>
+                <div class="iconButton" aria-hidden="true"><img src="/brand/virtuvpn-android-icon.png" alt="" /></div>
+                <p class="eyebrow">VirtuVPN Router</p>
+                <h1 class="title">Regular browser enabled</h1>
+                <p class="copy">Secure Browser prompts are disabled for this hotspot session. Continue only for browsing where regular browser privacy is acceptable.</p>
+                <div class="actions"><a class="primary" href="http://neverssl.com">OK</a></div>
+              </main>
+            </body>
+            </html>
         """.trimIndent()
 
     private fun escape(value: String): String =
