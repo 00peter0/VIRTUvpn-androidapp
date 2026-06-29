@@ -569,7 +569,7 @@ class HomeActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val status = runCatching {
                 val current = VpnRouterManager.getStatus(this@HomeActivity)
-                if (current.availability == VpnRouterManager.Availability.ENABLED) {
+                if (current.needsReconcile) {
                     VpnRouterManager.reconcile(this@HomeActivity)
                 } else {
                     current

@@ -536,7 +536,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         if (!activeCaps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return false
         val linkProperties = connectivityManager.getLinkProperties(activeNetwork) ?: return false
         return linkProperties.linkAddresses.any { address ->
-            address.address.hostAddress?.startsWith(VIRTU_ROUTER_CLIENT_SUBNET_PREFIX) == true
+            address.address.hostAddress?.let(::isPrivateIpv4) == true
         }
     }
 
@@ -599,7 +599,6 @@ class SecureBrowserActivity : AppCompatActivity() {
         private const val PREF_NAVIGATION_PAD_Y = "secure_browser_navigation_pad_y"
         const val EXTRA_INITIAL_URL = "com.wireguard.android.extra.SECURE_BROWSER_INITIAL_URL"
         private const val GOOGLE_URL = "https://www.google.com/"
-        private const val VIRTU_ROUTER_CLIENT_SUBNET_PREFIX = "192.168.115."
         private val DEFAULT_BOOKMARKS = listOf(GOOGLE_URL)
         private const val WEBRTC_PROTECTION_SCRIPT = """
             (function() {

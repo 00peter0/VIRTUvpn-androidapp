@@ -62,6 +62,8 @@ object VpnRouterManager {
             get() = availability == Availability.READY
         val canDisable: Boolean
             get() = availability == Availability.ENABLED
+        val needsReconcile: Boolean
+            get() = availability == Availability.ENABLED || availability == Availability.ERROR
     }
 
     enum class OperationStage {

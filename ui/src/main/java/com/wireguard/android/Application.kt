@@ -141,7 +141,7 @@ class Application : android.app.Application() {
                 delay(VPN_ROUTER_RECONCILE_INTERVAL_MS)
                 runCatching {
                     val status = VpnRouterManager.getStatus(applicationContext)
-                    if (status.availability == VpnRouterManager.Availability.ENABLED) {
+                    if (status.needsReconcile) {
                         VpnRouterManager.reconcile(applicationContext)
                     }
                 }.onFailure {

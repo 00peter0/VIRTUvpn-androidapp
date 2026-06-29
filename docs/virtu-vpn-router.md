@@ -152,6 +152,9 @@ refreshes.
 The UI may show router protection as active only when the health check also sees
 the policy routes, fallback unreachable route, IPv4/IPv6 hooks, and fail-closed
 OUTPUT/FORWARD tails. Chain existence alone is not enough for an active status.
+Background, Home, and VPN Router page refresh paths all reconcile both
+`ENABLED` and degraded `ERROR` states so a fail-closed router can self-heal
+without requiring a manual toggle.
 
 This protects speed tests and large downloads from repeated route/firewall churn
 while keeping the router fail-closed model intact.
@@ -207,8 +210,10 @@ client can still tunnel DNS through an unknown HTTPS endpoint, WebSocket,
 domain-fronted service, or ECH-protected connection. Blocking that transparently
 would require whitelist-only egress or a MITM proxy, both of which break the
 zero-config guest hotspot model. Future hardening can add SNI-based blocking for
-known DoH hostnames and DDR/SVCB stripping, but ECH means even SNI is not a
-final guarantee.
+known DoH hostnames and DDR/SVCB stripping. For DDR/RFC 9462, the resolver behind
+router DNAT should avoid returning SVCB/HTTPS type 65 records for
+`_dns.resolver.arpa`, so clients do not discover a designated encrypted resolver
+automatically. ECH means even SNI is not a final guarantee.
 
 ## IPv6 leak handling
 

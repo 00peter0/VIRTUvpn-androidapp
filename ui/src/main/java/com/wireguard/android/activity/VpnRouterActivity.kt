@@ -101,7 +101,7 @@ class VpnRouterActivity : AppCompatActivity() {
                     .mapCatching { current ->
                         val tunnelChanged = lastActiveTunnel != null && current.activeTunnel != lastActiveTunnel
                         val shouldShowProgress = showProgress && tunnelChanged
-                        if (current.availability == VpnRouterManager.Availability.ENABLED) {
+                        if (current.needsReconcile) {
                             if (shouldShowProgress) showOperationDialog()
                             val progressJob = if (shouldShowProgress) launch {
                                 while (true) {
