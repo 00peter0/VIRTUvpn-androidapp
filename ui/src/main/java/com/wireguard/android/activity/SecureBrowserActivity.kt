@@ -211,6 +211,10 @@ class SecureBrowserActivity : AppCompatActivity() {
                     lockBrowser(showToast = blocked.not())
                     return true
                 }
+                if (request.isForMainFrame) {
+                    loadUrlWithPrivacyHeaders(request.url.toString())
+                    return true
+                }
                 return false
             }
 
@@ -414,7 +418,7 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun openLinkFromMenu(url: String) {
         if (blocked) return
-        binding.secureWebview.loadUrl(url)
+        loadUrlWithPrivacyHeaders(url)
     }
 
     private fun copyLink(url: String) {
@@ -447,7 +451,7 @@ class SecureBrowserActivity : AppCompatActivity() {
             }
             setBrowserProtection(protection)
             userInitiatedNavigation = true
-            binding.secureWebview.loadUrl(url)
+            loadUrlWithPrivacyHeaders(url)
             updateNavigationButtons()
         }
     }
@@ -831,7 +835,7 @@ class SecureBrowserActivity : AppCompatActivity() {
                 (binding.secureWebview.url.isNullOrBlank() || binding.secureWebview.url == "about:blank")
             ) {
                 normalizeUrl(initialUrl)?.takeIf { isAllowedBrowserUrl(Uri.parse(it), isTopLevel = true) }?.let {
-                    binding.secureWebview.loadUrl(it)
+                    loadUrlWithPrivacyHeaders(it)
                 }
             }
         } else {
@@ -914,6 +918,10 @@ class SecureBrowserActivity : AppCompatActivity() {
         binding.secureWebview.loadUrl("about:blank")
     }
 
+    private fun loadUrlWithPrivacyHeaders(url: String) {
+        binding.secureWebview.loadUrl(url, PRIVACY_REQUEST_HEADERS)
+    }
+
     private fun clearEphemeralBrowserData() {
         if (!::binding.isInitialized) return
         binding.secureWebview.clearHistory()
@@ -925,11 +933,13 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun blockedResponse(): WebResourceResponse =
-        WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream(ByteArray(0)))
+        WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream(ByteArray(0))).apply {
+            responseHeaders = PRIVACY_RESPONSE_HEADERS
+        }
 
     private fun trackerBlockedResponse(): WebResourceResponse =
         WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream(ByteArray(0))).apply {
-            responseHeaders = mapOf("Cache-Control" to "no-store")
+            responseHeaders = PRIVACY_RESPONSE_HEADERS + mapOf("Cache-Control" to "no-store")
         }
 
     private fun installDocumentStartWebRtcProtection(webView: WebView) {
@@ -1042,11 +1052,36 @@ class SecureBrowserActivity : AppCompatActivity() {
         private const val GOOGLE_URL = "https://www.google.com/"
         private const val DESKTOP_USER_AGENT =
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+        private val PRIVACY_REQUEST_HEADERS = mapOf(
+            "DNT" to "1",
+            "Sec-GPC" to "1"
+        )
+        private val PRIVACY_RESPONSE_HEADERS = mapOf(
+            "Referrer-Policy" to "no-referrer",
+            "Permissions-Policy" to "interest-cohort=()",
+            "Sec-GPC" to "1"
+        )
         private val DEFAULT_BOOKMARKS = listOf(GOOGLE_URL)
         private const val WEBRTC_PROTECTION_SCRIPT = """
             (function() {
               if (window.__virtuvpnWebRtcProtection) return;
               Object.defineProperty(window, '__virtuvpnWebRtcProtection', { value: true, configurable: false });
+              try { Object.defineProperty(navigator, 'globalPrivacyControl', { value: true, configurable: true }); } catch (e) {}
+              try { Object.defineProperty(navigator, 'doNotTrack', { value: '1', configurable: true }); } catch (e) {}
+              try { Object.defineProperty(window, 'doNotTrack', { value: '1', configurable: true }); } catch (e) {}
+              try { Object.defineProperty(navigator, 'msDoNotTrack', { value: '1', configurable: true }); } catch (e) {}
+              var installReferrerPolicy = function() {
+                try {
+                  if (!document.head || document.querySelector('meta[name="referrer"][data-virtuvpn="true"]')) return;
+                  var meta = document.createElement('meta');
+                  meta.name = 'referrer';
+                  meta.content = 'no-referrer';
+                  meta.setAttribute('data-virtuvpn', 'true');
+                  document.head.prepend(meta);
+                } catch (e) {}
+              };
+              installReferrerPolicy();
+              try { document.addEventListener('DOMContentLoaded', installReferrerPolicy, { once: true }); } catch (e) {}
               var blocked = function() {
                 throw new DOMException('WebRTC is disabled by VirtuVPN Secure Browser', 'SecurityError');
               };
