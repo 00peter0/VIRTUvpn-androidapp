@@ -36,6 +36,7 @@ import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import com.wireguard.android.Application
 import com.wireguard.android.R
+import com.wireguard.android.backend.WgQuickBackend
 import com.wireguard.android.databinding.SecureBrowserActivityBinding
 import com.wireguard.android.util.SecureBrowserBlocker
 import com.wireguard.android.util.VcsDialogs
@@ -62,6 +63,11 @@ class SecureBrowserActivity : AppCompatActivity() {
     @Volatile
     private var blocked = true
 
+    private data class BrowserProtection(
+        val allowed: Boolean,
+        val label: String
+    )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = SecureBrowserActivityBinding.inflate(layoutInflater)
@@ -78,6 +84,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         renderQuickLinks()
         configureMovableNavigation()
         updateNavigationButtons()
+        binding.egressStatus.setText(R.string.vcs_secure_browser_egress_checking)
         binding.goButton.setOnClickListener { openTypedUrl() }
         binding.savePageButton.setOnClickListener { saveCurrentPage() }
         binding.browserBackButton.setOnClickListener { navigateBack() }
@@ -203,12 +210,13 @@ class SecureBrowserActivity : AppCompatActivity() {
             return
         }
         lifecycleScope.launch {
-            if (!isSecureBrowserAllowed()) {
-                setBrowserAllowed(false)
+            val protection = resolveBrowserProtection()
+            if (!protection.allowed) {
+                setBrowserProtection(protection)
                 Toast.makeText(this@SecureBrowserActivity, R.string.vcs_secure_browser_stopped, Toast.LENGTH_LONG).show()
                 return@launch
             }
-            setBrowserAllowed(true)
+            setBrowserProtection(protection)
             userInitiatedNavigation = true
             binding.secureWebview.loadUrl(url)
             updateNavigationButtons()
@@ -481,10 +489,30 @@ class SecureBrowserActivity : AppCompatActivity() {
         return uri.host?.removePrefix("www.") ?: url
     }
 
-    private suspend fun isSecureBrowserAllowed(): Boolean = withContext(Dispatchers.IO) {
-        bindToVpnNetwork() || run {
-            unbindBrowserNetwork()
-            isVpnRouterActive()
+    private suspend fun resolveBrowserProtection(): BrowserProtection = withContext(Dispatchers.IO) {
+        if (bindToVpnNetwork()) {
+            return@withContext BrowserProtection(true, vpnProtectionLabel())
+        }
+        unbindBrowserNetwork()
+        val routerStatus = runCatching { VpnRouterManager.getStatus(this@SecureBrowserActivity) }.getOrNull()
+        if (routerStatus?.availability == VpnRouterManager.Availability.ENABLED) {
+            val tunnel = routerStatus.activeTunnel ?: getString(R.string.vcs_vpn_status_no_tunnel)
+            return@withContext BrowserProtection(true, getString(R.string.vcs_secure_browser_egress_router, tunnel))
+        }
+        BrowserProtection(false, getString(R.string.vcs_secure_browser_egress_blocked))
+    }
+
+    private suspend fun vpnProtectionLabel(): String {
+        val backend = Application.getBackend()
+        val tunnels = if (backend is WgQuickBackend) {
+            runCatching { backend.runningTunnelNames.toList().sorted() }.getOrDefault(emptyList())
+        } else {
+            emptyList()
+        }
+        return if (tunnels.isNotEmpty()) {
+            getString(R.string.vcs_secure_browser_egress_virtu, tunnels.joinToString(", "))
+        } else {
+            getString(R.string.vcs_secure_browser_egress_vpn)
         }
     }
 
@@ -543,23 +571,22 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private suspend fun refreshBrowserProtection() {
-        setBrowserAllowed(isSecureBrowserAllowed())
+        setBrowserProtection(resolveBrowserProtection())
     }
 
     private fun lockBrowserFromNetworkCallback() {
         lifecycleScope.launch {
             unbindBrowserNetwork()
-            if (::binding.isInitialized) setBrowserAllowed(false)
+            if (::binding.isInitialized) {
+                setBrowserProtection(BrowserProtection(false, getString(R.string.vcs_secure_browser_egress_blocked)))
+            }
         }
     }
 
-    private suspend fun isVpnRouterActive(): Boolean =
-        runCatching {
-            VpnRouterManager.getStatus(this@SecureBrowserActivity).availability == VpnRouterManager.Availability.ENABLED
-        }.getOrDefault(false)
-
-    private fun setBrowserAllowed(allowed: Boolean) {
-        if (allowed) {
+    private fun setBrowserProtection(protection: BrowserProtection) {
+        binding.egressStatus.text = protection.label
+        binding.egressStatus.setTextColor(getColor(if (protection.allowed) android.R.color.holo_green_light else android.R.color.holo_red_light))
+        if (protection.allowed) {
             blocked = false
             binding.vpnBlocker.visibility = View.GONE
             binding.secureWebview.visibility = View.VISIBLE

@@ -186,6 +186,9 @@ Secure Browser also blocks common advertising and tracking hosts in
 `shouldInterceptRequest` using a local in-app host/suffix matcher. This avoids a
 network-fetched filter dependency, reduces third-party requests, and generally
 improves both page speed and privacy.
+The browser header shows the real protection path: a known VirtuVPN/WireGuard
+tunnel when the app can identify one, a generic Android VPN provider for
+third-party VPNs, or the active VPN Router tunnel on the router phone.
 
 The router phone also gets its own lockdown while router mode is enabled. Normal
 phone internet must go through the active VPN interface. IPv4 and IPv6 phone
