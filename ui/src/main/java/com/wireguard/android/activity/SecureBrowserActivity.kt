@@ -91,6 +91,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         }
 
         configureWebView(binding.secureWebview)
+        configurePullToRefresh()
         renderQuickLinks()
         configureMovableNavigation()
         updateNavigationButtons()
@@ -167,6 +168,12 @@ class SecureBrowserActivity : AppCompatActivity() {
         }
         installDocumentStartWebRtcProtection(webView)
         webView.webChromeClient = object : WebChromeClient() {
+            override fun onProgressChanged(view: WebView, newProgress: Int) {
+                binding.pageProgress.progress = newProgress.coerceIn(0, 100)
+                binding.pageProgress.visibility = if (newProgress in 1..99) View.VISIBLE else View.GONE
+                if (newProgress >= 100) binding.browserRefresh.isRefreshing = false
+            }
+
             override fun onPermissionRequest(request: PermissionRequest) {
                 request.deny()
             }
@@ -191,11 +198,15 @@ class SecureBrowserActivity : AppCompatActivity() {
 
             override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
                 super.onPageStarted(view, url, favicon)
+                binding.pageProgress.progress = 5
+                binding.pageProgress.visibility = View.VISIBLE
                 if (!documentStartWebRtcProtection) injectWebRtcProtection(view)
             }
 
             override fun onPageFinished(view: WebView, url: String?) {
                 super.onPageFinished(view, url)
+                binding.browserRefresh.isRefreshing = false
+                binding.pageProgress.visibility = View.GONE
                 if (!documentStartWebRtcProtection) injectWebRtcProtection(view)
                 if (!url.isNullOrBlank() && url != "about:blank") {
                     binding.urlInput.setText(url)
@@ -211,6 +222,18 @@ class SecureBrowserActivity : AppCompatActivity() {
                 }
                 handler.proceed(credentials.first, credentials.second)
             }
+        }
+    }
+
+    private fun configurePullToRefresh() {
+        binding.browserRefresh.setColorSchemeColors(getColor(android.R.color.holo_green_light))
+        binding.browserRefresh.setOnRefreshListener {
+            if (blocked || binding.secureWebview.url.isNullOrBlank() || binding.secureWebview.url == "about:blank") {
+                binding.browserRefresh.isRefreshing = false
+                return@setOnRefreshListener
+            }
+            binding.secureWebview.reload()
+            updateNavigationButtons()
         }
     }
 
@@ -250,12 +273,16 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun reloadPage() {
         if (blocked || binding.secureWebview.url.isNullOrBlank() || binding.secureWebview.url == "about:blank") return
+        binding.browserRefresh.isRefreshing = true
         binding.secureWebview.reload()
         updateNavigationButtons()
     }
 
     private fun updateNavigationButtons() {
         val canNavigate = !blocked
+        binding.browserRefresh.isEnabled = canNavigate &&
+            !binding.secureWebview.url.isNullOrBlank() &&
+            binding.secureWebview.url != "about:blank"
         binding.browserBackButton.isEnabled = canNavigate && binding.secureWebview.canGoBack()
         binding.browserForwardButton.isEnabled = canNavigate && binding.secureWebview.canGoForward()
         binding.browserReloadButton.isEnabled = canNavigate &&
@@ -684,6 +711,8 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun stopBrowser() {
+        binding.browserRefresh.isRefreshing = false
+        binding.pageProgress.visibility = View.GONE
         binding.secureWebview.stopLoading()
         binding.secureWebview.loadUrl("about:blank")
     }
