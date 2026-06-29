@@ -12,7 +12,6 @@ import com.wireguard.android.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
@@ -36,7 +35,6 @@ object VpnRouterGuestServer {
     private const val INSTALL_URL = "https://vcs.virtucomputing.com/api/mobile/android/apk/guest"
     private const val SECURE_BROWSER_URL = "virtuvpn://secure-browser"
     private const val WEBSITE_URL = "https://vcs.virtucomputing.com/"
-    private const val REGULAR_BROWSER_BYPASS_MS = 30 * 60 * 1000L
     private const val SECURE_WEB_VALIDATION_MS = 30 * 60 * 1000L
     private var serverJob: Job? = null
     private var serverScope: CoroutineScope? = null
@@ -102,15 +100,7 @@ object VpnRouterGuestServer {
             when {
                 path.startsWith("/virtuvpn-router/status") -> respondJson(client.getOutputStream())
                 path.startsWith("/brand/virtuvpn-android-icon.png") -> respondIcon(context, client.getOutputStream())
-                path.startsWith("/virtuvpn-router/ignore") -> {
-                    val clientIp = client.inetAddress.hostAddress.orEmpty()
-                    VpnRouterManager.allowGuestPortalBypass(clientIp)
-                    serverScope?.launch(Dispatchers.IO) {
-                        delay(REGULAR_BROWSER_BYPASS_MS)
-                        VpnRouterManager.removeGuestPortalBypass(clientIp)
-                    }
-                    respondHtml(client.getOutputStream(), ignoredHtml(context))
-                }
+                path.startsWith("/virtuvpn-router/ignore") -> respondHtml(client.getOutputStream(), portalHtml(context, path))
                 path.startsWith("/virtuvpn-router/secure-browser") -> respondRedirect(client.getOutputStream(), SECURE_BROWSER_URL)
                 path.startsWith("/virtuvpn-router/secure-web/proxy") -> respondSecureWebProxy(client.getOutputStream(), path)
                 path.startsWith("/virtuvpn-router/secure-web") -> {
@@ -127,7 +117,7 @@ object VpnRouterGuestServer {
     }
 
     private fun respondJson(output: OutputStream) {
-        val body = """{"product":"VirtuVPN","router":true,"guestProtocol":1}"""
+        val body = """{"product":"VirtuVPN","router":true,"guestProtocol":2,"portal":"http://virtuvpn.router/","fallback":"http://192.168.115.186:8787/"}"""
         writeResponse(output, "200 OK", "application/json; charset=utf-8", body)
     }
 
@@ -265,51 +255,20 @@ object VpnRouterGuestServer {
               <main>
                 <div class="iconButton" aria-hidden="true"><img src="/brand/virtuvpn-android-icon.png" alt="" /></div>
                 <p class="eyebrow">VirtuVPN Router</p>
-                <h1 class="title">Open secure browsing</h1>
-                <p class="copy">This hotspot is routed through VPN. Use Router Secure Web to browse through the router without exposing client DNS or local browser network details to the destination site.</p>
+                <h1 class="title">VirtuVPN Router</h1>
+                <p class="copy">Internet is already routed through VPN. This page is optional: use Router Secure Web for safer browsing, or install/update VirtuVPN for client-side protection.</p>
                 <div class="actions">
                   <a class="primary" href="/virtuvpn-router/secure-web">Open Router Secure Web</a>
                   <a class="secondary" href="/virtuvpn-router/install">Install / update Virtu app</a>
-                  <form method="get" action="/virtuvpn-router/ignore">
-                    <label class="check"><input required type="checkbox"> <span>I do not need secure browsing and want to use a regular browser on this device.</span></label>
-                    <button class="secondary button" type="submit">OK, continue without protection</button>
-                  </form>
+                  <a class="secondary" href="http://192.168.115.186:8787/">Router dashboard</a>
                 </div>
-                <div class="status">Router guest protection is active.</div>
-                <p class="muted">Original request: ${next}</p>
+                <div class="status">Router VPN protection is active. Captive popup is optional.</div>
+                <p class="muted">Manual address: http://192.168.115.186:8787/</p>
               </main>
             </body>
             </html>
         """.trimIndent()
     }
-
-    private fun ignoredHtml(context: Context): String =
-        """
-            <!doctype html>
-            <html lang="en">
-            <head>
-              <meta charset="utf-8" />
-              <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-              <title>VirtuVPN Router</title>
-              <style>
-                :root{color-scheme:dark;--line:rgba(255,255,255,.13);--text:#eefdf7;--muted:#8aa49a}
-                *{box-sizing:border-box} body{margin:0;min-height:100svh;display:grid;place-items:center;background:radial-gradient(circle at 50% 0%,rgba(16,185,129,.18),transparent 36%),linear-gradient(180deg,#07100d 0%,#020403 100%);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;padding:22px}
-                main{width:min(430px,100%);border:1px solid var(--line);border-radius:18px;background:linear-gradient(180deg,rgba(12,25,20,.92),rgba(3,7,6,.96));padding:24px 20px 22px;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.09),inset 0 -2px 0 rgba(0,0,0,.45)}
-                .iconButton{width:124px;height:124px;margin:0 auto 18px;border-radius:26px;border:1px solid rgba(110,231,183,.6);background:linear-gradient(180deg,rgba(16,185,129,.28),rgba(3,7,6,.98));display:grid;place-items:center;box-shadow:0 18px 42px rgba(0,0,0,.52),0 0 34px rgba(16,185,129,.22),inset 0 1px 0 rgba(255,255,255,.18),inset 0 -4px 0 rgba(0,0,0,.38);overflow:hidden}.iconButton img{width:124px;height:124px;object-fit:cover;display:block;filter:drop-shadow(0 3px 8px rgba(0,0,0,.45))}
-                .eyebrow{margin:0 0 6px;text-transform:uppercase;letter-spacing:.18em;color:rgba(110,231,183,.86);font-size:11px;font-weight:800}.title{margin:0;font-size:25px;line-height:1.08;font-weight:850;letter-spacing:0}.copy{margin:12px auto 0;max-width:330px;color:var(--muted);font-size:14px;line-height:1.5}.actions{display:grid;gap:10px;margin-top:20px}.primary{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:13px;text-decoration:none;font-weight:850;font-size:15px;letter-spacing:0;background:linear-gradient(180deg,#34d399,#059669);color:#02120b;border:1px solid rgba(167,243,208,.72);box-shadow:0 14px 28px rgba(5,150,105,.24),inset 0 1px 0 rgba(255,255,255,.38),inset 0 -2px 0 rgba(0,0,0,.22)}
-              </style>
-            </head>
-            <body>
-              <main>
-                <div class="iconButton" aria-hidden="true"><img src="/brand/virtuvpn-android-icon.png" alt="" /></div>
-                <p class="eyebrow">VirtuVPN Router</p>
-                <h1 class="title">Regular browser enabled</h1>
-                <p class="copy">Secure Browser prompts are disabled for this hotspot session. Continue only for browsing where regular browser privacy is acceptable.</p>
-                <div class="actions"><a class="primary" href="http://neverssl.com">OK</a></div>
-              </main>
-            </body>
-            </html>
-        """.trimIndent()
 
     private fun secureWebHtml(context: Context, initialUrl: String?): String {
         val normalized = normalizeSecureWebUrl(initialUrl) ?: GOOGLE_URL

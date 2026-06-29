@@ -103,28 +103,6 @@ object VpnRouterManager {
             .apply()
     }
 
-    fun allowGuestPortalBypass(clientIp: String) {
-        if (!isIpv4Address(clientIp)) return
-        runCatching {
-            Application.getRootShell().run(
-                null,
-                "iptables -t nat -I $PORTAL_CHAIN 1 -s $clientIp -j RETURN 2>/dev/null || true; " +
-                    "iptables -I $ACCESS_CHAIN 1 -s $clientIp -j RETURN 2>/dev/null || true"
-            )
-        }
-    }
-
-    fun removeGuestPortalBypass(clientIp: String) {
-        if (!isIpv4Address(clientIp)) return
-        runCatching {
-            Application.getRootShell().run(
-                null,
-                "while iptables -t nat -D $PORTAL_CHAIN -s $clientIp -j RETURN 2>/dev/null; do :; done; " +
-                    "while iptables -D $ACCESS_CHAIN -s $clientIp -j RETURN 2>/dev/null; do :; done"
-            )
-        }
-    }
-
     suspend fun enable(context: Context): Status = withContext(Dispatchers.IO) {
         routerMutex.withLock {
         val appContext = context.applicationContext
@@ -347,7 +325,6 @@ object VpnRouterManager {
         val downstreams = tetherInterfaces.map(::checkedInterfaceName)
         val uplinks = readUplinkInterfaces(readUpInterfaces(), activeTunnel, downstreams)
             .map { uplink -> checkedInterfaceName(uplink.interfaceName) }
-        val portalAddress = downstreams.firstNotNullOfOrNull { downstream -> readIpv4AddressWithRetry(downstream) }
         val dnsResolvers = runCatching { resolveDnsResolvers(context, activeTunnel) }
             .getOrElse { DnsMode.QUAD9.resolvers }
             .ifEmpty { DnsMode.QUAD9.resolvers }
@@ -361,19 +338,15 @@ object VpnRouterManager {
         checkedRun("enable IPv4 forwarding", "sysctl -w net.ipv4.ip_forward=1 >/dev/null")
         checkedRun("prepare NAT chain", "iptables -t nat -N $NAT_CHAIN 2>/dev/null || true")
         checkedRun("prepare DNS chain", "iptables -t nat -N $DNS_CHAIN 2>/dev/null || true")
-        checkedRun("prepare portal chain", "iptables -t nat -N $PORTAL_CHAIN 2>/dev/null || true")
         checkedRun("prepare forward chain", "iptables -N $FORWARD_CHAIN 2>/dev/null || true")
-        checkedRun("prepare access chain", "iptables -N $ACCESS_CHAIN 2>/dev/null || true")
         checkedRun("prepare output chain", "iptables -N $OUTPUT_CHAIN 2>/dev/null || true")
         checkedRun("prepare IPv6 forward chain", "ip6tables -N $IPV6_FORWARD_CHAIN 2>/dev/null || true")
         checkedRun("clear NAT chain", "iptables -t nat -F $NAT_CHAIN")
         checkedRun("clear DNS chain", "iptables -t nat -F $DNS_CHAIN")
-        checkedRun("clear portal chain", "iptables -t nat -F $PORTAL_CHAIN")
         checkedRun("clear forward chain", "iptables -F $FORWARD_CHAIN")
-        checkedRun("clear access chain", "iptables -F $ACCESS_CHAIN")
+        checkedRun("remove legacy access chain", "iptables -F VIRTUVPN_ROUTER_ACCESS 2>/dev/null || true; iptables -X VIRTUVPN_ROUTER_ACCESS 2>/dev/null || true")
         checkedRun("clear output chain", "iptables -F $OUTPUT_CHAIN")
         checkedRun("clear IPv6 forward chain", "ip6tables -F $IPV6_FORWARD_CHAIN")
-        checkedRun("block hotspot clients before portal decision", "iptables -A $ACCESS_CHAIN -j REJECT --reject-with icmp-port-unreachable")
         checkedRun(
             "attach NAT chain",
             "while iptables -t nat -D POSTROUTING -j $NAT_CHAIN 2>/dev/null; do :; done; " +
@@ -385,9 +358,10 @@ object VpnRouterManager {
                 "iptables -t nat -I PREROUTING 1 -j $DNS_CHAIN"
         )
         checkedRun(
-            "attach portal chain",
-            "while iptables -t nat -D PREROUTING -j $PORTAL_CHAIN 2>/dev/null; do :; done; " +
-                "iptables -t nat -I PREROUTING 1 -j $PORTAL_CHAIN"
+            "remove legacy portal chain",
+            "while iptables -t nat -D PREROUTING -j VIRTUVPN_ROUTER_PORTAL 2>/dev/null; do :; done; " +
+                "iptables -t nat -F VIRTUVPN_ROUTER_PORTAL 2>/dev/null || true; " +
+                "iptables -t nat -X VIRTUVPN_ROUTER_PORTAL 2>/dev/null || true"
         )
         checkedRun(
             "attach forward chain",
@@ -416,12 +390,6 @@ object VpnRouterManager {
         checkedRun("finish output chain", "iptables -A $OUTPUT_CHAIN -j RETURN")
         checkedRun("clear stale hotspot VPN routes", "while ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY 2>/dev/null; do :; done")
         downstreams.forEach { downstream ->
-            if (portalAddress != null) {
-                checkedRun(
-                    "route guest portal HTTP",
-                    "iptables -t nat -A $PORTAL_CHAIN -i $downstream -p tcp --dport 80 -j DNAT --to-destination $portalAddress:${VpnRouterGuestServer.PORT}"
-                )
-            }
             checkedRun(
                 "route hotspot UDP DNS",
                 "iptables -t nat -A $DNS_CHAIN -i $downstream -p udp --dport 53 -j DNAT --to-destination $dnsResolver"
@@ -462,20 +430,6 @@ object VpnRouterManager {
                 "iptables -A $FORWARD_CHAIN -i $tunnel -o $downstream -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT || " +
                     "iptables -A $FORWARD_CHAIN -i $tunnel -o $downstream -m state --state RELATED,ESTABLISHED -j ACCEPT"
             )
-            if (portalAddress != null) {
-                checkedRun(
-                    "allow hotspot portal DNS UDP",
-                    "iptables -A $FORWARD_CHAIN -i $downstream -p udp --dport 53 -j ACCEPT"
-                )
-                checkedRun(
-                    "allow hotspot portal DNS TCP",
-                    "iptables -A $FORWARD_CHAIN -i $downstream -p tcp --dport 53 -j ACCEPT"
-                )
-                checkedRun(
-                    "require hotspot portal decision for non-VPN traffic",
-                    "iptables -A $FORWARD_CHAIN -i $downstream -j $ACCESS_CHAIN"
-                )
-            }
             checkedRun(
                 "block hotspot bypass traffic",
                 "iptables -A $FORWARD_CHAIN -i $downstream -j REJECT"
@@ -499,10 +453,7 @@ object VpnRouterManager {
             "detach DNS chain",
             "iptables -t nat -D PREROUTING -j $DNS_CHAIN 2>/dev/null || true"
         )
-        checkedRun(
-            "detach portal chain",
-            "iptables -t nat -D PREROUTING -j $PORTAL_CHAIN 2>/dev/null || true"
-        )
+        checkedRun("detach legacy portal chain", "while iptables -t nat -D PREROUTING -j VIRTUVPN_ROUTER_PORTAL 2>/dev/null; do :; done")
         checkedRun(
             "detach forward chain",
             "iptables -D FORWARD -j $FORWARD_CHAIN 2>/dev/null || true"
@@ -519,12 +470,10 @@ object VpnRouterManager {
         checkedRun("delete NAT chain", "iptables -t nat -X $NAT_CHAIN 2>/dev/null || true")
         checkedRun("clear DNS chain", "iptables -t nat -F $DNS_CHAIN 2>/dev/null || true")
         checkedRun("delete DNS chain", "iptables -t nat -X $DNS_CHAIN 2>/dev/null || true")
-        checkedRun("clear portal chain", "iptables -t nat -F $PORTAL_CHAIN 2>/dev/null || true")
-        checkedRun("delete portal chain", "iptables -t nat -X $PORTAL_CHAIN 2>/dev/null || true")
+        checkedRun("clear legacy portal chain", "iptables -t nat -F VIRTUVPN_ROUTER_PORTAL 2>/dev/null || true")
+        checkedRun("delete legacy portal chain", "iptables -t nat -X VIRTUVPN_ROUTER_PORTAL 2>/dev/null || true")
         checkedRun("clear forward chain", "iptables -F $FORWARD_CHAIN 2>/dev/null || true")
         checkedRun("delete forward chain", "iptables -X $FORWARD_CHAIN 2>/dev/null || true")
-        checkedRun("clear access chain", "iptables -F $ACCESS_CHAIN 2>/dev/null || true")
-        checkedRun("delete access chain", "iptables -X $ACCESS_CHAIN 2>/dev/null || true")
         checkedRun("clear output chain", "iptables -F $OUTPUT_CHAIN 2>/dev/null || true")
         checkedRun("delete output chain", "iptables -X $OUTPUT_CHAIN 2>/dev/null || true")
         checkedRun("clear IPv6 forward chain", "ip6tables -F $IPV6_FORWARD_CHAIN 2>/dev/null || true")
@@ -737,9 +686,7 @@ object VpnRouterManager {
     private const val WIFI_AP_TIMEOUT_SETTING = "wifi_ap_timeout_setting"
     private const val NAT_CHAIN = "VIRTUVPN_ROUTER"
     private const val DNS_CHAIN = "VIRTUVPN_ROUTER_DNS"
-    private const val PORTAL_CHAIN = "VIRTUVPN_ROUTER_PORTAL"
     private const val FORWARD_CHAIN = "VIRTUVPN_ROUTER_FWD"
-    private const val ACCESS_CHAIN = "VIRTUVPN_ROUTER_ACCESS"
     private const val OUTPUT_CHAIN = "VIRTUVPN_ROUTER_OUT"
     private const val IPV6_FORWARD_CHAIN = "VIRTUVPN_ROUTER6_FWD"
     private const val HOTSPOT_VPN_RULE_PRIORITY = 20900

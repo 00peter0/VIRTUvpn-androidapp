@@ -60,33 +60,31 @@ When enabled, the app installs root rules that:
 - enable IPv4 forwarding,
 - attach a VirtuVPN NAT chain at the start of `POSTROUTING`,
 - attach a VirtuVPN DNS chain at the start of `PREROUTING`,
-- attach a VirtuVPN portal chain at the start of `PREROUTING`,
 - attach a VirtuVPN forwarding chain at the start of `FORWARD`,
-- attach a VirtuVPN guest-access chain from the forwarding chain,
 - attach a VirtuVPN phone-output chain at the start of `OUTPUT`,
 - add a policy route for each hotspot interface to the active VPN table,
 - redirect hotspot client TCP/UDP DNS on port 53 to the selected router DNS
   resolver,
-- redirect hotspot HTTP traffic on port 80 to the local guest portal,
+- expose a local guest dashboard on the router gateway without transparent HTTP
+  hijacking,
 - allow the router phone's own internet traffic only through the VPN interface,
 - allow the active VPN provider UID or WireGuard fwmark to use the physical
   uplink for tunnel transport,
 - reject other router-phone traffic on physical uplinks while router mode is on,
-- require a guest portal decision before allowing general hotspot-to-VPN
-  forwarding,
-- allow hotspot-to-VPN forwarding after the client is allowed,
+- allow hotspot-to-VPN forwarding immediately,
 - allow established VPN return traffic to hotspot clients,
 - reject hotspot forwarding to any non-VPN path.
 
 This gives hotspot clients a fail-closed router path. If the VPN interface is not
 available, clients should not silently bypass through the phone uplink.
 
-Guest clients must not be able to bypass the hotspot portal by opening direct
-HTTPS before seeing the router page. The router therefore uses an access chain:
-DNS and the local portal remain reachable, but general client forwarding is
-rejected until the client explicitly chooses the regular-browser path. Router
-Secure Web works without that bypass because it is served locally by the router
-phone and performs outbound requests from the router side.
+Guest clients must not depend on captive portal HTML for connectivity. Captive
+portal behavior is only best-effort because client operating systems cache probe
+results, suppress popups, and handle private DNS, VPN, and browser state
+differently. The router therefore brings VPN-routed internet up immediately and
+exposes the guest page as an optional dashboard at the router gateway. Router
+Secure Web still works from that dashboard because it is served locally by the
+router phone and performs outbound requests from the router side.
 
 The router phone also gets its own lockdown while router mode is enabled. Normal
 phone internet must go through the active VPN interface. The physical uplink is
@@ -197,18 +195,16 @@ process is alive:
 
 - `http://<router-gateway>:8787/virtuvpn-router/status` returns a VirtuVPN router
   marker for client apps.
-- hotspot HTTP traffic is redirected to a VirtuVPN guest page while router mode is
-  enabled.
+- the guest dashboard is reachable manually on the router gateway port. Router
+  mode does not transparently hijack client HTTP because captive HTML is
+  unreliable and can break normal browsing.
 - captive probe endpoints such as `generate_204`, `gen_204`,
   `hotspot-detect.html`, `connecttest.txt`, and `ncsi.txt` redirect to the
   router portal with no-cache headers.
 - the guest page opens Router Secure Web by default, links to the guest APK
-  download, and offers an explicit regular-browser bypass.
-- choosing the regular-browser bypass inserts client-IP return rules in both the
-  router portal chain and the router access chain. This allows ordinary client
-  browsing for that session.
-- the regular-browser bypass is temporary. It is removed after a short window so
-  a later client with the same DHCP address does not inherit a stale bypass.
+  download, and shows the manual dashboard address.
+- ordinary client browsing works without a portal decision; router-level VPN,
+  DNS, IPv6, DoT/DoH, and uplink-bypass rules provide the network protection.
 
 Client-side Secure Browser detection prefers the guest protocol marker and only
 uses the known Samsung `192.168.115.0/24` hotspot subnet as a fallback heuristic.
@@ -291,7 +287,8 @@ outside the VPN while router mode is enabled.
    - continue without client kill switch,
    - install VirtuVPN for stronger client-side protection.
 6. Add Router Secure Web as a no-install guest browsing path.
-7. Enforce captive access before general hotspot forwarding.
+7. Keep captive access optional; never block VPN-routed internet while waiting
+   for HTML.
 8. Disable known hotspot auto-shutdown behavior while router mode is enabled.
 9. Validate with:
    - VirtuVPN tunnel,
@@ -306,7 +303,7 @@ outside the VPN while router mode is enabled.
    - DNS leak scans,
    - IPv6 leak scans,
    - captive portal open on Android/Samsung/iOS where available,
-   - regular-browser bypass expiration.
+   - regular browsing still works when the captive portal does not open.
 
 ## New device checklist
 
@@ -323,12 +320,13 @@ Before using a new rooted Android device as a production router:
    - traffic leaves through the VPN egress,
    - direct mobile uplink is blocked for clients,
    - router phone ordinary output is blocked outside VPN except VPN transport,
-   - `FORWARD`, `PREROUTING`, and `POSTROUTING` have one VirtuVPN jump each.
-4. Verify captive behavior:
-   - new client sees the router portal,
-   - direct HTTPS does not bypass the portal before regular-browser approval,
-   - Router Secure Web works without approving regular-browser bypass,
-   - regular-browser approval is temporary.
+   - `FORWARD` and `POSTROUTING` have one VirtuVPN jump each, and `PREROUTING`
+     has the DNS jump only.
+4. Verify guest dashboard behavior:
+   - new client has internet even if the portal does not open,
+   - the router dashboard is reachable at the gateway fallback address,
+   - Router Secure Web works from the dashboard,
+   - the guest APK install/update link works.
 5. Verify DNS behavior:
    - selected router resolver is used,
    - competing DoH/DoT providers are blocked,
