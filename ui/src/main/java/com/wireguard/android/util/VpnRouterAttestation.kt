@@ -14,13 +14,12 @@ import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.OutputStream
-import java.net.HttpURLConnection
 import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
-import java.net.URL
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.security.SecureRandom
@@ -247,21 +246,26 @@ object VpnRouterAttestation {
     }
 
     private fun fetchAttestation(host: String, nonce: String): String? {
-        val encodedHost = if (host.contains(':')) "[$host]" else host
         val encodedNonce = URLEncoder.encode(nonce, "UTF-8")
-        val conn = (URL("http://$encodedHost:$PORT$PATH?nonce=$encodedNonce").openConnection() as HttpURLConnection).apply {
-            connectTimeout = 900
-            readTimeout = 900
-            requestMethod = "GET"
-            useCaches = false
-        }
         return try {
-            if (conn.responseCode != 200) return null
-            conn.inputStream.bufferedReader().use { it.readText() }
+            Socket().use { socket ->
+                socket.soTimeout = 900
+                socket.connect(InetSocketAddress(host, PORT), 900)
+                val request =
+                    "GET $PATH?nonce=$encodedNonce HTTP/1.1\r\n" +
+                        "Host: $host:$PORT\r\n" +
+                        "Connection: close\r\n\r\n"
+                socket.getOutputStream().write(request.toByteArray(Charsets.US_ASCII))
+                socket.getOutputStream().flush()
+                val response = socket.getInputStream().bufferedReader(Charsets.UTF_8).use { it.readText() }
+                val headerEnd = response.indexOf("\r\n\r\n")
+                if (headerEnd <= 0) return null
+                val statusLine = response.substringBefore("\r\n")
+                if (!statusLine.contains(" 200 ")) return null
+                response.substring(headerEnd + 4)
+            }
         } catch (_: Throwable) {
             null
-        } finally {
-            conn.disconnect()
         }
     }
 

@@ -4,8 +4,10 @@
  */
 package com.wireguard.android.activity
 
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -50,6 +52,9 @@ class VpnRouterActivity : AppCompatActivity() {
         routerGuestDownload = findViewById(R.id.router_guest_download)
         routerGuestQr = findViewById(R.id.router_guest_qr)
         routerDnsGroup = findViewById(R.id.router_dns_group)
+        routerGuestDownload.setOnClickListener {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(VIRTUVPN_DOWNLOAD_URL)))
+        }
         routerDnsGroup.setOnCheckedChangeListener { _, checkedId ->
             val mode = when (checkedId) {
                 R.id.router_dns_cloudflare -> VpnRouterManager.DnsMode.CLOUDFLARE
@@ -274,7 +279,7 @@ class VpnRouterActivity : AppCompatActivity() {
         routerGuestAccessStatus.setTextColor(if (active) GREEN else YELLOW)
         val qrValue = if (active) VpnRouterAttestation.pairingUri(this) else VIRTUVPN_DOWNLOAD_URL
         routerGuestDownload.text = if (active) {
-            getString(R.string.vcs_vpn_router_guest_pair_secure_browser)
+            getString(R.string.vcs_vpn_router_guest_download_with_address, VIRTUVPN_DOWNLOAD_URL)
         } else {
             getString(R.string.vcs_vpn_router_guest_download_with_address, VIRTUVPN_DOWNLOAD_URL)
         }
