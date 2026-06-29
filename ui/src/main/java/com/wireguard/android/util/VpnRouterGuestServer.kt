@@ -27,6 +27,7 @@ import java.net.Socket
 import java.net.URL
 import java.net.URLDecoder
 import java.net.URLEncoder
+import java.util.concurrent.ConcurrentHashMap
 import java.util.Locale
 
 object VpnRouterGuestServer {
@@ -34,9 +35,12 @@ object VpnRouterGuestServer {
     private const val TAG = "VirtuVPN/GuestServer"
     private const val INSTALL_URL = "https://vcs.virtucomputing.com/api/mobile/android/apk/guest"
     private const val SECURE_BROWSER_URL = "virtuvpn://secure-browser"
+    private const val WEBSITE_URL = "https://vcs.virtucomputing.com/"
     private const val REGULAR_BROWSER_BYPASS_MS = 30 * 60 * 1000L
+    private const val SECURE_WEB_VALIDATION_MS = 30 * 60 * 1000L
     private var serverJob: Job? = null
     private var serverScope: CoroutineScope? = null
+    private val secureWebClients = ConcurrentHashMap<String, Long>()
     @Volatile
     private var serverSocket: ServerSocket? = null
 
@@ -87,8 +91,13 @@ object VpnRouterGuestServer {
                 }
                 path.startsWith("/virtuvpn-router/secure-browser") -> respondRedirect(client.getOutputStream(), SECURE_BROWSER_URL)
                 path.startsWith("/virtuvpn-router/secure-web/proxy") -> respondSecureWebProxy(client.getOutputStream(), path)
-                path.startsWith("/virtuvpn-router/secure-web") -> respondHtml(client.getOutputStream(), secureWebHtml(context, queryParam(path, "url")))
+                path.startsWith("/virtuvpn-router/secure-web") -> {
+                    markSecureWebClient(client.inetAddress.hostAddress.orEmpty())
+                    respondHtml(client.getOutputStream(), secureWebHtml(context, queryParam(path, "url")))
+                }
                 path.startsWith("/virtuvpn-router/install") -> respondRedirect(client.getOutputStream(), INSTALL_URL)
+                path.startsWith("/virtuvpn-router/site") -> respondRedirect(client.getOutputStream(), secureWebPath(WEBSITE_URL))
+                isCaptiveProbe(path) && isSecureWebClient(client.inetAddress.hostAddress.orEmpty()) -> respondNoContent(client.getOutputStream())
                 isCaptiveProbe(path) -> respondRedirect(client.getOutputStream(), portalUrl(client))
                 else -> respondHtml(client.getOutputStream(), portalHtml(context, path))
             }
@@ -111,6 +120,19 @@ object VpnRouterGuestServer {
             append("Content-Length: ").append(body.toByteArray().size).append("\r\n")
             append("Connection: close\r\n\r\n")
             append(body)
+        }
+        output.write(response.toByteArray())
+        output.flush()
+    }
+
+    private fun respondNoContent(output: OutputStream) {
+        val response = buildString {
+            append("HTTP/1.1 204 No Content\r\n")
+            append("Cache-Control: no-store\r\n")
+            append("Pragma: no-cache\r\n")
+            append("Expires: 0\r\n")
+            append("Content-Length: 0\r\n")
+            append("Connection: close\r\n\r\n")
         }
         output.write(response.toByteArray())
         output.flush()
@@ -219,7 +241,7 @@ object VpnRouterGuestServer {
                 <p class="copy">This hotspot is routed through VPN. Use Router Secure Web to browse through the router without exposing client DNS or local browser network details to the destination site.</p>
                 <div class="actions">
                   <a class="primary" href="/virtuvpn-router/secure-web">Open Router Secure Web</a>
-                  <a class="secondary" href="$INSTALL_URL">Install or update VirtuVPN</a>
+                  <a class="secondary" href="${secureWebPath(WEBSITE_URL)}">vcs.virtucomputing.com</a>
                   <form method="get" action="/virtuvpn-router/ignore">
                     <label class="check"><input required type="checkbox"> <span>I do not need secure browsing and want to use a regular browser on this device.</span></label>
                     <button class="secondary button" type="submit">OK, continue without protection</button>
@@ -296,7 +318,7 @@ object VpnRouterGuestServer {
                   <div class="quick">
                     <a class="chip" href="/virtuvpn-router/secure-web?url=${urlParam(GOOGLE_URL)}">Google</a>
                     <a class="chip" href="/virtuvpn-router/secure-web?url=${urlParam("https://dnscheck.tools/")}">DNS Check</a>
-                    <a class="chip" href="/virtuvpn-router/install">Install VirtuVPN</a>
+                    <a class="chip" href="${secureWebPath(WEBSITE_URL)}">vcs.virtucomputing.com</a>
                   </div>
                   <div class="status"><span class="dot"></span><span>Router Secure Web is routed through VPN.</span></div>
                 </div>
@@ -454,6 +476,9 @@ object VpnRouterGuestServer {
     private fun secureWebProxyPath(url: String): String =
         "/virtuvpn-router/secure-web/proxy?url=${urlParam(url)}"
 
+    private fun secureWebPath(url: String): String =
+        "/virtuvpn-router/secure-web?url=${urlParam(url)}"
+
     private fun urlParam(value: String): String =
         URLEncoder.encode(value, "UTF-8")
 
@@ -482,5 +507,17 @@ object VpnRouterGuestServer {
     private fun portalUrl(client: Socket): String {
         val address = client.localAddress?.hostAddress?.takeIf { it.isNotBlank() } ?: "192.168.115.1"
         return "http://$address:$PORT/"
+    }
+
+    private fun markSecureWebClient(clientIp: String) {
+        if (clientIp.isBlank()) return
+        secureWebClients[clientIp] = System.currentTimeMillis() + SECURE_WEB_VALIDATION_MS
+    }
+
+    private fun isSecureWebClient(clientIp: String): Boolean {
+        val expiresAt = secureWebClients[clientIp] ?: return false
+        if (expiresAt >= System.currentTimeMillis()) return true
+        secureWebClients.remove(clientIp)
+        return false
     }
 }
