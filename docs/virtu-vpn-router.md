@@ -192,12 +192,18 @@ When Copy DNS from tunnel is selected, VirtuVPN first tries the active
 Virtu/WireGuard tunnel config, then Android resolver properties, then falls back
 to Quad9 secure DNS if no tunnel resolver can be read.
 
-The router also blocks known DoT, DoQ, and common DoH resolver endpoints so
-clients cannot casually bypass the selected resolver. This is a DNS policy
-control, not a cryptographic content filter. A client can still use a private or
-unknown DoH endpoint over ordinary HTTPS on port 443, and blocking that
-generically would also block normal web traffic. Marketing and UI copy must not
-claim that router DNS filtering is impossible to bypass.
+The router also blocks DoT, DoQ, UDP/443 QUIC, and common DoH resolver endpoints
+so automatic and opportunistic encrypted DNS is pushed back to plaintext DNS on
+port 53, where router DNAT applies the selected resolver. Blocking UDP/443
+disables HTTP/3 for hotspot clients, but normal HTTPS falls back to TCP.
+
+This is a DNS policy control, not a cryptographic content filter. A targeted
+client can still tunnel DNS through an unknown HTTPS endpoint, WebSocket,
+domain-fronted service, or ECH-protected connection. Blocking that transparently
+would require whitelist-only egress or a MITM proxy, both of which break the
+zero-config guest hotspot model. Future hardening can add SNI-based blocking for
+known DoH hostnames and DDR/SVCB stripping, but ECH means even SNI is not a
+final guarantee.
 
 ## IPv6 leak handling
 
@@ -366,6 +372,7 @@ Before using a new rooted Android device as a production router:
 5. Verify DNS behavior:
    - selected router resolver is used,
    - competing DoH/DoT providers are blocked,
+   - UDP/443 is blocked so HTTP/3 and unknown DoH-over-QUIC fall back to TCP,
    - selected resolver family is not blocked by the DoH blocklist,
    - no mobile-provider DNS appears in repeated client scans.
 6. Verify IPv6 behavior:

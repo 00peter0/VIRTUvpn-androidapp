@@ -509,14 +509,14 @@ object VpnRouterManager {
                 "block hotspot DNS over QUIC",
                 "iptables -A $FORWARD_CHAIN -i $downstream -p udp --dport 853 -j REJECT --reject-with icmp-port-unreachable"
             )
+            checkedRun(
+                "block hotspot QUIC",
+                "iptables -A $FORWARD_CHAIN -i $downstream -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable"
+            )
             encryptedDnsBlocklist(dnsResolvers).forEach { resolver ->
                 checkedRun(
                     "block hotspot DoH TCP $resolver",
                     "iptables -A $FORWARD_CHAIN -i $downstream -d $resolver -p tcp --dport 443 -j REJECT --reject-with tcp-reset"
-                )
-                checkedRun(
-                    "block hotspot DoH QUIC $resolver",
-                    "iptables -A $FORWARD_CHAIN -i $downstream -d $resolver -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable"
                 )
             }
             checkedRun(
