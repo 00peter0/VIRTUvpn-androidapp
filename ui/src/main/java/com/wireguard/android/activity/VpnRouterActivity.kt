@@ -274,9 +274,8 @@ class VpnRouterActivity : AppCompatActivity() {
         val gateway = status.tetherInterfaces.firstOrNull()?.let { interfaceName ->
             if (interfaceName == "swlan0") "192.168.115.186" else null
         } ?: "192.168.115.186"
-        val dashboardUrl = "http://$gateway:8787/"
-        routerGuestDashboard.text = getString(R.string.vcs_vpn_router_guest_dashboard_with_address, dashboardUrl)
-        routerGuestQr.setImageBitmap(createQrBitmap(dashboardUrl))
+        routerGuestDashboard.text = getString(R.string.vcs_vpn_router_guest_dashboard_with_address, gateway)
+        routerGuestQr.setImageBitmap(createQrBitmap(gateway))
     }
 
     private fun createQrBitmap(value: String): Bitmap {

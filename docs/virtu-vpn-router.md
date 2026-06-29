@@ -24,7 +24,7 @@ a usable VPN interface such as `tun*` or `wg*`.
   - ethernet or USB uplink,
   - unknown physical uplink.
 - Show router status, uplink status, phone kill switch status, router protection,
-  guest dashboard QR, and router-only DNS settings in the VPN Router page.
+  router local IP QR, and router-only DNS settings in the VPN Router page.
 
 ## Multi-Uplink Model
 
@@ -68,8 +68,7 @@ When enabled, the app installs root rules that:
   table is temporarily unusable,
 - redirect hotspot client TCP/UDP DNS on port 53 to the selected router DNS
   resolver,
-- expose a local guest dashboard on the router gateway without transparent HTTP
-  hijacking,
+- show the router local IP and QR code in the VPN Router page,
 - allow the router phone's own internet traffic only through the VPN interface,
 - allow the active VPN provider UID or WireGuard fwmark to use the physical
   uplink for tunnel transport,
@@ -142,13 +141,12 @@ signature changes or the health check fails.
 This protects speed tests and large downloads from repeated route/firewall churn
 while keeping the router fail-closed model intact.
 
-Guest clients must not depend on captive portal HTML for connectivity. Captive
-portal behavior is only best-effort because client operating systems cache probe
+Guest clients must not depend on captive HTML for connectivity. Captive
+portal behavior is unreliable because client operating systems cache probe
 results, suppress popups, and handle private DNS, VPN, and browser state
-differently. The router therefore brings VPN-routed internet up immediately and
-exposes the guest page as an optional dashboard at the router gateway. Router
-Secure Web still works from that dashboard because it is served locally by the
-router phone and performs outbound requests from the router side.
+differently. VPN Router therefore does not serve hotspot HTML, does not hijack
+HTTP, and does not expose a router-side web browser. The only guest-facing UI is
+the Router page section that shows the router local IP and a QR code for that IP.
 
 The router phone also gets its own lockdown while router mode is enabled. Normal
 phone internet must go through the active VPN interface. The physical uplink is
@@ -252,61 +250,20 @@ guarantee automatic SoftAP restart after a manual user/system stop. That can be
 added later with a stored SoftAP profile and `cmd wifi start-softap`, but it must
 not guess or overwrite the user's hotspot password.
 
-## Guest protocol and portal
+## Router local IP and QR
 
-VPN Router exposes a local guest protocol on the router phone while the app
-process is alive:
+VPN Router does not run a hotspot HTML server. Connected clients get network
+routing only; they are not redirected to a captive page and no local web proxy is
+served from the router phone.
 
-- `http://<router-gateway>:8787/virtuvpn-router/status` returns a VirtuVPN router
-  marker for client apps.
-- the guest dashboard is reachable manually on the router gateway port. Router
-  mode does not transparently hijack client HTTP because captive HTML is
-  unreliable and can break normal browsing.
-- captive probe endpoints such as `generate_204`, `gen_204`,
-  `hotspot-detect.html`, `connecttest.txt`, and `ncsi.txt` redirect to the
-  router portal with no-cache headers.
-- the guest page opens Router Secure Web by default, links to the guest APK
-  download, and shows the manual dashboard address.
-- ordinary client browsing works without a portal decision; router-level VPN,
-  DNS, IPv6, DoT/DoH, and uplink-bypass rules provide the network protection.
+The VPN Router page shows the router local IP, currently `192.168.115.186` on
+the Samsung hotspot profile, and a QR code containing that IP. This is an
+operator aid for manual diagnostics and device setup. It is not required for
+client internet access.
 
-Client-side Secure Browser detection prefers the guest protocol marker and only
-uses the known Samsung `192.168.115.0/24` hotspot subnet as a fallback heuristic.
-
-## Router Secure Web
-
-Router Secure Web is the no-install browser path served by the router phone. It
-is not the same engine as the native Android Secure Browser, but it copies the
-native Secure Browser surface and security model as closely as a hotspot HTML
-service can:
-
-- top URL/search bar,
-- quick links,
-- protected status indicator,
-- floating reload/back/forward controls,
-- public HTTP blocked by default,
-- HTTPS and private/local HTTP allowed,
-- WebRTC APIs disabled by injected script on proxied HTML,
-- links rewritten back through the router proxy.
-
-The request path is:
-
-```text
-client browser -> local router portal -> router proxy -> VPN tunnel -> internet
-```
-
-This avoids relying on unreliable HTML deep links into the Android app. It also
-reduces client-side DNS and local IP exposure because the destination site is
-loaded by the router-side proxy, not by the client as a direct normal browsing
-session.
-
-Limits:
-
-- It is a lightweight HTTP/HTML proxy, not a full remote Chromium engine.
-- Complex JavaScript apps, banking flows, CSP-heavy pages, video, and federated
-  login can break or run slowly.
-- It is best for safer quick browsing, leak tests, and simple pages. For full
-  client-device protection, install VirtuVPN and use the native Secure Browser.
+Secure Browser protection is handled by the native VirtuVPN app on the client or
+by Android VPN network detection. The old router local IP marker and router-side
+Secure Web proxy are removed.
 
 ## Reconcile
 
@@ -333,7 +290,7 @@ The VPN Router page shows:
 - router status,
 - detected uplink,
 - router protection status,
-- guest dashboard address and QR code for connected devices,
+- router local IP and QR code for connected devices,
 - router DNS options.
 
 When router protection is active, hotspot clients stay associated with WiFi but
@@ -348,14 +305,9 @@ outside the VPN while router mode is enabled.
 2. Install fail-closed router NAT, forwarding, and policy-routing rules.
 3. Reconcile rules when VPN, hotspot, or uplink changes.
 4. Apply router-only DNS behavior for hotspot clients.
-5. Add guest onboarding page without enroll dependency:
-   - continue without client kill switch,
-   - install VirtuVPN for stronger client-side protection.
-6. Add Router Secure Web as a no-install guest browsing path.
-7. Keep guest dashboard optional; never block VPN-routed internet while waiting
-   for any browser page.
-8. Disable known hotspot auto-shutdown behavior while router mode is enabled.
-9. Validate with:
+5. Show router local IP and QR in the VPN Router page.
+6. Disable known hotspot auto-shutdown behavior while router mode is enabled.
+7. Validate with:
    - VirtuVPN tunnel,
    - third-party VPN providers,
    - mobile data uplink,
@@ -367,7 +319,7 @@ outside the VPN while router mode is enabled.
    - client reconnect with reused DHCP address,
    - DNS leak scans,
    - IPv6 leak scans,
-   - dashboard QR opens on connected devices,
+   - Router page QR contains the router local IP,
    - regular browsing works without opening the dashboard.
 
 ## New device checklist
@@ -389,12 +341,11 @@ Before using a new rooted Android device as a production router:
      has the DNS jump only,
    - `ip rule` has hotspot VPN routing before a hotspot unreachable fallback,
      and both are before Android's mobile tether fallback.
-4. Verify guest dashboard behavior:
-   - new client has internet even if the portal does not open,
-   - the router dashboard is reachable at the gateway fallback address,
-   - the Router page QR code opens the same dashboard address,
-   - Router Secure Web works from the dashboard,
-   - the guest APK install/update link works.
+4. Verify router local IP behavior:
+   - new client has internet without any captive page,
+   - the Router page shows the router local IP,
+   - the Router page QR code contains the same local IP,
+   - no hotspot HTML server or captive portal endpoint is required.
 5. Verify DNS behavior:
    - selected router resolver is used,
    - competing DoH/DoT providers are blocked,
