@@ -18,6 +18,8 @@ class VpnRouterActivity : AppCompatActivity() {
     private lateinit var routerStatus: TextView
     private lateinit var routerUplinkStatus: TextView
     private lateinit var routerProtectionStatus: TextView
+    private lateinit var routerGuestAccessStatus: TextView
+    private lateinit var routerGuestDashboard: TextView
     private lateinit var routerDnsGroup: RadioGroup
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -28,6 +30,8 @@ class VpnRouterActivity : AppCompatActivity() {
         routerStatus = findViewById(R.id.router_status)
         routerUplinkStatus = findViewById(R.id.router_uplink_status)
         routerProtectionStatus = findViewById(R.id.router_protection_status)
+        routerGuestAccessStatus = findViewById(R.id.router_guest_access_status)
+        routerGuestDashboard = findViewById(R.id.router_guest_dashboard)
         routerDnsGroup = findViewById(R.id.router_dns_group)
         routerDnsGroup.setOnCheckedChangeListener { _, checkedId ->
             val mode = when (checkedId) {
@@ -84,6 +88,7 @@ class VpnRouterActivity : AppCompatActivity() {
             routerProtectionStatus.setTextColor(
                 if (router.availability == VpnRouterManager.Availability.ENABLED) GREEN else RED
             )
+            renderGuestAccess(router)
         }
     }
 
@@ -136,6 +141,22 @@ class VpnRouterActivity : AppCompatActivity() {
                 routerStatus.setTextColor(RED)
             }
         }
+    }
+
+    private fun renderGuestAccess(status: VpnRouterManager.Status) {
+        val active = status.availability == VpnRouterManager.Availability.ENABLED
+        routerGuestAccessStatus.setText(
+            if (active) {
+                R.string.vcs_vpn_router_guest_access_active
+            } else {
+                R.string.vcs_vpn_router_guest_access_inactive
+            }
+        )
+        routerGuestAccessStatus.setTextColor(if (active) GREEN else YELLOW)
+        val gateway = status.tetherInterfaces.firstOrNull()?.let { interfaceName ->
+            if (interfaceName == "swlan0") "192.168.115.186" else null
+        } ?: "192.168.115.186"
+        routerGuestDashboard.text = getString(R.string.vcs_vpn_router_guest_dashboard_with_address, gateway)
     }
 
     private fun labelForUplinkType(type: VpnRouterManager.UplinkType): Int {
