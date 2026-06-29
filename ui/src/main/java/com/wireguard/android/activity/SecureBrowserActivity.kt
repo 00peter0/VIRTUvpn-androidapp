@@ -6,6 +6,7 @@ package com.wireguard.android.activity
 
 import android.annotation.SuppressLint
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Build
@@ -51,6 +52,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     private var navigationDownRawY = 0f
     private var navigationStartX = 0f
     private var navigationStartY = 0f
+    private var boundNetwork: Network? = null
     @Volatile
     private var blocked = true
 
@@ -99,10 +101,12 @@ class SecureBrowserActivity : AppCompatActivity() {
         monitorJob?.cancel()
         monitorJob = null
         if (::binding.isInitialized) lockBrowser(showToast = false)
+        unbindBrowserNetwork()
         super.onPause()
     }
 
     override fun onDestroy() {
+        unbindBrowserNetwork()
         if (::binding.isInitialized) {
             binding.secureWebview.stopLoading()
             binding.secureWebview.loadUrl("about:blank")
@@ -469,7 +473,10 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private suspend fun isSecureBrowserAllowed(): Boolean = withContext(Dispatchers.IO) {
-        hasVpnNetwork() || hasVirtuRouterClientNetwork() || isVpnRouterActive()
+        bindToVpnNetwork() || run {
+            unbindBrowserNetwork()
+            isVpnRouterActive()
+        }
     }
 
     private suspend fun isVpnRouterActive(): Boolean =
@@ -517,27 +524,35 @@ class SecureBrowserActivity : AppCompatActivity() {
         webView.evaluateJavascript(WEBRTC_PROTECTION_SCRIPT, null)
     }
 
-    private fun hasVpnNetwork(): Boolean {
+    private fun bindToVpnNetwork(): Boolean {
         val connectivityManager = getSystemService(ConnectivityManager::class.java) ?: return false
-        val activeNetwork = connectivityManager.activeNetwork
-        val activeCaps = activeNetwork?.let { connectivityManager.getNetworkCapabilities(it) }
-        if (activeCaps?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true) return true
+        val vpnNetwork = findVpnNetwork(connectivityManager) ?: return false
+        if (boundNetwork == vpnNetwork) return true
+        val bound = connectivityManager.bindProcessToNetwork(vpnNetwork)
+        if (bound) boundNetwork = vpnNetwork
+        return bound
+    }
 
-        return connectivityManager.allNetworks.any { network ->
-            connectivityManager.getNetworkCapabilities(network)
-                ?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+    private fun findVpnNetwork(connectivityManager: ConnectivityManager): Network? {
+        val activeNetwork = connectivityManager.activeNetwork
+        if (activeNetwork?.let { network -> isUsableVpnNetwork(connectivityManager, network) } == true) {
+            return activeNetwork
+        }
+        return connectivityManager.allNetworks.firstOrNull { network ->
+            isUsableVpnNetwork(connectivityManager, network)
         }
     }
 
-    private fun hasVirtuRouterClientNetwork(): Boolean {
-        val connectivityManager = getSystemService(ConnectivityManager::class.java) ?: return false
-        val activeNetwork = connectivityManager.activeNetwork ?: return false
-        val activeCaps = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
-        if (!activeCaps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return false
-        val linkProperties = connectivityManager.getLinkProperties(activeNetwork) ?: return false
-        return linkProperties.linkAddresses.any { address ->
-            address.address.hostAddress?.let(::isPrivateIpv4) == true
-        }
+    private fun isUsableVpnNetwork(connectivityManager: ConnectivityManager, network: Network): Boolean {
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN) &&
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
+    private fun unbindBrowserNetwork() {
+        if (boundNetwork == null) return
+        getSystemService(ConnectivityManager::class.java)?.bindProcessToNetwork(null)
+        boundNetwork = null
     }
 
     private fun isAllowedBrowserUrl(uri: Uri): Boolean {

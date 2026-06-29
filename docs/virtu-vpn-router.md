@@ -164,6 +164,11 @@ browsing on the client device itself, install VirtuVPN on that device and use
 client-side protection. The VPN Router page shows a VirtuVPN app download link
 and QR code for connected devices.
 
+Secure Browser must not trust ordinary private WiFi addressing as proof of
+router protection. On client devices it is allowed only when the process can bind
+to an Android VPN network. On the router phone itself it may also run while VPN
+Router is active, because router OUTPUT lockdown enforces VPN egress.
+
 The router phone also gets its own lockdown while router mode is enabled. Normal
 phone internet must go through the active VPN interface. IPv4 and IPv6 phone
 OUTPUT chains are fail-closed: loopback, the active VPN interface, WireGuard
