@@ -138,6 +138,7 @@
     <string name="vcs_vpn_router_guest_access_inactive">Client app download appears after router mode is enabled.</string>
     <string name="vcs_vpn_router_guest_download">Download VirtuVPN app</string>
     <string name="vcs_vpn_router_guest_download_with_address">Download: %1$s</string>
+    <string name="vcs_vpn_router_guest_pair_secure_browser">Scan this QR from the client VirtuVPN app to pair Secure Browser with this VPN Router.</string>
     <string name="vcs_vpn_router_guest_qr">VirtuVPN app download QR code</string>
     <string name="vcs_vpn_router_guest_access_detail">For safer browsing on your device, download VirtuVPN to that device and use client-side protection. Router VPN protects the hotspot path; the app protects the device itself.</string>
     <string name="vcs_vpn_router_dns">Router DNS</string>
@@ -169,6 +170,8 @@
     <string name="vcs_secure_browser_egress_virtu">Protected via VirtuVPN: %1$s</string>
     <string name="vcs_secure_browser_egress_router">Protected via VPN Router: %1$s</string>
     <string name="vcs_secure_browser_egress_router_attested">Protected via verified VPN Router: %1$s</string>
+    <string name="vcs_secure_browser_router_pair_success">VPN Router paired with Secure Browser</string>
+    <string name="vcs_secure_browser_router_pair_error">VPN Router pairing failed</string>
     <string name="vcs_secure_browser_egress_tap_to_check">%1$s · Tap to check exit</string>
     <string name="vcs_secure_browser_egress_with_country">%1$s · Exit %2$s · %3$s</string>
     <string name="vcs_secure_browser_egress_blocked">Protected route required</string>

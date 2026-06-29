@@ -25,6 +25,7 @@ import com.wireguard.android.fragment.TunnelListFragment
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.vcs.VcsAuthGate
 import com.wireguard.android.vcs.VcsManagedClient
+import com.wireguard.android.util.VpnRouterAttestation
 import kotlinx.coroutines.launch
 
 class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener {
@@ -136,6 +137,15 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
 
     private fun handleVcsEnrollmentIntent(intent: Intent?) {
         val uri = intent?.data ?: return
+        if (VpnRouterAttestation.isPairingUri(uri)) {
+            if (VpnRouterAttestation.importPairingUri(this, uri)) {
+                Toast.makeText(this, R.string.vcs_secure_browser_router_pair_success, Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(this, R.string.vcs_secure_browser_router_pair_error, Toast.LENGTH_LONG).show()
+            }
+            finishEnrollmentFlow()
+            return
+        }
         if (!VcsManagedClient.isEnrollmentUri(uri)) return
         enrollmentIntentPending = true
         lifecycleScope.launch {

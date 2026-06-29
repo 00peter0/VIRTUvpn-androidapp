@@ -6,6 +6,7 @@ package com.wireguard.android.fragment
 
 import android.content.Intent
 import android.content.res.Resources
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -40,6 +41,7 @@ import com.wireguard.android.util.ErrorMessages
 import com.wireguard.android.util.PingManager
 import com.wireguard.android.util.QrCodeFromFileScanner
 import com.wireguard.android.util.TunnelImporter
+import com.wireguard.android.util.VpnRouterAttestation
 import com.wireguard.android.vcs.VcsManagedClient
 import com.wireguard.android.widget.MultiselectableRelativeLayout
 import kotlinx.coroutines.SupervisorJob
@@ -84,7 +86,13 @@ class TunnelListFragment : BaseFragment() {
         val activity = activity
         if (qrCode != null && activity != null) {
             activity.lifecycleScope.launch {
-                if (qrCode.contains("vcs_android_enrollment") || qrCode.startsWith("virtuvpn://enroll")) {
+                if (qrCode.startsWith("virtuvpn://router-pair")) {
+                    if (VpnRouterAttestation.importPairingUri(activity, Uri.parse(qrCode))) {
+                        showSnackbar(getString(R.string.vcs_secure_browser_router_pair_success))
+                    } else {
+                        showSnackbar(getString(R.string.vcs_secure_browser_router_pair_error))
+                    }
+                } else if (qrCode.contains("vcs_android_enrollment") || qrCode.startsWith("virtuvpn://enroll")) {
                     try {
                         val result = VcsManagedClient.handleEnrollmentPayload(activity, qrCode)
                         showSnackbar(enrollResultMessage(result))

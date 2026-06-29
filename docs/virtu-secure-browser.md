@@ -38,16 +38,25 @@ unsafe false-positive behavior.
 Router attestation:
 
 - endpoint: `http://<wifi-gateway>:8788/virtuvpn-router/attestation`,
+- trust root: a random per-router pairing secret scanned from the VPN Router
+  page QR code and stored on the client device,
 - client sends a random nonce,
 - router responds only while VPN Router status is `ENABLED`,
-- response includes nonce, timestamp, protected state, active tunnel, and HMAC
+- response includes router id, nonce, timestamp, protected state, and HMAC
   signature,
 - client accepts only matching nonce, fresh timestamp, `protected=true`, and a
-  valid signature.
+  valid signature for the paired router id.
 
 The attestation is intentionally lightweight and local to the hotspot. It avoids
 reintroducing the removed guest HTML/status flow and does not make private IP
-addressing itself a trust signal.
+addressing itself a trust signal. There is no global HMAC secret embedded in the
+APK; a public guest APK must not contain the material needed to forge router
+attestations.
+
+Attestation proves that the current WiFi gateway knows the paired router secret
+and currently reports VPN Router enabled. It does not cryptographically prove the
+full internet egress path beyond that gateway; in the intended topology the WiFi
+gateway is the router and router firewall/routing rules enforce the VPN path.
 
 `ConnectivityManager.NetworkCallback` monitors VPN availability. When the bound
 VPN network is lost or loses internet capability, the browser is locked and the

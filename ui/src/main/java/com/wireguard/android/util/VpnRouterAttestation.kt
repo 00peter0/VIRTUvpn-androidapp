@@ -5,14 +5,13 @@
 package com.wireguard.android.util
 
 import android.content.Context
+import android.net.Uri
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Base64
 import android.util.Log
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
-import java.io.BufferedReader
-import java.io.InputStreamReader
 import java.io.OutputStream
 import java.net.HttpURLConnection
 import java.net.Inet4Address
@@ -24,6 +23,8 @@ import java.net.URL
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.security.SecureRandom
+import java.util.concurrent.Executors
+import java.util.concurrent.Semaphore
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
@@ -32,14 +33,19 @@ object VpnRouterAttestation {
     private const val PATH = "/virtuvpn-router/attestation"
     private const val ALG = "HMAC-SHA256"
     private const val MAX_AGE_MS = 30_000L
-    private const val SECRET = "VirtuVPN router attestation v1; vcsinstall secure browser trust root"
+    private const val PREFS = "virtuvpn_router_attestation"
+    private const val KEY_ROUTER_ID = "router_id"
+    private const val KEY_ROUTER_SECRET = "router_secret"
+    private const val KEY_PAIRED_ROUTER_ID = "paired_router_id"
+    private const val KEY_PAIRED_SECRET = "paired_secret"
     private val NONCE_REGEX = Regex("^[A-Za-z0-9_-]{24,96}$")
 
     data class Result(
-        val tunnel: String?
+        val routerId: String
     )
 
     suspend fun verifyFromCurrentGateway(context: Context): Result? {
+        val secret = pairedSecret(context.applicationContext) ?: return null
         val gateway = currentWifiGateway(context.applicationContext) ?: return null
         val nonce = randomNonce()
         val body = fetchAttestation(gateway.hostAddress ?: return null, nonce) ?: return null
@@ -49,36 +55,65 @@ object VpnRouterAttestation {
         if (json.optString("alg") != ALG) return null
         if (json.optString("nonce") != nonce) return null
         if (!json.optBoolean("protected", false)) return null
+        val routerId = json.optString("routerId").takeIf { it.isNotBlank() } ?: return null
+        if (routerId != pairedRouterId(context.applicationContext)) return null
         val timestamp = json.optLong("timestamp", 0L)
         if (timestamp <= 0L || kotlin.math.abs(System.currentTimeMillis() - timestamp) > MAX_AGE_MS) return null
-        val tunnel = json.optString("tunnel").takeIf { it.isNotBlank() }
         val signature = json.optString("signature")
-        val payload = payload(nonce, timestamp, protected = true, tunnel = tunnel)
-        if (!constantTimeEquals(signature, sign(payload))) return null
-        return Result(tunnel)
+        val payload = payload(routerId, nonce, timestamp, protected = true)
+        if (!constantTimeEquals(signature, sign(payload, secret))) return null
+        return Result(routerId)
     }
 
     fun responseJson(context: Context, nonce: String): String? {
         if (!NONCE_REGEX.matches(nonce)) return null
-        val status = runBlocking { VpnRouterManager.getStatus(context.applicationContext) }
+        val status = VpnRouterAttestationServer.cachedStatus(context.applicationContext) ?: return null
         if (status.availability != VpnRouterManager.Availability.ENABLED) return null
         val timestamp = System.currentTimeMillis()
-        val tunnel = status.activeTunnel
-        val payload = payload(nonce, timestamp, protected = true, tunnel = tunnel)
+        val routerId = routerId(context.applicationContext)
+        val secret = routerSecret(context.applicationContext)
+        val payload = payload(routerId, nonce, timestamp, protected = true)
         return JSONObject()
             .put("app", "VirtuVPN")
             .put("kind", "vpn-router-attestation")
             .put("version", 1)
             .put("alg", ALG)
+            .put("routerId", routerId)
             .put("nonce", nonce)
             .put("timestamp", timestamp)
             .put("protected", true)
-            .put("tunnel", tunnel ?: "")
-            .put("signature", sign(payload))
+            .put("signature", sign(payload, secret))
             .toString()
     }
 
     fun pathMatches(path: String): Boolean = path == PATH
+
+    fun pairingUri(context: Context): String {
+        val routerId = routerId(context.applicationContext)
+        val secret = routerSecret(context.applicationContext)
+        return Uri.Builder()
+            .scheme("virtuvpn")
+            .authority("router-pair")
+            .appendQueryParameter("id", routerId)
+            .appendQueryParameter("secret", secret)
+            .build()
+            .toString()
+    }
+
+    fun isPairingUri(uri: Uri): Boolean =
+        uri.scheme == "virtuvpn" && uri.host == "router-pair"
+
+    fun importPairingUri(context: Context, uri: Uri): Boolean {
+        if (!isPairingUri(uri)) return false
+        val routerId = uri.getQueryParameter("id")?.takeIf { it.length in 12..96 } ?: return false
+        val secret = uri.getQueryParameter("secret")?.takeIf { NONCE_REGEX.matches(it) } ?: return false
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_PAIRED_ROUTER_ID, routerId)
+            .putString(KEY_PAIRED_SECRET, secret)
+            .apply()
+        return true
+    }
 
     private fun currentWifiGateway(context: Context): InetAddress? {
         val connectivityManager = context.getSystemService(ConnectivityManager::class.java) ?: return null
@@ -116,12 +151,34 @@ object VpnRouterAttestation {
         return Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
     }
 
-    private fun payload(nonce: String, timestamp: Long, protected: Boolean, tunnel: String?): String =
-        listOf("v1", nonce, timestamp.toString(), protected.toString(), tunnel.orEmpty()).joinToString("|")
+    private fun routerId(context: Context): String {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        prefs.getString(KEY_ROUTER_ID, null)?.let { return it }
+        val id = randomNonce()
+        prefs.edit().putString(KEY_ROUTER_ID, id).apply()
+        return id
+    }
 
-    private fun sign(payload: String): String {
+    private fun routerSecret(context: Context): String {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        prefs.getString(KEY_ROUTER_SECRET, null)?.let { return it }
+        val secret = randomNonce()
+        prefs.edit().putString(KEY_ROUTER_SECRET, secret).apply()
+        return secret
+    }
+
+    private fun pairedRouterId(context: Context): String? =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_PAIRED_ROUTER_ID, null)
+
+    private fun pairedSecret(context: Context): String? =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_PAIRED_SECRET, null)
+
+    private fun payload(routerId: String, nonce: String, timestamp: Long, protected: Boolean): String =
+        listOf("v2", routerId, nonce, timestamp.toString(), protected.toString()).joinToString("|")
+
+    private fun sign(payload: String, secret: String): String {
         val mac = Mac.getInstance("HmacSHA256")
-        mac.init(SecretKeySpec(SECRET.toByteArray(Charsets.UTF_8), "HmacSHA256"))
+        mac.init(SecretKeySpec(secret.toByteArray(Charsets.UTF_8), "HmacSHA256"))
         return Base64.encodeToString(mac.doFinal(payload.toByteArray(Charsets.UTF_8)), Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
     }
 
@@ -152,10 +209,18 @@ object VpnRouterAttestation {
 
 object VpnRouterAttestationServer {
     private const val TAG = "VirtuVPN/RouterAttest"
+    private const val MAX_REQUEST_LINE = 2048
+    private const val STATUS_TTL_MS = 1_500L
     @Volatile
     private var serverSocket: ServerSocket? = null
     @Volatile
     private var serverThread: Thread? = null
+    private val workerPool = Executors.newFixedThreadPool(3)
+    private val permits = Semaphore(8)
+    @Volatile
+    private var cachedStatus: VpnRouterManager.Status? = null
+    @Volatile
+    private var cachedAt: Long = 0L
 
     fun start(context: Context) {
         if (serverSocket != null) return
@@ -166,7 +231,18 @@ object VpnRouterAttestationServer {
             serverThread = Thread {
                 while (!socket.isClosed) {
                     val client = runCatching { socket.accept() }.getOrNull() ?: continue
-                    Thread { handleClient(appContext, client) }.start()
+                    if (!permits.tryAcquire()) {
+                        runCatching { writeResponse(client.getOutputStream(), 503, "Busy") }
+                        runCatching { client.close() }
+                        continue
+                    }
+                    workerPool.execute {
+                        try {
+                            handleClient(appContext, client)
+                        } finally {
+                            permits.release()
+                        }
+                    }
                 }
             }.apply {
                 name = "VirtuVPN-Router-Attestation"
@@ -185,14 +261,26 @@ object VpnRouterAttestationServer {
         serverThread = null
     }
 
+    fun cachedStatus(context: Context): VpnRouterManager.Status? {
+        val now = System.currentTimeMillis()
+        cachedStatus?.takeIf { now - cachedAt <= STATUS_TTL_MS }?.let { return it }
+        val status = runBlocking { VpnRouterManager.getStatus(context.applicationContext) }
+        cachedStatus = status
+        cachedAt = now
+        return status
+    }
+
     private fun handleClient(context: Context, socket: Socket) {
         socket.use { client ->
+            client.soTimeout = 1_500
             if (!VpnRouterAttestation.isAllowedClientAddress(client.inetAddress)) {
                 writeResponse(client.getOutputStream(), 403, "Forbidden")
                 return
             }
-            val reader = BufferedReader(InputStreamReader(client.getInputStream()))
-            val request = reader.readLine().orEmpty()
+            val request = readRequestLine(client) ?: run {
+                writeResponse(client.getOutputStream(), 413, "Request Too Large")
+                return
+            }
             val parts = request.split(' ')
             if (parts.size < 2 || parts[0] != "GET") {
                 writeResponse(client.getOutputStream(), 405, "Method Not Allowed")
@@ -219,6 +307,19 @@ object VpnRouterAttestationServer {
         }
     }
 
+    private fun readRequestLine(socket: Socket): String? {
+        val input = socket.getInputStream()
+        val bytes = ArrayList<Byte>(128)
+        while (bytes.size <= MAX_REQUEST_LINE) {
+            val value = input.read()
+            if (value == -1) break
+            if (value == '\n'.code) break
+            if (value != '\r'.code) bytes.add(value.toByte())
+        }
+        if (bytes.size > MAX_REQUEST_LINE) return null
+        return bytes.toByteArray().toString(Charsets.US_ASCII)
+    }
+
     private fun writeResponse(output: OutputStream, status: Int, body: String, contentType: String = "text/plain") {
         val bytes = body.toByteArray(Charsets.UTF_8)
         val headers =
@@ -237,6 +338,7 @@ object VpnRouterAttestationServer {
         403 -> "Forbidden"
         404 -> "Not Found"
         405 -> "Method Not Allowed"
+        413 -> "Request Entity Too Large"
         503 -> "Service Unavailable"
         else -> "OK"
     }

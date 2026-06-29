@@ -747,7 +747,7 @@ class SecureBrowserActivity : AppCompatActivity() {
                 true,
                 getString(
                     R.string.vcs_secure_browser_egress_router_attested,
-                    attestation.tunnel ?: getString(R.string.vcs_vpn_status_no_tunnel)
+                    attestation.routerId.take(8)
                 )
             )
         }

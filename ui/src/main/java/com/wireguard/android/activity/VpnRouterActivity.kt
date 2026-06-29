@@ -18,6 +18,7 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import com.wireguard.android.R
 import com.wireguard.android.util.VcsDialogs
+import com.wireguard.android.util.VpnRouterAttestation
 import com.wireguard.android.util.VpnRouterManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -271,8 +272,13 @@ class VpnRouterActivity : AppCompatActivity() {
             }
         )
         routerGuestAccessStatus.setTextColor(if (active) GREEN else YELLOW)
-        routerGuestDownload.text = getString(R.string.vcs_vpn_router_guest_download_with_address, VIRTUVPN_DOWNLOAD_URL)
-        routerGuestQr.setImageBitmap(createQrBitmap(VIRTUVPN_DOWNLOAD_URL))
+        val qrValue = if (active) VpnRouterAttestation.pairingUri(this) else VIRTUVPN_DOWNLOAD_URL
+        routerGuestDownload.text = if (active) {
+            getString(R.string.vcs_vpn_router_guest_pair_secure_browser)
+        } else {
+            getString(R.string.vcs_vpn_router_guest_download_with_address, VIRTUVPN_DOWNLOAD_URL)
+        }
+        routerGuestQr.setImageBitmap(createQrBitmap(qrValue))
     }
 
     private fun createQrBitmap(value: String): Bitmap {
