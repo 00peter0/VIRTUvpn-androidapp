@@ -89,6 +89,7 @@ dependencies {
     implementation(libs.google.material)
     implementation(libs.zxing.android.embedded)
     implementation(libs.kotlinx.coroutines.android)
+    testImplementation(libs.junit)
     coreLibraryDesugaring(libs.desugarJdkLibs)
 }
 

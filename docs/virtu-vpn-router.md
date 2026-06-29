@@ -117,6 +117,31 @@ The modal is not only cosmetic. It is the operator-facing audit trail for the
 active transition. If the flow fails, the router should remain blocked and show
 the error instead of silently leaving clients on a direct uplink.
 
+## Reconcile and performance
+
+VPN Router disables Android tethering offload while router mode is enabled. This
+is intentional because hardware/BPF tether offload can bypass normal iptables
+visibility on some devices. The tradeoff is lower peak throughput than plain
+Android tethering.
+
+To avoid unnecessary slowdown, the reconcile loop must not rebuild router rules
+when the effective router configuration has not changed. The app stores a
+signature of:
+
+- active VPN interface,
+- hotspot downstream interfaces,
+- router DNS resolvers,
+- physical uplink interfaces.
+
+On each reconcile, the app performs a lightweight health check for the required
+policy routes and chain hooks. If the signature is unchanged and rules are
+healthy, reconcile exits without flushing iptables chains, rewriting DNS
+forwarders, or replacing policy routes. A full rebuild is allowed only when the
+signature changes or the health check fails.
+
+This protects speed tests and large downloads from repeated route/firewall churn
+while keeping the router fail-closed model intact.
+
 Guest clients must not depend on captive portal HTML for connectivity. Captive
 portal behavior is only best-effort because client operating systems cache probe
 results, suppress popups, and handle private DNS, VPN, and browser state

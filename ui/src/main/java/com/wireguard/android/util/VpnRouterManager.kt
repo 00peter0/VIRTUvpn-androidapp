@@ -100,15 +100,12 @@ object VpnRouterManager {
         val appContext = context.applicationContext
         val status = detect(appContext)
         if (status.availability != Availability.ENABLED) return@withLock status
-        setOperation(appContext, OperationStage.LOCKING_HOTSPOT, "Blocking hotspot fallback before changing VPN routes")
         VpnRouterGuestServer.ensureStarted(appContext, Application.getCoroutineScope())
         disableHotspotAutoShutdown(appContext)
-        setOperation(appContext, OperationStage.DETECTING_TUNNEL, "Detecting active VPN interface")
         val tunnelName = status.activeTunnel ?: return@withLock status
         if (status.tetherInterfaces.isEmpty()) return@withLock status
         try {
-            installRules(appContext, tunnelName, status.tetherInterfaces)
-            setOperation(appContext, OperationStage.COMPLETE, "VPN router is protected")
+            installRules(appContext, tunnelName, status.tetherInterfaces, allowFastPath = true)
             detect(appContext)
         } catch (e: Throwable) {
             Log.e(TAG, "Unable to reconcile VPN router", e)
@@ -170,6 +167,8 @@ object VpnRouterManager {
                 tetherInterfaces = prior?.tetherInterfaces.orEmpty(),
                 detail = e.message ?: e.javaClass.simpleName
             )
+        } finally {
+            clearLastRuleSignature(appContext)
         }
         }
     }
@@ -354,8 +353,12 @@ object VpnRouterManager {
             .toList()
     }
 
-    private suspend fun installRules(context: Context, activeTunnel: String, tetherInterfaces: List<String>) {
-        setOperation(context, OperationStage.DETECTING_TUNNEL, "Using VPN interface $activeTunnel")
+    private suspend fun installRules(
+        context: Context,
+        activeTunnel: String,
+        tetherInterfaces: List<String>,
+        allowFastPath: Boolean = false
+    ) {
         val tunnel = checkedInterfaceName(activeTunnel)
         val downstreams = tetherInterfaces.map(::checkedInterfaceName)
         val uplinks = readUplinkInterfaces(readUpInterfaces(), activeTunnel, downstreams)
@@ -365,10 +368,24 @@ object VpnRouterManager {
             .ifEmpty { DnsMode.QUAD9.resolvers }
         val dnsResolver = dnsResolvers.first()
         val vpnOwnerUid = readVpnOwnerUid()
+        val snapshot = VpnRouterRulePlanner.Snapshot(
+            tunnel = tunnel,
+            downstreams = downstreams,
+            dnsResolvers = dnsResolvers,
+            uplinks = uplinks
+        )
+        val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val lastSignature = prefs.getString(KEY_LAST_RULE_SIGNATURE, null)
+        val rulesHealthy = verifyRouterRules(tunnel, downstreams)
 
         VpnRouterGuestServer.ensureStarted(context, Application.getCoroutineScope())
         disableHotspotAutoShutdown(context)
         disableTetherOffload(context)
+        if (allowFastPath && !VpnRouterRulePlanner.needsFullRebuild(lastSignature, snapshot, rulesHealthy)) {
+            return
+        }
+        setOperation(context, OperationStage.LOCKING_HOTSPOT, "Blocking hotspot fallback before changing VPN routes")
+        setOperation(context, OperationStage.DETECTING_TUNNEL, "Using VPN interface $activeTunnel")
         setOperation(context, OperationStage.APPLYING_DNS, "Applying router DNS for hotspot clients")
         overrideTetherDnsForwarders(dnsResolvers)
         checkedRun("enable IPv4 forwarding", "sysctl -w net.ipv4.ip_forward=1 >/dev/null")
@@ -491,6 +508,40 @@ object VpnRouterManager {
             )
         }
         checkedRun("flush route cache", "ip route flush cache 2>/dev/null || true")
+        prefs.edit().putString(KEY_LAST_RULE_SIGNATURE, snapshot.signature()).apply()
+    }
+
+    private fun verifyRouterRules(tunnel: String, downstreams: List<String>): Boolean {
+        if (downstreams.isEmpty()) return false
+        if (!commandSucceeds("iptables -t nat -S $NAT_CHAIN >/dev/null 2>&1")) return false
+        if (!commandSucceeds("iptables -S $FORWARD_CHAIN >/dev/null 2>&1")) return false
+        if (!commandSucceeds("iptables -t nat -C POSTROUTING -j $NAT_CHAIN >/dev/null 2>&1")) return false
+        if (!commandSucceeds("iptables -t nat -C PREROUTING -j $DNS_CHAIN >/dev/null 2>&1")) return false
+        if (!commandSucceeds("iptables -C FORWARD -j $FORWARD_CHAIN >/dev/null 2>&1")) return false
+        if (!commandSucceeds("iptables -C OUTPUT -j $OUTPUT_CHAIN >/dev/null 2>&1")) return false
+        if (!commandSucceeds("ip6tables -C FORWARD -j $IPV6_FORWARD_CHAIN >/dev/null 2>&1")) return false
+        return downstreams.all { downstream ->
+            commandSucceeds(
+                "ip rule show | grep -q \"^$HOTSPOT_VPN_RULE_PRIORITY:.*iif $downstream .*lookup $tunnel\" && " +
+                    "ip rule show | grep -q \"^$HOTSPOT_BLOCK_RULE_PRIORITY:.*iif $downstream .*lookup $HOTSPOT_BLOCK_ROUTE_TABLE\" && " +
+                    "ip route show table $HOTSPOT_BLOCK_ROUTE_TABLE | grep -q \"unreachable default\" && " +
+                    "iptables -C $FORWARD_CHAIN -i $downstream -o $tunnel -j ACCEPT >/dev/null 2>&1 && " +
+                    "iptables -C $FORWARD_CHAIN -i $downstream -j REJECT >/dev/null 2>&1 && " +
+                    "ip6tables -C $IPV6_FORWARD_CHAIN -i $downstream -j REJECT >/dev/null 2>&1"
+            )
+        }
+    }
+
+    private fun commandSucceeds(command: String): Boolean {
+        return Application.getRootShell().run(null, command) == 0
+    }
+
+    private fun clearLastRuleSignature(context: Context) {
+        context.applicationContext
+            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .remove(KEY_LAST_RULE_SIGNATURE)
+            .apply()
     }
 
     private fun setOperation(context: Context, stage: OperationStage, detail: String? = null) {
@@ -552,7 +603,9 @@ object VpnRouterManager {
         if (!prefs.contains(KEY_WIFI_AP_TIMEOUT_PREVIOUS)) {
             prefs.edit().putString(KEY_WIFI_AP_TIMEOUT_PREVIOUS, readSecureSetting(WIFI_AP_TIMEOUT_SETTING) ?: "").apply()
         }
-        checkedRun("disable hotspot auto shutdown", "settings put secure $WIFI_AP_TIMEOUT_SETTING 0")
+        if (readSecureSetting(WIFI_AP_TIMEOUT_SETTING) != "0") {
+            checkedRun("disable hotspot auto shutdown", "settings put secure $WIFI_AP_TIMEOUT_SETTING 0")
+        }
     }
 
     private fun restoreHotspotAutoShutdown() {
@@ -572,7 +625,9 @@ object VpnRouterManager {
         if (!prefs.contains(KEY_TETHER_OFFLOAD_PREVIOUS)) {
             prefs.edit().putString(KEY_TETHER_OFFLOAD_PREVIOUS, readGlobalSetting(TETHER_OFFLOAD_DISABLED_SETTING) ?: "").apply()
         }
-        checkedRun("disable tether offload", "settings put global $TETHER_OFFLOAD_DISABLED_SETTING 1")
+        if (readGlobalSetting(TETHER_OFFLOAD_DISABLED_SETTING) != "1") {
+            checkedRun("disable tether offload", "settings put global $TETHER_OFFLOAD_DISABLED_SETTING 1")
+        }
     }
 
     private fun restoreTetherOffload() {
@@ -747,6 +802,7 @@ object VpnRouterManager {
     private const val KEY_DNS_MODE = "dns_mode"
     private const val KEY_OPERATION_STAGE = "operation_stage"
     private const val KEY_OPERATION_DETAIL = "operation_detail"
+    private const val KEY_LAST_RULE_SIGNATURE = "last_rule_signature"
     private const val KEY_TETHER_OFFLOAD_PREVIOUS = "tether_offload_previous"
     private const val KEY_WIFI_AP_TIMEOUT_PREVIOUS = "wifi_ap_timeout_previous"
     private const val TETHER_OFFLOAD_DISABLED_SETTING = "tether_offload_disabled"
