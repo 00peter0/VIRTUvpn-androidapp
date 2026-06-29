@@ -182,6 +182,10 @@ Secure Browser intentionally does not enable Android cleartext traffic. `http:`,
 cleartext should use the separate Web Terminal flow. Android Safe Browsing stays
 enabled as a malware/phishing protection tradeoff; any Safe Browsing lookups
 egress through the bound VPN network.
+Secure Browser also blocks common advertising and tracking hosts in
+`shouldInterceptRequest` using a local in-app host/suffix matcher. This avoids a
+network-fetched filter dependency, reduces third-party requests, and generally
+improves both page speed and privacy.
 
 The router phone also gets its own lockdown while router mode is enabled. Normal
 phone internet must go through the active VPN interface. IPv4 and IPv6 phone

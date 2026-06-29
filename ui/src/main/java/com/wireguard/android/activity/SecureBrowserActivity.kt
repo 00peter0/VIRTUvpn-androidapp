@@ -37,6 +37,7 @@ import androidx.webkit.WebViewFeature
 import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.databinding.SecureBrowserActivityBinding
+import com.wireguard.android.util.SecureBrowserBlocker
 import com.wireguard.android.util.VcsDialogs
 import com.wireguard.android.util.VpnRouterManager
 import kotlinx.coroutines.Job
@@ -164,6 +165,7 @@ class SecureBrowserActivity : AppCompatActivity() {
 
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
                 if (blocked || !isAllowedBrowserUrl(request.url, request.isForMainFrame)) return blockedResponse()
+                if (SecureBrowserBlocker.shouldBlock(request.url, request.isForMainFrame)) return trackerBlockedResponse()
                 return null
             }
 
@@ -604,6 +606,11 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun blockedResponse(): WebResourceResponse =
         WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream(ByteArray(0)))
+
+    private fun trackerBlockedResponse(): WebResourceResponse =
+        WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream(ByteArray(0))).apply {
+            responseHeaders = mapOf("Cache-Control" to "no-store")
+        }
 
     private fun installDocumentStartWebRtcProtection(webView: WebView) {
         documentStartWebRtcProtection = if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
