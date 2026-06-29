@@ -82,6 +82,14 @@ Before loading a page, Secure Browser finds a usable VPN network and calls
 traffic and DNS through the VPN network instead of assuming Android's default
 network is already protected.
 
+`bindProcessToNetwork` is process-wide, so the userspace WireGuard backend needs
+an explicit regression check. The Go userspace backend protects its WireGuard
+transport sockets with `VpnService.protect(wgGetSocketV4/6(...))` after
+`wgTurnOn()`, which keeps the tunnel UDP sockets outside the VPN even when the
+browser later binds the process to the VPN network. This is expected to be safe,
+but releases must verify that opening Secure Browser while a Go userspace tunnel
+is active does not interrupt handshakes, roaming, or data transfer.
+
 Provider behavior:
 
 - VirtuVPN/WireGuard: when the app can identify running WgQuick tunnels, the UI
@@ -298,6 +306,8 @@ For every Secure Browser release:
   reachable or invalid,
 - verify a hotspot client without local VPN is allowed when attestation is valid,
 - verify navigation works with VirtuVPN active,
+- verify Go userspace VirtuVPN remains connected while Secure Browser is open
+  and the process is bound to the VPN network,
 - verify navigation works with a third-party Android VPN provider active,
 - verify VPN loss locks the browser and clears the loaded page,
 - verify the header shows protection path and only fetches exit identity after
