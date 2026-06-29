@@ -46,11 +46,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import org.json.JSONArray
+import org.json.JSONObject
 import java.io.ByteArrayInputStream
+import java.net.HttpURLConnection
+import java.net.URL
 
 class SecureBrowserActivity : AppCompatActivity() {
     private lateinit var binding: SecureBrowserActivityBinding
     private var monitorJob: Job? = null
+    private var egressLookupJob: Job? = null
     private var vpnNetworkCallback: ConnectivityManager.NetworkCallback? = null
     private var navigationDragActive = false
     private var navigationDownRawX = 0f
@@ -66,6 +70,12 @@ class SecureBrowserActivity : AppCompatActivity() {
     private data class BrowserProtection(
         val allowed: Boolean,
         val label: String
+    )
+
+    private data class EgressIdentity(
+        val ip: String,
+        val country: String,
+        val countryCode: String
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -109,6 +119,8 @@ class SecureBrowserActivity : AppCompatActivity() {
     override fun onPause() {
         monitorJob?.cancel()
         monitorJob = null
+        egressLookupJob?.cancel()
+        egressLookupJob = null
         unregisterVpnNetworkCallback()
         if (::binding.isInitialized) lockBrowser(showToast = false)
         clearEphemeralBrowserData()
@@ -117,6 +129,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        egressLookupJob?.cancel()
         unregisterVpnNetworkCallback()
         unbindBrowserNetwork()
         if (::binding.isInitialized) {
@@ -587,6 +600,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         binding.egressStatus.text = protection.label
         binding.egressStatus.setTextColor(getColor(if (protection.allowed) android.R.color.holo_green_light else android.R.color.holo_red_light))
         if (protection.allowed) {
+            refreshEgressIdentity(protection.label)
             blocked = false
             binding.vpnBlocker.visibility = View.GONE
             binding.secureWebview.visibility = View.VISIBLE
@@ -599,11 +613,64 @@ class SecureBrowserActivity : AppCompatActivity() {
                 }
             }
         } else {
+            egressLookupJob?.cancel()
             lockBrowser(showToast = !blocked)
             binding.secureWebview.visibility = View.GONE
             binding.vpnBlocker.visibility = View.VISIBLE
         }
         updateNavigationButtons()
+    }
+
+    private fun refreshEgressIdentity(baseLabel: String) {
+        egressLookupJob?.cancel()
+        binding.egressStatus.text = baseLabel
+        egressLookupJob = lifecycleScope.launch {
+            val identity = withContext(Dispatchers.IO) { fetchEgressIdentity() }
+            if (identity != null && ::binding.isInitialized && !blocked) {
+                binding.egressStatus.text = getString(
+                    R.string.vcs_secure_browser_egress_with_country,
+                    baseLabel,
+                    listOf(flagEmoji(identity.countryCode), identity.country).filter { it.isNotBlank() }.joinToString(" "),
+                    identity.ip
+                )
+            }
+        }
+    }
+
+    private fun fetchEgressIdentity(): EgressIdentity? {
+        val ip = fetchText("https://ipv4.icanhazip.com")
+            ?: fetchText("https://ipv6.icanhazip.com")
+            ?: return null
+        val geo = fetchText("https://ipwho.is/$ip") ?: return EgressIdentity(ip, "", "")
+        return runCatching {
+            val json = JSONObject(geo)
+            if (!json.optBoolean("success", false)) return@runCatching EgressIdentity(ip, "", "")
+            EgressIdentity(
+                ip = ip,
+                country = json.optString("country"),
+                countryCode = json.optString("country_code")
+            )
+        }.getOrDefault(EgressIdentity(ip, "", ""))
+    }
+
+    private fun fetchText(url: String): String? = try {
+        val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+            connectTimeout = 4000
+            readTimeout = 4000
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("User-Agent", "VirtuVPN")
+        }
+        conn.inputStream.bufferedReader().use { it.readText() }.trim()
+    } catch (_: Throwable) {
+        null
+    }
+
+    private fun flagEmoji(iso2: String): String {
+        if (iso2.length != 2) return ""
+        val cc = iso2.uppercase()
+        if (!cc.all { it in 'A'..'Z' }) return ""
+        val base = 0x1F1E6
+        return String(Character.toChars(base + (cc[0] - 'A'))) + String(Character.toChars(base + (cc[1] - 'A')))
     }
 
     private fun lockBrowser(showToast: Boolean) {
