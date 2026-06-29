@@ -434,22 +434,6 @@ object VpnRouterManager {
                     "iptables -A $FORWARD_CHAIN -i $downstream -d $resolver -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable"
                 )
             }
-            OPERA_PROXY_IPV4_BLOCKS.forEach { cidr ->
-                checkedRun(
-                    "block hotspot Opera proxy TCP $cidr",
-                    "iptables -A $FORWARD_CHAIN -i $downstream -d $cidr -p tcp -j REJECT --reject-with tcp-reset"
-                )
-                checkedRun(
-                    "block hotspot Opera proxy UDP $cidr",
-                    "iptables -A $FORWARD_CHAIN -i $downstream -d $cidr -p udp -j REJECT --reject-with icmp-port-unreachable"
-                )
-            }
-            OPERA_PROXY_IPV6_BLOCKS.forEach { cidr ->
-                checkedRun(
-                    "block hotspot Opera proxy IPv6 $cidr",
-                    "ip6tables -A $IPV6_FORWARD_CHAIN -i $downstream -d $cidr -j REJECT"
-                )
-            }
             checkedRun(
                 "allow hotspot to VPN forwarding",
                 "iptables -A $FORWARD_CHAIN -i $downstream -o $tunnel -j ACCEPT"
@@ -707,12 +691,6 @@ object VpnRouterManager {
         "185.228.169.9",
         "208.67.220.220",
         "208.67.222.222"
-    )
-    private val OPERA_PROXY_IPV4_BLOCKS = listOf(
-        "77.111.240.0/20"
-    )
-    private val OPERA_PROXY_IPV6_BLOCKS = listOf(
-        "2001:67c:2660::/48"
     )
     private val routerMutex = Mutex()
     private val INTERFACE_NAME_REGEX = Regex("^[A-Za-z0-9_.:=-]+$")
