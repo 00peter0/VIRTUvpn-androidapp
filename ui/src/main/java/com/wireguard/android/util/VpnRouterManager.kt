@@ -388,7 +388,12 @@ object VpnRouterManager {
             checkedRun("block phone uplink bypass", "iptables -A $OUTPUT_CHAIN -o $uplink -j REJECT")
         }
         checkedRun("finish output chain", "iptables -A $OUTPUT_CHAIN -j RETURN")
-        checkedRun("clear stale hotspot VPN routes", "while ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY 2>/dev/null; do :; done")
+        checkedRun(
+            "clear stale hotspot VPN routes",
+            "while ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY 2>/dev/null; do :; done; " +
+                "while ip rule del pref $HOTSPOT_BLOCK_RULE_PRIORITY 2>/dev/null; do :; done"
+        )
+        checkedRun("prepare hotspot fallback block route", "ip route replace unreachable default table $HOTSPOT_BLOCK_ROUTE_TABLE")
         downstreams.forEach { downstream ->
             checkedRun(
                 "route hotspot UDP DNS",
@@ -402,6 +407,11 @@ object VpnRouterManager {
                 "route hotspot traffic to VPN",
                 "ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY iif $downstream 2>/dev/null || true; " +
                     "ip rule add pref $HOTSPOT_VPN_RULE_PRIORITY iif $downstream lookup $tunnel"
+            )
+            checkedRun(
+                "block hotspot mobile fallback",
+                "ip rule del pref $HOTSPOT_BLOCK_RULE_PRIORITY iif $downstream 2>/dev/null || true; " +
+                    "ip rule add pref $HOTSPOT_BLOCK_RULE_PRIORITY iif $downstream lookup $HOTSPOT_BLOCK_ROUTE_TABLE"
             )
             checkedRun(
                 "block hotspot DNS over TLS",
@@ -443,7 +453,12 @@ object VpnRouterManager {
     }
 
     private fun removeRules() {
-        checkedRun("remove hotspot VPN routes", "while ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY 2>/dev/null; do :; done")
+        checkedRun(
+            "remove hotspot VPN routes",
+            "while ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY 2>/dev/null; do :; done; " +
+                "while ip rule del pref $HOTSPOT_BLOCK_RULE_PRIORITY 2>/dev/null; do :; done; " +
+                "ip route flush table $HOTSPOT_BLOCK_ROUTE_TABLE 2>/dev/null || true"
+        )
         checkedRun("flush route cache", "ip route flush cache 2>/dev/null || true")
         checkedRun(
             "detach NAT chain",
@@ -690,6 +705,8 @@ object VpnRouterManager {
     private const val OUTPUT_CHAIN = "VIRTUVPN_ROUTER_OUT"
     private const val IPV6_FORWARD_CHAIN = "VIRTUVPN_ROUTER6_FWD"
     private const val HOTSPOT_VPN_RULE_PRIORITY = 20900
+    private const val HOTSPOT_BLOCK_RULE_PRIORITY = 20901
+    private const val HOTSPOT_BLOCK_ROUTE_TABLE = 1048
     private const val MAX_DNS_RESOLVERS = 2
     private val COMMON_ENCRYPTED_DNS_RESOLVERS = listOf(
         "1.0.0.1",

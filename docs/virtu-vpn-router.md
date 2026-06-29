@@ -63,6 +63,9 @@ When enabled, the app installs root rules that:
 - attach a VirtuVPN forwarding chain at the start of `FORWARD`,
 - attach a VirtuVPN phone-output chain at the start of `OUTPUT`,
 - add a policy route for each hotspot interface to the active VPN table,
+- add an immediate fallback-block route after the VPN policy route so Android's
+  lower-priority mobile tether route cannot carry hotspot traffic if the VPN
+  table is temporarily unusable,
 - redirect hotspot client TCP/UDP DNS on port 53 to the selected router DNS
   resolver,
 - expose a local guest dashboard on the router gateway without transparent HTTP
@@ -321,7 +324,9 @@ Before using a new rooted Android device as a production router:
    - direct mobile uplink is blocked for clients,
    - router phone ordinary output is blocked outside VPN except VPN transport,
    - `FORWARD` and `POSTROUTING` have one VirtuVPN jump each, and `PREROUTING`
-     has the DNS jump only.
+     has the DNS jump only,
+   - `ip rule` has hotspot VPN routing before a hotspot unreachable fallback,
+     and both are before Android's mobile tether fallback.
 4. Verify guest dashboard behavior:
    - new client has internet even if the portal does not open,
    - the router dashboard is reachable at the gateway fallback address,
