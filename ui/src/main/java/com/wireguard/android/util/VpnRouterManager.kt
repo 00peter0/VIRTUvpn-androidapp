@@ -494,6 +494,10 @@ object VpnRouterManager {
             checkedRun("allow active VPN provider transport", "iptables -A $OUTPUT_CHAIN -m owner --uid-owner $vpnOwnerUid -j RETURN")
             checkedRun("allow active VPN provider IPv6 transport", "ip6tables -A $IPV6_OUTPUT_CHAIN -m owner --uid-owner $vpnOwnerUid -j RETURN || true")
         }
+        downstreams.forEach { downstream ->
+            checkedRun("allow phone egress to hotspot clients", "iptables -A $OUTPUT_CHAIN -o $downstream -j RETURN")
+            checkedRun("allow phone IPv6 egress to hotspot clients", "ip6tables -A $IPV6_OUTPUT_CHAIN -o $downstream -j RETURN")
+        }
         downstreams.asReversed().forEach { downstream ->
             checkedRun(
                 "allow router attestation from hotspot",
@@ -604,6 +608,8 @@ object VpnRouterManager {
                     "ip rule show | grep -q \"^$HOTSPOT_BLOCK_RULE_PRIORITY:.*iif $downstream .*lookup $HOTSPOT_BLOCK_ROUTE_TABLE\" && " +
                     "ip route show table $HOTSPOT_BLOCK_ROUTE_TABLE | grep -q \"unreachable default\" && " +
                     "iptables -C INPUT -i $downstream -p tcp --dport ${VpnRouterAttestation.PORT} -j ACCEPT >/dev/null 2>&1 && " +
+                    "iptables -C $OUTPUT_CHAIN -o $downstream -j RETURN >/dev/null 2>&1 && " +
+                    "ip6tables -C $IPV6_OUTPUT_CHAIN -o $downstream -j RETURN >/dev/null 2>&1 && " +
                     "iptables -C $FORWARD_CHAIN -i $downstream -o $tunnel -j ACCEPT >/dev/null 2>&1 && " +
                     "iptables -C $FORWARD_CHAIN -i $downstream -j REJECT >/dev/null 2>&1 && " +
                     "ip6tables -C $IPV6_FORWARD_CHAIN -i $downstream -j REJECT >/dev/null 2>&1"
