@@ -164,6 +164,9 @@ browsing on the client device itself, install VirtuVPN on that device and use
 client-side protection. The VPN Router page shows a VirtuVPN app download link
 and QR code for connected devices.
 
+Secure Browser has its own detailed design document:
+`docs/virtu-secure-browser.md`.
+
 Secure Browser must not trust ordinary private WiFi addressing as proof of
 router protection. On client devices it is allowed only when the process can bind
 to an Android VPN network. On the router phone itself it may also run while VPN
