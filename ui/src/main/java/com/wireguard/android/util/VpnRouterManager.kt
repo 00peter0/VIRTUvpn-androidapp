@@ -453,6 +453,15 @@ object VpnRouterManager {
                     "iptables -A $FORWARD_CHAIN -i $downstream -d $resolver -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable"
                 )
             }
+            checkedRun(
+                "allow hotspot to VPN forwarding",
+                "iptables -A $FORWARD_CHAIN -i $downstream -o $tunnel -j ACCEPT"
+            )
+            checkedRun(
+                "allow VPN return traffic",
+                "iptables -A $FORWARD_CHAIN -i $tunnel -o $downstream -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT || " +
+                    "iptables -A $FORWARD_CHAIN -i $tunnel -o $downstream -m state --state RELATED,ESTABLISHED -j ACCEPT"
+            )
             if (portalAddress != null) {
                 checkedRun(
                     "allow hotspot portal DNS UDP",
@@ -463,19 +472,10 @@ object VpnRouterManager {
                     "iptables -A $FORWARD_CHAIN -i $downstream -p tcp --dport 53 -j ACCEPT"
                 )
                 checkedRun(
-                    "require hotspot portal decision",
+                    "require hotspot portal decision for non-VPN traffic",
                     "iptables -A $FORWARD_CHAIN -i $downstream -j $ACCESS_CHAIN"
                 )
             }
-            checkedRun(
-                "allow hotspot to VPN forwarding",
-                "iptables -A $FORWARD_CHAIN -i $downstream -o $tunnel -j ACCEPT"
-            )
-            checkedRun(
-                "allow VPN return traffic",
-                "iptables -A $FORWARD_CHAIN -i $tunnel -o $downstream -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT || " +
-                    "iptables -A $FORWARD_CHAIN -i $tunnel -o $downstream -m state --state RELATED,ESTABLISHED -j ACCEPT"
-            )
             checkedRun(
                 "block hotspot bypass traffic",
                 "iptables -A $FORWARD_CHAIN -i $downstream -j REJECT"

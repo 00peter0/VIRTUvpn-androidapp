@@ -269,7 +269,7 @@ object VpnRouterGuestServer {
                 <p class="copy">This hotspot is routed through VPN. Use Router Secure Web to browse through the router without exposing client DNS or local browser network details to the destination site.</p>
                 <div class="actions">
                   <a class="primary" href="/virtuvpn-router/secure-web">Open Router Secure Web</a>
-                  <a class="secondary" href="${secureWebPath(WEBSITE_URL)}">vcs.virtucomputing.com</a>
+                  <a class="secondary" href="/virtuvpn-router/install">Install / update Virtu app</a>
                   <form method="get" action="/virtuvpn-router/ignore">
                     <label class="check"><input required type="checkbox"> <span>I do not need secure browsing and want to use a regular browser on this device.</span></label>
                     <button class="secondary button" type="submit">OK, continue without protection</button>
