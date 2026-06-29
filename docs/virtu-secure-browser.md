@@ -208,6 +208,10 @@ Secure Browser is ephemeral by default. On pause and destroy it clears:
 - form data,
 - browser history.
 
+Android `CookieManager` is process-global. Clearing Secure Browser cookies also
+clears cookies used by other in-app WebView surfaces such as Web Terminal. This
+is an intentional privacy-favoring tradeoff for the ephemeral browser mode.
+
 Bookmarks are intentionally persisted because they are explicit user state.
 
 ## Tracker And Ad Blocking
@@ -289,6 +293,8 @@ VPN. The browser still shows the router tunnel in the egress header.
   security control.
 - Android Safe Browsing may contact Google Safe Browsing infrastructure through
   the VPN.
+- Secure Browser cookie cleanup is process-global and may sign out other in-app
+  WebView features such as Web Terminal.
 - Host-based tracker blocking is best-effort and does not replace a full
   extension-grade content blocker.
 - WebRTC protection depends on WebView behavior; document-start injection is the
