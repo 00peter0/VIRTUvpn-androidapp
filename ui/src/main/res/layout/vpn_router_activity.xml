@@ -186,13 +186,13 @@
                     android:textStyle="bold" />
 
                 <TextView
-                    android:id="@+id/router_guest_dashboard"
+                    android:id="@+id/router_guest_download"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
                     android:autoLink="web"
                     android:linksClickable="true"
-                    android:text="@string/vcs_vpn_router_guest_dashboard"
+                    android:text="@string/vcs_vpn_router_guest_download"
                     android:textColor="#7D8B99"
                     android:textSize="13sp" />
 

@@ -24,7 +24,7 @@ a usable VPN interface such as `tun*` or `wg*`.
   - ethernet or USB uplink,
   - unknown physical uplink.
 - Show router status, uplink status, phone kill switch status, router protection,
-  router local IP QR, and router-only DNS settings in the VPN Router page.
+  VirtuVPN app download QR, and router-only DNS settings in the VPN Router page.
 
 ## Multi-Uplink Model
 
@@ -68,7 +68,7 @@ When enabled, the app installs root rules that:
   table is temporarily unusable,
 - redirect hotspot client TCP/UDP DNS on port 53 to the selected router DNS
   resolver,
-- show the router local IP and QR code in the VPN Router page,
+- show a VirtuVPN app download link and QR code in the VPN Router page,
 - allow the router phone's own internet traffic only through the VPN interface,
 - allow the active VPN provider UID or WireGuard fwmark to use the physical
   uplink for tunnel transport,
@@ -141,12 +141,10 @@ signature changes or the health check fails.
 This protects speed tests and large downloads from repeated route/firewall churn
 while keeping the router fail-closed model intact.
 
-Guest clients must not depend on captive HTML for connectivity. Captive
-portal behavior is unreliable because client operating systems cache probe
-results, suppress popups, and handle private DNS, VPN, and browser state
-differently. VPN Router therefore does not serve hotspot HTML, does not hijack
-HTTP, and does not expose a router-side web browser. The only guest-facing UI is
-the Router page section that shows the router local IP and a QR code for that IP.
+Hotspot clients get internet through the router VPN path immediately. For safer
+browsing on the client device itself, install VirtuVPN on that device and use
+client-side protection. The VPN Router page shows a VirtuVPN app download link
+and QR code for connected devices.
 
 The router phone also gets its own lockdown while router mode is enabled. Normal
 phone internet must go through the active VPN interface. The physical uplink is
@@ -250,20 +248,18 @@ guarantee automatic SoftAP restart after a manual user/system stop. That can be
 added later with a stored SoftAP profile and `cmd wifi start-softap`, but it must
 not guess or overwrite the user's hotspot password.
 
-## Router local IP and QR
+## Client app download
 
-VPN Router does not run a hotspot HTML server. Connected clients get network
-routing only; they are not redirected to a captive page and no local web proxy is
-served from the router phone.
+The VPN Router page shows a VirtuVPN app download link and QR code for connected
+client devices:
 
-The VPN Router page shows the router local IP, currently `192.168.115.186` on
-the Samsung hotspot profile, and a QR code containing that IP. This is an
-operator aid for manual diagnostics and device setup. It is not required for
-client internet access.
+```text
+https://vcs.virtucomputing.com/api/mobile/android/apk/guest
+```
 
-Secure Browser protection is handled by the native VirtuVPN app on the client or
-by Android VPN network detection. The old router local IP marker and router-side
-Secure Web proxy are removed.
+Router VPN protects the hotspot network path. For safer browsing on the client
+device, download VirtuVPN to that device and use client-side protection there.
+The client app is the supported path for device-local browser protection.
 
 ## Reconcile
 
@@ -290,7 +286,7 @@ The VPN Router page shows:
 - router status,
 - detected uplink,
 - router protection status,
-- router local IP and QR code for connected devices,
+- VirtuVPN app download link and QR code for connected devices,
 - router DNS options.
 
 When router protection is active, hotspot clients stay associated with WiFi but
@@ -305,7 +301,7 @@ outside the VPN while router mode is enabled.
 2. Install fail-closed router NAT, forwarding, and policy-routing rules.
 3. Reconcile rules when VPN, hotspot, or uplink changes.
 4. Apply router-only DNS behavior for hotspot clients.
-5. Show router local IP and QR in the VPN Router page.
+5. Show VirtuVPN app download link and QR in the VPN Router page.
 6. Disable known hotspot auto-shutdown behavior while router mode is enabled.
 7. Validate with:
    - VirtuVPN tunnel,
@@ -319,8 +315,8 @@ outside the VPN while router mode is enabled.
    - client reconnect with reused DHCP address,
    - DNS leak scans,
    - IPv6 leak scans,
-   - Router page QR contains the router local IP,
-   - regular browsing works without opening the dashboard.
+   - Router page QR contains the VirtuVPN app download link,
+   - regular browsing works without opening any router page.
 
 ## New device checklist
 
@@ -341,11 +337,11 @@ Before using a new rooted Android device as a production router:
      has the DNS jump only,
    - `ip rule` has hotspot VPN routing before a hotspot unreachable fallback,
      and both are before Android's mobile tether fallback.
-4. Verify router local IP behavior:
-   - new client has internet without any captive page,
-   - the Router page shows the router local IP,
-   - the Router page QR code contains the same local IP,
-   - no hotspot HTML server or captive portal endpoint is required.
+4. Verify client app download behavior:
+   - new client has internet through the router VPN path,
+   - the Router page shows the VirtuVPN app download link,
+   - the Router page QR code contains the same download link,
+   - the download link serves the current guest APK.
 5. Verify DNS behavior:
    - selected router resolver is used,
    - competing DoH/DoT providers are blocked,

@@ -28,7 +28,7 @@ class VpnRouterActivity : AppCompatActivity() {
     private lateinit var routerUplinkStatus: TextView
     private lateinit var routerProtectionStatus: TextView
     private lateinit var routerGuestAccessStatus: TextView
-    private lateinit var routerGuestDashboard: TextView
+    private lateinit var routerGuestDownload: TextView
     private lateinit var routerGuestQr: ImageView
     private lateinit var routerDnsGroup: RadioGroup
     private var routerMonitorJob: Job? = null
@@ -46,7 +46,7 @@ class VpnRouterActivity : AppCompatActivity() {
         routerUplinkStatus = findViewById(R.id.router_uplink_status)
         routerProtectionStatus = findViewById(R.id.router_protection_status)
         routerGuestAccessStatus = findViewById(R.id.router_guest_access_status)
-        routerGuestDashboard = findViewById(R.id.router_guest_dashboard)
+        routerGuestDownload = findViewById(R.id.router_guest_download)
         routerGuestQr = findViewById(R.id.router_guest_qr)
         routerDnsGroup = findViewById(R.id.router_dns_group)
         routerDnsGroup.setOnCheckedChangeListener { _, checkedId ->
@@ -271,11 +271,8 @@ class VpnRouterActivity : AppCompatActivity() {
             }
         )
         routerGuestAccessStatus.setTextColor(if (active) GREEN else YELLOW)
-        val gateway = status.tetherInterfaces.firstOrNull()?.let { interfaceName ->
-            if (interfaceName == "swlan0") "192.168.115.186" else null
-        } ?: "192.168.115.186"
-        routerGuestDashboard.text = getString(R.string.vcs_vpn_router_guest_dashboard_with_address, gateway)
-        routerGuestQr.setImageBitmap(createQrBitmap(gateway))
+        routerGuestDownload.text = getString(R.string.vcs_vpn_router_guest_download_with_address, VIRTUVPN_DOWNLOAD_URL)
+        routerGuestQr.setImageBitmap(createQrBitmap(VIRTUVPN_DOWNLOAD_URL))
     }
 
     private fun createQrBitmap(value: String): Bitmap {
@@ -304,5 +301,6 @@ class VpnRouterActivity : AppCompatActivity() {
         val YELLOW: Int = Color.parseColor("#FBBF24")
         val RED: Int = Color.parseColor("#F87171")
         const val QR_SIZE: Int = 512
+        const val VIRTUVPN_DOWNLOAD_URL: String = "https://vcs.virtucomputing.com/api/mobile/android/apk/guest"
     }
 }
