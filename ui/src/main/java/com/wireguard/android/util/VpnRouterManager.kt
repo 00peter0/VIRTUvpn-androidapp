@@ -418,20 +418,20 @@ object VpnRouterManager {
             )
             checkedRun(
                 "block hotspot DNS over TLS",
-                "iptables -A $FORWARD_CHAIN -i $downstream -p tcp --dport 853 -j REJECT"
+                "iptables -A $FORWARD_CHAIN -i $downstream -p tcp --dport 853 -j REJECT --reject-with tcp-reset"
             )
             checkedRun(
                 "block hotspot DNS over QUIC",
-                "iptables -A $FORWARD_CHAIN -i $downstream -p udp --dport 853 -j REJECT"
+                "iptables -A $FORWARD_CHAIN -i $downstream -p udp --dport 853 -j REJECT --reject-with icmp-port-unreachable"
             )
-            COMMON_DOH_RESOLVERS.forEach { resolver ->
+            encryptedDnsBlocklist(dnsResolvers).forEach { resolver ->
                 checkedRun(
                     "block hotspot DoH TCP $resolver",
-                    "iptables -A $FORWARD_CHAIN -i $downstream -d $resolver -p tcp --dport 443 -j REJECT"
+                    "iptables -A $FORWARD_CHAIN -i $downstream -d $resolver -p tcp --dport 443 -j REJECT --reject-with tcp-reset"
                 )
                 checkedRun(
                     "block hotspot DoH QUIC $resolver",
-                    "iptables -A $FORWARD_CHAIN -i $downstream -d $resolver -p udp --dport 443 -j REJECT"
+                    "iptables -A $FORWARD_CHAIN -i $downstream -d $resolver -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable"
                 )
             }
             checkedRun(
@@ -525,6 +525,23 @@ object VpnRouterManager {
             .joinToString(" ")
         if (dnsArgs.isBlank()) return
         checkedRun("override tether DNS forwarders", "ndc tether dns set $netId $dnsArgs")
+    }
+
+    private fun encryptedDnsBlocklist(activeResolvers: List<String>): List<String> {
+        val allowed = activeResolvers
+            .filter(::isIpv4Address)
+            .flatMap(::resolverFamily)
+            .toSet()
+        return COMMON_ENCRYPTED_DNS_RESOLVERS.filterNot { resolver -> allowed.contains(resolver) }
+    }
+
+    private fun resolverFamily(resolver: String): List<String> {
+        return when (resolver) {
+            "1.1.1.1", "1.0.0.1" -> listOf("1.1.1.1", "1.0.0.1")
+            "1.1.1.3", "1.0.0.3" -> listOf("1.1.1.3", "1.0.0.3")
+            "9.9.9.9", "149.112.112.112" -> listOf("9.9.9.9", "149.112.112.112")
+            else -> listOf(resolver)
+        }
     }
 
     private fun checkedRun(label: String, command: String) {
@@ -653,9 +670,11 @@ object VpnRouterManager {
     private const val IPV6_FORWARD_CHAIN = "VIRTUVPN_ROUTER6_FWD"
     private const val HOTSPOT_VPN_RULE_PRIORITY = 20900
     private const val MAX_DNS_RESOLVERS = 2
-    private val COMMON_DOH_RESOLVERS = listOf(
+    private val COMMON_ENCRYPTED_DNS_RESOLVERS = listOf(
         "1.0.0.1",
+        "1.0.0.3",
         "1.1.1.1",
+        "1.1.1.3",
         "8.8.4.4",
         "8.8.8.8",
         "9.9.9.9",
