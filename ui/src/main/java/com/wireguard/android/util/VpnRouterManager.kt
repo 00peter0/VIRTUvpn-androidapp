@@ -99,7 +99,7 @@ object VpnRouterManager {
         routerMutex.withLock {
         val appContext = context.applicationContext
         val status = detect(appContext)
-        if (status.availability != Availability.ENABLED) return@withLock status
+        if (status.availability != Availability.ENABLED && status.availability != Availability.ERROR) return@withLock status
         disableHotspotAutoShutdown(appContext)
         val tunnelName = status.activeTunnel ?: return@withLock status
         if (status.tetherInterfaces.isEmpty()) return@withLock status
@@ -196,6 +196,17 @@ object VpnRouterManager {
         val dnsResolvers = resolveDnsResolvers(context, runningTunnel)
         val hotspotActive = HotspotDetector.isWifiHotspotActive(context)
         if (installed) {
+            val healthy = verifyRouterRules(runningTunnel, tetherInterfaces)
+            if (!healthy) {
+                return Status(
+                    availability = Availability.ERROR,
+                    activeTunnel = runningTunnel,
+                    tetherInterfaces = tetherInterfaces,
+                    uplinkInterfaces = uplinkInterfaces,
+                    dnsResolvers = dnsResolvers,
+                    detail = "router rules incomplete; waiting for reconcile"
+                )
+            }
             return Status(
                 availability = Availability.ENABLED,
                 activeTunnel = runningTunnel,
@@ -390,12 +401,14 @@ object VpnRouterManager {
         checkedRun("prepare forward chain", "iptables -N $FORWARD_CHAIN 2>/dev/null || true")
         checkedRun("prepare output chain", "iptables -N $OUTPUT_CHAIN 2>/dev/null || true")
         checkedRun("prepare IPv6 forward chain", "ip6tables -N $IPV6_FORWARD_CHAIN 2>/dev/null || true")
+        checkedRun("prepare IPv6 output chain", "ip6tables -N $IPV6_OUTPUT_CHAIN 2>/dev/null || true")
         checkedRun("clear NAT chain", "iptables -t nat -F $NAT_CHAIN")
         checkedRun("clear DNS chain", "iptables -t nat -F $DNS_CHAIN")
         checkedRun("clear forward chain", "iptables -F $FORWARD_CHAIN")
         checkedRun("remove legacy access chain", "iptables -F VIRTUVPN_ROUTER_ACCESS 2>/dev/null || true; iptables -X VIRTUVPN_ROUTER_ACCESS 2>/dev/null || true")
         checkedRun("clear output chain", "iptables -F $OUTPUT_CHAIN")
         checkedRun("clear IPv6 forward chain", "ip6tables -F $IPV6_FORWARD_CHAIN")
+        checkedRun("clear IPv6 output chain", "ip6tables -F $IPV6_OUTPUT_CHAIN")
         checkedRun("prepare hotspot fallback block route", "ip route replace unreachable default table $HOTSPOT_BLOCK_ROUTE_TABLE")
         downstreams.forEach { downstream ->
             checkedRun(
@@ -443,6 +456,11 @@ object VpnRouterManager {
                 "iptables -I OUTPUT 1 -j $OUTPUT_CHAIN"
         )
         checkedRun(
+            "attach IPv6 output chain",
+            "while ip6tables -D OUTPUT -j $IPV6_OUTPUT_CHAIN 2>/dev/null; do :; done; " +
+                "ip6tables -I OUTPUT 1 -j $IPV6_OUTPUT_CHAIN"
+        )
+        checkedRun(
             "attach IPv6 forward chain",
             "while ip6tables -D FORWARD -j $IPV6_FORWARD_CHAIN 2>/dev/null; do :; done; " +
                 "ip6tables -I FORWARD 1 -j $IPV6_FORWARD_CHAIN"
@@ -451,15 +469,22 @@ object VpnRouterManager {
         setOperation(context, OperationStage.APPLYING_DNS, "Applying router DNS for hotspot clients")
         overrideTetherDnsForwarders(dnsResolvers)
         checkedRun("masquerade VPN egress", "iptables -t nat -A $NAT_CHAIN -o $tunnel -j MASQUERADE")
+        checkedRun("allow phone loopback egress", "iptables -A $OUTPUT_CHAIN -o lo -j RETURN")
         checkedRun("allow phone VPN egress", "iptables -A $OUTPUT_CHAIN -o $tunnel -j RETURN")
         checkedRun("allow WireGuard fwmark transport", "iptables -A $OUTPUT_CHAIN -m mark --mark 0x20000 -j RETURN || true")
+        checkedRun("allow phone IPv6 loopback egress", "ip6tables -A $IPV6_OUTPUT_CHAIN -o lo -j RETURN")
+        checkedRun("allow phone IPv6 VPN egress", "ip6tables -A $IPV6_OUTPUT_CHAIN -o $tunnel -j RETURN")
+        checkedRun("allow WireGuard IPv6 fwmark transport", "ip6tables -A $IPV6_OUTPUT_CHAIN -m mark --mark 0x20000 -j RETURN || true")
         if (vpnOwnerUid != null) {
             checkedRun("allow active VPN provider transport", "iptables -A $OUTPUT_CHAIN -m owner --uid-owner $vpnOwnerUid -j RETURN")
+            checkedRun("allow active VPN provider IPv6 transport", "ip6tables -A $IPV6_OUTPUT_CHAIN -m owner --uid-owner $vpnOwnerUid -j RETURN || true")
         }
         uplinks.forEach { uplink ->
             checkedRun("block phone uplink bypass", "iptables -A $OUTPUT_CHAIN -o $uplink -j REJECT")
+            checkedRun("block phone IPv6 uplink bypass", "ip6tables -A $IPV6_OUTPUT_CHAIN -o $uplink -j REJECT")
         }
-        checkedRun("finish output chain", "iptables -A $OUTPUT_CHAIN -j RETURN")
+        checkedRun("finish output chain fail-closed", "iptables -A $OUTPUT_CHAIN -j REJECT")
+        checkedRun("finish IPv6 output chain fail-closed", "ip6tables -A $IPV6_OUTPUT_CHAIN -j REJECT")
         checkedRun("clear temporary forward deny rules", "iptables -F $FORWARD_CHAIN")
         checkedRun("clear temporary IPv6 forward deny rules", "ip6tables -F $IPV6_FORWARD_CHAIN")
         downstreams.forEach { downstream ->
@@ -517,6 +542,7 @@ object VpnRouterManager {
                     "ip rule add pref $HOTSPOT_VPN_RULE_PRIORITY iif $downstream lookup $tunnel"
             )
         }
+        checkedRun("finish IPv6 forwarding fail-closed", "ip6tables -A $IPV6_FORWARD_CHAIN -j REJECT")
         setOperation(context, OperationStage.VERIFYING_RULES, "Verifying VPN route and mobile fallback block")
         downstreams.forEach { downstream ->
             checkedRun(
@@ -539,6 +565,10 @@ object VpnRouterManager {
         if (!commandSucceeds("iptables -C FORWARD -j $FORWARD_CHAIN >/dev/null 2>&1")) return false
         if (!commandSucceeds("iptables -C OUTPUT -j $OUTPUT_CHAIN >/dev/null 2>&1")) return false
         if (!commandSucceeds("ip6tables -C FORWARD -j $IPV6_FORWARD_CHAIN >/dev/null 2>&1")) return false
+        if (!commandSucceeds("ip6tables -C OUTPUT -j $IPV6_OUTPUT_CHAIN >/dev/null 2>&1")) return false
+        if (!commandSucceeds("iptables -C $OUTPUT_CHAIN -j REJECT >/dev/null 2>&1")) return false
+        if (!commandSucceeds("ip6tables -C $IPV6_OUTPUT_CHAIN -j REJECT >/dev/null 2>&1")) return false
+        if (!commandSucceeds("ip6tables -C $IPV6_FORWARD_CHAIN -j REJECT >/dev/null 2>&1")) return false
         return downstreams.all { downstream ->
             commandSucceeds(
                 "ip rule show | grep -q \"^$HOTSPOT_VPN_RULE_PRIORITY:.*iif $downstream .*lookup $tunnel\" && " +
@@ -598,6 +628,10 @@ object VpnRouterManager {
             "iptables -D OUTPUT -j $OUTPUT_CHAIN 2>/dev/null || true"
         )
         checkedRun(
+            "detach IPv6 output chain",
+            "ip6tables -D OUTPUT -j $IPV6_OUTPUT_CHAIN 2>/dev/null || true"
+        )
+        checkedRun(
             "detach IPv6 forward chain",
             "ip6tables -D FORWARD -j $IPV6_FORWARD_CHAIN 2>/dev/null || true"
         )
@@ -613,6 +647,8 @@ object VpnRouterManager {
         checkedRun("delete output chain", "iptables -X $OUTPUT_CHAIN 2>/dev/null || true")
         checkedRun("clear IPv6 forward chain", "ip6tables -F $IPV6_FORWARD_CHAIN 2>/dev/null || true")
         checkedRun("delete IPv6 forward chain", "ip6tables -X $IPV6_FORWARD_CHAIN 2>/dev/null || true")
+        checkedRun("clear IPv6 output chain", "ip6tables -F $IPV6_OUTPUT_CHAIN 2>/dev/null || true")
+        checkedRun("delete IPv6 output chain", "ip6tables -X $IPV6_OUTPUT_CHAIN 2>/dev/null || true")
         restoreHotspotAutoShutdown()
         restoreTetherOffload()
     }
@@ -831,6 +867,7 @@ object VpnRouterManager {
     private const val FORWARD_CHAIN = "VIRTUVPN_ROUTER_FWD"
     private const val OUTPUT_CHAIN = "VIRTUVPN_ROUTER_OUT"
     private const val IPV6_FORWARD_CHAIN = "VIRTUVPN_ROUTER6_FWD"
+    private const val IPV6_OUTPUT_CHAIN = "VIRTUVPN_ROUTER6_OUT"
     private const val HOTSPOT_VPN_RULE_PRIORITY = 20900
     private const val HOTSPOT_BLOCK_RULE_PRIORITY = 20901
     private const val HOTSPOT_BLOCK_ROUTE_TABLE = 1048

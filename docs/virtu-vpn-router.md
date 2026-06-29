@@ -144,6 +144,10 @@ healthy, reconcile exits without flushing iptables chains, rewriting DNS
 forwarders, or replacing policy routes. A full rebuild is allowed only when the
 signature changes or the health check fails.
 
+The UI may show router protection as active only when the health check also sees
+the policy routes, fallback unreachable route, IPv4/IPv6 hooks, and fail-closed
+OUTPUT/FORWARD tails. Chain existence alone is not enough for an active status.
+
 This protects speed tests and large downloads from repeated route/firewall churn
 while keeping the router fail-closed model intact.
 
@@ -153,11 +157,12 @@ client-side protection. The VPN Router page shows a VirtuVPN app download link
 and QR code for connected devices.
 
 The router phone also gets its own lockdown while router mode is enabled. Normal
-phone internet must go through the active VPN interface. The physical uplink is
-kept available only for the VPN transport itself, so the tunnel can stay alive
-without allowing ordinary phone apps to bypass the VPN. When router mode is
-disabled, these OUTPUT rules are removed and the phone returns to normal mobile
-internet behavior.
+phone internet must go through the active VPN interface. IPv4 and IPv6 phone
+OUTPUT chains are fail-closed: loopback, the active VPN interface, WireGuard
+transport marks, and the active VPN provider UID are allowed, then all other
+phone output is rejected. This avoids relying only on known OEM uplink interface
+names. When router mode is disabled, these OUTPUT rules are removed and the
+phone returns to normal mobile internet behavior.
 
 ## DNS
 
@@ -187,6 +192,13 @@ When Copy DNS from tunnel is selected, VirtuVPN first tries the active
 Virtu/WireGuard tunnel config, then Android resolver properties, then falls back
 to Quad9 secure DNS if no tunnel resolver can be read.
 
+The router also blocks known DoT, DoQ, and common DoH resolver endpoints so
+clients cannot casually bypass the selected resolver. This is a DNS policy
+control, not a cryptographic content filter. A client can still use a private or
+unknown DoH endpoint over ordinary HTTPS on port 443, and blocking that
+generically would also block normal web traffic. Marketing and UI copy must not
+claim that router DNS filtering is impossible to bypass.
+
 ## IPv6 leak handling
 
 VPN Router currently treats IPv6 as protected only when the active VPN provider
@@ -196,9 +208,11 @@ side. That creates an IPv6 leak risk because IPv4 NAT/DNS router rules do not
 cover IPv6 packets.
 
 The production-safe default is therefore to block hotspot-client IPv6 forwarding
-while VPN Router is enabled. Clients keep IPv4 internet through the VPN tunnel,
-but IPv6 tests should show no reachable client IPv6 path unless full IPv6
-router support is explicitly added later.
+while VPN Router is enabled. The IPv6 FORWARD chain has per-downstream rejects
+and a final default reject, so an unexpected tether interface name does not fall
+back to native Android IPv6 forwarding. Clients keep IPv4 internet through the
+VPN tunnel, but IPv6 tests should show no reachable client IPv6 path unless full
+IPv6 router support is explicitly added later.
 
 VPN Router also disables Android tethering offload while router mode is enabled.
 Hardware/BPF offload can bypass ordinary iptables/ip6tables chains on some
@@ -339,6 +353,7 @@ Before using a new rooted Android device as a production router:
    - traffic leaves through the VPN egress,
    - direct mobile uplink is blocked for clients,
    - router phone ordinary output is blocked outside VPN except VPN transport,
+   - router phone IPv6 output is blocked outside VPN except VPN transport,
    - `FORWARD` and `POSTROUTING` have one VirtuVPN jump each, and `PREROUTING`
      has the DNS jump only,
    - `ip rule` has hotspot VPN routing before a hotspot unreachable fallback,
@@ -356,6 +371,7 @@ Before using a new rooted Android device as a production router:
 6. Verify IPv6 behavior:
    - hotspot client IPv6 forwarding is blocked unless full provider IPv6 routing
      has been explicitly implemented,
+   - router phone IPv6 output is blocked outside VPN except VPN transport,
    - DNS leak tools do not show client IPv6 egress outside the VPN.
 7. Verify hotspot lifetime:
    - Samsung `wifi_ap_timeout_setting` or equivalent OEM timeout is disabled,
