@@ -73,6 +73,7 @@ object VpnRouterManager {
         val appContext = context.applicationContext
         val status = detect(appContext)
         if (status.availability != Availability.ENABLED) return@withLock status
+        disableHotspotAutoShutdown(appContext)
         val tunnelName = status.activeTunnel ?: return@withLock status
         if (status.tetherInterfaces.isEmpty()) return@withLock status
         try {
@@ -352,6 +353,7 @@ object VpnRouterManager {
         val dnsResolver = dnsResolvers.first()
         val vpnOwnerUid = readVpnOwnerUid()
 
+        disableHotspotAutoShutdown(context)
         disableTetherOffload(context)
         overrideTetherDnsForwarders(dnsResolvers)
         checkedRun("enable IPv4 forwarding", "sysctl -w net.ipv4.ip_forward=1 >/dev/null")
@@ -525,7 +527,28 @@ object VpnRouterManager {
         checkedRun("delete output chain", "iptables -X $OUTPUT_CHAIN 2>/dev/null || true")
         checkedRun("clear IPv6 forward chain", "ip6tables -F $IPV6_FORWARD_CHAIN 2>/dev/null || true")
         checkedRun("delete IPv6 forward chain", "ip6tables -X $IPV6_FORWARD_CHAIN 2>/dev/null || true")
+        restoreHotspotAutoShutdown()
         restoreTetherOffload()
+    }
+
+    private fun disableHotspotAutoShutdown(context: Context) {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (!prefs.contains(KEY_WIFI_AP_TIMEOUT_PREVIOUS)) {
+            prefs.edit().putString(KEY_WIFI_AP_TIMEOUT_PREVIOUS, readSecureSetting(WIFI_AP_TIMEOUT_SETTING) ?: "").apply()
+        }
+        checkedRun("disable hotspot auto shutdown", "settings put secure $WIFI_AP_TIMEOUT_SETTING 0")
+    }
+
+    private fun restoreHotspotAutoShutdown() {
+        val prefs = Application.get().applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (!prefs.contains(KEY_WIFI_AP_TIMEOUT_PREVIOUS)) return
+        val previous = prefs.getString(KEY_WIFI_AP_TIMEOUT_PREVIOUS, "") ?: ""
+        if (previous.isBlank() || previous == "null") {
+            checkedRun("restore hotspot auto shutdown", "settings delete secure $WIFI_AP_TIMEOUT_SETTING 2>/dev/null || true")
+        } else {
+            checkedRun("restore hotspot auto shutdown", "settings put secure $WIFI_AP_TIMEOUT_SETTING $previous")
+        }
+        prefs.edit().remove(KEY_WIFI_AP_TIMEOUT_PREVIOUS).apply()
     }
 
     private fun disableTetherOffload(context: Context) {
@@ -598,6 +621,13 @@ object VpnRouterManager {
     private fun readGlobalSetting(name: String): String? {
         val output = mutableListOf<String>()
         val exit = Application.getRootShell().run(output, "settings get global $name 2>/dev/null")
+        if (exit != 0) return null
+        return output.firstOrNull()?.trim()
+    }
+
+    private fun readSecureSetting(name: String): String? {
+        val output = mutableListOf<String>()
+        val exit = Application.getRootShell().run(output, "settings get secure $name 2>/dev/null")
         if (exit != 0) return null
         return output.firstOrNull()?.trim()
     }
@@ -700,7 +730,9 @@ object VpnRouterManager {
     private const val PREFS = "virtuvpn_router"
     private const val KEY_DNS_MODE = "dns_mode"
     private const val KEY_TETHER_OFFLOAD_PREVIOUS = "tether_offload_previous"
+    private const val KEY_WIFI_AP_TIMEOUT_PREVIOUS = "wifi_ap_timeout_previous"
     private const val TETHER_OFFLOAD_DISABLED_SETTING = "tether_offload_disabled"
+    private const val WIFI_AP_TIMEOUT_SETTING = "wifi_ap_timeout_setting"
     private const val NAT_CHAIN = "VIRTUVPN_ROUTER"
     private const val DNS_CHAIN = "VIRTUVPN_ROUTER_DNS"
     private const val PORTAL_CHAIN = "VIRTUVPN_ROUTER_PORTAL"
