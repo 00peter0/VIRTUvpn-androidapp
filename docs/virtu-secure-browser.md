@@ -28,6 +28,17 @@ The browser must not treat `192.168.x.x`, `10.x.x.x`, `172.16/12`, or any other
 private client address as proof that a hotspot is safe. A normal home, office, or
 cafe WiFi also gives private addresses, so that signal is not trusted.
 
+A hotspot client connected to a VirtuVPN Router is therefore not automatically
+allowed inside Secure Browser unless that client device also has an Android VPN
+network. This is a deliberate safe default. The router can protect that client's
+ordinary browser traffic at the router layer, but Secure Browser itself only
+claims protection when it can verify a local VPN transport, or when it runs on
+the router phone where VPN Router is locally enabled.
+
+Future router-client support can be added with a signed router attestation
+endpoint on the hotspot gateway. Without that attestation, accepting ordinary
+private WiFi addressing would recreate the unsafe false-positive behavior.
+
 `ConnectivityManager.NetworkCallback` monitors VPN availability. When the bound
 VPN network is lost or loses internet capability, the browser is locked and the
 WebView is sent to `about:blank`. This replaces periodic polling and reduces the
@@ -214,9 +225,12 @@ internal app flows.
 
 ## Router Interaction
 
-On router clients, the safest path is to install VirtuVPN on the client device
-and use Secure Browser locally. The VPN Router page provides the download link
-and QR code.
+On router clients, the VPN Router protects traffic at the router layer, so any
+ordinary browser can use the router-protected hotspot path. Secure Browser on
+the client device remains blocked unless that client also has a local Android
+VPN, because the browser has no signed proof that the WiFi gateway is a genuine
+VirtuVPN Router. The VPN Router page provides the VirtuVPN download link and QR
+code for clients that want local Secure Browser protection.
 
 On the router phone itself, Secure Browser may run while VPN Router is enabled
 because router OUTPUT lockdown prevents normal phone traffic from bypassing the
@@ -241,6 +255,8 @@ For every Secure Browser release:
 
 - run `./gradlew :ui:testVcsinstallUnitTest :ui:assembleVcsinstall`,
 - verify navigation is blocked with no VPN and no active VPN Router,
+- verify a hotspot client without local VPN is blocked in Secure Browser even
+  when the router hotspot itself is protected,
 - verify navigation works with VirtuVPN active,
 - verify navigation works with a third-party Android VPN provider active,
 - verify VPN loss locks the browser and clears the loaded page,

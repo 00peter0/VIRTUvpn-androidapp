@@ -161,7 +161,7 @@
     <string name="vcs_secure_browser_forward">Forward</string>
     <string name="vcs_secure_browser_reload">Reload</string>
     <string name="vcs_secure_browser_blocked">Protected connection required</string>
-    <string name="vcs_secure_browser_blocked_detail">Browser traffic is stopped until a VPN or VPN Router connection is active.</string>
+    <string name="vcs_secure_browser_blocked_detail">Secure Browser needs a VPN on this device. VPN Router Wi-Fi still protects normal browser traffic at the router.</string>
     <string name="vcs_secure_browser_stopped">Secure browser stopped because no protected connection is active</string>
     <string name="vcs_secure_browser_blocked_public_http">Only HTTPS pages are allowed in Secure Browser.</string>
     <string name="vcs_secure_browser_egress_checking">Checking protected route...</string>
