@@ -111,6 +111,16 @@ object VpnRouterManager {
         }
     }
 
+    fun removeGuestPortalBypass(clientIp: String) {
+        if (!isIpv4Address(clientIp)) return
+        runCatching {
+            Application.getRootShell().run(
+                null,
+                "while iptables -t nat -D $PORTAL_CHAIN -s $clientIp -j RETURN 2>/dev/null; do :; done"
+            )
+        }
+    }
+
     suspend fun enable(context: Context): Status = withContext(Dispatchers.IO) {
         routerMutex.withLock {
         val appContext = context.applicationContext

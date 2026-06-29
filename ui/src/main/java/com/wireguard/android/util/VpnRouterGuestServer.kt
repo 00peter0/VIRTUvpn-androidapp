@@ -12,6 +12,7 @@ import com.wireguard.android.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
@@ -28,13 +29,16 @@ object VpnRouterGuestServer {
     private const val TAG = "VirtuVPN/GuestServer"
     private const val INSTALL_URL = "https://vcs.virtucomputing.com/api/mobile/android/apk/guest"
     private const val SECURE_BROWSER_URL = "virtuvpn://secure-browser"
+    private const val REGULAR_BROWSER_BYPASS_MS = 30 * 60 * 1000L
     private var serverJob: Job? = null
+    private var serverScope: CoroutineScope? = null
     @Volatile
     private var serverSocket: ServerSocket? = null
 
     fun start(context: Context, scope: CoroutineScope) {
         if (serverJob?.isActive == true) return
         val appContext = context.applicationContext
+        serverScope = scope
         serverJob = scope.launch(Dispatchers.IO) {
             runCatching {
                 ServerSocket(PORT, 16, InetAddress.getByName("0.0.0.0")).use { socket ->
@@ -55,6 +59,7 @@ object VpnRouterGuestServer {
         serverSocket?.close()
         serverJob?.cancel()
         serverJob = null
+        serverScope = null
         serverSocket = null
     }
 
@@ -67,11 +72,17 @@ object VpnRouterGuestServer {
                 path.startsWith("/virtuvpn-router/status") -> respondJson(client.getOutputStream())
                 path.startsWith("/brand/virtuvpn-android-icon.png") -> respondIcon(context, client.getOutputStream())
                 path.startsWith("/virtuvpn-router/ignore") -> {
-                    VpnRouterManager.allowGuestPortalBypass(client.inetAddress.hostAddress.orEmpty())
+                    val clientIp = client.inetAddress.hostAddress.orEmpty()
+                    VpnRouterManager.allowGuestPortalBypass(clientIp)
+                    serverScope?.launch(Dispatchers.IO) {
+                        delay(REGULAR_BROWSER_BYPASS_MS)
+                        VpnRouterManager.removeGuestPortalBypass(clientIp)
+                    }
                     respondHtml(client.getOutputStream(), ignoredHtml(context))
                 }
                 path.startsWith("/virtuvpn-router/secure-browser") -> respondRedirect(client.getOutputStream(), SECURE_BROWSER_URL)
                 path.startsWith("/virtuvpn-router/install") -> respondRedirect(client.getOutputStream(), INSTALL_URL)
+                isCaptiveProbe(path) -> respondRedirect(client.getOutputStream(), portalUrl(client))
                 else -> respondHtml(client.getOutputStream(), portalHtml(context, path))
             }
         }
@@ -88,6 +99,8 @@ object VpnRouterGuestServer {
             append("HTTP/1.1 302 Found\r\n")
             append("Location: ").append(location).append("\r\n")
             append("Cache-Control: no-store\r\n")
+            append("Pragma: no-cache\r\n")
+            append("Expires: 0\r\n")
             append("Content-Length: ").append(body.toByteArray().size).append("\r\n")
             append("Connection: close\r\n\r\n")
             append(body)
@@ -120,6 +133,8 @@ object VpnRouterGuestServer {
             append("HTTP/1.1 ").append(status).append("\r\n")
             append("Content-Type: ").append(contentType).append("\r\n")
             append("Cache-Control: no-store\r\n")
+            append("Pragma: no-cache\r\n")
+            append("Expires: 0\r\n")
             append("Content-Length: ").append(bytes.size).append("\r\n")
             append("Connection: close\r\n\r\n")
         }
@@ -199,4 +214,26 @@ object VpnRouterGuestServer {
 
     private fun escape(value: String): String =
         value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
+
+    private fun isCaptiveProbe(path: String): Boolean {
+        val normalized = path.substringBefore('?').lowercase()
+        return normalized == "/generate_204" ||
+            normalized == "/gen_204" ||
+            normalized == "/hotspot-detect.html" ||
+            normalized == "/canonical.html" ||
+            normalized == "/connecttest.txt" ||
+            normalized == "/ncsi.txt" ||
+            normalized == "/success.txt" ||
+            normalized == "/library/test/success.html" ||
+            normalized.endsWith("/generate_204") ||
+            normalized.endsWith("/gen_204") ||
+            normalized.endsWith("/hotspot-detect.html") ||
+            normalized.endsWith("/connecttest.txt") ||
+            normalized.endsWith("/ncsi.txt")
+    }
+
+    private fun portalUrl(client: Socket): String {
+        val address = client.localAddress?.hostAddress?.takeIf { it.isNotBlank() } ?: "192.168.115.1"
+        return "http://$address:$PORT/"
+    }
 }
