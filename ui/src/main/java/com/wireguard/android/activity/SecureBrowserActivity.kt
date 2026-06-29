@@ -16,6 +16,7 @@ import android.net.NetworkRequest
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
@@ -132,6 +133,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         binding.browserReloadButton.setOnClickListener { reloadPage() }
         binding.pairRouterButton.setOnClickListener { scanRouterPairingQr() }
         binding.forgetRoutersButton.setOnClickListener { confirmForgetRouters() }
+        binding.openVpnSettingsButton.setOnClickListener { openVpnSettings() }
         binding.urlInput.setOnEditorActionListener { _, _, _ ->
             openTypedUrl()
             true
@@ -490,6 +492,10 @@ class SecureBrowserActivity : AppCompatActivity() {
                 refreshBrowserProtectionAsync()
             }
             .show()
+    }
+
+    private fun openVpnSettings() {
+        startActivity(Intent(Settings.ACTION_VPN_SETTINGS))
     }
 
     private fun openTypedUrl() {
