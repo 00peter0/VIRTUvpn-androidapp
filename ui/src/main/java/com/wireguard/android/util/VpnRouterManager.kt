@@ -73,6 +73,7 @@ object VpnRouterManager {
         val appContext = context.applicationContext
         val status = detect(appContext)
         if (status.availability != Availability.ENABLED) return@withLock status
+        VpnRouterGuestServer.ensureStarted(appContext, Application.getCoroutineScope())
         disableHotspotAutoShutdown(appContext)
         val tunnelName = status.activeTunnel ?: return@withLock status
         if (status.tetherInterfaces.isEmpty()) return@withLock status
@@ -353,6 +354,7 @@ object VpnRouterManager {
         val dnsResolver = dnsResolvers.first()
         val vpnOwnerUid = readVpnOwnerUid()
 
+        VpnRouterGuestServer.ensureStarted(context, Application.getCoroutineScope())
         disableHotspotAutoShutdown(context)
         disableTetherOffload(context)
         overrideTetherDnsForwarders(dnsResolvers)

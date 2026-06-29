@@ -45,7 +45,12 @@ object VpnRouterGuestServer {
     private var serverSocket: ServerSocket? = null
 
     fun start(context: Context, scope: CoroutineScope) {
-        if (serverJob?.isActive == true) return
+        if (isListening()) return
+        if (serverJob?.isActive == true) {
+            serverJob?.cancel()
+            serverJob = null
+            serverSocket = null
+        }
         val appContext = context.applicationContext
         serverScope = scope
         serverJob = scope.launch(Dispatchers.IO) {
@@ -54,7 +59,10 @@ object VpnRouterGuestServer {
                     serverSocket = socket
                     while (isActive) {
                         val client = runCatching { socket.accept() }.getOrNull() ?: continue
-                        launch { handleClient(appContext, client) }
+                        launch {
+                            runCatching { handleClient(appContext, client) }
+                                .onFailure { Log.w(TAG, "Guest request failed", it) }
+                        }
                     }
                 }
             }.onFailure {
@@ -72,10 +80,24 @@ object VpnRouterGuestServer {
         serverSocket = null
     }
 
+    fun ensureStarted(context: Context, scope: CoroutineScope) {
+        if (isListening()) return
+        start(context, scope)
+    }
+
+    private fun isListening(): Boolean {
+        val socket = serverSocket
+        if (socket == null || socket.isClosed) return false
+        return runCatching {
+            Socket(InetAddress.getByName("127.0.0.1"), PORT).use { true }
+        }.getOrDefault(false)
+    }
+
     private fun handleClient(context: Context, socket: Socket) {
         socket.use { client ->
             val reader = BufferedReader(InputStreamReader(client.getInputStream()))
             val requestLine = reader.readLine().orEmpty()
+            if (requestLine.isBlank()) return
             val path = requestLine.split(' ').getOrNull(1).orEmpty().ifBlank { "/" }
             when {
                 path.startsWith("/virtuvpn-router/status") -> respondJson(client.getOutputStream())
@@ -121,8 +143,10 @@ object VpnRouterGuestServer {
             append("Connection: close\r\n\r\n")
             append(body)
         }
-        output.write(response.toByteArray())
-        output.flush()
+        runCatching {
+            output.write(response.toByteArray())
+            output.flush()
+        }.onFailure { Log.w(TAG, "Guest redirect write failed", it) }
     }
 
     private fun respondNoContent(output: OutputStream) {
@@ -134,8 +158,10 @@ object VpnRouterGuestServer {
             append("Content-Length: 0\r\n")
             append("Connection: close\r\n\r\n")
         }
-        output.write(response.toByteArray())
-        output.flush()
+        runCatching {
+            output.write(response.toByteArray())
+            output.flush()
+        }.onFailure { Log.w(TAG, "Guest no-content write failed", it) }
     }
 
     private fun respondHtml(output: OutputStream, html: String) {
@@ -209,9 +235,11 @@ object VpnRouterGuestServer {
             append("Content-Length: ").append(bytes.size).append("\r\n")
             append("Connection: close\r\n\r\n")
         }
-        output.write(response.toByteArray())
-        output.write(bytes)
-        output.flush()
+        runCatching {
+            output.write(response.toByteArray())
+            output.write(bytes)
+            output.flush()
+        }.onFailure { Log.w(TAG, "Guest response write failed", it) }
     }
 
     private fun portalHtml(context: Context, path: String): String {
