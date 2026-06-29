@@ -23,6 +23,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
+import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.LinearLayout
@@ -56,6 +57,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     private var navigationStartY = 0f
     private var boundNetwork: Network? = null
     private var documentStartWebRtcProtection = false
+    private var userInitiatedNavigation = false
     @Volatile
     private var blocked = true
 
@@ -101,6 +103,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         monitorJob = null
         unregisterVpnNetworkCallback()
         if (::binding.isInitialized) lockBrowser(showToast = false)
+        clearEphemeralBrowserData()
         unbindBrowserNetwork()
         super.onPause()
     }
@@ -111,6 +114,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         if (::binding.isInitialized) {
             binding.secureWebview.stopLoading()
             binding.secureWebview.loadUrl("about:blank")
+            clearEphemeralBrowserData()
             binding.secureWebview.destroy()
         }
         super.onDestroy()
@@ -151,7 +155,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         }
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                if (blocked || !isAllowedBrowserUrl(request.url)) {
+                if (blocked || !isAllowedBrowserUrl(request.url, request.isForMainFrame)) {
                     lockBrowser(showToast = blocked.not())
                     return true
                 }
@@ -159,7 +163,7 @@ class SecureBrowserActivity : AppCompatActivity() {
             }
 
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-                if (blocked || !isAllowedBrowserUrl(request.url)) return blockedResponse()
+                if (blocked || !isAllowedBrowserUrl(request.url, request.isForMainFrame)) return blockedResponse()
                 return null
             }
 
@@ -192,7 +196,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         val url = normalizeUrl(binding.urlInput.text?.toString().orEmpty())
         if (url == null) return
         val uri = Uri.parse(url)
-        if (!isAllowedBrowserUrl(uri)) {
+        if (!isAllowedBrowserUrl(uri, isTopLevel = true)) {
             Toast.makeText(this, R.string.vcs_secure_browser_blocked_public_http, Toast.LENGTH_LONG).show()
             return
         }
@@ -203,6 +207,7 @@ class SecureBrowserActivity : AppCompatActivity() {
                 return@launch
             }
             setBrowserAllowed(true)
+            userInitiatedNavigation = true
             binding.secureWebview.loadUrl(url)
             updateNavigationButtons()
         }
@@ -393,7 +398,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         val url = normalizeUrl(currentValue)
         if (url == null) return
         val uri = Uri.parse(url)
-        if (!isAllowedBrowserUrl(uri)) {
+        if (!isAllowedBrowserUrl(uri, isTopLevel = true)) {
             Toast.makeText(this, R.string.vcs_secure_browser_blocked_public_http, Toast.LENGTH_LONG).show()
             return
         }
@@ -557,8 +562,12 @@ class SecureBrowserActivity : AppCompatActivity() {
             binding.vpnBlocker.visibility = View.GONE
             binding.secureWebview.visibility = View.VISIBLE
             val initialUrl = binding.urlInput.text?.toString().orEmpty()
-            if (binding.secureWebview.url.isNullOrBlank() || binding.secureWebview.url == "about:blank") {
-                normalizeUrl(initialUrl)?.takeIf { isAllowedBrowserUrl(Uri.parse(it)) }?.let { binding.secureWebview.loadUrl(it) }
+            if (userInitiatedNavigation &&
+                (binding.secureWebview.url.isNullOrBlank() || binding.secureWebview.url == "about:blank")
+            ) {
+                normalizeUrl(initialUrl)?.takeIf { isAllowedBrowserUrl(Uri.parse(it), isTopLevel = true) }?.let {
+                    binding.secureWebview.loadUrl(it)
+                }
             }
         } else {
             lockBrowser(showToast = !blocked)
@@ -581,6 +590,16 @@ class SecureBrowserActivity : AppCompatActivity() {
     private fun stopBrowser() {
         binding.secureWebview.stopLoading()
         binding.secureWebview.loadUrl("about:blank")
+    }
+
+    private fun clearEphemeralBrowserData() {
+        if (!::binding.isInitialized) return
+        binding.secureWebview.clearHistory()
+        binding.secureWebview.clearCache(true)
+        binding.secureWebview.clearFormData()
+        WebStorage.getInstance().deleteAllData()
+        CookieManager.getInstance().removeAllCookies(null)
+        CookieManager.getInstance().flush()
     }
 
     private fun blockedResponse(): WebResourceResponse =
@@ -633,12 +652,12 @@ class SecureBrowserActivity : AppCompatActivity() {
         boundNetwork = null
     }
 
-    private fun isAllowedBrowserUrl(uri: Uri): Boolean {
+    private fun isAllowedBrowserUrl(uri: Uri, isTopLevel: Boolean): Boolean {
         return when (uri.scheme?.lowercase()) {
-            "https" -> !uri.host.isNullOrBlank()
-            "http" -> isPrivateHttpHost(uri.host)
-            "wss" -> !uri.host.isNullOrBlank()
-            "ws" -> isPrivateHttpHost(uri.host)
+            "https" -> !uri.host.isNullOrBlank() && (isTopLevel || !isPrivateHttpHost(uri.host))
+            "http" -> isTopLevel && isPrivateHttpHost(uri.host)
+            "wss" -> !uri.host.isNullOrBlank() && (isTopLevel || !isPrivateHttpHost(uri.host))
+            "ws" -> isTopLevel && isPrivateHttpHost(uri.host)
             "about", "data", "blob" -> true
             else -> false
         }

@@ -173,6 +173,10 @@ instead of periodic polling, so a lost VPN network locks the WebView immediately
 WebRTC blocking is installed at document start when the WebView provider supports
 AndroidX WebKit document-start scripts, with the older runtime injection kept as
 a compatibility fallback.
+Secure Browser is an ephemeral session: pause/destroy clears cookies, WebStorage,
+cache, form data, and WebView history. It is not exported to other apps, and it
+blocks private-address subresources from public HTTPS pages to reduce DNS
+rebinding/LAN probing risk.
 
 The router phone also gets its own lockdown while router mode is enabled. Normal
 phone internet must go through the active VPN interface. IPv4 and IPv6 phone
