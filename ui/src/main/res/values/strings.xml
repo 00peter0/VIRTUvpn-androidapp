@@ -192,6 +192,10 @@
     <string name="vcs_secure_browser_link_copy">Copy link</string>
     <string name="vcs_secure_browser_link_share">Share link</string>
     <string name="vcs_secure_browser_link_copied">Link copied</string>
+    <string name="vcs_secure_browser_https_waiting">HTTPS-only ready</string>
+    <string name="vcs_secure_browser_https_locked">HTTPS-only locked</string>
+    <string name="vcs_secure_browser_trackers_blocked_zero">0 trackers blocked</string>
+    <string name="vcs_secure_browser_trackers_blocked_count">%1$d trackers blocked</string>
     <string name="web_terminal_browser_title">Web Terminal</string>
     <string name="web_terminal_browser_blocked_detail">Terminal traffic is stopped until the required VPN tunnel is active.</string>
     <string name="vcs_enroll_device">Enroll device</string>

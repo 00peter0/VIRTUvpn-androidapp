@@ -74,6 +74,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     private var textZoom = 100
     private var findMatches = 0
     private var findActiveMatch = 0
+    private var blockedTrackers = 0
     @Volatile
     private var blocked = true
 
@@ -107,6 +108,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         configureMovableNavigation()
         updateNavigationButtons()
         binding.egressStatus.setText(R.string.vcs_secure_browser_egress_checking)
+        updateSecurityBadges(null)
         binding.goButton.setOnClickListener { openTypedUrl() }
         binding.savePageButton.setOnClickListener { saveCurrentPage() }
         binding.browserBackButton.setOnClickListener { navigateBack() }
@@ -214,12 +216,16 @@ class SecureBrowserActivity : AppCompatActivity() {
 
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
                 if (blocked || !isAllowedBrowserUrl(request.url, request.isForMainFrame)) return blockedResponse()
-                if (SecureBrowserBlocker.shouldBlock(request.url, request.isForMainFrame)) return trackerBlockedResponse()
+                if (SecureBrowserBlocker.shouldBlock(request.url, request.isForMainFrame)) {
+                    incrementBlockedTrackers()
+                    return trackerBlockedResponse()
+                }
                 return null
             }
 
             override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
                 super.onPageStarted(view, url, favicon)
+                resetPageSecurityState(url)
                 binding.pageProgress.progress = 5
                 binding.pageProgress.visibility = View.VISIBLE
                 if (!documentStartWebRtcProtection) injectWebRtcProtection(view)
@@ -233,6 +239,7 @@ class SecureBrowserActivity : AppCompatActivity() {
                 if (!url.isNullOrBlank() && url != "about:blank") {
                     binding.urlInput.setText(url)
                 }
+                updateSecurityBadges(url)
                 updateNavigationButtons()
             }
 
@@ -280,6 +287,32 @@ class SecureBrowserActivity : AppCompatActivity() {
             }
             binding.secureWebview.reload()
             updateNavigationButtons()
+        }
+    }
+
+    private fun resetPageSecurityState(url: String?) {
+        blockedTrackers = 0
+        updateSecurityBadges(url)
+    }
+
+    private fun incrementBlockedTrackers() {
+        blockedTrackers += 1
+        runOnUiThread { updateSecurityBadges(binding.secureWebview.url) }
+    }
+
+    private fun updateSecurityBadges(url: String?) {
+        val normalizedUrl = url?.takeIf { it.isNotBlank() && it != "about:blank" }
+        val isHttps = normalizedUrl?.let { Uri.parse(it).scheme.equals("https", ignoreCase = true) } == true
+        binding.httpsBadge.text = when {
+            blocked -> getString(R.string.vcs_secure_browser_https_waiting)
+            isHttps -> getString(R.string.vcs_secure_browser_https_locked)
+            else -> getString(R.string.vcs_secure_browser_https_waiting)
+        }
+        binding.httpsBadge.setTextColor(getColor(if (isHttps && !blocked) android.R.color.holo_green_light else android.R.color.darker_gray))
+        binding.trackerBadge.text = if (blockedTrackers == 0) {
+            getString(R.string.vcs_secure_browser_trackers_blocked_zero)
+        } else {
+            getString(R.string.vcs_secure_browser_trackers_blocked_count, blockedTrackers)
         }
     }
 
@@ -876,6 +909,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         binding.browserRefresh.isRefreshing = false
         binding.pageProgress.visibility = View.GONE
         clearFindMatches()
+        resetPageSecurityState(null)
         binding.secureWebview.stopLoading()
         binding.secureWebview.loadUrl("about:blank")
     }

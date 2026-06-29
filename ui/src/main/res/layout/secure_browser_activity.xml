@@ -264,6 +264,42 @@
                 android:textSize="12sp"
                 android:textStyle="bold" />
 
+            <LinearLayout
+                android:id="@+id/security_badge_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/https_badge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:background="@drawable/fastest_button_background"
+                    android:gravity="center"
+                    android:paddingHorizontal="10dp"
+                    android:singleLine="true"
+                    android:text="@string/vcs_secure_browser_https_waiting"
+                    android:textColor="#AFC0CC"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tracker_badge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/fastest_button_background"
+                    android:gravity="center"
+                    android:paddingHorizontal="10dp"
+                    android:singleLine="true"
+                    android:text="@string/vcs_secure_browser_trackers_blocked_zero"
+                    android:textColor="#7FE6A2"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
         </LinearLayout>
 
         <FrameLayout

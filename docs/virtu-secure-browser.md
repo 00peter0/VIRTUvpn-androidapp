@@ -66,6 +66,11 @@ IP to the header. This is a trust signal for the user; it is not used as the
 security decision. The security decision remains local VPN binding or router
 lockdown state.
 
+The header also shows an HTTPS-only lock badge for the current top-level page.
+Because non-HTTPS top-level navigation is blocked by policy, a loaded page should
+show the locked state. Before navigation or while blocked, the badge stays in the
+ready state.
+
 ## WebView Hardening
 
 Secure Browser WebView settings:
@@ -149,6 +154,10 @@ Benefits:
 This is not a full content blocker or cosmetic filter engine. It blocks network
 requests by host/suffix only.
 
+The browser tracks the number of blocked tracker/ad requests for the current
+top-level page and shows the count in the header. The count resets on every new
+page navigation.
+
 ## Loading UX
 
 The browser includes:
@@ -218,6 +227,7 @@ For every Secure Browser release:
 - verify WebRTC leak tests do not expose local IP candidates,
 - verify cookies/cache/history are cleared after leaving the browser,
 - verify tracker/ad blocking does not break basic navigation,
+- verify the HTTPS-only badge and blocked tracker count update per page,
 - verify progress bar and pull-to-refresh do not remain stuck after page load or
   browser lock,
 - verify find-in-page, text zoom, desktop mode, and long-press link actions work
