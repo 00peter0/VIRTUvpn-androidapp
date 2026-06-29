@@ -15,6 +15,8 @@ a usable VPN interface such as `tun*` or `wg*`.
 
 - Route hotspot client traffic through the active VPN interface.
 - Fail closed for hotspot clients when router rules are enabled.
+- Keep the hotspot available while router mode is enabled; device hotspot
+  auto-shutdown is a router safety risk.
 - Keep the normal non-root phone VPN flow unchanged.
 - Support multi-uplink detection:
   - mobile data / 5G / LTE,
@@ -58,21 +60,33 @@ When enabled, the app installs root rules that:
 - enable IPv4 forwarding,
 - attach a VirtuVPN NAT chain at the start of `POSTROUTING`,
 - attach a VirtuVPN DNS chain at the start of `PREROUTING`,
+- attach a VirtuVPN portal chain at the start of `PREROUTING`,
 - attach a VirtuVPN forwarding chain at the start of `FORWARD`,
+- attach a VirtuVPN guest-access chain from the forwarding chain,
 - attach a VirtuVPN phone-output chain at the start of `OUTPUT`,
 - add a policy route for each hotspot interface to the active VPN table,
 - redirect hotspot client TCP/UDP DNS on port 53 to the selected router DNS
   resolver,
+- redirect hotspot HTTP traffic on port 80 to the local guest portal,
 - allow the router phone's own internet traffic only through the VPN interface,
 - allow the active VPN provider UID or WireGuard fwmark to use the physical
   uplink for tunnel transport,
 - reject other router-phone traffic on physical uplinks while router mode is on,
-- allow hotspot-to-VPN forwarding,
+- require a guest portal decision before allowing general hotspot-to-VPN
+  forwarding,
+- allow hotspot-to-VPN forwarding after the client is allowed,
 - allow established VPN return traffic to hotspot clients,
 - reject hotspot forwarding to any non-VPN path.
 
 This gives hotspot clients a fail-closed router path. If the VPN interface is not
 available, clients should not silently bypass through the phone uplink.
+
+Guest clients must not be able to bypass the hotspot portal by opening direct
+HTTPS before seeing the router page. The router therefore uses an access chain:
+DNS and the local portal remain reachable, but general client forwarding is
+rejected until the client explicitly chooses the regular-browser path. Router
+Secure Web works without that bypass because it is served locally by the router
+phone and performs outbound requests from the router side.
 
 The router phone also gets its own lockdown while router mode is enabled. Normal
 phone internet must go through the active VPN interface. The physical uplink is
@@ -133,6 +147,49 @@ after hotspot clients are already connected. VPN Router reconciles those
 forwarders back to the selected router resolver so clients do not fall back to
 mobile-provider DNS during later scans.
 
+## Hotspot lifetime and device configuration
+
+Android and OEM builds can stop the hotspot without the VPN app explicitly
+calling a stop API. On Samsung devices this can happen through the mobile hotspot
+auto-timeout setting. In observed logs, SoftAP stopped with:
+
+```text
+CMD_SET_AP 0
+CMD_AP_STOPPED
+default_shutdown_timeout_setting=600000
+```
+
+`600000` is a 10-minute default shutdown timeout. That is unsafe for a router
+device because clients disappear from WiFi and operators may misread the event as
+router failure or VPN failure.
+
+When VPN Router is enabled, VirtuVPN disables the Samsung hotspot timeout with:
+
+```text
+settings put secure wifi_ap_timeout_setting 0
+```
+
+The previous value is saved and restored when VPN Router is disabled. Reconcile
+also reapplies this setting while router rules are installed, so app updates or
+temporary hotspot changes do not leave the device with timeout enabled.
+
+New router devices must be checked for hotspot lifetime behavior before being
+trusted:
+
+- Verify the hotspot does not auto-disable while VPN Router is on.
+- On Samsung, verify `settings get secure wifi_ap_timeout_setting` returns `0`
+  while router mode is enabled.
+- Check `dumpsys wifi` for SoftAP stop events and shutdown timeout fields.
+- If a firmware uses another OEM setting for hotspot timeout, add it to router
+  setup before declaring the device production-ready.
+- If hotspot is manually disabled or stopped by the OS, router rules must remain
+  fail-closed; clients must not receive mobile uplink internet outside VPN.
+
+VirtuVPN currently prevents the known Samsung timeout case. It does not yet
+guarantee automatic SoftAP restart after a manual user/system stop. That can be
+added later with a stored SoftAP profile and `cmd wifi start-softap`, but it must
+not guess or overwrite the user's hotspot password.
+
 ## Guest protocol and portal
 
 VPN Router exposes a local guest protocol on the router phone while the app
@@ -142,13 +199,54 @@ process is alive:
   marker for client apps.
 - hotspot HTTP traffic is redirected to a VirtuVPN guest page while router mode is
   enabled.
-- the guest page recommends VirtuVPN Secure Browser for safest browsing, links to
-  VirtuVPN install/open actions, and offers an explicit regular-browser bypass.
-- choosing the regular-browser bypass inserts a client-IP return rule in the
-  router portal chain so the page stops appearing for that hotspot session.
+- captive probe endpoints such as `generate_204`, `gen_204`,
+  `hotspot-detect.html`, `connecttest.txt`, and `ncsi.txt` redirect to the
+  router portal with no-cache headers.
+- the guest page opens Router Secure Web by default, links to the guest APK
+  download, and offers an explicit regular-browser bypass.
+- choosing the regular-browser bypass inserts client-IP return rules in both the
+  router portal chain and the router access chain. This allows ordinary client
+  browsing for that session.
+- the regular-browser bypass is temporary. It is removed after a short window so
+  a later client with the same DHCP address does not inherit a stale bypass.
 
 Client-side Secure Browser detection prefers the guest protocol marker and only
 uses the known Samsung `192.168.115.0/24` hotspot subnet as a fallback heuristic.
+
+## Router Secure Web
+
+Router Secure Web is the no-install browser path served by the router phone. It
+is not the same engine as the native Android Secure Browser, but it copies the
+native Secure Browser surface and security model as closely as a hotspot HTML
+service can:
+
+- top URL/search bar,
+- quick links,
+- protected status indicator,
+- floating reload/back/forward controls,
+- public HTTP blocked by default,
+- HTTPS and private/local HTTP allowed,
+- WebRTC APIs disabled by injected script on proxied HTML,
+- links rewritten back through the router proxy.
+
+The request path is:
+
+```text
+client browser -> local router portal -> router proxy -> VPN tunnel -> internet
+```
+
+This avoids relying on unreliable HTML deep links into the Android app. It also
+reduces client-side DNS and local IP exposure because the destination site is
+loaded by the router-side proxy, not by the client as a direct normal browsing
+session.
+
+Limits:
+
+- It is a lightweight HTTP/HTML proxy, not a full remote Chromium engine.
+- Complex JavaScript apps, banking flows, CSP-heavy pages, video, and federated
+  login can break or run slowly.
+- It is best for safer quick browsing, leak tests, and simple pages. For full
+  client-device protection, install VirtuVPN and use the native Secure Browser.
 
 ## Reconcile
 
@@ -157,6 +255,13 @@ the rules during status refresh. Reconcile re-installs the router chains using
 the currently detected VPN tunnel, hotspot interfaces, uplink state, and DNS
 mode. This covers common changes such as VPN reconnect, hotspot restart, DNS
 mode change, and tunnel interface/table changes.
+
+Reconcile also keeps router-only safety settings active:
+
+- disables tethering offload,
+- restores router DNS forwarders,
+- disables known hotspot auto-timeout settings while router mode is on,
+- removes duplicate router chain jumps before re-attaching chains.
 
 ## UI
 
@@ -185,14 +290,62 @@ outside the VPN while router mode is enabled.
 5. Add guest onboarding page without enroll dependency:
    - continue without client kill switch,
    - install VirtuVPN for stronger client-side protection.
-6. Validate with:
+6. Add Router Secure Web as a no-install guest browsing path.
+7. Enforce captive access before general hotspot forwarding.
+8. Disable known hotspot auto-shutdown behavior while router mode is enabled.
+9. Validate with:
    - VirtuVPN tunnel,
    - third-party VPN providers,
    - mobile data uplink,
    - WiFi sharing uplink where supported,
    - hotspot restart,
+   - hotspot idle period longer than the OEM timeout,
    - VPN reconnect,
-   - VPN drop.
+   - VPN drop,
+   - client reconnect with reused DHCP address,
+   - DNS leak scans,
+   - IPv6 leak scans,
+   - captive portal open on Android/Samsung/iOS where available,
+   - regular-browser bypass expiration.
+
+## New device checklist
+
+Before using a new rooted Android device as a production router:
+
+1. Unlock/root and verify root shell can run `iptables`, `ip6tables`, `ip rule`,
+   `settings`, and `ndc tether dns`.
+2. Enable mobile hotspot and record:
+   - hotspot interface name,
+   - gateway address,
+   - DHCP subnet,
+   - whether WiFi sharing remains active.
+3. Enable VPN Router and verify:
+   - traffic leaves through the VPN egress,
+   - direct mobile uplink is blocked for clients,
+   - router phone ordinary output is blocked outside VPN except VPN transport,
+   - `FORWARD`, `PREROUTING`, and `POSTROUTING` have one VirtuVPN jump each.
+4. Verify captive behavior:
+   - new client sees the router portal,
+   - direct HTTPS does not bypass the portal before regular-browser approval,
+   - Router Secure Web works without approving regular-browser bypass,
+   - regular-browser approval is temporary.
+5. Verify DNS behavior:
+   - selected router resolver is used,
+   - competing DoH/DoT providers are blocked,
+   - selected resolver family is not blocked by the DoH blocklist,
+   - no mobile-provider DNS appears in repeated client scans.
+6. Verify IPv6 behavior:
+   - hotspot client IPv6 forwarding is blocked unless full provider IPv6 routing
+     has been explicitly implemented,
+   - DNS leak tools do not show client IPv6 egress outside the VPN.
+7. Verify hotspot lifetime:
+   - Samsung `wifi_ap_timeout_setting` or equivalent OEM timeout is disabled,
+   - hotspot remains up beyond the device's old idle timeout,
+   - `dumpsys wifi` does not show new unexpected `CMD_AP_STOPPED` events.
+8. Verify cleanup:
+   - disabling VPN Router removes router chains,
+   - previous hotspot/offload settings are restored,
+   - re-enabling does not duplicate chain jumps.
 
 ## Limits
 
