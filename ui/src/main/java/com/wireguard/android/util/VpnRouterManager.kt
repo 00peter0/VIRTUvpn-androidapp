@@ -417,6 +417,24 @@ object VpnRouterManager {
                     "ip rule add pref $HOTSPOT_VPN_RULE_PRIORITY iif $downstream lookup $tunnel"
             )
             checkedRun(
+                "block hotspot DNS over TLS",
+                "iptables -A $FORWARD_CHAIN -i $downstream -p tcp --dport 853 -j REJECT"
+            )
+            checkedRun(
+                "block hotspot DNS over QUIC",
+                "iptables -A $FORWARD_CHAIN -i $downstream -p udp --dport 853 -j REJECT"
+            )
+            COMMON_DOH_RESOLVERS.forEach { resolver ->
+                checkedRun(
+                    "block hotspot DoH TCP $resolver",
+                    "iptables -A $FORWARD_CHAIN -i $downstream -d $resolver -p tcp --dport 443 -j REJECT"
+                )
+                checkedRun(
+                    "block hotspot DoH QUIC $resolver",
+                    "iptables -A $FORWARD_CHAIN -i $downstream -d $resolver -p udp --dport 443 -j REJECT"
+                )
+            }
+            checkedRun(
                 "allow hotspot to VPN forwarding",
                 "iptables -A $FORWARD_CHAIN -i $downstream -o $tunnel -j ACCEPT"
             )
@@ -635,6 +653,26 @@ object VpnRouterManager {
     private const val IPV6_FORWARD_CHAIN = "VIRTUVPN_ROUTER6_FWD"
     private const val HOTSPOT_VPN_RULE_PRIORITY = 20900
     private const val MAX_DNS_RESOLVERS = 2
+    private val COMMON_DOH_RESOLVERS = listOf(
+        "1.0.0.1",
+        "1.1.1.1",
+        "8.8.4.4",
+        "8.8.8.8",
+        "9.9.9.9",
+        "45.90.28.0",
+        "45.90.30.0",
+        "64.6.64.6",
+        "64.6.65.6",
+        "76.76.2.0",
+        "76.76.10.0",
+        "94.140.14.14",
+        "94.140.15.15",
+        "149.112.112.112",
+        "185.228.168.9",
+        "185.228.169.9",
+        "208.67.220.220",
+        "208.67.222.222"
+    )
     private val routerMutex = Mutex()
     private val INTERFACE_NAME_REGEX = Regex("^[A-Za-z0-9_.:=-]+$")
 }
