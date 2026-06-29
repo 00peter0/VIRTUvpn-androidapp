@@ -5,6 +5,10 @@
 package com.wireguard.android.activity
 
 import android.annotation.SuppressLint
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -31,6 +35,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.widget.addTextChangedListener
 import androidx.lifecycle.lifecycleScope
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
@@ -64,6 +69,11 @@ class SecureBrowserActivity : AppCompatActivity() {
     private var boundNetwork: Network? = null
     private var documentStartWebRtcProtection = false
     private var userInitiatedNavigation = false
+    private var defaultUserAgent: String? = null
+    private var desktopMode = false
+    private var textZoom = 100
+    private var findMatches = 0
+    private var findActiveMatch = 0
     @Volatile
     private var blocked = true
 
@@ -92,6 +102,7 @@ class SecureBrowserActivity : AppCompatActivity() {
 
         configureWebView(binding.secureWebview)
         configurePullToRefresh()
+        configureBrowserTools()
         renderQuickLinks()
         configureMovableNavigation()
         updateNavigationButtons()
@@ -166,6 +177,11 @@ class SecureBrowserActivity : AppCompatActivity() {
                 safeBrowsingEnabled = true
             }
         }
+        defaultUserAgent = webView.settings.userAgentString
+        textZoom = getPreferences(MODE_PRIVATE).getInt(PREF_TEXT_ZOOM, 100).coerceIn(MIN_TEXT_ZOOM, MAX_TEXT_ZOOM)
+        desktopMode = getPreferences(MODE_PRIVATE).getBoolean(PREF_DESKTOP_MODE, false)
+        applyTextZoom()
+        applyDesktopMode(reload = false)
         installDocumentStartWebRtcProtection(webView)
         webView.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView, newProgress: Int) {
@@ -180,6 +196,12 @@ class SecureBrowserActivity : AppCompatActivity() {
         }
         webView.setDownloadListener { _, _, _, _, _ ->
             Toast.makeText(this, R.string.vcs_secure_browser_blocked_detail, Toast.LENGTH_SHORT).show()
+        }
+        webView.setOnLongClickListener { showLinkMenuFromHitTest() }
+        webView.setFindListener { activeMatchOrdinal, numberOfMatches, _ ->
+            findActiveMatch = if (numberOfMatches > 0) activeMatchOrdinal + 1 else 0
+            findMatches = numberOfMatches
+            updateFindMatchLabel()
         }
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -225,6 +247,30 @@ class SecureBrowserActivity : AppCompatActivity() {
         }
     }
 
+    private fun configureBrowserTools() {
+        updateTextZoomLabel()
+        updateDesktopModeButton()
+        binding.findToggleButton.setOnClickListener { showFindBar() }
+        binding.findCloseButton.setOnClickListener { hideFindBar() }
+        binding.findPrevButton.setOnClickListener { findNext(backward = true) }
+        binding.findNextButton.setOnClickListener { findNext(backward = false) }
+        binding.findInput.addTextChangedListener { text ->
+            val query = text?.toString().orEmpty()
+            if (query.isBlank()) {
+                clearFindMatches()
+            } else {
+                binding.secureWebview.findAllAsync(query)
+            }
+        }
+        binding.findInput.setOnEditorActionListener { _, _, _ ->
+            findNext(backward = false)
+            true
+        }
+        binding.textZoomDownButton.setOnClickListener { changeTextZoom(-10) }
+        binding.textZoomUpButton.setOnClickListener { changeTextZoom(10) }
+        binding.desktopModeButton.setOnClickListener { toggleDesktopMode() }
+    }
+
     private fun configurePullToRefresh() {
         binding.browserRefresh.setColorSchemeColors(getColor(android.R.color.holo_green_light))
         binding.browserRefresh.setOnRefreshListener {
@@ -235,6 +281,120 @@ class SecureBrowserActivity : AppCompatActivity() {
             binding.secureWebview.reload()
             updateNavigationButtons()
         }
+    }
+
+    private fun showFindBar() {
+        binding.findBar.visibility = View.VISIBLE
+        binding.findInput.requestFocus()
+        val query = binding.findInput.text?.toString().orEmpty()
+        if (query.isNotBlank()) binding.secureWebview.findAllAsync(query)
+    }
+
+    private fun hideFindBar() {
+        binding.findBar.visibility = View.GONE
+        binding.findInput.setText("")
+        clearFindMatches()
+    }
+
+    private fun findNext(backward: Boolean) {
+        if (blocked || binding.findInput.text.isNullOrBlank()) return
+        binding.secureWebview.findNext(backward)
+    }
+
+    private fun clearFindMatches() {
+        findMatches = 0
+        findActiveMatch = 0
+        binding.secureWebview.clearMatches()
+        updateFindMatchLabel()
+    }
+
+    private fun updateFindMatchLabel() {
+        binding.findMatchLabel.text = if (findMatches > 0) {
+            getString(R.string.vcs_secure_browser_find_matches, findActiveMatch, findMatches)
+        } else {
+            ""
+        }
+    }
+
+    private fun changeTextZoom(delta: Int) {
+        textZoom = (textZoom + delta).coerceIn(MIN_TEXT_ZOOM, MAX_TEXT_ZOOM)
+        getPreferences(MODE_PRIVATE).edit().putInt(PREF_TEXT_ZOOM, textZoom).apply()
+        applyTextZoom()
+    }
+
+    private fun applyTextZoom() {
+        binding.secureWebview.settings.textZoom = textZoom
+        updateTextZoomLabel()
+    }
+
+    private fun updateTextZoomLabel() {
+        binding.textZoomLabel.text = getString(R.string.vcs_secure_browser_text_zoom_value, textZoom)
+    }
+
+    private fun toggleDesktopMode() {
+        desktopMode = !desktopMode
+        getPreferences(MODE_PRIVATE).edit().putBoolean(PREF_DESKTOP_MODE, desktopMode).apply()
+        applyDesktopMode(reload = true)
+    }
+
+    private fun applyDesktopMode(reload: Boolean) {
+        binding.secureWebview.settings.userAgentString = if (desktopMode) DESKTOP_USER_AGENT else defaultUserAgent
+        binding.secureWebview.settings.useWideViewPort = desktopMode
+        binding.secureWebview.settings.loadWithOverviewMode = desktopMode
+        updateDesktopModeButton()
+        if (reload && !blocked && !binding.secureWebview.url.isNullOrBlank() && binding.secureWebview.url != "about:blank") {
+            binding.secureWebview.reload()
+        }
+    }
+
+    private fun updateDesktopModeButton() {
+        binding.desktopModeButton.text = getString(
+            if (desktopMode) R.string.vcs_secure_browser_desktop_on else R.string.vcs_secure_browser_desktop_off
+        )
+        binding.desktopModeButton.alpha = if (desktopMode) 1f else 0.72f
+    }
+
+    private fun showLinkMenuFromHitTest(): Boolean {
+        val url = binding.secureWebview.hitTestResult
+            .extra
+            ?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
+            ?: return false
+        if (!isAllowedBrowserUrl(Uri.parse(url), isTopLevel = true)) return false
+        AlertDialog.Builder(this)
+            .setTitle(url)
+            .setItems(
+                arrayOf(
+                    getString(R.string.vcs_secure_browser_link_open),
+                    getString(R.string.vcs_secure_browser_link_copy),
+                    getString(R.string.vcs_secure_browser_link_share)
+                )
+            ) { _, which ->
+                when (which) {
+                    0 -> openLinkFromMenu(url)
+                    1 -> copyLink(url)
+                    2 -> shareLink(url)
+                }
+            }
+            .show()
+        return true
+    }
+
+    private fun openLinkFromMenu(url: String) {
+        if (blocked) return
+        binding.secureWebview.loadUrl(url)
+    }
+
+    private fun copyLink(url: String) {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.vcs_secure_browser_link), url))
+        Toast.makeText(this, R.string.vcs_secure_browser_link_copied, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun shareLink(url: String) {
+        val intent = Intent(Intent.ACTION_SEND)
+            .setType("text/plain")
+            .putExtra(Intent.EXTRA_TEXT, url)
+        startActivity(Intent.createChooser(intent, getString(R.string.vcs_secure_browser_link_share)))
     }
 
     private fun openTypedUrl() {
@@ -288,9 +448,11 @@ class SecureBrowserActivity : AppCompatActivity() {
         binding.browserReloadButton.isEnabled = canNavigate &&
             !binding.secureWebview.url.isNullOrBlank() &&
             binding.secureWebview.url != "about:blank"
+        binding.findToggleButton.isEnabled = canNavigate
         setButtonAlpha(binding.browserBackButton)
         setButtonAlpha(binding.browserForwardButton)
         setButtonAlpha(binding.browserReloadButton)
+        setButtonAlpha(binding.findToggleButton)
     }
 
     private fun setButtonAlpha(view: View) {
@@ -713,6 +875,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     private fun stopBrowser() {
         binding.browserRefresh.isRefreshing = false
         binding.pageProgress.visibility = View.GONE
+        clearFindMatches()
         binding.secureWebview.stopLoading()
         binding.secureWebview.loadUrl("about:blank")
     }
@@ -837,8 +1000,14 @@ class SecureBrowserActivity : AppCompatActivity() {
         private const val PREF_HIDDEN_DEFAULT_BOOKMARKS = "secure_browser_hidden_default_bookmarks"
         private const val PREF_NAVIGATION_PAD_X = "secure_browser_navigation_pad_x"
         private const val PREF_NAVIGATION_PAD_Y = "secure_browser_navigation_pad_y"
+        private const val PREF_TEXT_ZOOM = "secure_browser_text_zoom"
+        private const val PREF_DESKTOP_MODE = "secure_browser_desktop_mode"
+        private const val MIN_TEXT_ZOOM = 70
+        private const val MAX_TEXT_ZOOM = 160
         const val EXTRA_INITIAL_URL = "com.wireguard.android.extra.SECURE_BROWSER_INITIAL_URL"
         private const val GOOGLE_URL = "https://www.google.com/"
+        private const val DESKTOP_USER_AGENT =
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
         private val DEFAULT_BOOKMARKS = listOf(GOOGLE_URL)
         private const val WEBRTC_PROTECTION_SCRIPT = """
             (function() {

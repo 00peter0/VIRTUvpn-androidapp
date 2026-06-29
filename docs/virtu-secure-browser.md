@@ -156,12 +156,19 @@ The browser includes:
 - a thin page progress bar driven by `WebChromeClient.onProgressChanged`,
 - pull-to-refresh around WebView,
 - reload/back/forward controls,
+- find-in-page with next/previous match navigation,
+- persisted text zoom controls,
+- persisted desktop-mode toggle using a desktop user-agent and wide viewport,
+- long-press link actions for open, copy, and share,
 - a movable navigation pad whose position is persisted,
 - visible route status in the header.
 
 Pull-to-refresh and reload are enabled only when the browser is unblocked and a
 real page is loaded. When the browser locks or stops, loading progress and
 refresh spinner are cleared.
+
+Long-press link actions still respect the browser URL policy. Unsafe schemes are
+not offered as trusted Secure Browser navigation targets.
 
 ## Bookmarks
 
@@ -212,4 +219,6 @@ For every Secure Browser release:
 - verify cookies/cache/history are cleared after leaving the browser,
 - verify tracker/ad blocking does not break basic navigation,
 - verify progress bar and pull-to-refresh do not remain stuck after page load or
-  browser lock.
+  browser lock,
+- verify find-in-page, text zoom, desktop mode, and long-press link actions work
+  without bypassing URL policy.
