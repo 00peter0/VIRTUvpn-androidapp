@@ -196,6 +196,16 @@
                     android:textColor="#7D8B99"
                     android:textSize="13sp" />
 
+                <ImageView
+                    android:id="@+id/router_guest_qr"
+                    android:layout_width="168dp"
+                    android:layout_height="168dp"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="12dp"
+                    android:background="#FFFFFF"
+                    android:contentDescription="@string/vcs_vpn_router_guest_qr"
+                    android:padding="8dp" />
+
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

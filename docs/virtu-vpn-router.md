@@ -24,7 +24,7 @@ a usable VPN interface such as `tun*` or `wg*`.
   - ethernet or USB uplink,
   - unknown physical uplink.
 - Show router status, uplink status, phone kill switch status, router protection,
-  and router-only DNS settings in the VPN Router page.
+  guest dashboard QR, and router-only DNS settings in the VPN Router page.
 
 ## Multi-Uplink Model
 
@@ -272,6 +272,7 @@ The VPN Router page shows:
 - router status,
 - detected uplink,
 - router protection status,
+- guest dashboard address and QR code for connected devices,
 - router DNS options.
 
 When router protection is active, hotspot clients stay associated with WiFi but
@@ -290,8 +291,8 @@ outside the VPN while router mode is enabled.
    - continue without client kill switch,
    - install VirtuVPN for stronger client-side protection.
 6. Add Router Secure Web as a no-install guest browsing path.
-7. Keep captive access optional; never block VPN-routed internet while waiting
-   for HTML.
+7. Keep guest dashboard optional; never block VPN-routed internet while waiting
+   for any browser page.
 8. Disable known hotspot auto-shutdown behavior while router mode is enabled.
 9. Validate with:
    - VirtuVPN tunnel,
@@ -305,8 +306,8 @@ outside the VPN while router mode is enabled.
    - client reconnect with reused DHCP address,
    - DNS leak scans,
    - IPv6 leak scans,
-   - captive portal open on Android/Samsung/iOS where available,
-   - regular browsing still works when the captive portal does not open.
+   - dashboard QR opens on connected devices,
+   - regular browsing works without opening the dashboard.
 
 ## New device checklist
 
@@ -330,6 +331,7 @@ Before using a new rooted Android device as a production router:
 4. Verify guest dashboard behavior:
    - new client has internet even if the portal does not open,
    - the router dashboard is reachable at the gateway fallback address,
+   - the Router page QR code opens the same dashboard address,
    - Router Secure Web works from the dashboard,
    - the guest APK install/update link works.
 5. Verify DNS behavior:

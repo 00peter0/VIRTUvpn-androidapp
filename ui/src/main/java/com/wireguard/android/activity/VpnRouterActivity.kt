@@ -4,12 +4,16 @@
  */
 package com.wireguard.android.activity
 
+import android.graphics.Bitmap
 import android.graphics.Color
 import android.os.Bundle
+import android.widget.ImageView
 import android.widget.RadioGroup
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.qrcode.QRCodeWriter
 import com.wireguard.android.R
 import com.wireguard.android.util.VpnRouterManager
 import kotlinx.coroutines.launch
@@ -20,6 +24,7 @@ class VpnRouterActivity : AppCompatActivity() {
     private lateinit var routerProtectionStatus: TextView
     private lateinit var routerGuestAccessStatus: TextView
     private lateinit var routerGuestDashboard: TextView
+    private lateinit var routerGuestQr: ImageView
     private lateinit var routerDnsGroup: RadioGroup
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,6 +37,7 @@ class VpnRouterActivity : AppCompatActivity() {
         routerProtectionStatus = findViewById(R.id.router_protection_status)
         routerGuestAccessStatus = findViewById(R.id.router_guest_access_status)
         routerGuestDashboard = findViewById(R.id.router_guest_dashboard)
+        routerGuestQr = findViewById(R.id.router_guest_qr)
         routerDnsGroup = findViewById(R.id.router_dns_group)
         routerDnsGroup.setOnCheckedChangeListener { _, checkedId ->
             val mode = when (checkedId) {
@@ -156,7 +162,20 @@ class VpnRouterActivity : AppCompatActivity() {
         val gateway = status.tetherInterfaces.firstOrNull()?.let { interfaceName ->
             if (interfaceName == "swlan0") "192.168.115.186" else null
         } ?: "192.168.115.186"
-        routerGuestDashboard.text = getString(R.string.vcs_vpn_router_guest_dashboard_with_address, gateway)
+        val dashboardUrl = "http://$gateway:8787/"
+        routerGuestDashboard.text = getString(R.string.vcs_vpn_router_guest_dashboard_with_address, dashboardUrl)
+        routerGuestQr.setImageBitmap(createQrBitmap(dashboardUrl))
+    }
+
+    private fun createQrBitmap(value: String): Bitmap {
+        val matrix = QRCodeWriter().encode(value, BarcodeFormat.QR_CODE, QR_SIZE, QR_SIZE)
+        val bitmap = Bitmap.createBitmap(QR_SIZE, QR_SIZE, Bitmap.Config.ARGB_8888)
+        for (x in 0 until QR_SIZE) {
+            for (y in 0 until QR_SIZE) {
+                bitmap.setPixel(x, y, if (matrix[x, y]) Color.BLACK else Color.WHITE)
+            }
+        }
+        return bitmap
     }
 
     private fun labelForUplinkType(type: VpnRouterManager.UplinkType): Int {
@@ -173,5 +192,6 @@ class VpnRouterActivity : AppCompatActivity() {
         val GREEN: Int = Color.parseColor("#86EFAC")
         val YELLOW: Int = Color.parseColor("#FBBF24")
         val RED: Int = Color.parseColor("#F87171")
+        const val QR_SIZE: Int = 512
     }
 }
