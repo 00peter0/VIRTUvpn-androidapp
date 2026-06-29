@@ -137,6 +137,9 @@
     <string name="vcs_vpn_router_guest_access_active">Download VirtuVPN on client devices for safer browsing.</string>
     <string name="vcs_vpn_router_guest_access_inactive">Client app download appears after router mode is enabled.</string>
     <string name="vcs_vpn_router_guest_download">Download VirtuVPN app</string>
+    <string name="vcs_vpn_router_guest_download_description">Downloading guest APK for client devices</string>
+    <string name="vcs_vpn_router_guest_download_started">VirtuVPN guest app download started</string>
+    <string name="vcs_vpn_router_guest_download_failed">VirtuVPN guest app download failed: %1$s</string>
     <string name="vcs_vpn_router_guest_download_with_address">Download: %1$s</string>
     <string name="vcs_vpn_router_guest_pair_secure_browser">Scan this QR from the client VirtuVPN app to pair Secure Browser with this VPN Router.</string>
     <string name="vcs_vpn_router_guest_qr">VirtuVPN app download QR code</string>
