@@ -326,7 +326,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         val withScheme = if (trimmed.contains("://")) trimmed else "https://$trimmed"
         val uri = Uri.parse(withScheme)
         val scheme = uri.scheme?.lowercase()
-        if (scheme != "https" && scheme != "http") return null
+        if (scheme != "https") return null
         if (uri.host.isNullOrBlank()) return null
         return uri.toString()
     }
@@ -655,10 +655,8 @@ class SecureBrowserActivity : AppCompatActivity() {
     private fun isAllowedBrowserUrl(uri: Uri, isTopLevel: Boolean): Boolean {
         return when (uri.scheme?.lowercase()) {
             "https" -> !uri.host.isNullOrBlank() && (isTopLevel || !isPrivateHttpHost(uri.host))
-            "http" -> isTopLevel && isPrivateHttpHost(uri.host)
             "wss" -> !uri.host.isNullOrBlank() && (isTopLevel || !isPrivateHttpHost(uri.host))
-            "ws" -> isTopLevel && isPrivateHttpHost(uri.host)
-            "about", "data", "blob" -> true
+            "about", "blob" -> true
             else -> false
         }
     }

@@ -163,7 +163,7 @@
     <string name="vcs_secure_browser_blocked">Protected connection required</string>
     <string name="vcs_secure_browser_blocked_detail">Browser traffic is stopped until a VPN or VPN Router connection is active.</string>
     <string name="vcs_secure_browser_stopped">Secure browser stopped because no protected connection is active</string>
-    <string name="vcs_secure_browser_blocked_public_http">Public HTTP is blocked in Secure Browser. Use HTTPS or a private VPN address.</string>
+    <string name="vcs_secure_browser_blocked_public_http">Only HTTPS pages are allowed in Secure Browser.</string>
     <string name="vcs_secure_browser_save">Save</string>
     <string name="vcs_secure_browser_bookmark_google">Google</string>
     <string name="vcs_secure_browser_bookmark_saved">Page saved</string>

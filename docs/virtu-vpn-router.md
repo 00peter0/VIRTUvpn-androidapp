@@ -177,6 +177,11 @@ Secure Browser is an ephemeral session: pause/destroy clears cookies, WebStorage
 cache, form data, and WebView history. It is not exported to other apps, and it
 blocks private-address subresources from public HTTPS pages to reduce DNS
 rebinding/LAN probing risk.
+Secure Browser intentionally does not enable Android cleartext traffic. `http:`,
+`ws:`, and top-level `data:` URLs are blocked; private LAN administration over
+cleartext should use the separate Web Terminal flow. Android Safe Browsing stays
+enabled as a malware/phishing protection tradeoff; any Safe Browsing lookups
+egress through the bound VPN network.
 
 The router phone also gets its own lockdown while router mode is enabled. Normal
 phone internet must go through the active VPN interface. IPv4 and IPv6 phone
