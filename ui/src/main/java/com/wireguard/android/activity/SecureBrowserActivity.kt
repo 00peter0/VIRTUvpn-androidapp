@@ -8,6 +8,7 @@ import android.annotation.SuppressLint
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -30,14 +31,14 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.databinding.SecureBrowserActivityBinding
 import com.wireguard.android.util.VcsDialogs
 import com.wireguard.android.util.VpnRouterManager
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
@@ -47,12 +48,14 @@ import java.io.ByteArrayInputStream
 class SecureBrowserActivity : AppCompatActivity() {
     private lateinit var binding: SecureBrowserActivityBinding
     private var monitorJob: Job? = null
+    private var vpnNetworkCallback: ConnectivityManager.NetworkCallback? = null
     private var navigationDragActive = false
     private var navigationDownRawX = 0f
     private var navigationDownRawY = 0f
     private var navigationStartX = 0f
     private var navigationStartY = 0f
     private var boundNetwork: Network? = null
+    private var documentStartWebRtcProtection = false
     @Volatile
     private var blocked = true
 
@@ -89,23 +92,21 @@ class SecureBrowserActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (!::binding.isInitialized) return
-        monitorJob = lifecycleScope.launch {
-            while (isActive) {
-                setBrowserAllowed(isSecureBrowserAllowed())
-                delay(300)
-            }
-        }
+        registerVpnNetworkCallback()
+        monitorJob = lifecycleScope.launch { refreshBrowserProtection() }
     }
 
     override fun onPause() {
         monitorJob?.cancel()
         monitorJob = null
+        unregisterVpnNetworkCallback()
         if (::binding.isInitialized) lockBrowser(showToast = false)
         unbindBrowserNetwork()
         super.onPause()
     }
 
     override fun onDestroy() {
+        unregisterVpnNetworkCallback()
         unbindBrowserNetwork()
         if (::binding.isInitialized) {
             binding.secureWebview.stopLoading()
@@ -139,6 +140,7 @@ class SecureBrowserActivity : AppCompatActivity() {
                 safeBrowsingEnabled = true
             }
         }
+        installDocumentStartWebRtcProtection(webView)
         webView.webChromeClient = object : WebChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest) {
                 request.deny()
@@ -163,12 +165,12 @@ class SecureBrowserActivity : AppCompatActivity() {
 
             override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
                 super.onPageStarted(view, url, favicon)
-                injectWebRtcProtection(view)
+                if (!documentStartWebRtcProtection) injectWebRtcProtection(view)
             }
 
             override fun onPageFinished(view: WebView, url: String?) {
                 super.onPageFinished(view, url)
-                injectWebRtcProtection(view)
+                if (!documentStartWebRtcProtection) injectWebRtcProtection(view)
                 if (!url.isNullOrBlank() && url != "about:blank") {
                     binding.urlInput.setText(url)
                 }
@@ -479,6 +481,71 @@ class SecureBrowserActivity : AppCompatActivity() {
         }
     }
 
+    private fun registerVpnNetworkCallback() {
+        if (vpnNetworkCallback != null) return
+        val connectivityManager = getSystemService(ConnectivityManager::class.java) ?: return
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                refreshBrowserProtectionAsync()
+            }
+
+            override fun onLost(network: Network) {
+                if (network == boundNetwork) {
+                    lockBrowserFromNetworkCallback()
+                } else {
+                    refreshBrowserProtectionAsync()
+                }
+            }
+
+            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+                if (!networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN) ||
+                    !networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                ) {
+                    if (network == boundNetwork) lockBrowserFromNetworkCallback()
+                } else {
+                    refreshBrowserProtectionAsync()
+                }
+            }
+
+            override fun onUnavailable() {
+                lockBrowserFromNetworkCallback()
+            }
+        }
+        vpnNetworkCallback = callback
+        val request = NetworkRequest.Builder()
+            .addTransportType(NetworkCapabilities.TRANSPORT_VPN)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+        runCatching { connectivityManager.registerNetworkCallback(request, callback) }
+            .onFailure {
+                vpnNetworkCallback = null
+                lockBrowserFromNetworkCallback()
+            }
+    }
+
+    private fun unregisterVpnNetworkCallback() {
+        val callback = vpnNetworkCallback ?: return
+        getSystemService(ConnectivityManager::class.java)?.let { connectivityManager ->
+            runCatching { connectivityManager.unregisterNetworkCallback(callback) }
+        }
+        vpnNetworkCallback = null
+    }
+
+    private fun refreshBrowserProtectionAsync() {
+        lifecycleScope.launch { refreshBrowserProtection() }
+    }
+
+    private suspend fun refreshBrowserProtection() {
+        setBrowserAllowed(isSecureBrowserAllowed())
+    }
+
+    private fun lockBrowserFromNetworkCallback() {
+        lifecycleScope.launch {
+            unbindBrowserNetwork()
+            if (::binding.isInitialized) setBrowserAllowed(false)
+        }
+    }
+
     private suspend fun isVpnRouterActive(): Boolean =
         runCatching {
             VpnRouterManager.getStatus(this@SecureBrowserActivity).availability == VpnRouterManager.Availability.ENABLED
@@ -518,6 +585,17 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun blockedResponse(): WebResourceResponse =
         WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream(ByteArray(0)))
+
+    private fun installDocumentStartWebRtcProtection(webView: WebView) {
+        documentStartWebRtcProtection = if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+            runCatching {
+                WebViewCompat.addDocumentStartJavaScript(webView, WEBRTC_PROTECTION_SCRIPT, setOf("*"))
+                true
+            }.getOrDefault(false)
+        } else {
+            false
+        }
+    }
 
     private fun injectWebRtcProtection(webView: WebView) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) return
