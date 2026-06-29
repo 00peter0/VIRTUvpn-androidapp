@@ -100,6 +100,12 @@ missing, slow, or temporarily invalid during a provider switch, hotspot clients
 lose internet instead of falling through to Android's lower-priority mobile
 tether route.
 
+The same deny-first rule applies to the first enable. Before IPv4 forwarding is
+enabled, VirtuVPN creates the router forward chains, installs the hotspot
+unreachable fallback route, adds `20901` for each hotspot interface, and inserts
+temporary hotspot forwarding rejects. The final `20900` VPN route is added only
+after the full DNS, IPv4, IPv6, and FORWARD rules are in place.
+
 Current route priority model:
 
 ```text

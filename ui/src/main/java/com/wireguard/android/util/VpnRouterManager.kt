@@ -384,9 +384,6 @@ object VpnRouterManager {
         }
         setOperation(context, OperationStage.LOCKING_HOTSPOT, "Blocking hotspot fallback before changing VPN routes")
         setOperation(context, OperationStage.DETECTING_TUNNEL, "Using VPN interface $activeTunnel")
-        setOperation(context, OperationStage.APPLYING_DNS, "Applying router DNS for hotspot clients")
-        overrideTetherDnsForwarders(dnsResolvers)
-        checkedRun("enable IPv4 forwarding", "sysctl -w net.ipv4.ip_forward=1 >/dev/null")
         setOperation(context, OperationStage.APPLYING_FIREWALL, "Installing fail-closed firewall and VPN routes")
         checkedRun("prepare NAT chain", "iptables -t nat -N $NAT_CHAIN 2>/dev/null || true")
         checkedRun("prepare DNS chain", "iptables -t nat -N $DNS_CHAIN 2>/dev/null || true")
@@ -399,6 +396,26 @@ object VpnRouterManager {
         checkedRun("remove legacy access chain", "iptables -F VIRTUVPN_ROUTER_ACCESS 2>/dev/null || true; iptables -X VIRTUVPN_ROUTER_ACCESS 2>/dev/null || true")
         checkedRun("clear output chain", "iptables -F $OUTPUT_CHAIN")
         checkedRun("clear IPv6 forward chain", "ip6tables -F $IPV6_FORWARD_CHAIN")
+        checkedRun("prepare hotspot fallback block route", "ip route replace unreachable default table $HOTSPOT_BLOCK_ROUTE_TABLE")
+        downstreams.forEach { downstream ->
+            checkedRun(
+                "install hotspot fallback block first",
+                "ip rule del pref $HOTSPOT_BLOCK_RULE_PRIORITY iif $downstream 2>/dev/null || true; " +
+                    "ip rule add pref $HOTSPOT_BLOCK_RULE_PRIORITY iif $downstream lookup $HOTSPOT_BLOCK_ROUTE_TABLE"
+            )
+            checkedRun(
+                "remove hotspot VPN route while firewall is rebuilding",
+                "ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY iif $downstream 2>/dev/null || true"
+            )
+            checkedRun(
+                "deny hotspot forwarding before enabling router",
+                "iptables -A $FORWARD_CHAIN -i $downstream -j REJECT"
+            )
+            checkedRun(
+                "deny hotspot IPv6 forwarding before enabling router",
+                "ip6tables -A $IPV6_FORWARD_CHAIN -i $downstream -j REJECT"
+            )
+        }
         checkedRun(
             "attach NAT chain",
             "while iptables -t nat -D POSTROUTING -j $NAT_CHAIN 2>/dev/null; do :; done; " +
@@ -430,6 +447,9 @@ object VpnRouterManager {
             "while ip6tables -D FORWARD -j $IPV6_FORWARD_CHAIN 2>/dev/null; do :; done; " +
                 "ip6tables -I FORWARD 1 -j $IPV6_FORWARD_CHAIN"
         )
+        checkedRun("enable IPv4 forwarding after hotspot deny rules", "sysctl -w net.ipv4.ip_forward=1 >/dev/null")
+        setOperation(context, OperationStage.APPLYING_DNS, "Applying router DNS for hotspot clients")
+        overrideTetherDnsForwarders(dnsResolvers)
         checkedRun("masquerade VPN egress", "iptables -t nat -A $NAT_CHAIN -o $tunnel -j MASQUERADE")
         checkedRun("allow phone VPN egress", "iptables -A $OUTPUT_CHAIN -o $tunnel -j RETURN")
         checkedRun("allow WireGuard fwmark transport", "iptables -A $OUTPUT_CHAIN -m mark --mark 0x20000 -j RETURN || true")
@@ -440,7 +460,8 @@ object VpnRouterManager {
             checkedRun("block phone uplink bypass", "iptables -A $OUTPUT_CHAIN -o $uplink -j REJECT")
         }
         checkedRun("finish output chain", "iptables -A $OUTPUT_CHAIN -j RETURN")
-        checkedRun("prepare hotspot fallback block route", "ip route replace unreachable default table $HOTSPOT_BLOCK_ROUTE_TABLE")
+        checkedRun("clear temporary forward deny rules", "iptables -F $FORWARD_CHAIN")
+        checkedRun("clear temporary IPv6 forward deny rules", "ip6tables -F $IPV6_FORWARD_CHAIN")
         downstreams.forEach { downstream ->
             checkedRun(
                 "route hotspot UDP DNS",
@@ -454,11 +475,6 @@ object VpnRouterManager {
                 "block hotspot mobile fallback",
                 "ip rule del pref $HOTSPOT_BLOCK_RULE_PRIORITY iif $downstream 2>/dev/null || true; " +
                     "ip rule add pref $HOTSPOT_BLOCK_RULE_PRIORITY iif $downstream lookup $HOTSPOT_BLOCK_ROUTE_TABLE"
-            )
-            checkedRun(
-                "route hotspot traffic to VPN",
-                "ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY iif $downstream 2>/dev/null || true; " +
-                    "ip rule add pref $HOTSPOT_VPN_RULE_PRIORITY iif $downstream lookup $tunnel"
             )
             checkedRun(
                 "block hotspot DNS over TLS",
@@ -494,6 +510,11 @@ object VpnRouterManager {
             checkedRun(
                 "block hotspot IPv6 bypass traffic",
                 "ip6tables -A $IPV6_FORWARD_CHAIN -i $downstream -j REJECT"
+            )
+            checkedRun(
+                "route hotspot traffic to VPN after firewall is ready",
+                "ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY iif $downstream 2>/dev/null || true; " +
+                    "ip rule add pref $HOTSPOT_VPN_RULE_PRIORITY iif $downstream lookup $tunnel"
             )
         }
         setOperation(context, OperationStage.VERIFYING_RULES, "Verifying VPN route and mobile fallback block")
