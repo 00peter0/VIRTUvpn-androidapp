@@ -81,6 +81,42 @@ When enabled, the app installs root rules that:
 This gives hotspot clients a fail-closed router path. If the VPN interface is not
 available, clients should not silently bypass through the phone uplink.
 
+## VPN switch flow
+
+When the user changes VPN provider or switches to another tunnel while VPN
+Router is enabled, the router must treat the change as a protected transition.
+The professional user-visible flow is a modal on the VPN Router page titled
+`Securing VPN Router`. It shows the same steps the system is applying:
+
+1. Lock hotspot fallback so clients cannot use mobile data directly.
+2. Detect the active VPN interface.
+3. Apply router DNS for hotspot clients.
+4. Install VPN-only firewall and route rules.
+5. Verify VPN route, DNS, IPv6 block, and mobile fallback block.
+
+The important implementation rule is fail-closed ordering. The router prepares
+the unreachable fallback route first and installs the `20901` hotspot block rule
+before replacing the `20900` VPN policy route. That means if the VPN route is
+missing, slow, or temporarily invalid during a provider switch, hotspot clients
+lose internet instead of falling through to Android's lower-priority mobile
+tether route.
+
+Current route priority model:
+
+```text
+20900: hotspot interface -> active VPN table
+20901: hotspot interface -> unreachable fallback table 1048
+21000: Android tether fallback -> physical uplink
+```
+
+`20901` must remain present during transition work. Do not clear both `20900`
+and `20901` at the start of reconcile, because that opens a switch window where
+Android's `21000` route can carry hotspot traffic over mobile data.
+
+The modal is not only cosmetic. It is the operator-facing audit trail for the
+active transition. If the flow fails, the router should remain blocked and show
+the error instead of silently leaving clients on a direct uplink.
+
 Guest clients must not depend on captive portal HTML for connectivity. Captive
 portal behavior is only best-effort because client operating systems cache probe
 results, suppress popups, and handle private DNS, VPN, and browser state

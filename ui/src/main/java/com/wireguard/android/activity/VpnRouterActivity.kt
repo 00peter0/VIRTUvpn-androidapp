@@ -8,14 +8,19 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.os.Bundle
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.RadioGroup
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import com.wireguard.android.R
+import com.wireguard.android.util.VcsDialogs
 import com.wireguard.android.util.VpnRouterManager
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class VpnRouterActivity : AppCompatActivity() {
@@ -26,6 +31,11 @@ class VpnRouterActivity : AppCompatActivity() {
     private lateinit var routerGuestDashboard: TextView
     private lateinit var routerGuestQr: ImageView
     private lateinit var routerDnsGroup: RadioGroup
+    private var routerMonitorJob: Job? = null
+    private var operationDialog: AlertDialog? = null
+    private var operationDialogMessage: TextView? = null
+    private var refreshing = false
+    private var lastActiveTunnel: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,7 +62,7 @@ class VpnRouterActivity : AppCompatActivity() {
                 renderRouterStatus(router)
             }
         }
-        refreshStatus()
+        refreshStatus(showProgress = false)
     }
 
     override fun onSupportNavigateUp(): Boolean {
@@ -62,40 +72,142 @@ class VpnRouterActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        refreshStatus()
+        startRouterMonitor()
     }
 
-    private fun refreshStatus() {
-        lifecycleScope.launch {
-            val router = runCatching { VpnRouterManager.getStatus(this@VpnRouterActivity) }
-                .mapCatching { current ->
-                    if (current.availability == VpnRouterManager.Availability.ENABLED) {
-                        VpnRouterManager.reconcile(this@VpnRouterActivity)
-                    } else {
-                        current
-                    }
-                }
-                .getOrElse { e ->
-                    VpnRouterManager.Status(
-                        availability = VpnRouterManager.Availability.ERROR,
-                        detail = e.message ?: e.javaClass.simpleName
-                    )
-                }
-            renderRouterStatus(router)
-            renderDnsMode()
+    override fun onPause() {
+        routerMonitorJob?.cancel()
+        routerMonitorJob = null
+        dismissOperationDialog()
+        super.onPause()
+    }
 
-            routerProtectionStatus.setText(
-                if (router.availability == VpnRouterManager.Availability.ENABLED) {
-                    R.string.vcs_hotspot_vpn_router_active
-                } else {
-                    R.string.vcs_hotspot_vpn_bypass_warning
-                }
-            )
-            routerProtectionStatus.setTextColor(
-                if (router.availability == VpnRouterManager.Availability.ENABLED) GREEN else RED
-            )
-            renderGuestAccess(router)
+    private fun startRouterMonitor() {
+        if (routerMonitorJob != null) return
+        routerMonitorJob = lifecycleScope.launch {
+            while (true) {
+                refreshStatus(showProgress = true)
+                delay(3000)
+            }
         }
+    }
+
+    private fun refreshStatus(showProgress: Boolean) {
+        if (refreshing) return
+        lifecycleScope.launch {
+            refreshing = true
+            try {
+                val router = runCatching { VpnRouterManager.getStatus(this@VpnRouterActivity) }
+                    .mapCatching { current ->
+                        val tunnelChanged = lastActiveTunnel != null && current.activeTunnel != lastActiveTunnel
+                        val shouldShowProgress = showProgress && tunnelChanged
+                        if (current.availability == VpnRouterManager.Availability.ENABLED) {
+                            if (shouldShowProgress) showOperationDialog()
+                            val progressJob = if (shouldShowProgress) launch {
+                                while (true) {
+                                    renderOperationStatus(VpnRouterManager.getOperationStatus(this@VpnRouterActivity))
+                                    delay(250)
+                                }
+                            } else null
+                            try {
+                                VpnRouterManager.reconcile(this@VpnRouterActivity)
+                            } finally {
+                                progressJob?.cancel()
+                                if (shouldShowProgress) {
+                                    renderOperationStatus(VpnRouterManager.getOperationStatus(this@VpnRouterActivity))
+                                    delay(450)
+                                    dismissOperationDialog()
+                                }
+                            }
+                        } else {
+                            current
+                        }
+                    }
+                    .getOrElse { e ->
+                        VpnRouterManager.Status(
+                            availability = VpnRouterManager.Availability.ERROR,
+                            detail = e.message ?: e.javaClass.simpleName
+                        )
+                    }
+                renderRouterStatus(router)
+                renderDnsMode()
+
+                routerProtectionStatus.setText(
+                    if (router.availability == VpnRouterManager.Availability.ENABLED) {
+                        R.string.vcs_hotspot_vpn_router_active
+                    } else {
+                        R.string.vcs_hotspot_vpn_bypass_warning
+                    }
+                )
+                routerProtectionStatus.setTextColor(
+                    if (router.availability == VpnRouterManager.Availability.ENABLED) GREEN else RED
+                )
+                renderGuestAccess(router)
+                lastActiveTunnel = router.activeTunnel
+            } finally {
+                refreshing = false
+            }
+        }
+    }
+
+    private fun showOperationDialog() {
+        if (operationDialog?.isShowing == true) return
+        operationDialogMessage = TextView(this).apply {
+            text = operationMessage(VpnRouterManager.getOperationStatus(this@VpnRouterActivity))
+            setTextColor(Color.parseColor("#AFC0CC"))
+            textSize = 14f
+            setLineSpacing(4f, 1.0f)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+        operationDialog = VcsDialogs.show(
+            this,
+            title = getString(R.string.vcs_vpn_router_operation_title),
+            customView = operationDialogMessage,
+            cancelable = false
+        )
+    }
+
+    private fun renderOperationStatus(status: VpnRouterManager.OperationStatus) {
+        operationDialogMessage?.text = operationMessage(status)
+    }
+
+    private fun dismissOperationDialog() {
+        operationDialog?.dismiss()
+        operationDialog = null
+        operationDialogMessage = null
+    }
+
+    private fun operationMessage(status: VpnRouterManager.OperationStatus): String {
+        val activeStage = when (status.stage) {
+            VpnRouterManager.OperationStage.LOCKING_HOTSPOT -> 0
+            VpnRouterManager.OperationStage.DETECTING_TUNNEL -> 1
+            VpnRouterManager.OperationStage.APPLYING_DNS -> 2
+            VpnRouterManager.OperationStage.APPLYING_FIREWALL -> 3
+            VpnRouterManager.OperationStage.VERIFYING_RULES -> 4
+            VpnRouterManager.OperationStage.COMPLETE -> 5
+            VpnRouterManager.OperationStage.ERROR -> 6
+            VpnRouterManager.OperationStage.IDLE -> -1
+        }
+        val labels = listOf(
+            getString(R.string.vcs_vpn_router_operation_locking),
+            getString(R.string.vcs_vpn_router_operation_detecting),
+            getString(R.string.vcs_vpn_router_operation_dns),
+            getString(R.string.vcs_vpn_router_operation_firewall),
+            getString(R.string.vcs_vpn_router_operation_verify)
+        )
+        val prefix = labels.mapIndexed { index, label ->
+            val marker = when {
+                activeStage > index -> "[done]"
+                activeStage == index -> "[now]"
+                else -> "[wait]"
+            }
+            "$marker $label"
+        }.joinToString("\n")
+        val detail = status.detail?.takeIf { it.isNotBlank() } ?: getString(R.string.vcs_vpn_router_operation_default_detail)
+        return "$prefix\n\n$detail"
     }
 
     private fun renderDnsMode() {
