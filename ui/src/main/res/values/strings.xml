@@ -168,6 +168,7 @@
     <string name="vcs_secure_browser_egress_vpn">Protected via Android VPN provider</string>
     <string name="vcs_secure_browser_egress_virtu">Protected via VirtuVPN: %1$s</string>
     <string name="vcs_secure_browser_egress_router">Protected via VPN Router: %1$s</string>
+    <string name="vcs_secure_browser_egress_tap_to_check">%1$s · Tap to check exit</string>
     <string name="vcs_secure_browser_egress_with_country">%1$s · Exit %2$s · %3$s</string>
     <string name="vcs_secure_browser_egress_blocked">Protected route required</string>
     <string name="vcs_secure_browser_save">Save</string>

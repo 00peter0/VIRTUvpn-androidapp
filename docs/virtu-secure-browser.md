@@ -60,9 +60,14 @@ The browser header shows the active protection path:
 - `Protected via VPN Router: <tunnel>`
 - `Protected route required`
 
-After protection is active, the browser performs a short egress identity check
-without delaying navigation. It adds the apparent public exit country and public
-IP to the header. This is a trust signal for the user; it is not used as the
+After protection is active, the browser does not automatically contact a public
+IP or geo service. The header shows `Tap to check exit`; only an explicit tap
+performs the short egress identity check and adds the apparent public exit
+country and public IP to the header. This avoids sending VPN exit IP plus timing
+metadata to third-party lookup services during normal browsing. The returned IP
+literal is validated before it is used in the geo lookup URL.
+
+The exit identity is only a trust signal for the user; it is not used as the
 security decision. The security decision remains local VPN binding or router
 lockdown state.
 
@@ -219,7 +224,8 @@ VPN. The browser still shows the router tunnel in the egress header.
 
 ## Known Limits
 
-- The egress country/IP lookup is informational. It is not a security control.
+- The egress country/IP lookup is on-demand and informational. It is not a
+  security control.
 - Android Safe Browsing may contact Google Safe Browsing infrastructure through
   the VPN.
 - Host-based tracker blocking is best-effort and does not replace a full
@@ -238,7 +244,8 @@ For every Secure Browser release:
 - verify navigation works with VirtuVPN active,
 - verify navigation works with a third-party Android VPN provider active,
 - verify VPN loss locks the browser and clears the loaded page,
-- verify the header shows protection path and then exit identity,
+- verify the header shows protection path and only fetches exit identity after
+  an explicit tap,
 - verify WebRTC leak tests do not expose local IP candidates,
 - verify cookies/cache/history are cleared after leaving the browser,
 - verify tracker/ad blocking does not break basic navigation,

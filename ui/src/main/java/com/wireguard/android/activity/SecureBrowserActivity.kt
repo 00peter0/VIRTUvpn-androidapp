@@ -75,6 +75,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     private var findMatches = 0
     private var findActiveMatch = 0
     private var blockedTrackers = 0
+    private var currentProtectionLabel: String? = null
     @Volatile
     private var blocked = true
 
@@ -108,6 +109,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         configureMovableNavigation()
         updateNavigationButtons()
         binding.egressStatus.setText(R.string.vcs_secure_browser_egress_checking)
+        binding.egressStatus.setOnClickListener { refreshEgressIdentityOnDemand() }
         updateSecurityBadges(null)
         binding.goButton.setOnClickListener { openTypedUrl() }
         binding.savePageButton.setOnClickListener { saveCurrentPage() }
@@ -823,10 +825,15 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun setBrowserProtection(protection: BrowserProtection) {
-        binding.egressStatus.text = protection.label
+        currentProtectionLabel = protection.label
+        egressLookupJob?.cancel()
+        binding.egressStatus.text = if (protection.allowed) {
+            getString(R.string.vcs_secure_browser_egress_tap_to_check, protection.label)
+        } else {
+            protection.label
+        }
         binding.egressStatus.setTextColor(getColor(if (protection.allowed) android.R.color.holo_green_light else android.R.color.holo_red_light))
         if (protection.allowed) {
-            refreshEgressIdentity(protection.label)
             blocked = false
             binding.vpnBlocker.visibility = View.GONE
             binding.secureWebview.visibility = View.VISIBLE
@@ -847,9 +854,11 @@ class SecureBrowserActivity : AppCompatActivity() {
         updateNavigationButtons()
     }
 
-    private fun refreshEgressIdentity(baseLabel: String) {
+    private fun refreshEgressIdentityOnDemand() {
+        if (blocked) return
+        val baseLabel = currentProtectionLabel ?: return
         egressLookupJob?.cancel()
-        binding.egressStatus.text = baseLabel
+        binding.egressStatus.text = getString(R.string.vcs_secure_browser_egress_checking)
         egressLookupJob = lifecycleScope.launch {
             val identity = withContext(Dispatchers.IO) { fetchEgressIdentity() }
             if (identity != null && ::binding.isInitialized && !blocked) {
@@ -859,6 +868,8 @@ class SecureBrowserActivity : AppCompatActivity() {
                     listOf(flagEmoji(identity.countryCode), identity.country).filter { it.isNotBlank() }.joinToString(" "),
                     identity.ip
                 )
+            } else if (::binding.isInitialized && !blocked) {
+                binding.egressStatus.text = getString(R.string.vcs_secure_browser_egress_tap_to_check, baseLabel)
             }
         }
     }
@@ -867,7 +878,8 @@ class SecureBrowserActivity : AppCompatActivity() {
         val ip = fetchText("https://ipv4.icanhazip.com")
             ?: fetchText("https://ipv6.icanhazip.com")
             ?: return null
-        val geo = fetchText("https://ipwho.is/$ip") ?: return EgressIdentity(ip, "", "")
+        if (!isValidIpLiteral(ip)) return null
+        val geo = fetchText("https://ipwho.is/${Uri.encode(ip)}") ?: return EgressIdentity(ip, "", "")
         return runCatching {
             val json = JSONObject(geo)
             if (!json.optBoolean("success", false)) return@runCatching EgressIdentity(ip, "", "")
@@ -877,6 +889,13 @@ class SecureBrowserActivity : AppCompatActivity() {
                 countryCode = json.optString("country_code")
             )
         }.getOrDefault(EgressIdentity(ip, "", ""))
+    }
+
+    private fun isValidIpLiteral(value: String): Boolean {
+        if (value.any { it.isWhitespace() || it == '/' || it == '?' || it == '#' }) return false
+        val parts = value.split('.')
+        if (parts.size == 4 && parts.all { part -> part.toIntOrNull()?.let { it in 0..255 } == true }) return true
+        return ':' in value && value.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' || it == ':' || it == '.' }
     }
 
     private fun fetchText(url: String): String? = try {
