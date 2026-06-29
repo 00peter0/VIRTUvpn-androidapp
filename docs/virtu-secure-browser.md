@@ -22,22 +22,32 @@ Secure Browser allows navigation only when one of these conditions is true:
 - the process successfully binds to an Android `TRANSPORT_VPN` network with
   internet capability,
 - VPN Router is enabled on the router phone itself, where router OUTPUT lockdown
-  restricts phone traffic to the active VPN path.
+  restricts phone traffic to the active VPN path,
+- the client is on WiFi and verifies a nonce-bound VirtuVPN Router attestation
+  from the current gateway.
 
 The browser must not treat `192.168.x.x`, `10.x.x.x`, `172.16/12`, or any other
 private client address as proof that a hotspot is safe. A normal home, office, or
 cafe WiFi also gives private addresses, so that signal is not trusted.
 
-A hotspot client connected to a VirtuVPN Router is therefore not automatically
-allowed inside Secure Browser unless that client device also has an Android VPN
-network. This is a deliberate safe default. The router can protect that client's
-ordinary browser traffic at the router layer, but Secure Browser itself only
-claims protection when it can verify a local VPN transport, or when it runs on
-the router phone where VPN Router is locally enabled.
+A hotspot client connected to a VirtuVPN Router is allowed only after the browser
+verifies the router attestation endpoint on the current WiFi gateway. Without
+that attestation, accepting ordinary private WiFi addressing would recreate the
+unsafe false-positive behavior.
 
-Future router-client support can be added with a signed router attestation
-endpoint on the hotspot gateway. Without that attestation, accepting ordinary
-private WiFi addressing would recreate the unsafe false-positive behavior.
+Router attestation:
+
+- endpoint: `http://<wifi-gateway>:8788/virtuvpn-router/attestation`,
+- client sends a random nonce,
+- router responds only while VPN Router status is `ENABLED`,
+- response includes nonce, timestamp, protected state, active tunnel, and HMAC
+  signature,
+- client accepts only matching nonce, fresh timestamp, `protected=true`, and a
+  valid signature.
+
+The attestation is intentionally lightweight and local to the hotspot. It avoids
+reintroducing the removed guest HTML/status flow and does not make private IP
+addressing itself a trust signal.
 
 `ConnectivityManager.NetworkCallback` monitors VPN availability. When the bound
 VPN network is lost or loses internet capability, the browser is locked and the
@@ -59,6 +69,8 @@ Provider behavior:
   provider state.
 - VPN Router phone: when router mode is active, the UI shows the active router
   tunnel name.
+- Verified VPN Router client: the UI shows a verified VPN Router state with the
+  attested tunnel name.
 
 On pause or destroy, the browser unbinds from the VPN network.
 
@@ -227,10 +239,9 @@ internal app flows.
 
 On router clients, the VPN Router protects traffic at the router layer, so any
 ordinary browser can use the router-protected hotspot path. Secure Browser on
-the client device remains blocked unless that client also has a local Android
-VPN, because the browser has no signed proof that the WiFi gateway is a genuine
-VirtuVPN Router. The VPN Router page provides the VirtuVPN download link and QR
-code for clients that want local Secure Browser protection.
+the client device can also run when it verifies the local router attestation from
+the current WiFi gateway. The VPN Router page provides the VirtuVPN download link
+and QR code for clients that want local Secure Browser protection.
 
 On the router phone itself, Secure Browser may run while VPN Router is enabled
 because router OUTPUT lockdown prevents normal phone traffic from bypassing the
@@ -255,8 +266,9 @@ For every Secure Browser release:
 
 - run `./gradlew :ui:testVcsinstallUnitTest :ui:assembleVcsinstall`,
 - verify navigation is blocked with no VPN and no active VPN Router,
-- verify a hotspot client without local VPN is blocked in Secure Browser even
-  when the router hotspot itself is protected,
+- verify a hotspot client without local VPN is blocked when attestation is not
+  reachable or invalid,
+- verify a hotspot client without local VPN is allowed when attestation is valid,
 - verify navigation works with VirtuVPN active,
 - verify navigation works with a third-party Android VPN provider active,
 - verify VPN loss locks the browser and clears the loaded page,

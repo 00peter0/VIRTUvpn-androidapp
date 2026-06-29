@@ -26,6 +26,7 @@ import com.wireguard.android.util.RootShell
 import com.wireguard.android.util.ToolsInstaller
 import com.wireguard.android.util.TunnelConnectivityMonitor
 import com.wireguard.android.util.UserKnobs
+import com.wireguard.android.util.VpnRouterAttestationServer
 import com.wireguard.android.util.VpnRouterManager
 import com.wireguard.android.util.applicationScope
 import kotlinx.coroutines.CompletableDeferred
@@ -131,6 +132,7 @@ class Application : android.app.Application() {
 
     override fun onTerminate() {
         if (::tunnelConnectivityMonitor.isInitialized) tunnelConnectivityMonitor.stop()
+        VpnRouterAttestationServer.stop()
         coroutineScope.cancel()
         super.onTerminate()
     }
@@ -141,6 +143,11 @@ class Application : android.app.Application() {
                 delay(VPN_ROUTER_RECONCILE_INTERVAL_MS)
                 runCatching {
                     val status = VpnRouterManager.getStatus(applicationContext)
+                    if (status.availability == VpnRouterManager.Availability.ENABLED) {
+                        VpnRouterAttestationServer.start(applicationContext)
+                    } else {
+                        VpnRouterAttestationServer.stop()
+                    }
                     if (status.needsReconcile) {
                         VpnRouterManager.reconcile(applicationContext)
                     }

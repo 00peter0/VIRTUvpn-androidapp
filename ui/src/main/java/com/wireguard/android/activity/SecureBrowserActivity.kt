@@ -45,6 +45,7 @@ import com.wireguard.android.backend.WgQuickBackend
 import com.wireguard.android.databinding.SecureBrowserActivityBinding
 import com.wireguard.android.util.SecureBrowserBlocker
 import com.wireguard.android.util.VcsDialogs
+import com.wireguard.android.util.VpnRouterAttestation
 import com.wireguard.android.util.VpnRouterManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -739,6 +740,16 @@ class SecureBrowserActivity : AppCompatActivity() {
         if (routerStatus?.availability == VpnRouterManager.Availability.ENABLED) {
             val tunnel = routerStatus.activeTunnel ?: getString(R.string.vcs_vpn_status_no_tunnel)
             return@withContext BrowserProtection(true, getString(R.string.vcs_secure_browser_egress_router, tunnel))
+        }
+        val attestation = runCatching { VpnRouterAttestation.verifyFromCurrentGateway(this@SecureBrowserActivity) }.getOrNull()
+        if (attestation != null) {
+            return@withContext BrowserProtection(
+                true,
+                getString(
+                    R.string.vcs_secure_browser_egress_router_attested,
+                    attestation.tunnel ?: getString(R.string.vcs_vpn_status_no_tunnel)
+                )
+            )
         }
         BrowserProtection(false, getString(R.string.vcs_secure_browser_egress_blocked))
     }
