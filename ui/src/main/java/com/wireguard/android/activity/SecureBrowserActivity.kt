@@ -94,7 +94,8 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private data class BrowserProtection(
         val allowed: Boolean,
-        val label: String
+        val label: String,
+        val detail: String? = null
     )
 
     private data class EgressIdentity(
@@ -130,6 +131,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         binding.browserForwardButton.setOnClickListener { navigateForward() }
         binding.browserReloadButton.setOnClickListener { reloadPage() }
         binding.pairRouterButton.setOnClickListener { scanRouterPairingQr() }
+        binding.forgetRoutersButton.setOnClickListener { confirmForgetRouters() }
         binding.urlInput.setOnEditorActionListener { _, _, _ ->
             openTypedUrl()
             true
@@ -472,6 +474,24 @@ class SecureBrowserActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun confirmForgetRouters() {
+        val count = VpnRouterAttestation.pairedRouters(this).size
+        if (count == 0) {
+            Toast.makeText(this, R.string.vcs_secure_browser_router_pair_none, Toast.LENGTH_SHORT).show()
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.vcs_secure_browser_router_forget_title)
+            .setMessage(resources.getQuantityString(R.plurals.vcs_secure_browser_router_forget_confirm, count, count))
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.vcs_secure_browser_router_forget_action) { _, _ ->
+                VpnRouterAttestation.clearPairings(this)
+                Toast.makeText(this, R.string.vcs_secure_browser_router_forget_success, Toast.LENGTH_LONG).show()
+                refreshBrowserProtectionAsync()
+            }
+            .show()
+    }
+
     private fun openTypedUrl() {
         val url = normalizeUrl(binding.urlInput.text?.toString().orEmpty())
         if (url == null) return
@@ -776,14 +796,19 @@ class SecureBrowserActivity : AppCompatActivity() {
             val tunnel = routerStatus.activeTunnel ?: getString(R.string.vcs_vpn_status_no_tunnel)
             return@withContext BrowserProtection(true, getString(R.string.vcs_secure_browser_egress_router, tunnel))
         }
-        val attestation = runCatching { VpnRouterAttestation.verifyFromCurrentGateway(this@SecureBrowserActivity) }.getOrNull()
-        if (attestation != null) {
+        val attestation = runCatching { VpnRouterAttestation.verifyFromCurrentGatewayDetailed(this@SecureBrowserActivity) }.getOrNull()
+        if (attestation?.result != null) {
             return@withContext BrowserProtection(
                 true,
                 getString(R.string.vcs_secure_browser_egress_router_attested)
             )
         }
-        BrowserProtection(false, getString(R.string.vcs_secure_browser_egress_blocked))
+        val detail = when (attestation?.failureReason) {
+            VpnRouterAttestation.FailureReason.CLOCK_SKEW -> getString(R.string.vcs_secure_browser_blocked_clock_skew)
+            VpnRouterAttestation.FailureReason.EXPIRED_PAIRING -> getString(R.string.vcs_secure_browser_blocked_pairing_expired)
+            else -> getString(R.string.vcs_secure_browser_blocked_detail)
+        }
+        BrowserProtection(false, getString(R.string.vcs_secure_browser_egress_blocked), detail)
     }
 
     private suspend fun vpnProtectionLabel(): String {
@@ -893,6 +918,7 @@ class SecureBrowserActivity : AppCompatActivity() {
             lockBrowser(showToast = !blocked)
             binding.secureWebview.visibility = View.GONE
             binding.vpnBlocker.visibility = View.VISIBLE
+            binding.blockerDetail.text = protection.detail ?: getString(R.string.vcs_secure_browser_blocked_detail)
         }
         updateNavigationButtons()
     }

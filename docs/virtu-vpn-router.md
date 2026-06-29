@@ -177,7 +177,14 @@ on the VPN Router page while router protection is active. The endpoint is
 inactive unless router protection is enabled. Router pairing is intentionally
 QR/in-app only: `virtuvpn://router-pair` is not a browsable web deep link, and
 the client app requires explicit confirmation before storing the router secret.
-This prevents a web page from silently replacing the trusted router.
+This prevents a web page from silently replacing the trusted router. Clients can
+store multiple paired routers, pairings expire after 7 days, and the Secure
+Browser blocker screen provides an explicit unpair action.
+
+The attestation server may still bind on all local addresses for Android
+compatibility, but router firewall rules restrict TCP port `8788` to detected
+hotspot downstream interfaces and reject the same port from other interfaces.
+The HTTP handler also keeps the source-address allowlist as a second layer.
 
 Secure Browser must not trust ordinary private WiFi addressing as proof of
 router protection. On client devices it is allowed only when the process can bind

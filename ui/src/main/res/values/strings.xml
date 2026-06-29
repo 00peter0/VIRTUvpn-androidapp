@@ -163,6 +163,8 @@
     <string name="vcs_secure_browser_reload">Reload</string>
     <string name="vcs_secure_browser_blocked">Protected connection required</string>
     <string name="vcs_secure_browser_blocked_detail">Secure Browser needs a VPN on this device or a verified VirtuVPN Router hotspot.</string>
+    <string name="vcs_secure_browser_blocked_clock_skew">Verified router found, but the phone clocks differ too much. Check date and time on both devices, then try again.</string>
+    <string name="vcs_secure_browser_blocked_pairing_expired">This VPN Router pairing expired. Scan the router QR code again to renew trust.</string>
     <string name="vcs_secure_browser_stopped">Secure browser stopped because no protected connection is active</string>
     <string name="vcs_secure_browser_blocked_public_http">Only HTTPS pages are allowed in Secure Browser.</string>
     <string name="vcs_secure_browser_egress_checking">Checking protected route...</string>
@@ -177,6 +179,15 @@
     <string name="vcs_secure_browser_router_pair_action">Pair</string>
     <string name="vcs_secure_browser_router_pair_success">VPN Router paired with Secure Browser</string>
     <string name="vcs_secure_browser_router_pair_error">VPN Router pairing failed</string>
+    <string name="vcs_secure_browser_forget_routers">Forget paired routers</string>
+    <string name="vcs_secure_browser_router_pair_none">No paired VPN Routers</string>
+    <string name="vcs_secure_browser_router_forget_title">Forget VPN Router pairings?</string>
+    <string name="vcs_secure_browser_router_forget_action">Forget</string>
+    <string name="vcs_secure_browser_router_forget_success">VPN Router pairings removed</string>
+    <plurals name="vcs_secure_browser_router_forget_confirm">
+        <item quantity="one">Remove 1 paired VPN Router from this device?</item>
+        <item quantity="other">Remove %1$d paired VPN Routers from this device?</item>
+    </plurals>
     <string name="vcs_secure_browser_egress_tap_to_check">%1$s · Tap to check exit</string>
     <string name="vcs_secure_browser_egress_with_country">%1$s · Exit %2$s · %3$s</string>
     <string name="vcs_secure_browser_egress_blocked">Protected route required</string>

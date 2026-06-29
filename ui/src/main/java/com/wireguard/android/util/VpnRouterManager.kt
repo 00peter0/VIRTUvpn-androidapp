@@ -411,6 +411,16 @@ object VpnRouterManager {
         checkedRun("clear output chain", "iptables -F $OUTPUT_CHAIN")
         checkedRun("clear IPv6 forward chain", "ip6tables -F $IPV6_FORWARD_CHAIN")
         checkedRun("clear IPv6 output chain", "ip6tables -F $IPV6_OUTPUT_CHAIN")
+        checkedRun(
+            "clear attestation input guard",
+            "while iptables -D INPUT -p tcp --dport ${VpnRouterAttestation.PORT} -j REJECT 2>/dev/null; do :; done"
+        )
+        downstreams.forEach { downstream ->
+            checkedRun(
+                "clear attestation input allow",
+                "while iptables -D INPUT -i $downstream -p tcp --dport ${VpnRouterAttestation.PORT} -j ACCEPT 2>/dev/null; do :; done"
+            )
+        }
         checkedRun("prepare hotspot fallback block route", "ip route replace unreachable default table $HOTSPOT_BLOCK_ROUTE_TABLE")
         downstreams.forEach { downstream ->
             checkedRun(
@@ -484,6 +494,16 @@ object VpnRouterManager {
             checkedRun("allow active VPN provider transport", "iptables -A $OUTPUT_CHAIN -m owner --uid-owner $vpnOwnerUid -j RETURN")
             checkedRun("allow active VPN provider IPv6 transport", "ip6tables -A $IPV6_OUTPUT_CHAIN -m owner --uid-owner $vpnOwnerUid -j RETURN || true")
         }
+        downstreams.asReversed().forEach { downstream ->
+            checkedRun(
+                "allow router attestation from hotspot",
+                "iptables -I INPUT 1 -i $downstream -p tcp --dport ${VpnRouterAttestation.PORT} -j ACCEPT"
+            )
+        }
+        checkedRun(
+            "block router attestation outside hotspot",
+            "iptables -A INPUT -p tcp --dport ${VpnRouterAttestation.PORT} -j REJECT"
+        )
         uplinks.forEach { uplink ->
             checkedRun("block phone uplink bypass", "iptables -A $OUTPUT_CHAIN -o $uplink -j REJECT")
             checkedRun("block phone IPv6 uplink bypass", "ip6tables -A $IPV6_OUTPUT_CHAIN -o $uplink -j REJECT")
@@ -577,11 +597,13 @@ object VpnRouterManager {
         if (!commandSucceeds("iptables -C $OUTPUT_CHAIN -j REJECT >/dev/null 2>&1")) return false
         if (!commandSucceeds("ip6tables -C $IPV6_OUTPUT_CHAIN -j REJECT >/dev/null 2>&1")) return false
         if (!commandSucceeds("ip6tables -C $IPV6_FORWARD_CHAIN -j REJECT >/dev/null 2>&1")) return false
+        if (!commandSucceeds("iptables -C INPUT -p tcp --dport ${VpnRouterAttestation.PORT} -j REJECT >/dev/null 2>&1")) return false
         return downstreams.all { downstream ->
             commandSucceeds(
                 "ip rule show | grep -q \"^$HOTSPOT_VPN_RULE_PRIORITY:.*iif $downstream .*lookup $tunnel\" && " +
                     "ip rule show | grep -q \"^$HOTSPOT_BLOCK_RULE_PRIORITY:.*iif $downstream .*lookup $HOTSPOT_BLOCK_ROUTE_TABLE\" && " +
                     "ip route show table $HOTSPOT_BLOCK_ROUTE_TABLE | grep -q \"unreachable default\" && " +
+                    "iptables -C INPUT -i $downstream -p tcp --dport ${VpnRouterAttestation.PORT} -j ACCEPT >/dev/null 2>&1 && " +
                     "iptables -C $FORWARD_CHAIN -i $downstream -o $tunnel -j ACCEPT >/dev/null 2>&1 && " +
                     "iptables -C $FORWARD_CHAIN -i $downstream -j REJECT >/dev/null 2>&1 && " +
                     "ip6tables -C $IPV6_FORWARD_CHAIN -i $downstream -j REJECT >/dev/null 2>&1"
@@ -623,6 +645,13 @@ object VpnRouterManager {
                 "ip route flush table $HOTSPOT_BLOCK_ROUTE_TABLE 2>/dev/null || true"
         )
         checkedRun("flush route cache", "ip route flush cache 2>/dev/null || true")
+        checkedRun(
+            "remove attestation input guard",
+            "while iptables -D INPUT -p tcp --dport ${VpnRouterAttestation.PORT} -j REJECT 2>/dev/null; do :; done; " +
+                "for iface in $(ip -o link show | awk -F': ' '{print $2}' | cut -d@ -f1); do " +
+                "while iptables -D INPUT -i \"${'$'}iface\" -p tcp --dport ${VpnRouterAttestation.PORT} -j ACCEPT 2>/dev/null; do :; done; " +
+                "done"
+        )
         checkedRun(
             "detach NAT chain",
             "iptables -t nat -D POSTROUTING -j $NAT_CHAIN 2>/dev/null || true"

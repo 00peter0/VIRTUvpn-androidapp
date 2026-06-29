@@ -11,6 +11,7 @@ import android.net.NetworkCapabilities
 import android.util.Base64
 import android.util.Log
 import kotlinx.coroutines.runBlocking
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.OutputStream
 import java.net.HttpURLConnection
@@ -38,6 +39,8 @@ object VpnRouterAttestation {
     private const val KEY_ROUTER_SECRET = "router_secret"
     private const val KEY_PAIRED_ROUTER_ID = "paired_router_id"
     private const val KEY_PAIRED_SECRET = "paired_secret"
+    private const val KEY_PAIRED_ROUTERS = "paired_routers"
+    private const val GUEST_PAIRING_TTL_MS = 7L * 24L * 60L * 60L * 1000L
     private val NONCE_REGEX = Regex("^[A-Za-z0-9_-]{24,96}$")
 
     data class Result(
@@ -46,28 +49,61 @@ object VpnRouterAttestation {
 
     data class Pairing(
         val routerId: String,
-        val secret: String
+        val secret: String,
+        val pairedAt: Long = System.currentTimeMillis(),
+        val expiresAt: Long = pairedAt + GUEST_PAIRING_TTL_MS
+    )
+
+    enum class FailureReason {
+        NO_PAIRING,
+        NO_WIFI_GATEWAY,
+        UNREACHABLE,
+        INVALID_RESPONSE,
+        ROUTER_NOT_PAIRED,
+        EXPIRED_PAIRING,
+        CLOCK_SKEW,
+        BAD_SIGNATURE
+    }
+
+    data class Verification(
+        val result: Result?,
+        val failureReason: FailureReason? = null
     )
 
     suspend fun verifyFromCurrentGateway(context: Context): Result? {
-        val secret = pairedSecret(context.applicationContext) ?: return null
-        val gateway = currentWifiGateway(context.applicationContext) ?: return null
+        return verifyFromCurrentGatewayDetailed(context).result
+    }
+
+    suspend fun verifyFromCurrentGatewayDetailed(context: Context): Verification {
+        val appContext = context.applicationContext
+        val pairings = pairedRouters(appContext)
+        if (pairings.isEmpty()) return Verification(null, FailureReason.NO_PAIRING)
+        val gateway = currentWifiGateway(appContext) ?: return Verification(null, FailureReason.NO_WIFI_GATEWAY)
         val nonce = randomNonce()
-        val body = fetchAttestation(gateway.hostAddress ?: return null, nonce) ?: return null
-        val json = runCatching { JSONObject(body) }.getOrNull() ?: return null
-        if (json.optString("app") != "VirtuVPN") return null
-        if (json.optString("kind") != "vpn-router-attestation") return null
-        if (json.optString("alg") != ALG) return null
-        if (json.optString("nonce") != nonce) return null
-        if (!json.optBoolean("protected", false)) return null
-        val routerId = json.optString("routerId").takeIf { it.isNotBlank() } ?: return null
-        if (routerId != pairedRouterId(context.applicationContext)) return null
+        val body = fetchAttestation(gateway.hostAddress ?: return Verification(null, FailureReason.NO_WIFI_GATEWAY), nonce)
+            ?: return Verification(null, FailureReason.UNREACHABLE)
+        val json = runCatching { JSONObject(body) }.getOrNull() ?: return Verification(null, FailureReason.INVALID_RESPONSE)
+        if (json.optString("app") != "VirtuVPN") return Verification(null, FailureReason.INVALID_RESPONSE)
+        if (json.optString("kind") != "vpn-router-attestation") return Verification(null, FailureReason.INVALID_RESPONSE)
+        if (json.optString("alg") != ALG) return Verification(null, FailureReason.INVALID_RESPONSE)
+        if (json.optString("nonce") != nonce) return Verification(null, FailureReason.INVALID_RESPONSE)
+        if (!json.optBoolean("protected", false)) return Verification(null, FailureReason.INVALID_RESPONSE)
+        val routerId = json.optString("routerId").takeIf { it.isNotBlank() }
+            ?: return Verification(null, FailureReason.INVALID_RESPONSE)
+        val pairing = pairings.firstOrNull { it.routerId == routerId }
+            ?: return Verification(null, FailureReason.ROUTER_NOT_PAIRED)
+        if (pairing.expiresAt <= System.currentTimeMillis()) {
+            removeExpiredPairings(appContext)
+            return Verification(null, FailureReason.EXPIRED_PAIRING)
+        }
         val timestamp = json.optLong("timestamp", 0L)
-        if (timestamp <= 0L || kotlin.math.abs(System.currentTimeMillis() - timestamp) > MAX_AGE_MS) return null
+        if (timestamp <= 0L || kotlin.math.abs(System.currentTimeMillis() - timestamp) > MAX_AGE_MS) {
+            return Verification(null, FailureReason.CLOCK_SKEW)
+        }
         val signature = json.optString("signature")
         val payload = payload(routerId, nonce, timestamp, protected = true)
-        if (!constantTimeEquals(signature, sign(payload, secret))) return null
-        return Result(routerId)
+        if (!constantTimeEquals(signature, sign(payload, pairing.secret))) return Verification(null, FailureReason.BAD_SIGNATURE)
+        return Verification(Result(routerId))
     }
 
     fun responseJson(context: Context, nonce: String): String? {
@@ -116,11 +152,87 @@ object VpnRouterAttestation {
     }
 
     fun importPairing(context: Context, pairing: Pairing) {
+        val appContext = context.applicationContext
+        val updated = (pairedRouters(appContext).filterNot { it.routerId == pairing.routerId } + pairing)
+            .sortedByDescending { it.pairedAt }
+        appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_PAIRED_ROUTERS, pairingsJson(updated))
+            .remove(KEY_PAIRED_ROUTER_ID)
+            .remove(KEY_PAIRED_SECRET)
+            .apply()
+    }
+
+    fun pairedRouters(context: Context): List<Pairing> {
+        val appContext = context.applicationContext
+        val prefs = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val now = System.currentTimeMillis()
+        val stored = prefs.getString(KEY_PAIRED_ROUTERS, null)
+        val parsed = if (!stored.isNullOrBlank()) {
+            runCatching {
+                val array = JSONArray(stored)
+                (0 until array.length()).mapNotNull { index ->
+                    val obj = array.optJSONObject(index) ?: return@mapNotNull null
+                    val routerId = obj.optString("routerId").takeIf { it.length in 12..96 } ?: return@mapNotNull null
+                    val secret = obj.optString("secret").takeIf { NONCE_REGEX.matches(it) } ?: return@mapNotNull null
+                    val pairedAt = obj.optLong("pairedAt", now)
+                    val expiresAt = obj.optLong("expiresAt", pairedAt + GUEST_PAIRING_TTL_MS)
+                    Pairing(routerId, secret, pairedAt, expiresAt)
+                }
+            }.getOrDefault(emptyList())
+        } else {
+            emptyList()
+        }
+        val legacyRouterId = prefs.getString(KEY_PAIRED_ROUTER_ID, null)
+        val legacySecret = prefs.getString(KEY_PAIRED_SECRET, null)
+        val withLegacy = if (legacyRouterId != null && legacySecret != null && NONCE_REGEX.matches(legacySecret)) {
+            parsed + Pairing(legacyRouterId, legacySecret, expiresAt = now + GUEST_PAIRING_TTL_MS)
+        } else {
+            parsed
+        }
+        val active = withLegacy
+            .filter { it.expiresAt > now }
+            .distinctBy { it.routerId }
+            .sortedByDescending { it.pairedAt }
+        if (active.size != parsed.size || legacyRouterId != null || legacySecret != null) {
+            prefs.edit()
+                .putString(KEY_PAIRED_ROUTERS, pairingsJson(active))
+                .remove(KEY_PAIRED_ROUTER_ID)
+                .remove(KEY_PAIRED_SECRET)
+                .apply()
+        }
+        return active
+    }
+
+    fun clearPairings(context: Context) {
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
-            .putString(KEY_PAIRED_ROUTER_ID, pairing.routerId)
-            .putString(KEY_PAIRED_SECRET, pairing.secret)
+            .remove(KEY_PAIRED_ROUTERS)
+            .remove(KEY_PAIRED_ROUTER_ID)
+            .remove(KEY_PAIRED_SECRET)
             .apply()
+    }
+
+    private fun removeExpiredPairings(context: Context) {
+        val active = pairedRouters(context)
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_PAIRED_ROUTERS, pairingsJson(active))
+            .apply()
+    }
+
+    private fun pairingsJson(pairings: List<Pairing>): String {
+        val array = JSONArray()
+        pairings.forEach { pairing ->
+            array.put(
+                JSONObject()
+                    .put("routerId", pairing.routerId)
+                    .put("secret", pairing.secret)
+                    .put("pairedAt", pairing.pairedAt)
+                    .put("expiresAt", pairing.expiresAt)
+            )
+        }
+        return array.toString()
     }
 
     private fun currentWifiGateway(context: Context): InetAddress? {
@@ -174,12 +286,6 @@ object VpnRouterAttestation {
         prefs.edit().putString(KEY_ROUTER_SECRET, secret).apply()
         return secret
     }
-
-    private fun pairedRouterId(context: Context): String? =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_PAIRED_ROUTER_ID, null)
-
-    private fun pairedSecret(context: Context): String? =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_PAIRED_SECRET, null)
 
     private fun payload(routerId: String, nonce: String, timestamp: Long, protected: Boolean): String =
         listOf("v2", routerId, nonce, timestamp.toString(), protected.toString()).joinToString("|")

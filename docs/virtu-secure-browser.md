@@ -42,6 +42,10 @@ Router attestation:
   page QR code and stored on the client device,
 - pairing is imported only through in-app QR scan flows and requires explicit
   user confirmation,
+- the client stores a small list of paired routers, not a single global router,
+  so a guest can use more than one trusted router without silent overwrite,
+- guest pairings expire after 7 days and can be removed from the blocked browser
+  screen with `Forget paired routers`,
 - `virtuvpn://router-pair` is not a browsable web deep link; web pages must not
   be able to silently replace the trusted router,
 - client sends a random nonce,
@@ -63,6 +67,8 @@ full internet egress path beyond that gateway; in the intended topology the WiFi
 gateway is the router and router firewall/routing rules enforce the VPN path.
 If router and client clocks differ too much, the timestamp freshness check fails
 closed and the browser remains blocked.
+When that specific failure is detected, the blocked screen tells the user to
+check date and time on both devices.
 
 `ConnectivityManager.NetworkCallback` monitors VPN availability. When the bound
 VPN network is lost or loses internet capability, the browser is locked and the
@@ -262,7 +268,8 @@ When Secure Browser is blocked because no local VPN or verified router is
 available, the blocker screen shows `Pair with VPN Router`. That action opens
 the QR scanner so a hotspot client can scan the pairing QR shown on the router
 phone. The import still requires explicit confirmation before the per-router
-secret is stored.
+secret is stored. The same blocked screen also exposes `Forget paired routers`
+so guest devices can remove old trust without navigating through hidden settings.
 
 On the router phone itself, Secure Browser may run while VPN Router is enabled
 because router OUTPUT lockdown prevents normal phone traffic from bypassing the
