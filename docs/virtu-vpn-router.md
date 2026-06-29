@@ -167,6 +167,13 @@ and QR code for connected devices.
 Secure Browser has its own detailed design document:
 `docs/virtu-secure-browser.md`.
 
+When VPN Router is enabled, the router phone also exposes a local attestation
+endpoint on the hotspot gateway at
+`/virtuvpn-router/attestation` port `8788`. VirtuVPN Secure Browser on a hotspot
+client can use this nonce-bound signed response to verify that the current WiFi
+gateway is a VirtuVPN Router before allowing browser traffic without a local VPN
+transport. The endpoint is inactive unless router protection is enabled.
+
 Secure Browser must not trust ordinary private WiFi addressing as proof of
 router protection. On client devices it is allowed only when the process can bind
 to an Android VPN network. On the router phone itself it may also run while VPN
