@@ -169,7 +169,12 @@
     <string name="vcs_secure_browser_egress_vpn">Protected via Android VPN provider</string>
     <string name="vcs_secure_browser_egress_virtu">Protected via VirtuVPN: %1$s</string>
     <string name="vcs_secure_browser_egress_router">Protected via VPN Router: %1$s</string>
-    <string name="vcs_secure_browser_egress_router_attested">Protected via verified VPN Router: %1$s</string>
+    <string name="vcs_secure_browser_egress_router_attested">Protected via verified VPN Router</string>
+    <string name="vcs_secure_browser_pair_router">Pair with VPN Router</string>
+    <string name="vcs_secure_browser_pair_router_scan_prompt">Scan VPN Router pairing QR</string>
+    <string name="vcs_secure_browser_router_pair_title">Pair VPN Router?</string>
+    <string name="vcs_secure_browser_router_pair_confirm">Pair Secure Browser with VPN Router %1$s? Only pair routers you control or trust.</string>
+    <string name="vcs_secure_browser_router_pair_action">Pair</string>
     <string name="vcs_secure_browser_router_pair_success">VPN Router paired with Secure Browser</string>
     <string name="vcs_secure_browser_router_pair_error">VPN Router pairing failed</string>
     <string name="vcs_secure_browser_egress_tap_to_check">%1$s · Tap to check exit</string>

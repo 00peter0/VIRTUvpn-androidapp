@@ -359,6 +359,22 @@
                     android:text="@string/vcs_secure_browser_blocked_detail"
                     android:textColor="#AFC0CC"
                     android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/pair_router_button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="44dp"
+                    android:layout_marginTop="18dp"
+                    android:background="@drawable/fastest_button_background"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:gravity="center"
+                    android:paddingHorizontal="18dp"
+                    android:text="@string/vcs_secure_browser_pair_router"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
             </LinearLayout>
 
             <LinearLayout

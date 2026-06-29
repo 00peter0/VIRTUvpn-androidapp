@@ -20,6 +20,7 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.addCallback
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ActionMode
 import androidx.lifecycle.lifecycleScope
@@ -87,8 +88,9 @@ class TunnelListFragment : BaseFragment() {
         if (qrCode != null && activity != null) {
             activity.lifecycleScope.launch {
                 if (qrCode.startsWith("virtuvpn://router-pair")) {
-                    if (VpnRouterAttestation.importPairingUri(activity, Uri.parse(qrCode))) {
-                        showSnackbar(getString(R.string.vcs_secure_browser_router_pair_success))
+                    val pairing = VpnRouterAttestation.parsePairingUri(Uri.parse(qrCode))
+                    if (pairing != null) {
+                        confirmRouterPairing(pairing)
                     } else {
                         showSnackbar(getString(R.string.vcs_secure_browser_router_pair_error))
                     }
@@ -104,6 +106,18 @@ class TunnelListFragment : BaseFragment() {
                 }
             }
         }
+    }
+
+    private fun confirmRouterPairing(pairing: VpnRouterAttestation.Pairing) {
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.vcs_secure_browser_router_pair_title)
+            .setMessage(getString(R.string.vcs_secure_browser_router_pair_confirm, pairing.routerId.take(8)))
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.vcs_secure_browser_router_pair_action) { _, _ ->
+                VpnRouterAttestation.importPairing(requireContext(), pairing)
+                showSnackbar(getString(R.string.vcs_secure_browser_router_pair_success))
+            }
+            .show()
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

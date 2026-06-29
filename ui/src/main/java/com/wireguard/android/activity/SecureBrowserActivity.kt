@@ -47,6 +47,8 @@ import com.wireguard.android.util.SecureBrowserBlocker
 import com.wireguard.android.util.VcsDialogs
 import com.wireguard.android.util.VpnRouterAttestation
 import com.wireguard.android.util.VpnRouterManager
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -79,6 +81,16 @@ class SecureBrowserActivity : AppCompatActivity() {
     private var currentProtectionLabel: String? = null
     @Volatile
     private var blocked = true
+
+    private val pairRouterResultLauncher = registerForActivityResult(ScanContract()) { result ->
+        val qrCode = result.contents ?: return@registerForActivityResult
+        val pairing = runCatching { VpnRouterAttestation.parsePairingUri(Uri.parse(qrCode)) }.getOrNull()
+        if (pairing == null) {
+            Toast.makeText(this, R.string.vcs_secure_browser_router_pair_error, Toast.LENGTH_LONG).show()
+            return@registerForActivityResult
+        }
+        confirmRouterPairing(pairing)
+    }
 
     private data class BrowserProtection(
         val allowed: Boolean,
@@ -117,6 +129,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         binding.browserBackButton.setOnClickListener { navigateBack() }
         binding.browserForwardButton.setOnClickListener { navigateForward() }
         binding.browserReloadButton.setOnClickListener { reloadPage() }
+        binding.pairRouterButton.setOnClickListener { scanRouterPairingQr() }
         binding.urlInput.setOnEditorActionListener { _, _, _ ->
             openTypedUrl()
             true
@@ -437,6 +450,28 @@ class SecureBrowserActivity : AppCompatActivity() {
         startActivity(Intent.createChooser(intent, getString(R.string.vcs_secure_browser_link_share)))
     }
 
+    private fun scanRouterPairingQr() {
+        val options = ScanOptions()
+            .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+            .setPrompt(getString(R.string.vcs_secure_browser_pair_router_scan_prompt))
+            .setBeepEnabled(false)
+            .setOrientationLocked(false)
+        pairRouterResultLauncher.launch(options)
+    }
+
+    private fun confirmRouterPairing(pairing: VpnRouterAttestation.Pairing) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.vcs_secure_browser_router_pair_title)
+            .setMessage(getString(R.string.vcs_secure_browser_router_pair_confirm, pairing.routerId.take(8)))
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.vcs_secure_browser_router_pair_action) { _, _ ->
+                VpnRouterAttestation.importPairing(this, pairing)
+                Toast.makeText(this, R.string.vcs_secure_browser_router_pair_success, Toast.LENGTH_LONG).show()
+                refreshBrowserProtectionAsync()
+            }
+            .show()
+    }
+
     private fun openTypedUrl() {
         val url = normalizeUrl(binding.urlInput.text?.toString().orEmpty())
         if (url == null) return
@@ -745,10 +780,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         if (attestation != null) {
             return@withContext BrowserProtection(
                 true,
-                getString(
-                    R.string.vcs_secure_browser_egress_router_attested,
-                    attestation.routerId.take(8)
-                )
+                getString(R.string.vcs_secure_browser_egress_router_attested)
             )
         }
         BrowserProtection(false, getString(R.string.vcs_secure_browser_egress_blocked))

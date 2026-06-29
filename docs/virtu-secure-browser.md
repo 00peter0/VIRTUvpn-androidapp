@@ -40,6 +40,10 @@ Router attestation:
 - endpoint: `http://<wifi-gateway>:8788/virtuvpn-router/attestation`,
 - trust root: a random per-router pairing secret scanned from the VPN Router
   page QR code and stored on the client device,
+- pairing is imported only through in-app QR scan flows and requires explicit
+  user confirmation,
+- `virtuvpn://router-pair` is not a browsable web deep link; web pages must not
+  be able to silently replace the trusted router,
 - client sends a random nonce,
 - router responds only while VPN Router status is `ENABLED`,
 - response includes router id, nonce, timestamp, protected state, and HMAC
@@ -57,6 +61,8 @@ Attestation proves that the current WiFi gateway knows the paired router secret
 and currently reports VPN Router enabled. It does not cryptographically prove the
 full internet egress path beyond that gateway; in the intended topology the WiFi
 gateway is the router and router firewall/routing rules enforce the VPN path.
+If router and client clocks differ too much, the timestamp freshness check fails
+closed and the browser remains blocked.
 
 `ConnectivityManager.NetworkCallback` monitors VPN availability. When the bound
 VPN network is lost or loses internet capability, the browser is locked and the
@@ -78,8 +84,7 @@ Provider behavior:
   provider state.
 - VPN Router phone: when router mode is active, the UI shows the active router
   tunnel name.
-- Verified VPN Router client: the UI shows a verified VPN Router state with the
-  attested tunnel name.
+- Verified VPN Router client: the UI shows a verified VPN Router state.
 
 On pause or destroy, the browser unbinds from the VPN network.
 
@@ -90,6 +95,7 @@ The browser header shows the active protection path:
 - `Protected via VirtuVPN: <tunnel>`
 - `Protected via Android VPN provider`
 - `Protected via VPN Router: <tunnel>`
+- `Protected via verified VPN Router`
 - `Protected route required`
 
 After protection is active, the browser does not automatically contact a public
@@ -251,6 +257,12 @@ ordinary browser can use the router-protected hotspot path. Secure Browser on
 the client device can also run when it verifies the local router attestation from
 the current WiFi gateway. The VPN Router page provides the VirtuVPN download link
 and QR code for clients that want local Secure Browser protection.
+
+When Secure Browser is blocked because no local VPN or verified router is
+available, the blocker screen shows `Pair with VPN Router`. That action opens
+the QR scanner so a hotspot client can scan the pairing QR shown on the router
+phone. The import still requires explicit confirmation before the per-router
+secret is stored.
 
 On the router phone itself, Secure Browser may run while VPN Router is enabled
 because router OUTPUT lockdown prevents normal phone traffic from bypassing the

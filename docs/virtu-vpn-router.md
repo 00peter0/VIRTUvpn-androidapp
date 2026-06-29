@@ -174,7 +174,10 @@ client can use this nonce-bound signed response to verify that the current WiFi
 gateway is the paired VirtuVPN Router before allowing browser traffic without a
 local VPN transport. Pairing uses a random per-router secret shown as a QR code
 on the VPN Router page while router protection is active. The endpoint is
-inactive unless router protection is enabled.
+inactive unless router protection is enabled. Router pairing is intentionally
+QR/in-app only: `virtuvpn://router-pair` is not a browsable web deep link, and
+the client app requires explicit confirmation before storing the router secret.
+This prevents a web page from silently replacing the trusted router.
 
 Secure Browser must not trust ordinary private WiFi addressing as proof of
 router protection. On client devices it is allowed only when the process can bind

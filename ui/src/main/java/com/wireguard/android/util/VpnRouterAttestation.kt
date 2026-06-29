@@ -44,6 +44,11 @@ object VpnRouterAttestation {
         val routerId: String
     )
 
+    data class Pairing(
+        val routerId: String,
+        val secret: String
+    )
+
     suspend fun verifyFromCurrentGateway(context: Context): Result? {
         val secret = pairedSecret(context.applicationContext) ?: return null
         val gateway = currentWifiGateway(context.applicationContext) ?: return null
@@ -103,16 +108,19 @@ object VpnRouterAttestation {
     fun isPairingUri(uri: Uri): Boolean =
         uri.scheme == "virtuvpn" && uri.host == "router-pair"
 
-    fun importPairingUri(context: Context, uri: Uri): Boolean {
-        if (!isPairingUri(uri)) return false
-        val routerId = uri.getQueryParameter("id")?.takeIf { it.length in 12..96 } ?: return false
-        val secret = uri.getQueryParameter("secret")?.takeIf { NONCE_REGEX.matches(it) } ?: return false
+    fun parsePairingUri(uri: Uri): Pairing? {
+        if (!isPairingUri(uri)) return null
+        val routerId = uri.getQueryParameter("id")?.takeIf { it.length in 12..96 } ?: return null
+        val secret = uri.getQueryParameter("secret")?.takeIf { NONCE_REGEX.matches(it) } ?: return null
+        return Pairing(routerId, secret)
+    }
+
+    fun importPairing(context: Context, pairing: Pairing) {
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
-            .putString(KEY_PAIRED_ROUTER_ID, routerId)
-            .putString(KEY_PAIRED_SECRET, secret)
+            .putString(KEY_PAIRED_ROUTER_ID, pairing.routerId)
+            .putString(KEY_PAIRED_SECRET, pairing.secret)
             .apply()
-        return true
     }
 
     private fun currentWifiGateway(context: Context): InetAddress? {

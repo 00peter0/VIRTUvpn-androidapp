@@ -14,6 +14,7 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.addCallback
 import androidx.appcompat.app.ActionBar
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentTransaction
 import androidx.fragment.app.commit
@@ -138,12 +139,13 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
     private fun handleVcsEnrollmentIntent(intent: Intent?) {
         val uri = intent?.data ?: return
         if (VpnRouterAttestation.isPairingUri(uri)) {
-            if (VpnRouterAttestation.importPairingUri(this, uri)) {
-                Toast.makeText(this, R.string.vcs_secure_browser_router_pair_success, Toast.LENGTH_LONG).show()
-            } else {
+            val pairing = VpnRouterAttestation.parsePairingUri(uri)
+            if (pairing == null) {
                 Toast.makeText(this, R.string.vcs_secure_browser_router_pair_error, Toast.LENGTH_LONG).show()
+                finishEnrollmentFlow()
+                return
             }
-            finishEnrollmentFlow()
+            confirmRouterPairing(pairing)
             return
         }
         if (!VcsManagedClient.isEnrollmentUri(uri)) return
@@ -158,6 +160,20 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
                 finishEnrollmentFlow()
             }
         }
+    }
+
+    private fun confirmRouterPairing(pairing: VpnRouterAttestation.Pairing) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.vcs_secure_browser_router_pair_title)
+            .setMessage(getString(R.string.vcs_secure_browser_router_pair_confirm, pairing.routerId.take(8)))
+            .setNegativeButton(android.R.string.cancel) { _, _ -> finishEnrollmentFlow() }
+            .setPositiveButton(R.string.vcs_secure_browser_router_pair_action) { _, _ ->
+                VpnRouterAttestation.importPairing(this, pairing)
+                Toast.makeText(this, R.string.vcs_secure_browser_router_pair_success, Toast.LENGTH_LONG).show()
+                finishEnrollmentFlow()
+            }
+            .setOnCancelListener { finishEnrollmentFlow() }
+            .show()
     }
 
     private fun finishEnrollmentFlow() {
