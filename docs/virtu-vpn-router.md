@@ -144,6 +144,11 @@ healthy, reconcile exits without flushing iptables chains, rewriting DNS
 forwarders, or replacing policy routes. A full rebuild is allowed only when the
 signature changes or the health check fails.
 
+The hotspot fallback block rule is kept in place during rebuilds. Reconcile only
+adds priority `20901` when it is missing instead of deleting and re-adding it,
+so clients do not get a transient direct-uplink window during ordinary rule
+refreshes.
+
 The UI may show router protection as active only when the health check also sees
 the policy routes, fallback unreachable route, IPv4/IPv6 hooks, and fail-closed
 OUTPUT/FORWARD tails. Chain existence alone is not enough for an active status.
@@ -364,6 +369,8 @@ Before using a new rooted Android device as a production router:
      has the DNS jump only,
    - `ip rule` has hotspot VPN routing before a hotspot unreachable fallback,
      and both are before Android's mobile tether fallback.
+   - interface names beginning with `-` are rejected before being used in shell
+     commands.
 4. Verify client app download behavior:
    - new client has internet through the router VPN path,
    - the Router page shows the VirtuVPN app download link,

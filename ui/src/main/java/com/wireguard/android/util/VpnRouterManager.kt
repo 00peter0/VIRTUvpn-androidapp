@@ -194,7 +194,7 @@ object VpnRouterManager {
         val tetherInterfaces = readTetherInterfaces(runningTunnel, allUpInterfaces)
         val uplinkInterfaces = readUplinkInterfaces(allUpInterfaces, runningTunnel, tetherInterfaces)
         val dnsResolvers = resolveDnsResolvers(context, runningTunnel)
-        val hotspotActive = HotspotDetector.isWifiHotspotActive(context)
+        val hotspotActive = HotspotDetector.isWifiHotspotActive(context) || tetherInterfaces.isNotEmpty()
         if (installed) {
             val healthy = verifyRouterRules(runningTunnel, tetherInterfaces)
             if (!healthy) {
@@ -413,8 +413,11 @@ object VpnRouterManager {
         downstreams.forEach { downstream ->
             checkedRun(
                 "install hotspot fallback block first",
-                "ip rule del pref $HOTSPOT_BLOCK_RULE_PRIORITY iif $downstream 2>/dev/null || true; " +
-                    "ip rule add pref $HOTSPOT_BLOCK_RULE_PRIORITY iif $downstream lookup $HOTSPOT_BLOCK_ROUTE_TABLE"
+                ensureRuleCommand(
+                    HOTSPOT_BLOCK_RULE_PRIORITY,
+                    downstream,
+                    HOTSPOT_BLOCK_ROUTE_TABLE.toString()
+                )
             )
             checkedRun(
                 "remove hotspot VPN route while firewall is rebuilding",
@@ -498,8 +501,11 @@ object VpnRouterManager {
             )
             checkedRun(
                 "block hotspot mobile fallback",
-                "ip rule del pref $HOTSPOT_BLOCK_RULE_PRIORITY iif $downstream 2>/dev/null || true; " +
-                    "ip rule add pref $HOTSPOT_BLOCK_RULE_PRIORITY iif $downstream lookup $HOTSPOT_BLOCK_ROUTE_TABLE"
+                ensureRuleCommand(
+                    HOTSPOT_BLOCK_RULE_PRIORITY,
+                    downstream,
+                    HOTSPOT_BLOCK_ROUTE_TABLE.toString()
+                )
             )
             checkedRun(
                 "block hotspot DNS over TLS",
@@ -583,6 +589,11 @@ object VpnRouterManager {
 
     private fun commandSucceeds(command: String): Boolean {
         return Application.getRootShell().run(null, command) == 0
+    }
+
+    private fun ensureRuleCommand(priority: Int, inputInterface: String, table: String): String {
+        return "ip rule show | grep -q \"^$priority:.*iif $inputInterface .*lookup $table\" || " +
+            "ip rule add pref $priority iif $inputInterface lookup $table"
     }
 
     private fun clearLastRuleSignature(context: Context) {
@@ -787,7 +798,7 @@ object VpnRouterManager {
     }
 
     private fun isValidInterfaceName(name: String): Boolean {
-        return name.length in 1..64 && INTERFACE_NAME_REGEX.matches(name)
+        return name.length in 1..64 && !name.startsWith("-") && INTERFACE_NAME_REGEX.matches(name)
     }
 
     private fun hasUsableLinkState(line: String): Boolean {
