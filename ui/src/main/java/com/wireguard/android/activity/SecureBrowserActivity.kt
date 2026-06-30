@@ -125,7 +125,6 @@ class SecureBrowserActivity : AppCompatActivity() {
         updateSecurityBadges(null)
         binding.goButton.setOnClickListener { openTypedUrl() }
         binding.savePageButton.setOnClickListener { saveCurrentPage() }
-        binding.featuresButton.setOnClickListener { showBrowserFeaturesDialog() }
         binding.browserBackButton.setOnClickListener { navigateBack() }
         binding.browserForwardButton.setOnClickListener { navigateForward() }
         binding.browserReloadButton.setOnClickListener { reloadPage() }
@@ -182,16 +181,34 @@ class SecureBrowserActivity : AppCompatActivity() {
             gravity = android.view.Gravity.CENTER_VERTICAL
             addView(titleView)
             addView(egressStatusButton)
+            addView(actionBarFeaturesButton())
         }
         supportActionBar?.apply {
             setDisplayHomeAsUpEnabled(true)
-            setDisplayShowHomeEnabled(true)
-            setIcon(R.drawable.ic_logo)
+            setDisplayShowHomeEnabled(false)
+            setIcon(null)
             setDisplayShowTitleEnabled(false)
             setDisplayShowCustomEnabled(true)
             customView = actionBarView
         }
     }
+
+    private fun actionBarFeaturesButton(): TextView =
+        TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(40), dp(32)).also { it.marginStart = dp(8) }
+            background = getDrawable(R.drawable.fastest_button_background)
+            foreground = selectableForeground()
+            isClickable = true
+            isFocusable = true
+            gravity = android.view.Gravity.CENTER
+            setSingleLine(true)
+            setText(R.string.vcs_secure_browser_features_icon)
+            setTextColor(Color.WHITE)
+            textSize = 18f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            contentDescription = getString(R.string.vcs_secure_browser_features_description)
+            setOnClickListener { showBrowserFeaturesDialog() }
+        }
 
     override fun onResume() {
         super.onResume()
