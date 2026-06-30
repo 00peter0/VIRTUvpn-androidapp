@@ -663,7 +663,7 @@ class HomeActivity : AppCompatActivity() {
                 binding.vpnRouterStatus.setTextColor(Color.parseColor("#FBBF24"))
             }
             VpnRouterManager.Availability.UNSUPPORTED -> {
-                binding.vpnRouterStatus.setText(R.string.vcs_vpn_router_unsupported)
+                binding.vpnRouterStatus.text = status.detail ?: getString(R.string.vcs_vpn_router_unsupported)
                 binding.vpnRouterStatus.setTextColor(Color.parseColor("#FBBF24"))
             }
             VpnRouterManager.Availability.ERROR -> {

@@ -252,7 +252,7 @@ class VpnRouterActivity : AppCompatActivity() {
                 routerStatus.setTextColor(YELLOW)
             }
             VpnRouterManager.Availability.UNSUPPORTED -> {
-                routerStatus.setText(R.string.vcs_vpn_router_unsupported)
+                routerStatus.text = status.detail ?: getString(R.string.vcs_vpn_router_unsupported)
                 routerStatus.setTextColor(YELLOW)
             }
             VpnRouterManager.Availability.ERROR -> {

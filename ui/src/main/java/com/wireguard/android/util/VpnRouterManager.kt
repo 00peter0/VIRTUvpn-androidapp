@@ -61,7 +61,7 @@ object VpnRouterManager {
         val canEnable: Boolean
             get() = availability == Availability.READY
         val canDisable: Boolean
-            get() = availability == Availability.ENABLED
+            get() = availability == Availability.ENABLED || availability == Availability.ERROR
         val needsReconcile: Boolean
             get() = availability == Availability.ENABLED || availability == Availability.ERROR
     }
@@ -182,12 +182,19 @@ object VpnRouterManager {
             )
         }
 
+        if (Application.getBackend() !is WgQuickBackend) {
+            return Status(
+                availability = if (installed) Availability.ERROR else Availability.UNSUPPORTED,
+                detail = "VPN Router requires the kernel module backend. Enable kernel module backend in Settings, restart VirtuVPN, then start the tunnel again."
+            )
+        }
+
         val runningTunnel = readVpnInterfaces().firstOrNull()
         val allUpInterfaces = readUpInterfaces()
         if (runningTunnel == null) {
             val dnsResolvers = resolveDnsResolvers(context, null)
             return Status(
-                availability = if (installed) Availability.ENABLED else Availability.WAITING_FOR_TUNNEL,
+                availability = if (installed) Availability.ERROR else Availability.WAITING_FOR_TUNNEL,
                 uplinkInterfaces = readUplinkInterfaces(allUpInterfaces, null, emptyList()),
                 dnsResolvers = dnsResolvers,
                 detail = if (installed) "router rules installed; no active VPN interface detected" else null
@@ -246,9 +253,8 @@ object VpnRouterManager {
     private suspend fun readVpnInterfaces(): List<String> {
         val names = linkedSetOf<String>()
         val backend = Application.getBackend()
-        if (backend is WgQuickBackend) {
-            names += backend.runningTunnelNames
-        }
+        if (backend !is WgQuickBackend) return emptyList()
+        names += backend.runningTunnelNames
         names += readUpInterfaces()
             .filter { name -> isValidInterfaceName(name) }
             .filter { name -> isVpnInterfaceCandidate(name) }
