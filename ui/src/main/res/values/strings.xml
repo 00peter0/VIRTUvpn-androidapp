@@ -151,6 +151,8 @@
     <string name="vcs_vpn_router_add_create_config">Create tunnel config in VPN Mesh</string>
     <string name="vcs_vpn_router_add_open_client_page">Open router client page</string>
     <string name="vcs_vpn_router_scan_tunnel_qr">Scan external tunnel QR</string>
+    <string name="vcs_vpn_router_logo_action_client_page">Open client HTML / QR page</string>
+    <string name="vcs_vpn_router_logo_action_add_tunnel">Add external tunnel to VPN Mesh</string>
     <string name="vcs_vpn_router_page_summary">Router mode sends hotspot clients through the active VPN interface and blocks direct mobile fallback.</string>
     <string name="vcs_vpn_router_router_protection">Router protection</string>
     <string name="vcs_vpn_router_guest_access">Client protection</string>

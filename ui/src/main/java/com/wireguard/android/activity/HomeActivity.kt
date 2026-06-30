@@ -92,7 +92,7 @@ class HomeActivity : AppCompatActivity() {
         binding.killSwitchHeader.setOnClickListener { setKillSwitchExpanded(!killSwitchExpanded) }
         binding.vpnRouterPanel.setOnClickListener { setVpnRouterExpanded(!vpnRouterExpanded) }
         binding.vpnRouterHeader.setOnClickListener { setVpnRouterExpanded(!vpnRouterExpanded) }
-        binding.vpnRouterLogo.setOnClickListener { openVpnMeshAddTunnelFlow() }
+        binding.vpnRouterLogo.setOnClickListener { showVpnRouterLogoActions() }
         selectedHomeTunnelName = getSharedPreferences(HOME_PREFS, Context.MODE_PRIVATE).getString(KEY_HOME_SELECTED_TUNNEL, null)
         binding.vpnStatusTunnelSelector.setOnClickListener { showHomeTunnelSelector() }
         binding.vpnStatusToggle.setOnBeforeCheckedChangeListener(object : ToggleSwitch.OnBeforeCheckedChangeListener {
@@ -918,6 +918,22 @@ class HomeActivity : AppCompatActivity() {
 
     private fun openVpnApp(section: String) {
         startActivity(Intent(this, MainActivity::class.java).putExtra(MainActivity.EXTRA_TUNNEL_SECTION, section))
+    }
+
+    private fun showVpnRouterLogoActions() {
+        val actions = arrayOf(
+            getString(R.string.vcs_vpn_router_logo_action_client_page),
+            getString(R.string.vcs_vpn_router_logo_action_add_tunnel)
+        )
+        AlertDialog.Builder(this)
+            .setTitle(R.string.vcs_vpn_router_home_actions_title)
+            .setItems(actions) { _, which ->
+                when (which) {
+                    0 -> openRouterPairingPage()
+                    1 -> openVpnMeshAddTunnelFlow()
+                }
+            }
+            .show()
     }
 
     private fun openVpnMeshAddTunnelFlow() {
