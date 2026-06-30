@@ -461,9 +461,11 @@ object VpnRouterAttestationServer {
             }
             val parts = request.split(' ')
             if (parts.size < 2 || parts[0] != "GET") {
+                drainRequestHeaders(client)
                 writeResponse(client.getOutputStream(), 405, "Method Not Allowed")
                 return
             }
+            drainRequestHeaders(client)
             val target = parts[1]
             val path = target.substringBefore('?')
             if (!VpnRouterAttestation.pathMatches(path)) {
@@ -496,6 +498,23 @@ object VpnRouterAttestationServer {
         }
         if (bytes.size > MAX_REQUEST_LINE) return null
         return bytes.toByteArray().toString(Charsets.US_ASCII)
+    }
+
+    private fun drainRequestHeaders(socket: Socket) {
+        val input = socket.getInputStream()
+        var previous = -1
+        var current: Int
+        var lineBytes = 0
+        while (lineBytes <= MAX_REQUEST_LINE) {
+            current = input.read()
+            if (current == -1) return
+            lineBytes++
+            if (previous == '\r'.code && current == '\n'.code) {
+                if (lineBytes == 2) return
+                lineBytes = 0
+            }
+            previous = current
+        }
     }
 
     private fun writeResponse(output: OutputStream, status: Int, body: String, contentType: String = "text/plain") {
