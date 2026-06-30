@@ -213,22 +213,28 @@ client can use this nonce-bound signed response to verify that the current WiFi
 gateway is the paired VirtuVPN Router before allowing browser traffic without a
 local VPN transport. Pairing uses a random per-router secret exposed through the
 router pairing landing page while router protection is active. The landing page
-offers two manual actions only: install/update VirtuVPN and copy the Secure
-Browser pair key. It must not perform implicit navigation, hidden redirects,
-background tests, or browsing-content serving.
+offers manual actions only: install/update VirtuVPN, open/import the pair link
+through the VirtuVPN app, and copy the Secure Browser pair key. It must not
+perform hidden redirects, background tests, or browsing-content serving.
 
 The endpoint is inactive unless router protection is enabled. Router pairing is
-intentionally QR/in-app/manual-paste only: `virtuvpn://router-pair` is not a
-browsable web deep link, and the client app requires explicit confirmation
-before storing the router secret. This prevents a web page from silently
-replacing the trusted router. Clients can store multiple paired routers, pairings
-expire after 7 days, and the Secure Browser blocker screen provides an explicit
-unpair action.
+intentionally QR/in-app/manual-paste only. `virtuvpn://router-pair` and the
+trusted `https://vcs.virtucomputing.com/router/pair#id=...&secret=...` landing
+URL may open VirtuVPN, but the client app must always require explicit
+confirmation before storing the router secret. This prevents a web page from
+silently replacing the trusted router. Clients can store multiple paired
+routers, pairings expire after 7 days, and the Secure Browser blocker screen
+provides an explicit unpair action.
 
 The attestation server may still bind on all local addresses for Android
 compatibility, but router firewall rules restrict TCP port `8788` to detected
 hotspot downstream interfaces and reject the same port from other interfaces.
 The HTTP handler also keeps the source-address allowlist as a second layer.
+It must read and discard the full HTTP request headers before writing the
+response. If the server writes a JSON response and closes the socket while the
+client's request headers remain unread, Android/Linux can emit a TCP reset and
+clients may receive `HTTP 200` headers without the JSON body. Secure Browser
+treats that as an invalid/unreachable attestation and remains blocked.
 
 Secure Browser must not trust ordinary private WiFi addressing as proof of
 router protection. On client devices it is allowed only when the process can bind
@@ -394,11 +400,38 @@ https://vcs.virtucomputing.com/api/mobile/android/apk/guest
 The active router landing page must provide:
 
 - Install/update VirtuVPN app.
+- Open/import pair link in VirtuVPN when Android can resolve the app link.
 - Copy Secure Browser pair key.
 - Visible pair key text for manual copy if clipboard integration fails.
 
-It must not provide implicit navigation, background tests, browsing surfaces, or
-network diagnostics. The page is only for download and manual pairing.
+It must not provide hidden redirects, background tests, browsing surfaces, or
+network diagnostics. The page is only for download and explicit manual pairing.
+
+Supported pair-key formats:
+
+```text
+virtuvpn://router-pair?id=<router-id>&secret=<router-secret>
+https://vcs.virtucomputing.com/router/pair#id=<router-id>&secret=<router-secret>
+```
+
+Both formats must parse through the same client-side pairing parser. The app may
+be opened from either form, but storing the router secret always requires a
+VirtuVPN confirmation dialog.
+
+Pairing incident resolved in builds 744-747:
+
+- Router rules could be healthy while the local attestation server was not
+  running after app update/process restart. `VpnRouterManager` now synchronizes
+  the attestation server lifecycle directly on enable, reconcile, and disable.
+- Attestation status cache was cold, so the first request could block on root
+  status probes and exceed the client timeout. The reconcile monitor now
+  pre-warms the status cache and the client timeout has more headroom.
+- The HTTP server could return headers and then reset before the JSON body
+  because it closed the socket before draining request headers. The handler now
+  drains request headers before writing the response.
+- The router QR used the trusted landing URL format, but the client QR/deep-link
+  parser originally accepted only `virtuvpn://router-pair`. The client now
+  accepts both the app URI and the landing URL fragment format.
 
 Router VPN protects the hotspot network path. For safer browsing on the client
 device, download VirtuVPN to that device and use client-side protection there.

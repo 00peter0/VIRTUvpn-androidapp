@@ -40,14 +40,15 @@ Router attestation:
 - endpoint: `http://<wifi-gateway>:8788/virtuvpn-router/attestation`,
 - trust root: a random per-router pairing secret scanned from the VPN Router
   page QR code and stored on the client device,
-- pairing is imported only through in-app QR scan flows and requires explicit
-  user confirmation,
+- pairing is imported through in-app QR scan, paste, or trusted app-link flows
+  and requires explicit user confirmation,
 - the client stores a small list of paired routers, not a single global router,
   so a guest can use more than one trusted router without silent overwrite,
 - guest pairings expire after 7 days and can be removed from the blocked browser
   screen with `Forget paired routers`,
-- `virtuvpn://router-pair` is not a browsable web deep link; web pages must not
-  be able to silently replace the trusted router,
+- `virtuvpn://router-pair?id=...&secret=...` and
+  `https://vcs.virtucomputing.com/router/pair#id=...&secret=...` are accepted
+  pair-key formats; both must show a confirmation dialog before trust is stored,
 - client sends a random nonce,
 - router responds only while VPN Router status is `ENABLED`,
 - response includes router id, nonce, timestamp, protected state, and HMAC
@@ -57,7 +58,7 @@ Router attestation:
 
 The attestation is intentionally lightweight and local to the hotspot. It does
 not rely on private IP addressing as a trust signal, and the router landing page
-is limited to manual install/update and pair-key copy actions. There is no
+is limited to manual install/update and explicit pair-key actions. There is no
 global HMAC secret embedded in the APK; a public guest APK must not contain the
 material needed to forge router attestations.
 
@@ -286,6 +287,31 @@ so guest devices can remove old trust without navigating through hidden settings
 On the router phone itself, Secure Browser may run while VPN Router is enabled
 because router OUTPUT lockdown prevents normal phone traffic from bypassing the
 VPN. The browser still shows the router tunnel in the egress header.
+
+## Router Pairing Troubleshooting
+
+If a hotspot client remains blocked after pairing, check the layers in this
+order:
+
+1. Client app version: the client must include the parser that accepts both
+   `virtuvpn://router-pair?...` and
+   `https://vcs.virtucomputing.com/router/pair#...`.
+2. Pairing storage: `virtuvpn_router_attestation` preferences must contain the
+   paired router id and secret after the confirmation dialog. If the file is
+   missing, pairing did not complete.
+3. Router endpoint reachability from the client:
+   `http://<wifi-gateway>:8788/virtuvpn-router/attestation?nonce=<valid-nonce>`
+   must return `HTTP 200` with a complete JSON body. `HTTP 200` headers followed
+   by `Recv failure: Connection reset by peer` means the router server closed
+   before the client received the body.
+4. Router app/runtime: router rules can persist after APK update or process
+   death, but the local attestation server is in the app process. Opening
+   VirtuVPN or reconciling router state must start the server, and
+   `VpnRouterManager` must keep the server lifecycle synchronized with router
+   status.
+5. Router state cache: attestation requests must be served from a warm status
+   cache. A cold cache can block on root-shell status checks long enough for the
+   client timeout to expire.
 
 ## Known Limits
 
