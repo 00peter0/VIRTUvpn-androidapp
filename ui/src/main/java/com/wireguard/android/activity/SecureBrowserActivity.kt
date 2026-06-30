@@ -83,6 +83,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     private var blockedTrackers = 0
     private var currentProtectionLabel: String? = null
     private var currentEgressSummary: String? = null
+    private lateinit var egressStatusButton: TextView
     @Volatile
     private var blocked = true
 
@@ -113,12 +114,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         binding = SecureBrowserActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        supportActionBar?.apply {
-            setDisplayHomeAsUpEnabled(true)
-            setDisplayShowHomeEnabled(true)
-            setIcon(R.drawable.ic_logo)
-            title = "  ${getString(R.string.vcs_secure_browser_title)}"
-        }
+        configureActionBar()
 
         configureWebView(binding.secureWebview)
         configurePullToRefresh()
@@ -126,8 +122,6 @@ class SecureBrowserActivity : AppCompatActivity() {
         renderQuickLinks()
         configureMovableNavigation()
         updateNavigationButtons()
-        binding.egressStatus.setText(R.string.vcs_secure_browser_egress_checking_short)
-        binding.egressStatus.setOnClickListener { showEgressStatusDialog() }
         updateSecurityBadges(null)
         binding.goButton.setOnClickListener { openTypedUrl() }
         binding.savePageButton.setOnClickListener { saveCurrentPage() }
@@ -145,6 +139,57 @@ class SecureBrowserActivity : AppCompatActivity() {
         }
         intent.getStringExtra(EXTRA_INITIAL_URL)?.takeIf { it.isNotBlank() }?.let {
             binding.urlInput.setText(it)
+        }
+    }
+
+    private fun configureActionBar() {
+        egressStatusButton = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                dp(32)
+            )
+            background = getDrawable(R.drawable.fastest_button_background)
+            foreground = selectableForeground()
+            isClickable = true
+            isFocusable = true
+            gravity = android.view.Gravity.CENTER
+            minWidth = dp(86)
+            maxWidth = dp(132)
+            setPadding(dp(10), 0, dp(10), 0)
+            setSingleLine(true)
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            setText(R.string.vcs_secure_browser_egress_checking_short)
+            setTextColor(getColor(android.R.color.holo_green_light))
+            textSize = 12f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            contentDescription = getString(R.string.vcs_secure_browser_egress_description)
+            setOnClickListener { showEgressStatusDialog() }
+        }
+        val titleView = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            ).also { it.marginEnd = dp(10) }
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setSingleLine(true)
+            text = getString(R.string.vcs_secure_browser_title)
+            setTextColor(Color.WHITE)
+            textSize = 18f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        }
+        val actionBarView = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            addView(titleView)
+            addView(egressStatusButton)
+        }
+        supportActionBar?.apply {
+            setDisplayHomeAsUpEnabled(true)
+            setDisplayShowHomeEnabled(true)
+            setIcon(R.drawable.ic_logo)
+            setDisplayShowTitleEnabled(false)
+            setDisplayShowCustomEnabled(true)
+            customView = actionBarView
         }
     }
 
@@ -1073,15 +1118,15 @@ class SecureBrowserActivity : AppCompatActivity() {
         currentProtectionLabel = protection.label
         currentEgressSummary = null
         egressLookupJob?.cancel()
-        binding.egressStatus.text = getString(
+        egressStatusButton.text = getString(
             if (protection.allowed) {
                 R.string.vcs_secure_browser_egress_protected_short
             } else {
                 R.string.vcs_secure_browser_egress_required_short
             }
         )
-        binding.egressStatus.contentDescription = protection.label
-        binding.egressStatus.setTextColor(getColor(if (protection.allowed) android.R.color.holo_green_light else android.R.color.holo_red_light))
+        egressStatusButton.contentDescription = protection.label
+        egressStatusButton.setTextColor(getColor(if (protection.allowed) android.R.color.holo_green_light else android.R.color.holo_red_light))
         if (protection.allowed) {
             blocked = false
             binding.vpnBlocker.visibility = View.GONE
