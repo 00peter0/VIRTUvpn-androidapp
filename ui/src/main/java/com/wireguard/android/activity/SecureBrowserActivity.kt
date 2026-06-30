@@ -1378,10 +1378,10 @@ class SecureBrowserActivity : AppCompatActivity() {
               installReferrerPolicy();
               try { document.addEventListener('DOMContentLoaded', installReferrerPolicy, { once: true }); } catch (e) {}
               var blocked = function() {
-                throw new DOMException('WebRTC is disabled by VirtuVPN Secure Browser', 'SecurityError');
+                throw new DOMException('WebRTC is disabled by VirtuVPN Secured Browser', 'SecurityError');
               };
               var rejected = function() {
-                return Promise.reject(new DOMException('WebRTC is disabled by VirtuVPN Secure Browser', 'SecurityError'));
+                return Promise.reject(new DOMException('WebRTC is disabled by VirtuVPN Secured Browser', 'SecurityError'));
               };
               try { Object.defineProperty(window, 'RTCPeerConnection', { value: blocked, configurable: false }); } catch (e) { window.RTCPeerConnection = blocked; }
               try { Object.defineProperty(window, 'webkitRTCPeerConnection', { value: blocked, configurable: false }); } catch (e) { window.webkitRTCPeerConnection = blocked; }
