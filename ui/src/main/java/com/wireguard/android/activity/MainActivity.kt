@@ -240,6 +240,7 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
 
     companion object {
         const val EXTRA_TUNNEL_SECTION = "com.wireguard.android.extra.TUNNEL_SECTION"
+        const val EXTRA_SHOW_ADD_TUNNEL_FLOW = "com.wireguard.android.extra.SHOW_ADD_TUNNEL_FLOW"
         const val TUNNEL_SECTION_VPN_MESH = "vpn_mesh"
         const val TUNNEL_SECTION_AGENT_GATEWAY = "agent_gateway"
         const val TUNNEL_SECTION_MANAGED_ACCESS = "managed_access"

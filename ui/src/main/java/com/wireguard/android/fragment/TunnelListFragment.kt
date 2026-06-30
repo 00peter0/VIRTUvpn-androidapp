@@ -69,7 +69,7 @@ class TunnelListFragment : BaseFragment() {
                 try {
                     val qrCodeFromFileScanner = QrCodeFromFileScanner(contentResolver, QRCodeReader())
                     val result = qrCodeFromFileScanner.scan(data)
-                    TunnelImporter.importTunnel(parentFragmentManager, result.text) { showSnackbar(it) }
+                    TunnelImporter.importTunnel(parentFragmentManager, result.text, { showSnackbar(it) }, markExternalVpnMesh = isVpnMeshSection())
                 } catch (e: Exception) {
                     val error = ErrorMessages[e]
                     val message = Application.get().resources.getString(R.string.import_error, error)
@@ -77,7 +77,9 @@ class TunnelListFragment : BaseFragment() {
                     showSnackbar(message)
                 }
             } else {
-                TunnelImporter.importTunnel(contentResolver, data) { showSnackbar(it) }
+                TunnelImporter.importTunnel(contentResolver, data, { showSnackbar(it) }) { tunnels ->
+                    if (isVpnMeshSection()) VcsManagedClient.rememberExternalVpnMeshTunnels(requireContext(), tunnels.map { it.name })
+                }
             }
         }
     }
@@ -102,7 +104,7 @@ class TunnelListFragment : BaseFragment() {
                         showSnackbar(getString(R.string.vcs_enroll_error, e.message ?: e.javaClass.simpleName))
                     }
                 } else {
-                    TunnelImporter.importTunnel(parentFragmentManager, qrCode) { showSnackbar(it) }
+                    TunnelImporter.importTunnel(parentFragmentManager, qrCode, { showSnackbar(it) }, markExternalVpnMesh = isVpnMeshSection())
                 }
             }
         }
@@ -138,6 +140,16 @@ class TunnelListFragment : BaseFragment() {
         binding = TunnelListFragmentBinding.inflate(inflater, container, false)
         binding?.apply {
             fastestButton.setOnClickListener { onFastestButtonClicked() }
+            parentFragmentManager.setFragmentResultListener(AddTunnelsSheet.REQUEST_KEY_NEW_TUNNEL, viewLifecycleOwner) { _, bundle ->
+                when (bundle.getString(AddTunnelsSheet.REQUEST_METHOD)) {
+                    AddTunnelsSheet.REQUEST_CREATE -> startActivity(
+                        Intent(requireContext(), TunnelCreatorActivity::class.java)
+                            .putExtra(MainActivity.EXTRA_TUNNEL_SECTION, currentTunnelSection())
+                    )
+                    AddTunnelsSheet.REQUEST_IMPORT -> tunnelFileImportResultLauncher.launch("*/*")
+                    AddTunnelsSheet.REQUEST_SCAN -> scanTunnelQr()
+                }
+            }
 
             // Adding tunnels is locked to VCS sync — the FAB (VCS logo) runs a sync.
             createFab.setOnClickListener {
@@ -167,6 +179,27 @@ class TunnelListFragment : BaseFragment() {
         backPressedCallback?.isEnabled = false
 
         return binding?.root
+    }
+
+    private fun currentTunnelSection(): String? {
+        return requireActivity().intent?.getStringExtra(MainActivity.EXTRA_TUNNEL_SECTION)
+    }
+
+    private fun isVpnMeshSection(): Boolean {
+        return currentTunnelSection() == MainActivity.TUNNEL_SECTION_VPN_MESH
+    }
+
+    private fun showAddTunnelSheet() {
+        AddTunnelsSheet().show(parentFragmentManager, "add_tunnels")
+    }
+
+    private fun scanTunnelQr() {
+        qrImportResultLauncher.launch(
+            ScanOptions()
+                .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                .setPrompt(getString(R.string.import_from_qr_code))
+                .setBeepEnabled(false)
+        )
     }
 
     // ── Smart Server Picker ──
@@ -301,6 +334,10 @@ class TunnelListFragment : BaseFragment() {
         binding ?: return
         binding!!.fragment = this
         lifecycleScope.launch { refreshTunnelFilter() }
+        if (requireActivity().intent?.getBooleanExtra(MainActivity.EXTRA_SHOW_ADD_TUNNEL_FLOW, false) == true) {
+            requireActivity().intent?.removeExtra(MainActivity.EXTRA_SHOW_ADD_TUNNEL_FLOW)
+            binding!!.root.post { showAddTunnelSheet() }
+        }
         binding!!.rowConfigurationHandler = object : RowConfigurationHandler<TunnelListItemBinding, ObservableTunnel> {
             override fun onConfigureRow(binding: TunnelListItemBinding, item: ObservableTunnel, position: Int) {
                 binding.fragment = this@TunnelListFragment

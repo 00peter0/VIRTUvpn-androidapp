@@ -24,22 +24,15 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.google.zxing.qrcode.QRCodeReader
-import com.journeyapps.barcodescanner.ScanContract
-import com.journeyapps.barcodescanner.ScanOptions
 import com.wireguard.android.Application
 import com.wireguard.android.R
-import com.wireguard.android.activity.TunnelCreatorActivity
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.databinding.HomeActivityBinding
 import com.wireguard.android.databinding.VcsSignInDialogBinding
 import com.wireguard.android.util.HotspotDetector
-import com.wireguard.android.util.QrCodeFromFileScanner
-import com.wireguard.android.util.TunnelImporter
 import com.wireguard.android.util.VcsDialogs
 import com.wireguard.android.util.VpnRouterAttestation
 import com.wireguard.android.util.VpnRouterManager
@@ -72,18 +65,6 @@ class HomeActivity : AppCompatActivity() {
     private var vpnRouterExpanded = false
     private var routerOperationDialog: AlertDialog? = null
     private var routerOperationDialogMessage: TextView? = null
-    private val meshTunnelFileImportLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { data ->
-        if (data != null) importExternalMeshTunnelFromFile(data)
-    }
-    private val meshTunnelQrImportLauncher = registerForActivityResult(ScanContract()) { result ->
-        val qrCode = result.contents ?: return@registerForActivityResult
-        TunnelImporter.importTunnel(
-            supportFragmentManager,
-            qrCode,
-            { message -> Toast.makeText(this, message, Toast.LENGTH_LONG).show() },
-            markExternalVpnMesh = true
-        )
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -111,7 +92,7 @@ class HomeActivity : AppCompatActivity() {
         binding.killSwitchHeader.setOnClickListener { setKillSwitchExpanded(!killSwitchExpanded) }
         binding.vpnRouterPanel.setOnClickListener { setVpnRouterExpanded(!vpnRouterExpanded) }
         binding.vpnRouterHeader.setOnClickListener { setVpnRouterExpanded(!vpnRouterExpanded) }
-        binding.vpnRouterLogo.setOnClickListener { showVpnRouterHomeActions() }
+        binding.vpnRouterLogo.setOnClickListener { openVpnMeshAddTunnelFlow() }
         selectedHomeTunnelName = getSharedPreferences(HOME_PREFS, Context.MODE_PRIVATE).getString(KEY_HOME_SELECTED_TUNNEL, null)
         binding.vpnStatusTunnelSelector.setOnClickListener { showHomeTunnelSelector() }
         binding.vpnStatusToggle.setOnBeforeCheckedChangeListener(object : ToggleSwitch.OnBeforeCheckedChangeListener {
@@ -380,67 +361,6 @@ class HomeActivity : AppCompatActivity() {
             } catch (e: Throwable) {
                 Toast.makeText(this@HomeActivity, getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
             }
-        }
-    }
-
-    private fun showVpnRouterHomeActions() {
-        val actions = arrayOf(
-            getString(R.string.vcs_vpn_router_add_scan_qr),
-            getString(R.string.vcs_vpn_router_add_import_config),
-            getString(R.string.vcs_vpn_router_add_create_config),
-            getString(R.string.vcs_vpn_router_add_open_client_page)
-        )
-        AlertDialog.Builder(this)
-            .setTitle(R.string.vcs_vpn_router_home_actions_title)
-            .setMessage(R.string.vcs_vpn_router_home_actions_message)
-            .setItems(actions) { _, which ->
-                when (which) {
-                    0 -> scanExternalMeshTunnelQr()
-                    1 -> meshTunnelFileImportLauncher.launch("*/*")
-                    2 -> startActivity(
-                        Intent(this, TunnelCreatorActivity::class.java)
-                            .putExtra(MainActivity.EXTRA_TUNNEL_SECTION, MainActivity.TUNNEL_SECTION_VPN_MESH)
-                    )
-                    3 -> openRouterPairingPage()
-                }
-            }
-            .show()
-    }
-
-    private fun scanExternalMeshTunnelQr() {
-        meshTunnelQrImportLauncher.launch(
-            ScanOptions()
-                .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                .setPrompt(getString(R.string.vcs_vpn_router_scan_tunnel_qr))
-                .setBeepEnabled(false)
-        )
-    }
-
-    private fun importExternalMeshTunnelFromFile(data: Uri) {
-        val contentResolver = contentResolver
-        lifecycleScope.launch {
-            if (QrCodeFromFileScanner.validContentType(contentResolver, data)) {
-                try {
-                    val qrCodeFromFileScanner = QrCodeFromFileScanner(contentResolver, QRCodeReader())
-                    val result = qrCodeFromFileScanner.scan(data)
-                    TunnelImporter.importTunnel(
-                        supportFragmentManager,
-                        result.text,
-                        { message -> Toast.makeText(this@HomeActivity, message, Toast.LENGTH_LONG).show() },
-                        markExternalVpnMesh = true
-                    )
-                } catch (e: Throwable) {
-                    Toast.makeText(this@HomeActivity, getString(R.string.import_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
-                }
-            } else {
-                TunnelImporter.importTunnel(
-                    contentResolver,
-                    data,
-                    { message -> Toast.makeText(this@HomeActivity, message, Toast.LENGTH_LONG).show() },
-                    { tunnels -> VcsManagedClient.rememberExternalVpnMeshTunnels(this@HomeActivity, tunnels.map { it.name }) }
-                )
-            }
-            updateVpnStatus()
         }
     }
 
@@ -998,6 +918,14 @@ class HomeActivity : AppCompatActivity() {
 
     private fun openVpnApp(section: String) {
         startActivity(Intent(this, MainActivity::class.java).putExtra(MainActivity.EXTRA_TUNNEL_SECTION, section))
+    }
+
+    private fun openVpnMeshAddTunnelFlow() {
+        startActivity(
+            Intent(this, MainActivity::class.java)
+                .putExtra(MainActivity.EXTRA_TUNNEL_SECTION, MainActivity.TUNNEL_SECTION_VPN_MESH)
+                .putExtra(MainActivity.EXTRA_SHOW_ADD_TUNNEL_FLOW, true)
+        )
     }
 
     private fun openSection(path: String) {
