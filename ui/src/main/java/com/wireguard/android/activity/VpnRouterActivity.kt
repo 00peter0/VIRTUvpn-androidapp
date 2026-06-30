@@ -4,18 +4,13 @@
  */
 package com.wireguard.android.activity
 
-import android.app.DownloadManager
-import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
-import android.net.Uri
 import android.os.Bundle
-import android.os.Environment
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RadioGroup
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -55,9 +50,6 @@ class VpnRouterActivity : AppCompatActivity() {
         routerGuestDownload = findViewById(R.id.router_guest_download)
         routerGuestQr = findViewById(R.id.router_guest_qr)
         routerDnsGroup = findViewById(R.id.router_dns_group)
-        routerGuestDownload.setOnClickListener {
-            downloadGuestApp()
-        }
         routerDnsGroup.setOnCheckedChangeListener { _, checkedId ->
             val mode = when (checkedId) {
                 R.id.router_dns_cloudflare -> VpnRouterManager.DnsMode.CLOUDFLARE
@@ -280,31 +272,13 @@ class VpnRouterActivity : AppCompatActivity() {
             }
         )
         routerGuestAccessStatus.setTextColor(if (active) GREEN else YELLOW)
-        val qrValue = if (active) VpnRouterAttestation.pairingUri(this) else VIRTUVPN_DOWNLOAD_URL
+        val qrValue = if (active) VpnRouterAttestation.pairingLandingUrl(this) else VIRTUVPN_DOWNLOAD_URL
         routerGuestDownload.text = if (active) {
             getString(R.string.vcs_vpn_router_guest_download)
         } else {
             getString(R.string.vcs_vpn_router_guest_download)
         }
         routerGuestQr.setImageBitmap(createQrBitmap(qrValue))
-    }
-
-    private fun downloadGuestApp() {
-        val request = DownloadManager.Request(Uri.parse(VIRTUVPN_DOWNLOAD_URL))
-            .setTitle(getString(R.string.vcs_vpn_router_guest_download))
-            .setDescription(getString(R.string.vcs_vpn_router_guest_download_description))
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, GUEST_APK_FILE_NAME)
-            .setAllowedOverMetered(true)
-            .setAllowedOverRoaming(true)
-        val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        runCatching { manager.enqueue(request) }
-            .onSuccess {
-                Toast.makeText(this, R.string.vcs_vpn_router_guest_download_started, Toast.LENGTH_LONG).show()
-            }
-            .onFailure { e ->
-                Toast.makeText(this, getString(R.string.vcs_vpn_router_guest_download_failed, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
-            }
     }
 
     private fun createQrBitmap(value: String): Bitmap {
@@ -334,6 +308,5 @@ class VpnRouterActivity : AppCompatActivity() {
         val RED: Int = Color.parseColor("#F87171")
         const val QR_SIZE: Int = 512
         const val VIRTUVPN_DOWNLOAD_URL: String = "https://vcs.virtucomputing.com/api/mobile/android/apk/guest"
-        const val GUEST_APK_FILE_NAME: String = "virtuvpn-guest.apk"
     }
 }

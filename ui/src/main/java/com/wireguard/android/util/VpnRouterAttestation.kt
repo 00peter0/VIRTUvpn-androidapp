@@ -140,6 +140,18 @@ object VpnRouterAttestation {
             .toString()
     }
 
+    fun pairingLandingUrl(context: Context): String {
+        val routerId = routerId(context.applicationContext)
+        val secret = routerSecret(context.applicationContext)
+        return Uri.Builder()
+            .scheme("https")
+            .authority("vcs.virtucomputing.com")
+            .path("/router/pair")
+            .encodedFragment("id=${Uri.encode(routerId)}&secret=${Uri.encode(secret)}")
+            .build()
+            .toString()
+    }
+
     fun isPairingUri(uri: Uri): Boolean =
         uri.scheme == "virtuvpn" && uri.host == "router-pair"
 
