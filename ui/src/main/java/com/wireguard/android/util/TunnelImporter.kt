@@ -28,7 +28,18 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 
 object TunnelImporter {
-    suspend fun importTunnel(contentResolver: ContentResolver, uri: Uri, messageCallback: (CharSequence) -> Unit) = withContext(Dispatchers.IO) {
+    suspend fun importTunnel(
+        contentResolver: ContentResolver,
+        uri: Uri,
+        messageCallback: (CharSequence) -> Unit
+    ) = importTunnel(contentResolver, uri, messageCallback) {}
+
+    suspend fun importTunnel(
+        contentResolver: ContentResolver,
+        uri: Uri,
+        messageCallback: (CharSequence) -> Unit,
+        importedCallback: (Collection<ObservableTunnel>) -> Unit
+    ) = withContext(Dispatchers.IO) {
         val context = Application.get().applicationContext
         val futureTunnels = ArrayList<Deferred<ObservableTunnel>>()
         val throwables = ArrayList<Throwable>()
@@ -104,25 +115,34 @@ object TunnelImporter {
                     null
                 }
             }
-            withContext(Dispatchers.Main.immediate) { onTunnelImportFinished(tunnels, throwables, messageCallback) }
+            withContext(Dispatchers.Main.immediate) { onTunnelImportFinished(tunnels, throwables, messageCallback, importedCallback) }
         } catch (e: Throwable) {
-            withContext(Dispatchers.Main.immediate) { onTunnelImportFinished(emptyList(), listOf(e), messageCallback) }
+            withContext(Dispatchers.Main.immediate) { onTunnelImportFinished(emptyList(), listOf(e), messageCallback, importedCallback) }
         }
     }
 
     fun importTunnel(parentFragmentManager: FragmentManager, configText: String, messageCallback: (CharSequence) -> Unit) {
+        importTunnel(parentFragmentManager, configText, messageCallback, false)
+    }
+
+    fun importTunnel(parentFragmentManager: FragmentManager, configText: String, messageCallback: (CharSequence) -> Unit, markExternalVpnMesh: Boolean) {
         try {
             // Ensure the config text is parseable before proceeding…
             Config.parse(ByteArrayInputStream(configText.toByteArray(StandardCharsets.UTF_8)))
 
             // Config text is valid, now create the tunnel…
-            ConfigNamingDialogFragment.newInstance(configText).show(parentFragmentManager, null)
+            ConfigNamingDialogFragment.newInstance(configText, markExternalVpnMesh).show(parentFragmentManager, null)
         } catch (e: Throwable) {
-            onTunnelImportFinished(emptyList(), listOf<Throwable>(e), messageCallback)
+            onTunnelImportFinished(emptyList(), listOf<Throwable>(e), messageCallback) {}
         }
     }
 
-    private fun onTunnelImportFinished(tunnels: List<ObservableTunnel>, throwables: Collection<Throwable>, messageCallback: (CharSequence) -> Unit) {
+    private fun onTunnelImportFinished(
+        tunnels: List<ObservableTunnel>,
+        throwables: Collection<Throwable>,
+        messageCallback: (CharSequence) -> Unit,
+        importedCallback: (Collection<ObservableTunnel>) -> Unit
+    ) {
         val context = Application.get().applicationContext
         var message = ""
         for (throwable in throwables) {
@@ -145,6 +165,7 @@ object TunnelImporter {
                 tunnels.size, tunnels.size + throwables.size
             )
 
+        if (tunnels.isNotEmpty()) importedCallback(tunnels)
         messageCallback(message)
     }
 

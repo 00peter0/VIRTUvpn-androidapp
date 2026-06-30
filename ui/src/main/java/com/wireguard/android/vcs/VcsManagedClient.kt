@@ -36,6 +36,7 @@ object VcsManagedClient {
     private const val KEY_ACCOUNT_NAME = "account_name"
     private const val KEY_ACCOUNT_ROLE = "account_role"
     private const val KEY_ACCOUNT_TENANT_NAME = "account_tenant_name"
+    private const val KEY_EXTERNAL_VPN_MESH_TUNNELS = "external_vpn_mesh_tunnels"
     private const val KEY_API_BASE = "api_base"
     private const val KEY_ACCESS_TOKEN = "access_token"
     private const val KEY_DEVICE_ID = "device_id"
@@ -269,7 +270,27 @@ object VcsManagedClient {
                 MainActivity.TUNNEL_SECTION_AGENT_GATEWAY -> if (assignment.optString("kind") == "AGENT_GATEWAY_PROFILE" && localTunnelName != bundleName) names.add(localTunnelName)
             }
         }
+        if (section == MainActivity.TUNNEL_SECTION_VPN_MESH) {
+            names.addAll(loadExternalVpnMeshTunnelNames(context))
+        }
         return names
+    }
+
+    fun rememberExternalVpnMeshTunnels(context: Context, tunnelNames: Collection<String>) {
+        val cleanNames = tunnelNames.map { it.trim() }.filter { it.isNotBlank() }
+        if (cleanNames.isEmpty()) return
+        val names = loadExternalVpnMeshTunnelNames(context).toMutableSet()
+        names.addAll(cleanNames)
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putStringSet(KEY_EXTERNAL_VPN_MESH_TUNNELS, names)
+            .apply()
+    }
+
+    private fun loadExternalVpnMeshTunnelNames(context: Context): Set<String> {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getStringSet(KEY_EXTERNAL_VPN_MESH_TUNNELS, emptySet())
+            .orEmpty()
     }
 
     fun pendingManagedAccessAssignments(context: Context): Int {

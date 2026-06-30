@@ -144,6 +144,13 @@
     <string name="vcs_vpn_router_page_button">Router page</string>
     <string name="vcs_vpn_router_page_title">VPN Router</string>
     <string name="vcs_vpn_router_open_pairing_page">Open VPN Router pairing page</string>
+    <string name="vcs_vpn_router_home_actions_title">VPN Router</string>
+    <string name="vcs_vpn_router_home_actions_message">Add an external WireGuard tunnel to VPN Mesh, or open the router client page.</string>
+    <string name="vcs_vpn_router_add_scan_qr">Scan tunnel QR into VPN Mesh</string>
+    <string name="vcs_vpn_router_add_import_config">Import tunnel config into VPN Mesh</string>
+    <string name="vcs_vpn_router_add_create_config">Create tunnel config in VPN Mesh</string>
+    <string name="vcs_vpn_router_add_open_client_page">Open router client page</string>
+    <string name="vcs_vpn_router_scan_tunnel_qr">Scan external tunnel QR</string>
     <string name="vcs_vpn_router_page_summary">Router mode sends hotspot clients through the active VPN interface and blocks direct mobile fallback.</string>
     <string name="vcs_vpn_router_router_protection">Router protection</string>
     <string name="vcs_vpn_router_guest_access">Client protection</string>

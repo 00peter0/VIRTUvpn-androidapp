@@ -14,6 +14,7 @@ import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.databinding.ConfigNamingDialogFragmentBinding
 import com.wireguard.android.util.VcsDialogs
+import com.wireguard.android.vcs.VcsManagedClient
 import com.wireguard.config.BadConfigException
 import com.wireguard.config.Config
 import kotlinx.coroutines.launch
@@ -31,7 +32,10 @@ class ConfigNamingDialogFragment : DialogFragment() {
         val name = binding.tunnelNameText.text.toString()
         activity.lifecycleScope.launch {
             try {
-                Application.getTunnelManager().create(name, config)
+                val tunnel = Application.getTunnelManager().create(name, config)
+                if (requireArguments().getBoolean(KEY_MARK_EXTERNAL_VPN_MESH, false)) {
+                    VcsManagedClient.rememberExternalVpnMeshTunnels(activity, setOf(tunnel.name))
+                }
                 dismiss()
             } catch (e: Throwable) {
                 binding.tunnelNameTextLayout.error = e.message
@@ -72,10 +76,12 @@ class ConfigNamingDialogFragment : DialogFragment() {
 
     companion object {
         private const val KEY_CONFIG_TEXT = "config_text"
+        private const val KEY_MARK_EXTERNAL_VPN_MESH = "mark_external_vpn_mesh"
 
-        fun newInstance(configText: String?): ConfigNamingDialogFragment {
+        fun newInstance(configText: String?, markExternalVpnMesh: Boolean = false): ConfigNamingDialogFragment {
             val extras = Bundle()
             extras.putString(KEY_CONFIG_TEXT, configText)
+            extras.putBoolean(KEY_MARK_EXTERNAL_VPN_MESH, markExternalVpnMesh)
             val fragment = ConfigNamingDialogFragment()
             fragment.arguments = extras
             return fragment
