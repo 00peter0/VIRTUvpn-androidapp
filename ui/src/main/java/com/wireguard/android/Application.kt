@@ -145,6 +145,10 @@ class Application : android.app.Application() {
                     val status = VpnRouterManager.getStatus(applicationContext)
                     if (status.availability == VpnRouterManager.Availability.ENABLED) {
                         VpnRouterAttestationServer.start(applicationContext)
+                        // Keep the attestation status cache warm so hotspot clients
+                        // get a sub-second response instead of waiting on a cold
+                        // root-shell status probe (which exceeds the client timeout).
+                        VpnRouterAttestationServer.updateStatus(status)
                     } else {
                         VpnRouterAttestationServer.stop()
                     }

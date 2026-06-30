@@ -282,8 +282,8 @@ object VpnRouterAttestation {
         val encodedNonce = URLEncoder.encode(nonce, "UTF-8")
         return try {
             Socket().use { socket ->
-                socket.soTimeout = 900
-                socket.connect(InetSocketAddress(host, PORT), 900)
+                socket.soTimeout = 2_500
+                socket.connect(InetSocketAddress(host, PORT), 1_500)
                 val request =
                     "GET $PATH?nonce=$encodedNonce HTTP/1.1\r\n" +
                         "Host: $host:$PORT\r\n" +
@@ -361,7 +361,10 @@ object VpnRouterAttestation {
 object VpnRouterAttestationServer {
     private const val TAG = "VirtuVPN/RouterAttest"
     private const val MAX_REQUEST_LINE = 2048
-    private const val STATUS_TTL_MS = 1_500L
+    // Kept above the reconcile-monitor interval (2 s) so the status pushed by
+    // updateStatus() stays warm between ticks and attestation requests never pay
+    // the cost of a synchronous root-shell status probe while a client is waiting.
+    private const val STATUS_TTL_MS = 3_000L
     @Volatile
     private var serverSocket: ServerSocket? = null
     @Volatile
@@ -410,6 +413,17 @@ object VpnRouterAttestationServer {
         runCatching { serverSocket?.close() }
         serverSocket = null
         serverThread = null
+    }
+
+    /**
+     * Pre-warms the status cache from the reconcile monitor so attestation
+     * requests are served without a blocking root-shell probe (which can take
+     * 1-3 s and blow past the client's socket timeout, making attestation over
+     * the hotspot fail consistently).
+     */
+    fun updateStatus(status: VpnRouterManager.Status) {
+        cachedStatus = status
+        cachedAt = System.currentTimeMillis()
     }
 
     fun cachedStatus(context: Context): VpnRouterManager.Status? {
