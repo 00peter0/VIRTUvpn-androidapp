@@ -221,8 +221,10 @@ class VpnRouterActivity : AppCompatActivity() {
             VpnRouterManager.OperationStage.APPLYING_DNS -> 2
             VpnRouterManager.OperationStage.APPLYING_FIREWALL -> 3
             VpnRouterManager.OperationStage.VERIFYING_RULES -> 4
-            VpnRouterManager.OperationStage.COMPLETE -> 5
-            VpnRouterManager.OperationStage.ERROR -> 6
+            VpnRouterManager.OperationStage.CHECKING_HEALTH -> 5
+            VpnRouterManager.OperationStage.FALLING_BACK -> 6
+            VpnRouterManager.OperationStage.COMPLETE -> 7
+            VpnRouterManager.OperationStage.ERROR -> 8
             VpnRouterManager.OperationStage.IDLE -> -1
         }
         val labels = listOf(
@@ -230,7 +232,9 @@ class VpnRouterActivity : AppCompatActivity() {
             getString(R.string.vcs_vpn_router_operation_detecting),
             getString(R.string.vcs_vpn_router_operation_dns),
             getString(R.string.vcs_vpn_router_operation_firewall),
-            getString(R.string.vcs_vpn_router_operation_verify)
+            getString(R.string.vcs_vpn_router_operation_verify),
+            getString(R.string.vcs_vpn_router_operation_health),
+            getString(R.string.vcs_vpn_router_operation_fallback)
         )
         val prefix = labels.mapIndexed { index, label ->
             val marker = when {

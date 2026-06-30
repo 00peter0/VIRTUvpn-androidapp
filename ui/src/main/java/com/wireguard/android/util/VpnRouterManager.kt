@@ -77,6 +77,8 @@ object VpnRouterManager {
         APPLYING_DNS,
         APPLYING_FIREWALL,
         VERIFYING_RULES,
+        CHECKING_HEALTH,
+        FALLING_BACK,
         COMPLETE,
         ERROR
     }
@@ -111,7 +113,9 @@ object VpnRouterManager {
         if (status.tetherInterfaces.isEmpty()) return@withLock status
         try {
             installRules(appContext, tunnelName, status.tetherInterfaces, allowFastPath = true)
-            detect(appContext)
+            val repaired = detect(appContext)
+            if (repaired.availability == Availability.ENABLED) rememberVirtuFallbackTunnel(appContext)
+            repaired
         } catch (e: Throwable) {
             Log.e(TAG, "Unable to reconcile VPN router", e)
             setOperation(appContext, OperationStage.ERROR, e.message ?: e.javaClass.simpleName)
@@ -164,7 +168,9 @@ object VpnRouterManager {
             setOperation(appContext, OperationStage.LOCKING_HOTSPOT, "Blocking hotspot fallback before enabling router")
             installRules(appContext, tunnelName, tetherInterfaces)
             setOperation(appContext, OperationStage.COMPLETE, "VPN router is protected")
-            detect(appContext)
+            val enabled = detect(appContext)
+            if (enabled.availability == Availability.ENABLED) rememberVirtuFallbackTunnel(appContext)
+            enabled
         } catch (e: Throwable) {
             Log.e(TAG, "Unable to enable VPN router", e)
             setOperation(appContext, OperationStage.ERROR, e.message ?: e.javaClass.simpleName)
@@ -609,7 +615,20 @@ object VpnRouterManager {
                     "ip route show table $HOTSPOT_VPN_ROUTE_TABLE | grep -q \"default dev $tunnel\" && " +
                     "ip rule show | grep -q \"^$HOTSPOT_BLOCK_RULE_PRIORITY:.*iif $downstream .*lookup $HOTSPOT_BLOCK_ROUTE_TABLE\" && " +
                     "ip route show table $HOTSPOT_BLOCK_ROUTE_TABLE | grep -q \"unreachable default\""
-            )
+                )
+        }
+        setOperation(context, OperationStage.CHECKING_HEALTH, "Checking internet through VPN interface $tunnel")
+        if (!checkTunnelHealth(tunnel, dnsResolver)) {
+            val fallbackAttempted = tryVirtuFallback(context, tunnel)
+            val fallbackTunnel = if (fallbackAttempted) readVpnInterfaces().firstOrNull() else null
+            if (!fallbackAttempted || fallbackTunnel == null || !checkTunnelHealth(fallbackTunnel, dnsResolver)) {
+                throw IllegalStateException("VPN tunnel health check failed; hotspot clients remain fail-closed")
+            }
+            if (fallbackTunnel != tunnel) {
+                setOperation(context, OperationStage.FALLING_BACK, "Fallback tunnel $fallbackTunnel is healthy; rebuilding router rules")
+                installRules(context, fallbackTunnel, downstreams)
+                return
+            }
         }
         checkedRun("flush route cache", "ip route flush cache 2>/dev/null || true")
         prefs.edit().putString(KEY_LAST_RULE_SIGNATURE, snapshot.signature()).apply()
@@ -830,6 +849,45 @@ object VpnRouterManager {
         return output.firstOrNull()?.trim()?.toIntOrNull()
     }
 
+    private suspend fun rememberVirtuFallbackTunnel(context: Context) {
+        val tunnelName = runCatching {
+            Application.getTunnelManager().getTunnels().firstOrNull { tunnel -> tunnel.state == Tunnel.State.UP }?.name
+        }.getOrNull() ?: return
+        context.applicationContext
+            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_LAST_VIRTU_TUNNEL, tunnelName)
+            .apply()
+    }
+
+    private suspend fun tryVirtuFallback(context: Context, failedTunnel: String): Boolean {
+        val fallbackName = context.applicationContext
+            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString(KEY_LAST_VIRTU_TUNNEL, null)
+            ?.takeIf { name -> name.isNotBlank() }
+            ?: return false
+        setOperation(context, OperationStage.FALLING_BACK, "New tunnel $failedTunnel failed health check; restoring Virtu tunnel $fallbackName")
+        return runCatching {
+            val tunnels = Application.getTunnelManager().getTunnels()
+            val fallback = tunnels[fallbackName] ?: return false
+            val state = fallback.setStateAsync(Tunnel.State.UP)
+            state == Tunnel.State.UP
+        }.onFailure { e ->
+            Log.w(TAG, "Unable to restore Virtu VPN router fallback tunnel $fallbackName", e)
+        }.getOrDefault(false)
+    }
+
+    private fun checkTunnelHealth(tunnel: String, dnsResolver: String): Boolean {
+        val checkedTunnel = checkedInterfaceName(tunnel)
+        val checkedResolver = dnsResolver.takeIf(::isIpv4Address) ?: "1.1.1.1"
+        val ipv4Ok = commandSucceeds("ping -I $checkedTunnel -c 1 -W 2 $checkedResolver >/dev/null 2>&1")
+        if (!ipv4Ok) return false
+        return commandSucceeds("ping -I $checkedTunnel -c 1 -W 3 example.com >/dev/null 2>&1") ||
+            commandSucceeds("ping -I $checkedTunnel -c 1 -W 2 1.1.1.1 >/dev/null 2>&1") ||
+            commandSucceeds("ping -I $checkedTunnel -c 1 -W 2 9.9.9.9 >/dev/null 2>&1")
+    }
+
+
     private fun readVpnProviderUids(context: Context): List<Int> {
         return runCatching {
             val flags = PackageManager.GET_META_DATA
@@ -961,6 +1019,7 @@ object VpnRouterManager {
     private const val KEY_OPERATION_STAGE = "operation_stage"
     private const val KEY_OPERATION_DETAIL = "operation_detail"
     private const val KEY_LAST_RULE_SIGNATURE = "last_rule_signature"
+    private const val KEY_LAST_VIRTU_TUNNEL = "last_virtu_tunnel"
     private const val KEY_TETHER_OFFLOAD_PREVIOUS = "tether_offload_previous"
     private const val KEY_WIFI_AP_TIMEOUT_PREVIOUS = "wifi_ap_timeout_previous"
     private const val TETHER_OFFLOAD_DISABLED_SETTING = "tether_offload_disabled"

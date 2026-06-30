@@ -164,6 +164,8 @@
     <string name="vcs_vpn_router_operation_dns">Apply router DNS for hotspot clients</string>
     <string name="vcs_vpn_router_operation_firewall">Install VPN-only firewall and route rules</string>
     <string name="vcs_vpn_router_operation_verify">Verify VPN route, DNS, IPv6 block, and mobile fallback block</string>
+    <string name="vcs_vpn_router_operation_health">Check internet through the selected VPN tunnel</string>
+    <string name="vcs_vpn_router_operation_fallback">Restore the last healthy VirtuVPN tunnel if the new tunnel fails</string>
     <string name="vcs_vpn_router_operation_default_detail">Hotspot clients may briefly lose internet while the router switches VPN paths.</string>
     <string name="vcs_secure_browser_title">Secure Browser</string>
     <string name="vcs_secure_browser_hint">https://example.com</string>
