@@ -30,9 +30,16 @@ class TunnelToggleActivity : AppCompatActivity() {
     private fun toggleTunnelWithPermissionsResult() {
         val tunnel = Application.getTunnelManager().lastUsedTunnel ?: return
         lifecycleScope.launch {
+            val requestedState = Tunnel.State.of(tunnel.state != Tunnel.State.UP)
             try {
                 tunnel.setStateAsync(Tunnel.State.TOGGLE)
             } catch (e: Throwable) {
+                val verifiedState = runCatching { Application.getTunnelManager().getTunnelState(tunnel) }.getOrDefault(tunnel.state)
+                if (verifiedState == requestedState) {
+                    TileService.requestListeningState(this@TunnelToggleActivity, ComponentName(this@TunnelToggleActivity, QuickTileService::class.java))
+                    finishAffinity()
+                    return@launch
+                }
                 TileService.requestListeningState(this@TunnelToggleActivity, ComponentName(this@TunnelToggleActivity, QuickTileService::class.java))
                 val error = ErrorMessages[e]
                 val message = getString(R.string.toggle_error, error)
