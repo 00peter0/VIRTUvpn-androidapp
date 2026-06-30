@@ -87,7 +87,7 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private val pairRouterResultLauncher = registerForActivityResult(ScanContract()) { result ->
         val qrCode = result.contents ?: return@registerForActivityResult
-        val pairing = runCatching { VpnRouterAttestation.parsePairingUri(Uri.parse(qrCode)) }.getOrNull()
+        val pairing = VpnRouterAttestation.parsePairingValue(qrCode)
         if (pairing == null) {
             Toast.makeText(this, R.string.vcs_secure_browser_router_pair_error, Toast.LENGTH_LONG).show()
             return@registerForActivityResult
@@ -521,17 +521,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun parsePairingKey(value: String): VpnRouterAttestation.Pairing? {
-        val trimmed = value.trim()
-        val direct = runCatching { VpnRouterAttestation.parsePairingUri(Uri.parse(trimmed)) }.getOrNull()
-        if (direct != null) return direct
-        val hash = trimmed.substringAfter('#', missingDelimiterValue = "")
-        if (hash.isNotBlank()) {
-            val fromHash = runCatching {
-                VpnRouterAttestation.parsePairingUri(Uri.parse("virtuvpn://router-pair?$hash"))
-            }.getOrNull()
-            if (fromHash != null) return fromHash
-        }
-        return null
+        return VpnRouterAttestation.parsePairingValue(value)
     }
 
     private fun confirmRouterPairing(pairing: VpnRouterAttestation.Pairing) {

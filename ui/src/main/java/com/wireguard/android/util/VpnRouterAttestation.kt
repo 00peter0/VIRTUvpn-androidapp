@@ -163,6 +163,19 @@ object VpnRouterAttestation {
         return Pairing(routerId, secret)
     }
 
+    fun parsePairingValue(value: String): Pairing? {
+        val trimmed = value.trim()
+        val direct = runCatching { parsePairingUri(Uri.parse(trimmed)) }.getOrNull()
+        if (direct != null) return direct
+        val hash = trimmed.substringAfter('#', missingDelimiterValue = "")
+        if (hash.isNotBlank()) {
+            return runCatching {
+                parsePairingUri(Uri.parse("virtuvpn://router-pair?$hash"))
+            }.getOrNull()
+        }
+        return null
+    }
+
     fun importPairing(context: Context, pairing: Pairing) {
         val appContext = context.applicationContext
         val updated = (pairedRouters(appContext).filterNot { it.routerId == pairing.routerId } + pairing)

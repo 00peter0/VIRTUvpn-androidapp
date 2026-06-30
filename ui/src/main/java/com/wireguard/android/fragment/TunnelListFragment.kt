@@ -89,8 +89,9 @@ class TunnelListFragment : BaseFragment() {
         val activity = activity
         if (qrCode != null && activity != null) {
             activity.lifecycleScope.launch {
-                if (qrCode.startsWith("virtuvpn://router-pair")) {
-                    val pairing = VpnRouterAttestation.parsePairingUri(Uri.parse(qrCode))
+                val routerPairing = VpnRouterAttestation.parsePairingValue(qrCode)
+                if (routerPairing != null || qrCode.startsWith("virtuvpn://router-pair") || qrCode.contains("/router/pair#")) {
+                    val pairing = routerPairing
                     if (pairing != null) {
                         confirmRouterPairing(pairing)
                     } else {
