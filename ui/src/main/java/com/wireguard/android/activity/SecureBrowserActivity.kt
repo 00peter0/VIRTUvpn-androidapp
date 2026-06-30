@@ -130,6 +130,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         updateSecurityBadges(null)
         binding.goButton.setOnClickListener { openTypedUrl() }
         binding.savePageButton.setOnClickListener { saveCurrentPage() }
+        binding.featuresButton.setOnClickListener { showBrowserFeaturesDialog() }
         binding.browserBackButton.setOnClickListener { navigateBack() }
         binding.browserForwardButton.setOnClickListener { navigateForward() }
         binding.browserReloadButton.setOnClickListener { reloadPage() }
@@ -304,6 +305,114 @@ class SecureBrowserActivity : AppCompatActivity() {
         binding.textZoomUpButton.setOnClickListener { changeTextZoom(10) }
         binding.desktopModeButton.setOnClickListener { toggleDesktopMode() }
     }
+
+    private fun showBrowserFeaturesDialog() {
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(8), dp(18), dp(4))
+        }
+        val zoomValue = TextView(this).apply {
+            text = getString(R.string.vcs_secure_browser_text_zoom_value, textZoom)
+            setTextColor(Color.parseColor("#AFC0CC"))
+            textSize = 14f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            gravity = android.view.Gravity.CENTER
+            minWidth = dp(72)
+        }
+        container.addView(featureActionButton(getString(R.string.vcs_secure_browser_find)) {
+            showFindBar()
+        })
+        container.addView(featureRow().apply {
+            addView(featureLabel(getString(R.string.vcs_secure_browser_features_zoom)))
+            addView(featureSmallButton(getString(R.string.vcs_secure_browser_zoom_down)) {
+                changeTextZoom(-10)
+                zoomValue.text = getString(R.string.vcs_secure_browser_text_zoom_value, textZoom)
+            })
+            addView(zoomValue)
+            addView(featureSmallButton(getString(R.string.vcs_secure_browser_zoom_up)) {
+                changeTextZoom(10)
+                zoomValue.text = getString(R.string.vcs_secure_browser_text_zoom_value, textZoom)
+            })
+        })
+        container.addView(featureActionButton(binding.desktopModeButton.text.toString()) {
+            toggleDesktopMode()
+            (it as? TextView)?.text = binding.desktopModeButton.text
+        })
+        container.addView(featureInfo(binding.httpsBadge.text.toString(), binding.httpsBadge.currentTextColor))
+        container.addView(featureInfo(binding.trackerBadge.text.toString(), binding.trackerBadge.currentTextColor))
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(R.string.vcs_secure_browser_features)
+            .setView(container)
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+        dialog.setOnShowListener { VcsDialogs.applyDefaultStyle(dialog) }
+        dialog.show()
+    }
+
+    private fun featureRow(): LinearLayout =
+        LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(48)
+            ).also { it.topMargin = dp(8) }
+        }
+
+    private fun featureLabel(value: String): TextView =
+        TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            text = value
+            setTextColor(Color.parseColor("#E5F2F7"))
+            textSize = 14f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        }
+
+    private fun featureActionButton(value: String, action: (View) -> Unit): TextView =
+        featureInfo(value, Color.WHITE).apply {
+            isClickable = true
+            isFocusable = true
+            foreground = selectableForeground()
+            setOnClickListener { view -> action(view) }
+        }
+
+    private fun featureSmallButton(value: String, action: (View) -> Unit): TextView =
+        TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(48), dp(40)).also { it.marginStart = dp(6) }
+            background = getDrawable(R.drawable.fastest_button_background)
+            foreground = selectableForeground()
+            isClickable = true
+            isFocusable = true
+            gravity = android.view.Gravity.CENTER
+            text = value
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setOnClickListener { view -> action(view) }
+        }
+
+    private fun featureInfo(value: String, color: Int): TextView =
+        TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(44)
+            ).also { it.topMargin = dp(8) }
+            background = getDrawable(R.drawable.fastest_button_background)
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(dp(14), 0, dp(14), 0)
+            text = value
+            setTextColor(color)
+            textSize = 14f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        }
+
+    private fun selectableForeground() =
+        TypedValue().let { outValue ->
+            theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
+            getDrawable(outValue.resourceId)
+        }
 
     private fun configurePullToRefresh() {
         binding.browserRefresh.setColorSchemeColors(getColor(android.R.color.holo_green_light))

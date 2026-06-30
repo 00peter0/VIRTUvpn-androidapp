@@ -241,6 +241,10 @@
     <string name="vcs_secure_browser_bookmark_exists">Page already saved</string>
     <string name="vcs_secure_browser_bookmark_deleted">Page removed</string>
     <string name="vcs_secure_browser_delete_bookmark_title">Remove quick link?</string>
+    <string name="vcs_secure_browser_features">Browser features</string>
+    <string name="vcs_secure_browser_features_icon">⋮</string>
+    <string name="vcs_secure_browser_features_description">Open browser features</string>
+    <string name="vcs_secure_browser_features_zoom">Text zoom</string>
     <string name="vcs_secure_browser_find">Find</string>
     <string name="vcs_secure_browser_find_description">Find text on page</string>
     <string name="vcs_secure_browser_find_hint">Find in page</string>
