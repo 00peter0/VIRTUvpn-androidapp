@@ -107,19 +107,24 @@ object VpnRouterManager {
         routerMutex.withLock {
         val appContext = context.applicationContext
         val status = detect(appContext)
-        if (status.availability != Availability.ENABLED && status.availability != Availability.ERROR) return@withLock status
+        if (status.availability != Availability.ENABLED && status.availability != Availability.ERROR) {
+            syncAttestationServer(appContext, status)
+            return@withLock status
+        }
         disableHotspotAutoShutdown(appContext)
-        val tunnelName = status.activeTunnel ?: return@withLock status
-        if (status.tetherInterfaces.isEmpty()) return@withLock status
+        val tunnelName = status.activeTunnel ?: return@withLock status.also { syncAttestationServer(appContext, it) }
+        if (status.tetherInterfaces.isEmpty()) return@withLock status.also { syncAttestationServer(appContext, it) }
         try {
             installRules(appContext, tunnelName, status.tetherInterfaces, allowFastPath = true)
             val repaired = detect(appContext)
             if (repaired.availability == Availability.ENABLED) rememberVirtuFallbackTunnel(appContext)
+            syncAttestationServer(appContext, repaired)
             repaired
         } catch (e: Throwable) {
             Log.e(TAG, "Unable to reconcile VPN router", e)
             setOperation(appContext, OperationStage.ERROR, e.message ?: e.javaClass.simpleName)
             status.copy(availability = Availability.ERROR, detail = e.message ?: e.javaClass.simpleName)
+                .also { syncAttestationServer(appContext, it) }
         }
         }
     }
@@ -160,21 +165,28 @@ object VpnRouterManager {
         routerMutex.withLock {
         val appContext = context.applicationContext
         val status = detect(appContext)
-        if (!status.canEnable && !status.canDisable) return@withLock status
+        if (!status.canEnable && !status.canDisable) {
+            syncAttestationServer(appContext, status)
+            return@withLock status
+        }
         val tunnelName = status.activeTunnel ?: return@withLock status.copy(availability = Availability.WAITING_FOR_TUNNEL)
+            .also { syncAttestationServer(appContext, it) }
         val tetherInterfaces = status.tetherInterfaces
         if (tetherInterfaces.isEmpty()) return@withLock status.copy(availability = Availability.WAITING_FOR_HOTSPOT)
+            .also { syncAttestationServer(appContext, it) }
         try {
             setOperation(appContext, OperationStage.LOCKING_HOTSPOT, "Blocking hotspot fallback before enabling router")
             installRules(appContext, tunnelName, tetherInterfaces)
             setOperation(appContext, OperationStage.COMPLETE, "VPN router is protected")
             val enabled = detect(appContext)
             if (enabled.availability == Availability.ENABLED) rememberVirtuFallbackTunnel(appContext)
+            syncAttestationServer(appContext, enabled)
             enabled
         } catch (e: Throwable) {
             Log.e(TAG, "Unable to enable VPN router", e)
             setOperation(appContext, OperationStage.ERROR, e.message ?: e.javaClass.simpleName)
             status.copy(availability = Availability.ERROR, detail = e.message ?: e.javaClass.simpleName)
+                .also { syncAttestationServer(appContext, it) }
         }
         }
     }
@@ -185,7 +197,7 @@ object VpnRouterManager {
         val prior = runCatching { detect(appContext) }.getOrNull()
         try {
             removeRules()
-            detect(appContext)
+            detect(appContext).also { syncAttestationServer(appContext, it) }
         } catch (e: Throwable) {
             Log.e(TAG, "Unable to disable VPN router", e)
             Status(
@@ -193,10 +205,19 @@ object VpnRouterManager {
                 activeTunnel = prior?.activeTunnel,
                 tetherInterfaces = prior?.tetherInterfaces.orEmpty(),
                 detail = e.message ?: e.javaClass.simpleName
-            )
+            ).also { syncAttestationServer(appContext, it) }
         } finally {
             clearLastRuleSignature(appContext)
         }
+        }
+    }
+
+    private fun syncAttestationServer(context: Context, status: Status) {
+        if (status.availability == Availability.ENABLED) {
+            VpnRouterAttestationServer.start(context.applicationContext)
+            VpnRouterAttestationServer.updateStatus(status)
+        } else {
+            VpnRouterAttestationServer.stop()
         }
     }
 
