@@ -118,37 +118,66 @@
             android:id="@+id/kill_switch_panel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
+            android:layout_marginBottom="10dp"
             android:background="@drawable/fastest_button_background"
+            android:clickable="true"
             android:clipToOutline="true"
             android:elevation="5dp"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:padding="12dp">
 
-            <TextView
-                android:id="@+id/kill_switch_title"
+            <LinearLayout
+                android:id="@+id/kill_switch_header"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/vcs_kill_switch_title"
-                android:textColor="#FFFFFF"
-                android:textSize="15sp"
-                android:textStyle="bold" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:layout_marginEnd="10dp"
+                    android:background="@drawable/vcs_status_dot" />
+
+                <TextView
+                    android:id="@+id/kill_switch_title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/vcs_kill_switch_title"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <ImageView
+                    android:id="@+id/kill_switch_chevron"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:alpha="0.72"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_chevron_right"
+                    app:tint="#AFC0CC" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/kill_switch_status"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
+                android:layout_marginTop="5dp"
                 android:text="@string/vcs_kill_switch_checking"
                 android:textColor="#AFC0CC"
-                android:textSize="13sp" />
+                android:textSize="12sp" />
 
             <LinearLayout
+                android:id="@+id/kill_switch_body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:visibility="gone">
 
                 <TextView
                     android:id="@+id/open_vpn_settings_button"
@@ -192,36 +221,65 @@
             android:id="@+id/vpn_router_panel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
+            android:layout_marginBottom="12dp"
             android:background="@drawable/fastest_button_background"
+            android:clickable="true"
             android:clipToOutline="true"
             android:elevation="5dp"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:padding="12dp">
 
-            <TextView
-                android:id="@+id/vpn_router_title"
+            <LinearLayout
+                android:id="@+id/vpn_router_header"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/vcs_vpn_router_title"
-                android:textColor="#FFFFFF"
-                android:textSize="15sp"
-                android:textStyle="bold" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:layout_marginEnd="10dp"
+                    android:background="@drawable/vcs_status_dot" />
+
+                <TextView
+                    android:id="@+id/vpn_router_title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/vcs_vpn_router_title"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <ImageView
+                    android:id="@+id/vpn_router_chevron"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:alpha="0.72"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_chevron_right"
+                    app:tint="#AFC0CC" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/vpn_router_status"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
+                android:layout_marginTop="5dp"
                 android:text="@string/vcs_vpn_router_checking"
                 android:textColor="#AFC0CC"
-                android:textSize="13sp" />
+                android:textSize="12sp" />
 
             <LinearLayout
+                android:id="@+id/vpn_router_body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:visibility="gone">
 
                 <TextView
                     android:id="@+id/vpn_router_button"

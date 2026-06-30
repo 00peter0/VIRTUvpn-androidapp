@@ -55,6 +55,8 @@ class HomeActivity : AppCompatActivity() {
     private var deviceHeartbeatRunning = false
     private var lastDeviceHeartbeatAt = 0L
     private var vpnStatusToggleTargetName: String? = null
+    private var killSwitchExpanded = false
+    private var vpnRouterExpanded = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -78,12 +80,18 @@ class HomeActivity : AppCompatActivity() {
         }
         binding.vpnRouterButton.setOnClickListener { toggleVpnRouter() }
         binding.vpnRouterPageButton.setOnClickListener { startActivity(Intent(this, VpnRouterActivity::class.java)) }
+        binding.killSwitchPanel.setOnClickListener { setKillSwitchExpanded(!killSwitchExpanded) }
+        binding.killSwitchHeader.setOnClickListener { setKillSwitchExpanded(!killSwitchExpanded) }
+        binding.vpnRouterPanel.setOnClickListener { setVpnRouterExpanded(!vpnRouterExpanded) }
+        binding.vpnRouterHeader.setOnClickListener { setVpnRouterExpanded(!vpnRouterExpanded) }
         binding.vpnStatusToggle.setOnBeforeCheckedChangeListener(object : ToggleSwitch.OnBeforeCheckedChangeListener {
             override fun onBeforeCheckedChanged(toggleSwitch: ToggleSwitch?, checked: Boolean) {
                 toggleHomeVpnStatus(checked)
             }
         })
         updateSignedInState()
+        setKillSwitchExpanded(false)
+        setVpnRouterExpanded(false)
         reportDeviceHeartbeatIfNeeded()
         updateVpnStatus()
         updateKillSwitchStatus()
@@ -582,6 +590,18 @@ class HomeActivity : AppCompatActivity() {
             }
             renderVpnRouterStatus(status)
         }
+    }
+
+    private fun setKillSwitchExpanded(expanded: Boolean) {
+        killSwitchExpanded = expanded
+        binding.killSwitchBody.visibility = if (expanded) View.VISIBLE else View.GONE
+        binding.killSwitchChevron.rotation = if (expanded) 90f else 0f
+    }
+
+    private fun setVpnRouterExpanded(expanded: Boolean) {
+        vpnRouterExpanded = expanded
+        binding.vpnRouterBody.visibility = if (expanded) View.VISIBLE else View.GONE
+        binding.vpnRouterChevron.rotation = if (expanded) 90f else 0f
     }
 
     private fun toggleVpnRouter() {
