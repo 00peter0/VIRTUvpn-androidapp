@@ -40,6 +40,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.system.exitProcess
 
 class HomeActivity : AppCompatActivity() {
     private lateinit var binding: HomeActivityBinding
@@ -621,6 +622,12 @@ class HomeActivity : AppCompatActivity() {
             val current = lastVpnRouterStatus ?: runCatching {
                 VpnRouterManager.getStatus(this@HomeActivity)
             }.getOrNull()
+            if (current?.availability == VpnRouterManager.Availability.UNSUPPORTED) {
+                vpnRouterActionRunning = false
+                renderVpnRouterStatus(current)
+                showRouterKernelRequirementDialog()
+                return@launch
+            }
             val status = runCatching {
                 if (current?.canDisable == true) {
                     VpnRouterManager.disable(this@HomeActivity)
@@ -638,6 +645,35 @@ class HomeActivity : AppCompatActivity() {
             vpnRouterActionRunning = false
             renderVpnRouterStatus(status)
         }
+    }
+
+    private fun showRouterKernelRequirementDialog() {
+        if (!VpnRouterManager.isKernelModuleAvailable()) {
+            VcsDialogs.show(
+                context = this,
+                title = getString(R.string.vcs_vpn_router_kernel_missing_title),
+                message = getString(R.string.vcs_vpn_router_kernel_missing_message),
+                positive = VcsDialogs.action(this, android.R.string.ok, primary = true)
+            )
+            return
+        }
+        VcsDialogs.show(
+            context = this,
+            title = getString(R.string.vcs_vpn_router_kernel_backend_title),
+            message = getString(R.string.vcs_vpn_router_kernel_backend_message),
+            negative = VcsDialogs.action(this, android.R.string.cancel),
+            positive = VcsDialogs.action(this, R.string.vcs_vpn_router_kernel_backend_action, primary = true) {
+                lifecycleScope.launch {
+                    VpnRouterManager.prepareKernelBackend(this@HomeActivity)
+                    Toast.makeText(this@HomeActivity, R.string.vcs_vpn_router_kernel_backend_restarting, Toast.LENGTH_LONG).show()
+                    packageManager.getLaunchIntentForPackage(packageName)?.let { intent ->
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        startActivity(intent)
+                    }
+                    exitProcess(0)
+                }
+            }
+        )
     }
 
     private fun renderVpnRouterStatus(status: VpnRouterManager.Status) {

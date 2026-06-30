@@ -7,6 +7,7 @@ package com.wireguard.android.util
 import android.content.Context
 import android.util.Log
 import com.wireguard.android.Application
+import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.backend.WgQuickBackend
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -130,6 +131,22 @@ object VpnRouterManager {
             .edit()
             .putString(KEY_DNS_MODE, mode.preferenceValue)
             .apply()
+    }
+
+    fun isKernelModuleAvailable(): Boolean = WgQuickBackend.hasKernelSupport()
+
+    suspend fun prepareKernelBackend(context: Context) = withContext(Dispatchers.IO) {
+        routerMutex.withLock {
+            val appContext = context.applicationContext
+            runCatching { removeRules() }
+                .onFailure { Log.w(TAG, "Unable to clear router rules before backend switch", it) }
+            clearLastRuleSignature(appContext)
+            UserKnobs.setEnableKernelModule(true)
+            Application.getTunnelManager().getTunnels().forEach { tunnel ->
+                runCatching { tunnel.setStateAsync(Tunnel.State.DOWN) }
+                    .onFailure { Log.w(TAG, "Unable to stop tunnel before backend switch: ${tunnel.name}", it) }
+            }
+        }
     }
 
     suspend fun enable(context: Context): Status = withContext(Dispatchers.IO) {

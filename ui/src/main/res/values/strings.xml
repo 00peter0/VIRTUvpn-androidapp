@@ -118,6 +118,12 @@
     <string name="vcs_vpn_router_waiting_tunnel">Start a VPN tunnel first.</string>
     <string name="vcs_vpn_router_waiting_hotspot">Turn on MOBILE HOTSPOT to detect router interfaces.</string>
     <string name="vcs_vpn_router_unsupported">VPN router needs root, kernel module backend, and an active VPN interface.</string>
+    <string name="vcs_vpn_router_kernel_backend_title">Kernel backend required</string>
+    <string name="vcs_vpn_router_kernel_backend_message">VPN Router needs VirtuVPN to use the kernel module backend. VirtuVPN will stop active tunnels, switch backend mode, and restart. Start the tunnel again after restart, then enable VPN Router.</string>
+    <string name="vcs_vpn_router_kernel_backend_action">Switch and restart</string>
+    <string name="vcs_vpn_router_kernel_missing_title">Kernel module required</string>
+    <string name="vcs_vpn_router_kernel_missing_message">VPN Router cannot find the WireGuard kernel module on this device. Install compatible WireGuard kernel support independently, reboot if required, then open VirtuVPN and enable VPN Router again.</string>
+    <string name="vcs_vpn_router_kernel_backend_restarting">Switching to kernel backend. VirtuVPN will restart.</string>
     <string name="vcs_vpn_router_error">VPN router error: %1$s</string>
     <string name="vcs_vpn_router_no_interfaces">no hotspot interface</string>
     <string name="vcs_vpn_router_uplink_checking">Checking uplink...</string>

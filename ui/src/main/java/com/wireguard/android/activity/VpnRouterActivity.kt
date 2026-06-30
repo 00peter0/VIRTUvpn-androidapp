@@ -6,6 +6,7 @@ package com.wireguard.android.activity
 
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.content.Intent
 import android.os.Bundle
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -23,6 +24,7 @@ import com.wireguard.android.util.VpnRouterManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.system.exitProcess
 
 class VpnRouterActivity : AppCompatActivity() {
     private lateinit var routerStatus: TextView
@@ -37,6 +39,7 @@ class VpnRouterActivity : AppCompatActivity() {
     private var operationDialogMessage: TextView? = null
     private var refreshing = false
     private var lastActiveTunnel: String? = null
+    private var kernelRequirementDialogShown = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -144,11 +147,42 @@ class VpnRouterActivity : AppCompatActivity() {
                     if (router.availability == VpnRouterManager.Availability.ENABLED) GREEN else RED
                 )
                 renderGuestAccess(router)
+                maybeShowKernelRequirementDialog(router)
                 lastActiveTunnel = router.activeTunnel
             } finally {
                 refreshing = false
             }
         }
+    }
+
+    private fun maybeShowKernelRequirementDialog(status: VpnRouterManager.Status) {
+        if (kernelRequirementDialogShown || status.availability != VpnRouterManager.Availability.UNSUPPORTED) return
+        kernelRequirementDialogShown = true
+        if (!VpnRouterManager.isKernelModuleAvailable()) {
+            VcsDialogs.show(
+                context = this,
+                title = getString(R.string.vcs_vpn_router_kernel_missing_title),
+                message = getString(R.string.vcs_vpn_router_kernel_missing_message),
+                positive = VcsDialogs.action(this, android.R.string.ok, primary = true)
+            )
+            return
+        }
+        VcsDialogs.show(
+            context = this,
+            title = getString(R.string.vcs_vpn_router_kernel_backend_title),
+            message = getString(R.string.vcs_vpn_router_kernel_backend_message),
+            negative = VcsDialogs.action(this, android.R.string.cancel),
+            positive = VcsDialogs.action(this, R.string.vcs_vpn_router_kernel_backend_action, primary = true) {
+                lifecycleScope.launch {
+                    VpnRouterManager.prepareKernelBackend(this@VpnRouterActivity)
+                    packageManager.getLaunchIntentForPackage(packageName)?.let { intent ->
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        startActivity(intent)
+                    }
+                    exitProcess(0)
+                }
+            }
+        )
     }
 
     private fun showOperationDialog() {
