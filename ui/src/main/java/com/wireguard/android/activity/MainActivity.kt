@@ -138,8 +138,9 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
 
     private fun handleVcsEnrollmentIntent(intent: Intent?) {
         val uri = intent?.data ?: return
-        if (VpnRouterAttestation.isPairingUri(uri)) {
-            val pairing = VpnRouterAttestation.parsePairingUri(uri)
+        val routerPairing = VpnRouterAttestation.parsePairingValue(uri.toString())
+        if (routerPairing != null || VpnRouterAttestation.isPairingUri(uri)) {
+            val pairing = routerPairing
             if (pairing == null) {
                 Toast.makeText(this, R.string.vcs_secure_browser_router_pair_error, Toast.LENGTH_LONG).show()
                 finishEnrollmentFlow()
