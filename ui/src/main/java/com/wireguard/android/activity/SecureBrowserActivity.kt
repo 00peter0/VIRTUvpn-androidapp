@@ -9,6 +9,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -472,37 +473,45 @@ class SecureBrowserActivity : AppCompatActivity() {
             hint = getString(R.string.vcs_secure_browser_paste_router_pair_hint)
             setText(clipboardText().orEmpty())
             setSelectAllOnFocus(true)
+            setTextColor(Color.parseColor("#FFFFFF"))
+            setHintTextColor(Color.parseColor("#8EA2AE"))
+            setBackgroundResource(R.drawable.vcs_dialog_input_background)
+            setPadding(28, 18, 28, 18)
         }
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.vcs_secure_browser_paste_router_pair_title)
             .setView(input)
             .setNegativeButton(android.R.string.cancel, null)
             .setNeutralButton(R.string.vcs_secure_browser_paste_router_pair_clipboard, null)
             .setPositiveButton(R.string.vcs_secure_browser_router_pair_action, null)
             .create()
-            .apply {
-                setOnShowListener {
-                    getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
-                        val text = clipboardText()
-                        if (text.isNullOrBlank()) {
-                            Toast.makeText(this@SecureBrowserActivity, R.string.vcs_secure_browser_paste_router_pair_empty, Toast.LENGTH_LONG).show()
-                        } else {
-                            input.setText(text)
-                            input.selectAll()
-                        }
-                    }
-                    getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                        val pairing = parsePairingKey(input.text?.toString().orEmpty())
-                        if (pairing == null) {
-                            Toast.makeText(this@SecureBrowserActivity, R.string.vcs_secure_browser_router_pair_error, Toast.LENGTH_LONG).show()
-                            return@setOnClickListener
-                        }
-                        dismiss()
-                        confirmRouterPairing(pairing)
-                    }
+        dialog.setOnShowListener {
+            VcsDialogs.applyDefaultStyle(dialog)
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                val text = clipboardText()
+                if (text.isNullOrBlank()) {
+                    Toast.makeText(this@SecureBrowserActivity, R.string.vcs_secure_browser_paste_router_pair_empty, Toast.LENGTH_LONG).show()
+                } else {
+                    input.setText(text)
+                    input.selectAll()
                 }
             }
-            .show()
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val pairing = parsePairingKey(input.text?.toString().orEmpty())
+                if (pairing == null) {
+                    Toast.makeText(this@SecureBrowserActivity, R.string.vcs_secure_browser_router_pair_error, Toast.LENGTH_LONG).show()
+                    return@setOnClickListener
+                }
+                dialog.dismiss()
+                confirmRouterPairing(pairing)
+            }
+        }
+        dialog.show()
+    }
+
+    private fun showStyledPlatformDialog(dialog: AlertDialog) {
+        dialog.setOnShowListener { VcsDialogs.applyDefaultStyle(dialog) }
+        dialog.show()
     }
 
     private fun clipboardText(): String? {
@@ -526,7 +535,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun confirmRouterPairing(pairing: VpnRouterAttestation.Pairing) {
-        AlertDialog.Builder(this)
+        showStyledPlatformDialog(AlertDialog.Builder(this)
             .setTitle(R.string.vcs_secure_browser_router_pair_title)
             .setMessage(getString(R.string.vcs_secure_browser_router_pair_confirm, pairing.routerId.take(8)))
             .setNegativeButton(android.R.string.cancel, null)
@@ -535,7 +544,7 @@ class SecureBrowserActivity : AppCompatActivity() {
                 Toast.makeText(this, R.string.vcs_secure_browser_router_pair_success, Toast.LENGTH_LONG).show()
                 refreshBrowserProtectionAsync()
             }
-            .show()
+            .create())
     }
 
     private fun confirmForgetRouters() {
@@ -544,7 +553,7 @@ class SecureBrowserActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.vcs_secure_browser_router_pair_none, Toast.LENGTH_SHORT).show()
             return
         }
-        AlertDialog.Builder(this)
+        showStyledPlatformDialog(AlertDialog.Builder(this)
             .setTitle(R.string.vcs_secure_browser_router_forget_title)
             .setMessage(resources.getQuantityString(R.plurals.vcs_secure_browser_router_forget_confirm, count, count))
             .setNegativeButton(android.R.string.cancel, null)
@@ -553,7 +562,7 @@ class SecureBrowserActivity : AppCompatActivity() {
                 Toast.makeText(this, R.string.vcs_secure_browser_router_forget_success, Toast.LENGTH_LONG).show()
                 refreshBrowserProtectionAsync()
             }
-            .show()
+            .create())
     }
 
     private fun openVpnSettings() {

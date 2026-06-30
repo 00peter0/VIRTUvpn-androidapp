@@ -20,6 +20,8 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.WindowManager
+import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -253,16 +255,28 @@ class HomeActivity : AppCompatActivity() {
                 } else {
                     getString(R.string.vcs_vpn_status_select_tunnel_stopped, tunnel.name)
                 }
-            }.toTypedArray()
-            AlertDialog.Builder(this@HomeActivity)
+            }
+            val adapter = object : ArrayAdapter<String>(this@HomeActivity, android.R.layout.simple_list_item_1, labels) {
+                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                    return super.getView(position, convertView, parent).apply {
+                        setBackgroundColor(Color.parseColor("#071018"))
+                        (this as? TextView)?.apply {
+                            setTextColor(Color.parseColor("#E5F2F7"))
+                            textSize = 15f
+                        }
+                    }
+                }
+            }
+            val dialog = AlertDialog.Builder(this@HomeActivity)
                 .setTitle(R.string.vcs_vpn_status_select_tunnel_title)
-                .setItems(labels) { _, which ->
+                .setAdapter(adapter) { _, which ->
                     val selected = tunnels[which]
                     persistHomeTunnelSelection(selected.name)
                     vpnStatusToggleTargetName = selected.name
                     updateVpnStatus()
                 }
                 .show()
+            VcsDialogs.applyDefaultStyle(dialog)
         }
     }
 
