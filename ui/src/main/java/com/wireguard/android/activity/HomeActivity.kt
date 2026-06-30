@@ -21,6 +21,8 @@ import android.view.MenuItem
 import android.view.View
 import android.view.WindowManager
 import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -34,6 +36,7 @@ import com.wireguard.android.util.HotspotDetector
 import com.wireguard.android.util.VcsDialogs
 import com.wireguard.android.util.VpnRouterAttestation
 import com.wireguard.android.util.VpnRouterManager
+import com.wireguard.android.util.VpnRouterOperationFormatter
 import com.wireguard.android.vcs.VcsManagedClient
 import com.wireguard.android.widget.ToggleSwitch
 import kotlinx.coroutines.Job
@@ -59,6 +62,8 @@ class HomeActivity : AppCompatActivity() {
     private var vpnStatusToggleTargetName: String? = null
     private var killSwitchExpanded = false
     private var vpnRouterExpanded = false
+    private var routerOperationDialog: AlertDialog? = null
+    private var routerOperationDialogMessage: TextView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -236,6 +241,7 @@ class HomeActivity : AppCompatActivity() {
                 val actualState = target.setStateAsync(requestedState)
                 VcsManagedClient.reportTunnelTransition(this@HomeActivity, target.name, requestedState, actualState)
                 VcsManagedClient.reportCurrentStates(this@HomeActivity)
+                reconcileVpnRouterFromHome(showProgress = true)
             } catch (e: Throwable) {
                 val manager = Application.getTunnelManager()
                 val targetName = vpnStatusToggleTargetName
@@ -247,6 +253,7 @@ class HomeActivity : AppCompatActivity() {
                     if (verifiedState == requestedState) {
                         VcsManagedClient.reportTunnelTransition(this@HomeActivity, target.name, requestedState, verifiedState)
                         VcsManagedClient.reportCurrentStates(this@HomeActivity)
+                        reconcileVpnRouterFromHome(showProgress = true)
                         return@launch
                     }
                     VcsManagedClient.reportTunnelTransition(this@HomeActivity, target.name, requestedState, target.state, e)
@@ -579,6 +586,72 @@ class HomeActivity : AppCompatActivity() {
         )
     }
 
+    private suspend fun reconcileVpnRouterFromHome(showProgress: Boolean): VpnRouterManager.Status? {
+        val current = runCatching { VpnRouterManager.getStatus(this@HomeActivity) }.getOrNull()
+        if (current?.needsReconcile != true) {
+            current?.let { renderVpnRouterStatus(it) }
+            return current
+        }
+        if (showProgress) showRouterOperationDialog()
+        val progressJob = if (showProgress) lifecycleScope.launch {
+            while (isActive) {
+                renderRouterOperationStatus(VpnRouterManager.getOperationStatus(this@HomeActivity))
+                delay(250)
+            }
+        } else null
+        return try {
+            val status = VpnRouterManager.reconcile(this@HomeActivity)
+            renderVpnRouterStatus(status)
+            status
+        } catch (e: Throwable) {
+            val status = VpnRouterManager.Status(
+                availability = VpnRouterManager.Availability.ERROR,
+                activeTunnel = current.activeTunnel,
+                tetherInterfaces = current.tetherInterfaces,
+                detail = e.message ?: e.javaClass.simpleName
+            )
+            renderVpnRouterStatus(status)
+            status
+        } finally {
+            progressJob?.cancel()
+            if (showProgress) {
+                renderRouterOperationStatus(VpnRouterManager.getOperationStatus(this@HomeActivity))
+                delay(450)
+                dismissRouterOperationDialog()
+            }
+        }
+    }
+
+    private fun showRouterOperationDialog() {
+        if (routerOperationDialog?.isShowing == true) return
+        routerOperationDialogMessage = TextView(this).apply {
+            text = VpnRouterOperationFormatter.message(this@HomeActivity, VpnRouterManager.getOperationStatus(this@HomeActivity))
+            setTextColor(Color.parseColor("#AFC0CC"))
+            textSize = 14f
+            setLineSpacing(4f, 1.0f)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+        routerOperationDialog = VcsDialogs.show(
+            this,
+            title = getString(R.string.vcs_vpn_router_operation_title),
+            customView = routerOperationDialogMessage,
+            cancelable = false
+        )
+    }
+
+    private fun renderRouterOperationStatus(status: VpnRouterManager.OperationStatus) {
+        routerOperationDialogMessage?.text = VpnRouterOperationFormatter.message(this, status)
+    }
+
+    private fun dismissRouterOperationDialog() {
+        routerOperationDialog?.dismiss()
+        routerOperationDialog = null
+        routerOperationDialogMessage = null
+    }
+
     private fun updateVpnRouterStatus() {
         if (vpnRouterActionRunning) return
         binding.vpnRouterStatus.setText(R.string.vcs_vpn_router_checking)
@@ -633,6 +706,14 @@ class HomeActivity : AppCompatActivity() {
                 renderVpnRouterStatus(current)
                 return@launch
             }
+            val showProgress = current?.canDisable != true
+            if (showProgress) showRouterOperationDialog()
+            val progressJob = if (showProgress) launch {
+                while (isActive) {
+                    renderRouterOperationStatus(VpnRouterManager.getOperationStatus(this@HomeActivity))
+                    delay(250)
+                }
+            } else null
             val status = runCatching {
                 if (current?.canDisable == true) {
                     VpnRouterManager.disable(this@HomeActivity)
@@ -646,6 +727,13 @@ class HomeActivity : AppCompatActivity() {
                     tetherInterfaces = current?.tetherInterfaces.orEmpty(),
                     detail = e.message ?: e.javaClass.simpleName
                 )
+            }.also {
+                progressJob?.cancel()
+                if (showProgress) {
+                    renderRouterOperationStatus(VpnRouterManager.getOperationStatus(this@HomeActivity))
+                    delay(450)
+                    dismissRouterOperationDialog()
+                }
             }
             vpnRouterActionRunning = false
             renderVpnRouterStatus(status)

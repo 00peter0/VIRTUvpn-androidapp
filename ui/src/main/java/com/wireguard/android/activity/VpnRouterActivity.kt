@@ -19,6 +19,7 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import com.wireguard.android.R
 import com.wireguard.android.util.VcsDialogs
+import com.wireguard.android.util.VpnRouterOperationFormatter
 import com.wireguard.android.util.VpnRouterAttestation
 import com.wireguard.android.util.VpnRouterManager
 import kotlinx.coroutines.Job
@@ -187,7 +188,7 @@ class VpnRouterActivity : AppCompatActivity() {
     private fun showOperationDialog() {
         if (operationDialog?.isShowing == true) return
         operationDialogMessage = TextView(this).apply {
-            text = operationMessage(VpnRouterManager.getOperationStatus(this@VpnRouterActivity))
+            text = VpnRouterOperationFormatter.message(this@VpnRouterActivity, VpnRouterManager.getOperationStatus(this@VpnRouterActivity))
             setTextColor(Color.parseColor("#AFC0CC"))
             textSize = 14f
             setLineSpacing(4f, 1.0f)
@@ -205,47 +206,13 @@ class VpnRouterActivity : AppCompatActivity() {
     }
 
     private fun renderOperationStatus(status: VpnRouterManager.OperationStatus) {
-        operationDialogMessage?.text = operationMessage(status)
+        operationDialogMessage?.text = VpnRouterOperationFormatter.message(this, status)
     }
 
     private fun dismissOperationDialog() {
         operationDialog?.dismiss()
         operationDialog = null
         operationDialogMessage = null
-    }
-
-    private fun operationMessage(status: VpnRouterManager.OperationStatus): String {
-        val activeStage = when (status.stage) {
-            VpnRouterManager.OperationStage.LOCKING_HOTSPOT -> 0
-            VpnRouterManager.OperationStage.DETECTING_TUNNEL -> 1
-            VpnRouterManager.OperationStage.APPLYING_DNS -> 2
-            VpnRouterManager.OperationStage.APPLYING_FIREWALL -> 3
-            VpnRouterManager.OperationStage.VERIFYING_RULES -> 4
-            VpnRouterManager.OperationStage.CHECKING_HEALTH -> 5
-            VpnRouterManager.OperationStage.FALLING_BACK -> 6
-            VpnRouterManager.OperationStage.COMPLETE -> 7
-            VpnRouterManager.OperationStage.ERROR -> 8
-            VpnRouterManager.OperationStage.IDLE -> -1
-        }
-        val labels = listOf(
-            getString(R.string.vcs_vpn_router_operation_locking),
-            getString(R.string.vcs_vpn_router_operation_detecting),
-            getString(R.string.vcs_vpn_router_operation_dns),
-            getString(R.string.vcs_vpn_router_operation_firewall),
-            getString(R.string.vcs_vpn_router_operation_verify),
-            getString(R.string.vcs_vpn_router_operation_health),
-            getString(R.string.vcs_vpn_router_operation_fallback)
-        )
-        val prefix = labels.mapIndexed { index, label ->
-            val marker = when {
-                activeStage > index -> "[done]"
-                activeStage == index -> "[now]"
-                else -> "[wait]"
-            }
-            "$marker $label"
-        }.joinToString("\n")
-        val detail = status.detail?.takeIf { it.isNotBlank() } ?: getString(R.string.vcs_vpn_router_operation_default_detail)
-        return "$prefix\n\n$detail"
     }
 
     private fun renderDnsMode() {
