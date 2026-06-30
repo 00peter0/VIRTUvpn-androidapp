@@ -147,7 +147,6 @@ class VpnRouterActivity : AppCompatActivity() {
                     if (router.availability == VpnRouterManager.Availability.ENABLED) GREEN else RED
                 )
                 renderGuestAccess(router)
-                maybeShowKernelRequirementDialog(router)
                 lastActiveTunnel = router.activeTunnel
             } finally {
                 refreshing = false

@@ -117,7 +117,7 @@
     <string name="vcs_vpn_router_ready">Ready: %1$s can route hotspot traffic via %2$s</string>
     <string name="vcs_vpn_router_waiting_tunnel">Start a VPN tunnel first.</string>
     <string name="vcs_vpn_router_waiting_hotspot">Turn on MOBILE HOTSPOT to detect router interfaces.</string>
-    <string name="vcs_vpn_router_unsupported">VPN router needs root, kernel module backend, and an active VPN interface.</string>
+    <string name="vcs_vpn_router_unsupported">VPN router needs root access, an active VPN interface, and an active hotspot.</string>
     <string name="vcs_vpn_router_kernel_backend_title">Kernel backend required</string>
     <string name="vcs_vpn_router_kernel_backend_message">VPN Router needs VirtuVPN to use the kernel module backend. VirtuVPN will stop active tunnels, switch backend mode, and restart. Start the tunnel again after restart, then enable VPN Router.</string>
     <string name="vcs_vpn_router_kernel_backend_action">Switch and restart</string>

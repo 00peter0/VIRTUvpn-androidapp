@@ -199,13 +199,6 @@ object VpnRouterManager {
             )
         }
 
-        if (Application.getBackend() !is WgQuickBackend) {
-            return Status(
-                availability = if (installed) Availability.ERROR else Availability.UNSUPPORTED,
-                detail = "VPN Router requires the kernel module backend. Enable kernel module backend in Settings, restart VirtuVPN, then start the tunnel again."
-            )
-        }
-
         val runningTunnel = readVpnInterfaces().firstOrNull()
         val allUpInterfaces = readUpInterfaces()
         if (runningTunnel == null) {
@@ -270,8 +263,7 @@ object VpnRouterManager {
     private suspend fun readVpnInterfaces(): List<String> {
         val names = linkedSetOf<String>()
         val backend = Application.getBackend()
-        if (backend !is WgQuickBackend) return emptyList()
-        names += backend.runningTunnelNames
+        if (backend is WgQuickBackend) names += backend.runningTunnelNames
         names += readUpInterfaces()
             .filter { name -> isValidInterfaceName(name) }
             .filter { name -> isVpnInterfaceCandidate(name) }
@@ -445,6 +437,7 @@ object VpnRouterManager {
             )
         }
         checkedRun("prepare hotspot fallback block route", "ip route replace unreachable default table $HOTSPOT_BLOCK_ROUTE_TABLE")
+        checkedRun("prepare hotspot VPN route", "ip route replace default dev $tunnel table $HOTSPOT_VPN_ROUTE_TABLE")
         downstreams.forEach { downstream ->
             checkedRun(
                 "install hotspot fallback block first",
@@ -594,7 +587,7 @@ object VpnRouterManager {
             checkedRun(
                 "route hotspot traffic to VPN after firewall is ready",
                 "ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY iif $downstream 2>/dev/null || true; " +
-                    "ip rule add pref $HOTSPOT_VPN_RULE_PRIORITY iif $downstream lookup $tunnel"
+                    "ip rule add pref $HOTSPOT_VPN_RULE_PRIORITY iif $downstream lookup $HOTSPOT_VPN_ROUTE_TABLE"
             )
         }
         checkedRun("finish IPv6 forwarding fail-closed", "ip6tables -A $IPV6_FORWARD_CHAIN -j REJECT")
@@ -602,7 +595,8 @@ object VpnRouterManager {
         downstreams.forEach { downstream ->
             checkedRun(
                 "verify hotspot routing",
-                "ip rule show | grep -q \"^$HOTSPOT_VPN_RULE_PRIORITY:.*iif $downstream .*lookup $tunnel\" && " +
+                "ip rule show | grep -q \"^$HOTSPOT_VPN_RULE_PRIORITY:.*iif $downstream .*lookup $HOTSPOT_VPN_ROUTE_TABLE\" && " +
+                    "ip route show table $HOTSPOT_VPN_ROUTE_TABLE | grep -q \"default dev $tunnel\" && " +
                     "ip rule show | grep -q \"^$HOTSPOT_BLOCK_RULE_PRIORITY:.*iif $downstream .*lookup $HOTSPOT_BLOCK_ROUTE_TABLE\" && " +
                     "ip route show table $HOTSPOT_BLOCK_ROUTE_TABLE | grep -q \"unreachable default\""
             )
@@ -627,7 +621,8 @@ object VpnRouterManager {
         if (!commandSucceeds("iptables -C INPUT -p tcp --dport ${VpnRouterAttestation.PORT} -j REJECT >/dev/null 2>&1")) return false
         return downstreams.all { downstream ->
             commandSucceeds(
-                "ip rule show | grep -q \"^$HOTSPOT_VPN_RULE_PRIORITY:.*iif $downstream .*lookup $tunnel\" && " +
+                "ip rule show | grep -q \"^$HOTSPOT_VPN_RULE_PRIORITY:.*iif $downstream .*lookup $HOTSPOT_VPN_ROUTE_TABLE\" && " +
+                    "ip route show table $HOTSPOT_VPN_ROUTE_TABLE | grep -q \"default dev $tunnel\" && " +
                     "ip rule show | grep -q \"^$HOTSPOT_BLOCK_RULE_PRIORITY:.*iif $downstream .*lookup $HOTSPOT_BLOCK_ROUTE_TABLE\" && " +
                     "ip route show table $HOTSPOT_BLOCK_ROUTE_TABLE | grep -q \"unreachable default\" && " +
                     "iptables -C INPUT -i $downstream -p tcp --dport ${VpnRouterAttestation.PORT} -j ACCEPT >/dev/null 2>&1 && " +
@@ -671,6 +666,7 @@ object VpnRouterManager {
             "remove hotspot VPN routes",
             "while ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY 2>/dev/null; do :; done; " +
                 "while ip rule del pref $HOTSPOT_BLOCK_RULE_PRIORITY 2>/dev/null; do :; done; " +
+                "ip route flush table $HOTSPOT_VPN_ROUTE_TABLE 2>/dev/null || true; " +
                 "ip route flush table $HOTSPOT_BLOCK_ROUTE_TABLE 2>/dev/null || true"
         )
         checkedRun("flush route cache", "ip route flush cache 2>/dev/null || true")
@@ -941,6 +937,7 @@ object VpnRouterManager {
     private const val IPV6_OUTPUT_CHAIN = "VIRTUVPN_ROUTER6_OUT"
     private const val HOTSPOT_VPN_RULE_PRIORITY = 20900
     private const val HOTSPOT_BLOCK_RULE_PRIORITY = 20901
+    private const val HOTSPOT_VPN_ROUTE_TABLE = 1047
     private const val HOTSPOT_BLOCK_ROUTE_TABLE = 1048
     private const val MAX_DNS_RESOLVERS = 2
     private val COMMON_ENCRYPTED_DNS_RESOLVERS = listOf(

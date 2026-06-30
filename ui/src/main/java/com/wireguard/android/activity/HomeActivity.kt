@@ -625,7 +625,6 @@ class HomeActivity : AppCompatActivity() {
             if (current?.availability == VpnRouterManager.Availability.UNSUPPORTED) {
                 vpnRouterActionRunning = false
                 renderVpnRouterStatus(current)
-                showRouterKernelRequirementDialog()
                 return@launch
             }
             val status = runCatching {
