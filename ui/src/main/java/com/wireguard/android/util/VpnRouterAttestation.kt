@@ -8,6 +8,7 @@ import android.content.Context
 import android.net.Uri
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.wifi.WifiManager
 import android.util.Base64
 import android.util.Log
 import kotlinx.coroutines.runBlocking
@@ -248,13 +249,33 @@ object VpnRouterAttestation {
 
     private fun currentWifiGateway(context: Context): InetAddress? {
         val connectivityManager = context.getSystemService(ConnectivityManager::class.java) ?: return null
-        val network = connectivityManager.activeNetwork ?: return null
-        val caps = connectivityManager.getNetworkCapabilities(network) ?: return null
-        if (!caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return null
-        val linkProperties = connectivityManager.getLinkProperties(network) ?: return null
-        return linkProperties.routes
-            .firstOrNull { route -> route.isDefaultRoute && route.gateway != null }
-            ?.gateway
+        val networks = buildList {
+            connectivityManager.activeNetwork?.let { add(it) }
+            addAll(connectivityManager.allNetworks.filterNot { it == connectivityManager.activeNetwork })
+        }
+        networks.forEach { network ->
+            val caps = connectivityManager.getNetworkCapabilities(network) ?: return@forEach
+            if (!caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return@forEach
+            val gateway = connectivityManager.getLinkProperties(network)
+                ?.routes
+                ?.firstOrNull { route -> route.isDefaultRoute && route.gateway != null }
+                ?.gateway
+            if (gateway is Inet4Address) return gateway
+        }
+        return dhcpWifiGateway(context)
+    }
+
+    private fun dhcpWifiGateway(context: Context): InetAddress? {
+        val wifiManager = context.applicationContext.getSystemService(WifiManager::class.java) ?: return null
+        val gateway = wifiManager.dhcpInfo?.gateway ?: return null
+        if (gateway == 0) return null
+        val bytes = byteArrayOf(
+            (gateway and 0xff).toByte(),
+            (gateway shr 8 and 0xff).toByte(),
+            (gateway shr 16 and 0xff).toByte(),
+            (gateway shr 24 and 0xff).toByte()
+        )
+        return runCatching { InetAddress.getByAddress(bytes) as? Inet4Address }.getOrNull()
     }
 
     private fun fetchAttestation(host: String, nonce: String): String? {
