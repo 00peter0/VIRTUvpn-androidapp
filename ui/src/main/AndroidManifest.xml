@@ -33,6 +33,12 @@
         android:name="android.hardware.camera"
         android:required="false" />
 
+    <queries>
+        <intent>
+            <action android:name="android.net.VpnService" />
+        </intent>
+    </queries>
+
     <permission
         android:name="${applicationId}.permission.CONTROL_TUNNELS"
         android:description="@string/permission_description"

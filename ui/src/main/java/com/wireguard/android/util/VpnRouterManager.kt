@@ -5,6 +5,9 @@
 package com.wireguard.android.util
 
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.VpnService
 import android.util.Log
 import com.wireguard.android.Application
 import com.wireguard.android.backend.Tunnel
@@ -395,15 +398,18 @@ object VpnRouterManager {
             .ifEmpty { DnsMode.QUAD9.resolvers }
         val dnsResolver = dnsResolvers.first()
         val vpnOwnerUid = readVpnOwnerUid()
+        val vpnProviderUids = readVpnProviderUids(context)
         val snapshot = VpnRouterRulePlanner.Snapshot(
             tunnel = tunnel,
             downstreams = downstreams,
             dnsResolvers = dnsResolvers,
-            uplinks = uplinks
+            uplinks = uplinks,
+            vpnOwnerUid = vpnOwnerUid,
+            vpnProviderUids = vpnProviderUids
         )
         val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val lastSignature = prefs.getString(KEY_LAST_RULE_SIGNATURE, null)
-        val rulesHealthy = verifyRouterRules(tunnel, downstreams)
+        val rulesHealthy = verifyRouterRules(tunnel, downstreams, vpnOwnerUid, vpnProviderUids)
 
         disableHotspotAutoShutdown(context)
         disableTetherOffload(context)
@@ -510,6 +516,10 @@ object VpnRouterManager {
             checkedRun("allow active VPN provider transport", "iptables -A $OUTPUT_CHAIN -m owner --uid-owner $vpnOwnerUid -j RETURN")
             checkedRun("allow active VPN provider IPv6 transport", "ip6tables -A $IPV6_OUTPUT_CHAIN -m owner --uid-owner $vpnOwnerUid -j RETURN || true")
         }
+        vpnProviderUids.filterNot { uid -> uid == vpnOwnerUid }.forEach { uid ->
+            checkedRun("allow installed VPN provider bootstrap $uid", "iptables -A $OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN")
+            checkedRun("allow installed VPN provider IPv6 bootstrap $uid", "ip6tables -A $IPV6_OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN || true")
+        }
         downstreams.forEach { downstream ->
             checkedRun("allow phone egress to hotspot clients", "iptables -A $OUTPUT_CHAIN -o $downstream -j RETURN")
             checkedRun("allow phone IPv6 egress to hotspot clients", "ip6tables -A $IPV6_OUTPUT_CHAIN -o $downstream -j RETURN")
@@ -605,7 +615,12 @@ object VpnRouterManager {
         prefs.edit().putString(KEY_LAST_RULE_SIGNATURE, snapshot.signature()).apply()
     }
 
-    private fun verifyRouterRules(tunnel: String, downstreams: List<String>): Boolean {
+    private fun verifyRouterRules(
+        tunnel: String,
+        downstreams: List<String>,
+        vpnOwnerUid: Int? = readVpnOwnerUid(),
+        vpnProviderUids: List<Int> = readVpnProviderUids(Application.get().applicationContext)
+    ): Boolean {
         if (downstreams.isEmpty()) return false
         if (!commandSucceeds("iptables -t nat -S $NAT_CHAIN >/dev/null 2>&1")) return false
         if (!commandSucceeds("iptables -S $FORWARD_CHAIN >/dev/null 2>&1")) return false
@@ -619,6 +634,10 @@ object VpnRouterManager {
         if (!commandSucceeds("ip6tables -C $IPV6_OUTPUT_CHAIN -j REJECT >/dev/null 2>&1")) return false
         if (!commandSucceeds("ip6tables -C $IPV6_FORWARD_CHAIN -j REJECT >/dev/null 2>&1")) return false
         if (!commandSucceeds("iptables -C INPUT -p tcp --dport ${VpnRouterAttestation.PORT} -j REJECT >/dev/null 2>&1")) return false
+        if (vpnOwnerUid != null && !commandSucceeds("iptables -C $OUTPUT_CHAIN -m owner --uid-owner $vpnOwnerUid -j RETURN >/dev/null 2>&1")) return false
+        vpnProviderUids.forEach { uid ->
+            if (!commandSucceeds("iptables -C $OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN >/dev/null 2>&1")) return false
+        }
         return downstreams.all { downstream ->
             commandSucceeds(
                 "ip rule show | grep -q \"^$HOTSPOT_VPN_RULE_PRIORITY:.*iif $downstream .*lookup $HOTSPOT_VPN_ROUTE_TABLE\" && " +
@@ -809,6 +828,23 @@ object VpnRouterManager {
         )
         if (exit != 0) return null
         return output.firstOrNull()?.trim()?.toIntOrNull()
+    }
+
+    private fun readVpnProviderUids(context: Context): List<Int> {
+        return runCatching {
+            val flags = PackageManager.GET_META_DATA
+            context.packageManager
+                .queryIntentServices(Intent(VpnService.SERVICE_INTERFACE), flags)
+                .asSequence()
+                .mapNotNull { info -> info.serviceInfo?.applicationInfo?.uid }
+                .filter { uid -> uid > 0 }
+                .distinct()
+                .sorted()
+                .toList()
+        }.getOrElse { e ->
+            Log.w(TAG, "Unable to enumerate VPN provider UIDs", e)
+            emptyList()
+        }
     }
 
     private fun readGlobalSetting(name: String): String? {

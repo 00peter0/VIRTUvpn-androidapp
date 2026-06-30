@@ -9,14 +9,18 @@ object VpnRouterRulePlanner {
         val tunnel: String,
         val downstreams: List<String>,
         val dnsResolvers: List<String>,
-        val uplinks: List<String>
+        val uplinks: List<String>,
+        val vpnOwnerUid: Int?,
+        val vpnProviderUids: List<Int>
     ) {
         fun signature(): String {
             return listOf(
                 tunnel,
                 downstreams.sorted().joinToString(","),
                 dnsResolvers.joinToString(","),
-                uplinks.sorted().joinToString(",")
+                uplinks.sorted().joinToString(","),
+                vpnOwnerUid?.toString().orEmpty(),
+                vpnProviderUids.sorted().joinToString(",")
             ).joinToString("|")
         }
     }
