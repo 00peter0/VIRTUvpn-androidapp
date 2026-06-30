@@ -60,6 +60,7 @@ class HomeActivity : AppCompatActivity() {
     private var deviceHeartbeatRunning = false
     private var lastDeviceHeartbeatAt = 0L
     private var vpnStatusToggleTargetName: String? = null
+    private var selectedHomeTunnelName: String? = null
     private var killSwitchExpanded = false
     private var vpnRouterExpanded = false
     private var routerOperationDialog: AlertDialog? = null
@@ -92,6 +93,8 @@ class HomeActivity : AppCompatActivity() {
         binding.vpnRouterPanel.setOnClickListener { setVpnRouterExpanded(!vpnRouterExpanded) }
         binding.vpnRouterHeader.setOnClickListener { setVpnRouterExpanded(!vpnRouterExpanded) }
         binding.vpnRouterLogo.setOnClickListener { openRouterPairingPage() }
+        selectedHomeTunnelName = getSharedPreferences(HOME_PREFS, Context.MODE_PRIVATE).getString(KEY_HOME_SELECTED_TUNNEL, null)
+        binding.vpnStatusTunnelSelector.setOnClickListener { showHomeTunnelSelector() }
         binding.vpnStatusToggle.setOnBeforeCheckedChangeListener(object : ToggleSwitch.OnBeforeCheckedChangeListener {
             override fun onBeforeCheckedChanged(toggleSwitch: ToggleSwitch?, checked: Boolean) {
                 toggleHomeVpnStatus(checked)
@@ -199,10 +202,19 @@ class HomeActivity : AppCompatActivity() {
         val tunnels = runCatching { manager.getTunnels().toList() }.getOrDefault(emptyList())
         val runningTunnels = tunnels.filter { tunnel -> tunnel.state == Tunnel.State.UP }
         val runningTunnelNames = runningTunnels.map { tunnel -> tunnel.name }
-        val targetTunnel = runningTunnels.firstOrNull()
+        val selectedTunnel = selectedHomeTunnelName?.let { selectedName ->
+            tunnels.firstOrNull { tunnel -> tunnel.name == selectedName }
+        }
+        val targetTunnel = selectedTunnel
+            ?: runningTunnels.firstOrNull()
             ?: manager.lastUsedTunnel?.takeIf { tunnel -> tunnels.any { it.name == tunnel.name } }
             ?: tunnels.firstOrNull()
         vpnStatusToggleTargetName = targetTunnel?.name
+        if (selectedHomeTunnelName == null && targetTunnel != null) {
+            persistHomeTunnelSelection(targetTunnel.name)
+        } else if (selectedHomeTunnelName != null && targetTunnel == null) {
+            clearHomeTunnelSelection()
+        }
 
         if (runningTunnelNames.isNotEmpty()) {
             binding.vpnStatusValue.setText(R.string.vcs_vpn_status_connected)
@@ -214,13 +226,60 @@ class HomeActivity : AppCompatActivity() {
             binding.vpnStatusTunnel.setText(R.string.vcs_vpn_status_no_tunnel)
         }
         binding.vpnStatusTunnel.setTextColor(Color.parseColor("#AFC0CC"))
+        binding.vpnStatusTunnelSelector.isEnabled = tunnels.isNotEmpty()
+        binding.vpnStatusTunnelSelector.alpha = if (tunnels.isNotEmpty()) 1f else 0.58f
+        binding.vpnStatusTunnelSelectorValue.text = targetTunnel?.name ?: getString(R.string.vcs_vpn_status_select_tunnel_none)
         binding.vpnStatusToggle.isEnabled = targetTunnel != null
-        binding.vpnStatusToggle.setCheckedInternal(runningTunnelNames.isNotEmpty())
+        binding.vpnStatusToggle.setCheckedInternal(targetTunnel?.state == Tunnel.State.UP)
         binding.vpnStatusToggleLabel.text = when {
             targetTunnel == null -> getString(R.string.vcs_vpn_status_toggle_unavailable)
-            runningTunnelNames.isNotEmpty() -> getString(R.string.vcs_vpn_status_toggle_on, targetTunnel.name)
+            targetTunnel.state == Tunnel.State.UP -> getString(R.string.vcs_vpn_status_toggle_on, targetTunnel.name)
             else -> getString(R.string.vcs_vpn_status_toggle_off, targetTunnel.name)
         }
+    }
+
+    private fun showHomeTunnelSelector() {
+        lifecycleScope.launch {
+            val tunnels = runCatching { Application.getTunnelManager().getTunnels().toList() }
+                .getOrDefault(emptyList())
+                .sortedBy { tunnel -> tunnel.name.lowercase() }
+            if (tunnels.isEmpty()) {
+                Toast.makeText(this@HomeActivity, R.string.vcs_vpn_status_toggle_unavailable, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            val labels = tunnels.map { tunnel ->
+                if (tunnel.state == Tunnel.State.UP) {
+                    getString(R.string.vcs_vpn_status_select_tunnel_running, tunnel.name)
+                } else {
+                    getString(R.string.vcs_vpn_status_select_tunnel_stopped, tunnel.name)
+                }
+            }.toTypedArray()
+            AlertDialog.Builder(this@HomeActivity)
+                .setTitle(R.string.vcs_vpn_status_select_tunnel_title)
+                .setItems(labels) { _, which ->
+                    val selected = tunnels[which]
+                    persistHomeTunnelSelection(selected.name)
+                    vpnStatusToggleTargetName = selected.name
+                    updateVpnStatus()
+                }
+                .show()
+        }
+    }
+
+    private fun persistHomeTunnelSelection(name: String) {
+        selectedHomeTunnelName = name
+        getSharedPreferences(HOME_PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_HOME_SELECTED_TUNNEL, name)
+            .apply()
+    }
+
+    private fun clearHomeTunnelSelection() {
+        selectedHomeTunnelName = null
+        getSharedPreferences(HOME_PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .remove(KEY_HOME_SELECTED_TUNNEL)
+            .apply()
     }
 
     private fun toggleHomeVpnStatus(checked: Boolean) {
@@ -873,5 +932,7 @@ class HomeActivity : AppCompatActivity() {
         private const val AUTO_UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000L
         private const val VPN_STATUS_REFRESH_INTERVAL_MS = 2_000L
         private const val DEVICE_HEARTBEAT_INTERVAL_MS = 60_000L
+        private const val HOME_PREFS = "vcs_home"
+        private const val KEY_HOME_SELECTED_TUNNEL = "selected_tunnel"
     }
 }

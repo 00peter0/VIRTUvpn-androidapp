@@ -100,9 +100,15 @@
     <string name="vcs_vpn_status_tunnel">Active tunnel: %1$s</string>
     <string name="vcs_vpn_status_no_tunnel">No active tunnel</string>
     <string name="vcs_vpn_status_toggle_on">Quick toggle: %1$s</string>
-    <string name="vcs_vpn_status_toggle_off">Turn on last tunnel: %1$s</string>
+    <string name="vcs_vpn_status_toggle_off">Turn on selected tunnel: %1$s</string>
     <string name="vcs_vpn_status_toggle_unavailable">No tunnel available for quick toggle</string>
     <string name="vcs_vpn_status_toggle_error">VPN toggle failed: %1$s</string>
+    <string name="vcs_vpn_status_selected_tunnel">Selected tunnel</string>
+    <string name="vcs_vpn_status_select_tunnel">Select VPN tunnel</string>
+    <string name="vcs_vpn_status_select_tunnel_none">No tunnel available</string>
+    <string name="vcs_vpn_status_select_tunnel_title">Select VPN tunnel</string>
+    <string name="vcs_vpn_status_select_tunnel_running">%1$s — running</string>
+    <string name="vcs_vpn_status_select_tunnel_stopped">%1$s — stopped</string>
     <string name="vcs_kill_switch_title">Kill switch</string>
     <string name="vcs_kill_switch_checking">Checking Android VPN lockdown…</string>
     <string name="vcs_kill_switch_protected">Protected: Always-on VPN and block-without-VPN are enabled</string>
