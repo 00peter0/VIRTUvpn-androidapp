@@ -55,11 +55,11 @@ Router attestation:
 - client accepts only matching nonce, fresh timestamp, `protected=true`, and a
   valid signature for the paired router id.
 
-The attestation is intentionally lightweight and local to the hotspot. It avoids
-reintroducing the removed guest HTML/status flow and does not make private IP
-addressing itself a trust signal. There is no global HMAC secret embedded in the
-APK; a public guest APK must not contain the material needed to forge router
-attestations.
+The attestation is intentionally lightweight and local to the hotspot. It does
+not rely on private IP addressing as a trust signal, and the router landing page
+is limited to manual install/update and pair-key copy actions. There is no
+global HMAC secret embedded in the APK; a public guest APK must not contain the
+material needed to forge router attestations.
 
 Attestation proves that the current WiFi gateway knows the paired router secret
 and currently reports VPN Router enabled. It does not cryptographically prove the
@@ -273,8 +273,8 @@ internal app flows.
 On router clients, the VPN Router protects traffic at the router layer, so any
 ordinary browser can use the router-protected hotspot path. Secure Browser on
 the client device can also run when it verifies the local router attestation from
-the current WiFi gateway. The VPN Router page provides the VirtuVPN download link
-and QR code for clients that want local Secure Browser protection.
+the current WiFi gateway. The VPN Router page provides a download/pairing QR for
+clients that want local Secure Browser protection.
 
 When Secure Browser is blocked because no local VPN or verified router is
 available, the blocker screen shows `Pair with VPN Router`. That action opens

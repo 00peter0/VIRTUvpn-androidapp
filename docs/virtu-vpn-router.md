@@ -62,16 +62,17 @@ When enabled, the app installs root rules that:
 - attach a VirtuVPN DNS chain at the start of `PREROUTING`,
 - attach a VirtuVPN forwarding chain at the start of `FORWARD`,
 - attach a VirtuVPN phone-output chain at the start of `OUTPUT`,
-- add a policy route for each hotspot interface to the active VPN table,
+- add a policy route for each hotspot interface to the router VPN table
+  (`1047`) whose default route points at the active VPN interface,
 - add an immediate fallback-block route after the VPN policy route so Android's
   lower-priority mobile tether route cannot carry hotspot traffic if the VPN
   table is temporarily unusable,
 - redirect hotspot client TCP/UDP DNS on port 53 to the selected router DNS
   resolver,
-- show a VirtuVPN app download link and QR code in the VPN Router page,
+- show a VirtuVPN app download/pairing QR code in the VPN Router page,
 - allow the router phone's own internet traffic only through the VPN interface,
-- allow the active VPN provider UID or WireGuard fwmark to use the physical
-  uplink for tunnel transport,
+- allow the active VPN provider UID, installed Android `VpnService` provider
+  UIDs, or WireGuard fwmark to use the physical uplink for tunnel transport,
 - reject other router-phone traffic on physical uplinks while router mode is on,
 - allow hotspot-to-VPN forwarding immediately,
 - allow established VPN return traffic to hotspot clients,
@@ -92,6 +93,8 @@ The professional user-visible flow is a modal on the VPN Router page titled
 3. Apply router DNS for hotspot clients.
 4. Install VPN-only firewall and route rules.
 5. Verify VPN route, DNS, IPv6 block, and mobile fallback block.
+6. Check internet through the selected VPN tunnel.
+7. Restore the last healthy VirtuVPN tunnel if the new tunnel fails.
 
 The important implementation rule is fail-closed ordering. The router prepares
 the unreachable fallback route first and installs the `20901` hotspot block rule
@@ -109,7 +112,7 @@ after the full DNS, IPv4, IPv6, and FORWARD rules are in place.
 Current route priority model:
 
 ```text
-20900: hotspot interface -> active VPN table
+20900: hotspot interface -> router VPN table 1047 -> active VPN interface
 20901: hotspot interface -> unreachable fallback table 1048
 21000: Android tether fallback -> physical uplink
 ```
@@ -121,6 +124,38 @@ Android's `21000` route can carry hotspot traffic over mobile data.
 The modal is not only cosmetic. It is the operator-facing audit trail for the
 active transition. If the flow fails, the router should remain blocked and show
 the error instead of silently leaving clients on a direct uplink.
+
+## Tunnel health and Virtu fallback
+
+The router treats the active VPN interface as a candidate until it passes a
+health gate. After installing fail-closed rules for the candidate, the app checks
+internet through that exact interface with `ping -I <vpn-interface>`. The first
+check targets the selected router DNS resolver, then a short internet/DNS check
+confirms that the tunnel can actually carry traffic.
+
+If the candidate health check fails, hotspot clients remain protected by
+`20901 -> table 1048 -> unreachable default`. They do not fall back to Android's
+mobile tether route. VirtuVPN then attempts a controlled fallback only when the
+previous known-good tunnel is a VirtuVPN-managed tunnel that the app can start
+itself through `TunnelManager`.
+
+Fallback rules:
+
+- If the new tunnel is healthy, router table `1047` remains pointed at it and
+  the router becomes active.
+- If the new tunnel is unhealthy and the previous VirtuVPN tunnel can be
+  restarted, the router rebuilds rules against the fallback tunnel and runs the
+  same health gate again.
+- If no VirtuVPN fallback exists, or the fallback also fails health, the router
+  stays fail-closed and surfaces an error in the operation modal.
+- Third-party providers such as NordVPN can be detected and their transport UID
+  can be allowed through the phone OUTPUT lockdown, but VirtuVPN cannot reliably
+  restart those apps because Android does not expose a universal third-party VPN
+  control API.
+
+This means a provider switch is never allowed to degrade into direct mobile
+tethering. The best outcome is a healthy new tunnel, the second-best outcome is
+a healthy VirtuVPN fallback, and the safe failure outcome is no client internet.
 
 ## Reconcile and performance
 
@@ -136,7 +171,10 @@ signature of:
 - active VPN interface,
 - hotspot downstream interfaces,
 - router DNS resolvers,
-- physical uplink interfaces.
+- physical uplink interfaces,
+- active VPN owner UID,
+- installed Android `VpnService` provider UIDs that are allowed to bootstrap a
+  VPN tunnel through the phone OUTPUT lockdown.
 
 On each reconcile, the app performs a lightweight health check for the required
 policy routes and chain hooks. If the signature is unchanged and rules are
@@ -159,10 +197,11 @@ without requiring a manual toggle.
 This protects speed tests and large downloads from repeated route/firewall churn
 while keeping the router fail-closed model intact.
 
-Hotspot clients get internet through the router VPN path immediately. For safer
-browsing on the client device itself, install VirtuVPN on that device and use
-client-side protection. The VPN Router page shows a VirtuVPN app download link
-and QR code for connected devices.
+Hotspot clients get internet only through the router VPN path after the route,
+firewall, DNS, IPv6, and tunnel-health checks pass. For safer browsing on the
+client device itself, install VirtuVPN on that device and use client-side
+protection. The VPN Router page shows a QR code that opens the router
+download/pairing landing page.
 
 Secure Browser has its own detailed design document:
 `docs/virtu-secure-browser.md`.
@@ -172,14 +211,19 @@ endpoint on the hotspot gateway at
 `/virtuvpn-router/attestation` port `8788`. VirtuVPN Secure Browser on a hotspot
 client can use this nonce-bound signed response to verify that the current WiFi
 gateway is the paired VirtuVPN Router before allowing browser traffic without a
-local VPN transport. Pairing uses a random per-router secret shown as a QR code
-on the VPN Router page while router protection is active. The endpoint is
-inactive unless router protection is enabled. Router pairing is intentionally
-QR/in-app only: `virtuvpn://router-pair` is not a browsable web deep link, and
-the client app requires explicit confirmation before storing the router secret.
-This prevents a web page from silently replacing the trusted router. Clients can
-store multiple paired routers, pairings expire after 7 days, and the Secure
-Browser blocker screen provides an explicit unpair action.
+local VPN transport. Pairing uses a random per-router secret exposed through the
+router pairing landing page while router protection is active. The landing page
+offers two manual actions only: install/update VirtuVPN and copy the Secure
+Browser pair key. It must not perform implicit navigation, hidden redirects,
+background tests, or browsing-content serving.
+
+The endpoint is inactive unless router protection is enabled. Router pairing is
+intentionally QR/in-app/manual-paste only: `virtuvpn://router-pair` is not a
+browsable web deep link, and the client app requires explicit confirmation
+before storing the router secret. This prevents a web page from silently
+replacing the trusted router. Clients can store multiple paired routers, pairings
+expire after 7 days, and the Secure Browser blocker screen provides an explicit
+unpair action.
 
 The attestation server may still bind on all local addresses for Android
 compatibility, but router firewall rules restrict TCP port `8788` to detected
@@ -334,14 +378,27 @@ guarantee automatic SoftAP restart after a manual user/system stop. That can be
 added later with a stored SoftAP profile and `cmd wifi start-softap`, but it must
 not guess or overwrite the user's hotspot password.
 
-## Client app download
+## Client app download and pairing
 
-The VPN Router page shows a VirtuVPN app download link and QR code for connected
-client devices:
+The VPN Router page shows a QR code for connected client devices. When router
+protection is inactive, the QR may point directly to the guest APK download.
+When router protection is active, the QR points to a router pairing landing page
+on the trusted Virtu infrastructure. That page must remain simple and manual.
+
+Guest APK download:
 
 ```text
 https://vcs.virtucomputing.com/api/mobile/android/apk/guest
 ```
+
+The active router landing page must provide:
+
+- Install/update VirtuVPN app.
+- Copy Secure Browser pair key.
+- Visible pair key text for manual copy if clipboard integration fails.
+
+It must not provide implicit navigation, background tests, browsing surfaces, or
+network diagnostics. The page is only for download and manual pairing.
 
 Router VPN protects the hotspot network path. For safer browsing on the client
 device, download VirtuVPN to that device and use client-side protection there.
@@ -360,6 +417,11 @@ Reconcile also keeps router-only safety settings active:
 - disables tethering offload,
 - restores router DNS forwarders,
 - disables known hotspot auto-timeout settings while router mode is on,
+- allows installed VPN provider UIDs to bootstrap tunnel transport while keeping
+  ordinary phone output locked down,
+- health-checks the candidate VPN interface before treating router protection as
+  complete,
+- attempts VirtuVPN-managed fallback when the candidate tunnel fails health,
 - removes duplicate router chain jumps before re-attaching chains.
 
 ## UI
@@ -372,7 +434,7 @@ The VPN Router page shows:
 - router status,
 - detected uplink,
 - router protection status,
-- VirtuVPN app download link and QR code for connected devices,
+- VirtuVPN app download/pairing QR code for connected devices,
 - router DNS options.
 
 When router protection is active, hotspot clients stay associated with WiFi but
@@ -385,11 +447,14 @@ outside the VPN while router mode is enabled.
 
 1. Detect root, VPN tunnel, hotspot interfaces, and physical uplink.
 2. Install fail-closed router NAT, forwarding, and policy-routing rules.
-3. Reconcile rules when VPN, hotspot, or uplink changes.
-4. Apply router-only DNS behavior for hotspot clients.
-5. Show VirtuVPN app download link and QR in the VPN Router page.
-6. Disable known hotspot auto-shutdown behavior while router mode is enabled.
-7. Validate with:
+3. Health-check the selected VPN tunnel before declaring router protection
+   complete.
+4. Reconcile rules when VPN, provider UID, hotspot, DNS, or uplink changes.
+5. Attempt VirtuVPN-managed fallback when a new candidate tunnel fails health.
+6. Apply router-only DNS behavior for hotspot clients.
+7. Show VirtuVPN app download/pairing QR in the VPN Router page.
+8. Disable known hotspot auto-shutdown behavior while router mode is enabled.
+9. Validate with:
    - VirtuVPN tunnel,
    - third-party VPN providers,
    - mobile data uplink,
@@ -398,10 +463,14 @@ outside the VPN while router mode is enabled.
    - hotspot idle period longer than the OEM timeout,
    - VPN reconnect,
    - VPN drop,
+   - provider switch with healthy new tunnel,
+   - provider switch with failed new tunnel and VirtuVPN fallback,
+   - provider switch with failed new tunnel and no fallback, confirming clients
+     remain fail-closed,
    - client reconnect with reused DHCP address,
    - DNS leak scans,
    - IPv6 leak scans,
-   - Router page QR contains the VirtuVPN app download link,
+   - Router page QR opens only the download/pair-key landing page,
    - regular browsing works without opening any router page.
 
 ## New device checklist
@@ -428,9 +497,10 @@ Before using a new rooted Android device as a production router:
      commands.
 4. Verify client app download behavior:
    - new client has internet through the router VPN path,
-   - the Router page shows the VirtuVPN app download link,
-   - the Router page QR code contains the same download link,
-   - the download link serves the current guest APK.
+   - the Router page shows the VirtuVPN download/pairing QR,
+   - the active router landing page provides install/update and copy pair key,
+   - the page only provides install/update and pair-key copy actions,
+   - the install/update link serves the current guest APK.
 5. Verify DNS behavior:
    - selected router resolver is used,
    - competing DoH/DoT providers are blocked,
