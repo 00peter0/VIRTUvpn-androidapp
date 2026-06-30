@@ -31,6 +31,7 @@ import android.webkit.WebSettings
 import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -132,6 +133,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         binding.browserForwardButton.setOnClickListener { navigateForward() }
         binding.browserReloadButton.setOnClickListener { reloadPage() }
         binding.pairRouterButton.setOnClickListener { scanRouterPairingQr() }
+        binding.pastePairRouterButton.setOnClickListener { showPasteRouterPairingDialog() }
         binding.forgetRoutersButton.setOnClickListener { confirmForgetRouters() }
         binding.openVpnSettingsButton.setOnClickListener { openVpnSettings() }
         binding.urlInput.setOnEditorActionListener { _, _, _ ->
@@ -461,6 +463,66 @@ class SecureBrowserActivity : AppCompatActivity() {
             .setBeepEnabled(false)
             .setOrientationLocked(false)
         pairRouterResultLauncher.launch(options)
+    }
+
+    private fun showPasteRouterPairingDialog() {
+        val input = EditText(this).apply {
+            setSingleLine(false)
+            minLines = 2
+            hint = getString(R.string.vcs_secure_browser_paste_router_pair_hint)
+            setText(clipboardText().orEmpty())
+            setSelectAllOnFocus(true)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.vcs_secure_browser_paste_router_pair_title)
+            .setView(input)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setNeutralButton(R.string.vcs_secure_browser_paste_router_pair_clipboard, null)
+            .setPositiveButton(R.string.vcs_secure_browser_router_pair_action, null)
+            .create()
+            .apply {
+                setOnShowListener {
+                    getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                        val text = clipboardText()
+                        if (text.isNullOrBlank()) {
+                            Toast.makeText(this@SecureBrowserActivity, R.string.vcs_secure_browser_paste_router_pair_empty, Toast.LENGTH_LONG).show()
+                        } else {
+                            input.setText(text)
+                            input.selectAll()
+                        }
+                    }
+                    getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                        val pairing = parsePairingKey(input.text?.toString().orEmpty())
+                        if (pairing == null) {
+                            Toast.makeText(this@SecureBrowserActivity, R.string.vcs_secure_browser_router_pair_error, Toast.LENGTH_LONG).show()
+                            return@setOnClickListener
+                        }
+                        dismiss()
+                        confirmRouterPairing(pairing)
+                    }
+                }
+            }
+            .show()
+    }
+
+    private fun clipboardText(): String? {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val item = clipboard.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0) ?: return null
+        return item.coerceToText(this)?.toString()?.trim()?.takeIf { it.isNotBlank() }
+    }
+
+    private fun parsePairingKey(value: String): VpnRouterAttestation.Pairing? {
+        val trimmed = value.trim()
+        val direct = runCatching { VpnRouterAttestation.parsePairingUri(Uri.parse(trimmed)) }.getOrNull()
+        if (direct != null) return direct
+        val hash = trimmed.substringAfter('#', missingDelimiterValue = "")
+        if (hash.isNotBlank()) {
+            val fromHash = runCatching {
+                VpnRouterAttestation.parsePairingUri(Uri.parse("virtuvpn://router-pair?$hash"))
+            }.getOrNull()
+            if (fromHash != null) return fromHash
+        }
+        return null
     }
 
     private fun confirmRouterPairing(pairing: VpnRouterAttestation.Pairing) {

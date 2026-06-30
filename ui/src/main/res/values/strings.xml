@@ -183,6 +183,12 @@
     <string name="vcs_secure_browser_egress_router_attested">Protected via verified VPN Router</string>
     <string name="vcs_secure_browser_pair_router">Pair with VPN Router</string>
     <string name="vcs_secure_browser_pair_router_description">Pair Secure Browser with a VPN Router by scanning its QR code</string>
+    <string name="vcs_secure_browser_paste_router_pair">Paste pair key</string>
+    <string name="vcs_secure_browser_paste_router_pair_description">Pair Secure Browser with a VPN Router by pasting the copied pair key</string>
+    <string name="vcs_secure_browser_paste_router_pair_title">Paste VPN Router pair key</string>
+    <string name="vcs_secure_browser_paste_router_pair_hint">virtuvpn://router-pair?id=...</string>
+    <string name="vcs_secure_browser_paste_router_pair_clipboard">Use clipboard</string>
+    <string name="vcs_secure_browser_paste_router_pair_empty">No pair key found. Copy the browser pair key from the router page first.</string>
     <string name="vcs_secure_browser_pair_router_scan_prompt">Scan VPN Router pairing QR</string>
     <string name="vcs_secure_browser_router_pair_title">Pair VPN Router?</string>
     <string name="vcs_secure_browser_router_pair_confirm">Pair Secure Browser with VPN Router %1$s? Only pair routers you control or trust.</string>
