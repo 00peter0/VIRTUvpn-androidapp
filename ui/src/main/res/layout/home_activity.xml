@@ -34,14 +34,21 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <ImageView
+            <FrameLayout
                 android:layout_width="56dp"
                 android:layout_height="56dp"
                 android:layout_marginEnd="14dp"
-                android:contentDescription="@string/app_name"
-                android:padding="2dp"
-                android:scaleType="fitCenter"
-                android:src="@drawable/ic_logo" />
+                android:clipChildren="true"
+                android:clipToPadding="true">
+
+                <ImageView
+                    android:layout_width="70dp"
+                    android:layout_height="70dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="@string/app_name"
+                    android:scaleType="centerCrop"
+                    android:src="@mipmap/ic_launcher" />
+            </FrameLayout>
 
             <LinearLayout
                 android:layout_width="0dp"
