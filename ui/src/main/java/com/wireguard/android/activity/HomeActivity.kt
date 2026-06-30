@@ -32,6 +32,7 @@ import com.wireguard.android.databinding.HomeActivityBinding
 import com.wireguard.android.databinding.VcsSignInDialogBinding
 import com.wireguard.android.util.HotspotDetector
 import com.wireguard.android.util.VcsDialogs
+import com.wireguard.android.util.VpnRouterAttestation
 import com.wireguard.android.util.VpnRouterManager
 import com.wireguard.android.vcs.VcsManagedClient
 import com.wireguard.android.widget.ToggleSwitch
@@ -84,6 +85,7 @@ class HomeActivity : AppCompatActivity() {
         binding.killSwitchHeader.setOnClickListener { setKillSwitchExpanded(!killSwitchExpanded) }
         binding.vpnRouterPanel.setOnClickListener { setVpnRouterExpanded(!vpnRouterExpanded) }
         binding.vpnRouterHeader.setOnClickListener { setVpnRouterExpanded(!vpnRouterExpanded) }
+        binding.vpnRouterLogo.setOnClickListener { openRouterPairingPage() }
         binding.vpnStatusToggle.setOnBeforeCheckedChangeListener(object : ToggleSwitch.OnBeforeCheckedChangeListener {
             override fun onBeforeCheckedChanged(toggleSwitch: ToggleSwitch?, checked: Boolean) {
                 toggleHomeVpnStatus(checked)
@@ -602,6 +604,10 @@ class HomeActivity : AppCompatActivity() {
         vpnRouterExpanded = expanded
         binding.vpnRouterBody.visibility = if (expanded) View.VISIBLE else View.GONE
         binding.vpnRouterChevron.rotation = if (expanded) 90f else 0f
+    }
+
+    private fun openRouterPairingPage() {
+        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(VpnRouterAttestation.pairingLandingUrl(this))))
     }
 
     private fun toggleVpnRouter() {

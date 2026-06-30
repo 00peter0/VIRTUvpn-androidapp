@@ -131,6 +131,7 @@
     <string name="vcs_vpn_router_disable">Disable router</string>
     <string name="vcs_vpn_router_page_button">Router page</string>
     <string name="vcs_vpn_router_page_title">VPN Router</string>
+    <string name="vcs_vpn_router_open_pairing_page">Open VPN Router pairing page</string>
     <string name="vcs_vpn_router_page_summary">Router mode sends hotspot clients through the active VPN interface and blocks direct mobile fallback.</string>
     <string name="vcs_vpn_router_router_protection">Router protection</string>
     <string name="vcs_vpn_router_guest_access">Client protection</string>
