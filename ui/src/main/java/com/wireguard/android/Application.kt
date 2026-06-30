@@ -26,8 +26,8 @@ import com.wireguard.android.util.RootShell
 import com.wireguard.android.util.ToolsInstaller
 import com.wireguard.android.util.TunnelConnectivityMonitor
 import com.wireguard.android.util.UserKnobs
-import com.wireguard.android.util.VpnRouterAttestationServer
 import com.wireguard.android.util.VpnRouterManager
+import com.wireguard.android.VpnRouterService
 import com.wireguard.android.util.applicationScope
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -38,7 +38,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.lang.ref.WeakReference
@@ -115,7 +114,7 @@ class Application : android.app.Application() {
         tunnelManager.onCreate()
         tunnelConnectivityMonitor = TunnelConnectivityMonitor(applicationContext)
         tunnelConnectivityMonitor.start()
-        startVpnRouterReconcileMonitor()
+        startVpnRouterServiceIfNeeded()
         coroutineScope.launch(Dispatchers.IO) {
             try {
                 backend = determineBackend()
@@ -132,32 +131,17 @@ class Application : android.app.Application() {
 
     override fun onTerminate() {
         if (::tunnelConnectivityMonitor.isInitialized) tunnelConnectivityMonitor.stop()
-        VpnRouterAttestationServer.stop()
         coroutineScope.cancel()
         super.onTerminate()
     }
 
-    private fun startVpnRouterReconcileMonitor() {
+    private fun startVpnRouterServiceIfNeeded() {
         coroutineScope.launch(Dispatchers.IO) {
-            while (isActive) {
-                delay(VPN_ROUTER_RECONCILE_INTERVAL_MS)
-                runCatching {
-                    val status = VpnRouterManager.getStatus(applicationContext)
-                    if (status.availability == VpnRouterManager.Availability.ENABLED) {
-                        VpnRouterAttestationServer.start(applicationContext)
-                        // Keep the attestation status cache warm so hotspot clients
-                        // get a sub-second response instead of waiting on a cold
-                        // root-shell status probe (which exceeds the client timeout).
-                        VpnRouterAttestationServer.updateStatus(status)
-                    } else {
-                        VpnRouterAttestationServer.stop()
-                    }
-                    if (status.needsReconcile) {
-                        VpnRouterManager.reconcile(applicationContext)
-                    }
-                }.onFailure {
-                    Log.d(TAG, "VPN router reconcile monitor skipped", it)
-                }
+            delay(VPN_ROUTER_SERVICE_BOOTSTRAP_DELAY_MS)
+            runCatching {
+                VpnRouterService.ensureForStatus(applicationContext, VpnRouterManager.getStatus(applicationContext))
+            }.onFailure {
+                Log.d(TAG, "VPN router service bootstrap skipped", it)
             }
         }
     }
@@ -165,7 +149,7 @@ class Application : android.app.Application() {
     companion object {
         val USER_AGENT = String.format(Locale.ENGLISH, "WireGuard/%s (Android %d; %s; %s; %s %s; %s)", BuildConfig.VERSION_NAME, Build.VERSION.SDK_INT, if (Build.SUPPORTED_ABIS.isNotEmpty()) Build.SUPPORTED_ABIS[0] else "unknown ABI", Build.BOARD, Build.MANUFACTURER, Build.MODEL, Build.FINGERPRINT)
         private const val TAG = "WireGuard/Application"
-        private const val VPN_ROUTER_RECONCILE_INTERVAL_MS = 2_000L
+        private const val VPN_ROUTER_SERVICE_BOOTSTRAP_DELAY_MS = 1_000L
         private lateinit var weakSelf: WeakReference<Application>
 
         fun get(): Application {

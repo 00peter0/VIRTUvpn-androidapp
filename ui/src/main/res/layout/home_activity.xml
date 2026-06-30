@@ -265,10 +265,10 @@
                     android:foreground="?attr/selectableItemBackground"
                     android:gravity="center"
                     android:paddingHorizontal="10dp"
-                    android:singleLine="true"
+                    android:maxLines="2"
                     android:text="@string/vcs_open_vpn_settings"
                     android:textColor="#FFFFFF"
-                    android:textSize="13sp"
+                    android:textSize="12sp"
                     android:textStyle="bold" />
 
                 <TextView

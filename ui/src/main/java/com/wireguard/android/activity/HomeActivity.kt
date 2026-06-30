@@ -63,6 +63,7 @@ class HomeActivity : AppCompatActivity() {
     private var lastDeviceHeartbeatAt = 0L
     private var vpnStatusToggleTargetName: String? = null
     private var selectedHomeTunnelName: String? = null
+    private var hasActiveVirtuTunnel = false
     private var killSwitchExpanded = false
     private var vpnRouterExpanded = false
     private var routerOperationDialog: AlertDialog? = null
@@ -86,8 +87,9 @@ class HomeActivity : AppCompatActivity() {
         binding.syncButton.setOnClickListener { syncManagedAccess() }
         binding.checkUpdatesButton.setOnClickListener { checkUpdates() }
         binding.openVpnSettingsButton.setOnClickListener {
-            if (lastVpnRouterStatus?.availability != VpnRouterManager.Availability.ENABLED) openVpnSettings()
+            if (canOpenVpnSettings()) openVpnSettings()
         }
+        binding.openVpnSettingsButton.setText(R.string.vcs_open_vpn_settings)
         binding.vpnRouterButton.setOnClickListener { toggleVpnRouter() }
         binding.vpnRouterPageButton.setOnClickListener { startActivity(Intent(this, VpnRouterActivity::class.java)) }
         binding.killSwitchPanel.setOnClickListener { setKillSwitchExpanded(!killSwitchExpanded) }
@@ -204,6 +206,7 @@ class HomeActivity : AppCompatActivity() {
         val tunnels = runCatching { manager.getTunnels().toList() }.getOrDefault(emptyList())
         val selectableTunnels = filterHomeSelectableTunnels(tunnels)
         val runningTunnels = tunnels.filter { tunnel -> tunnel.state == Tunnel.State.UP }
+        hasActiveVirtuTunnel = runningTunnels.isNotEmpty()
         val runningTunnelNames = runningTunnels.map { tunnel -> tunnel.name }
         val selectedTunnel = selectedHomeTunnelName?.let { selectedName ->
             selectableTunnels.firstOrNull { tunnel -> tunnel.name == selectedName }
@@ -239,6 +242,7 @@ class HomeActivity : AppCompatActivity() {
             targetTunnel.state == Tunnel.State.UP -> getString(R.string.vcs_vpn_status_toggle_on, targetTunnel.name)
             else -> getString(R.string.vcs_vpn_status_toggle_off, targetTunnel.name)
         }
+        updateOpenVpnSettingsButtonState()
     }
 
     private fun showHomeTunnelSelector() {
@@ -258,17 +262,7 @@ class HomeActivity : AppCompatActivity() {
                     getString(R.string.vcs_vpn_status_select_tunnel_stopped, tunnel.name)
                 }
             }
-            val adapter = object : ArrayAdapter<String>(this@HomeActivity, android.R.layout.simple_list_item_1, labels) {
-                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-                    return super.getView(position, convertView, parent).apply {
-                        setBackgroundColor(Color.parseColor("#071018"))
-                        (this as? TextView)?.apply {
-                            setTextColor(Color.parseColor("#E5F2F7"))
-                            textSize = 15f
-                        }
-                    }
-                }
-            }
+            val adapter = styledChoiceAdapter(labels)
             val dialog = AlertDialog.Builder(this@HomeActivity)
                 .setTitle(R.string.vcs_vpn_status_select_tunnel_title)
                 .setAdapter(adapter) { _, which ->
@@ -928,11 +922,16 @@ class HomeActivity : AppCompatActivity() {
 
     private fun updateOpenVpnSettingsButtonState(status: VpnRouterManager.Status? = lastVpnRouterStatus) {
         val routerActive = status?.availability == VpnRouterManager.Availability.ENABLED
-        binding.openVpnSettingsButton.isEnabled = !routerActive
-        binding.openVpnSettingsButton.isClickable = !routerActive
-        binding.openVpnSettingsButton.isFocusable = !routerActive
-        binding.openVpnSettingsButton.alpha = if (routerActive) 0.42f else 1f
+        val canOpenSettings = hasActiveVirtuTunnel && !routerActive
+        binding.openVpnSettingsButton.setText(R.string.vcs_open_vpn_settings)
+        binding.openVpnSettingsButton.isEnabled = canOpenSettings
+        binding.openVpnSettingsButton.isClickable = canOpenSettings
+        binding.openVpnSettingsButton.isFocusable = canOpenSettings
+        binding.openVpnSettingsButton.alpha = if (canOpenSettings) 1f else 0.42f
     }
+
+    private fun canOpenVpnSettings(): Boolean =
+        hasActiveVirtuTunnel && lastVpnRouterStatus?.availability != VpnRouterManager.Availability.ENABLED
 
     private fun openVpnSettings() {
         startActivity(Intent(Settings.ACTION_VPN_SETTINGS))
@@ -947,16 +946,7 @@ class HomeActivity : AppCompatActivity() {
             getString(R.string.vcs_vpn_router_logo_action_client_page),
             getString(R.string.vcs_vpn_router_logo_action_add_tunnel)
         )
-        val adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, actions) {
-            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-                return (super.getView(position, convertView, parent) as TextView).apply {
-                    setTextColor(Color.parseColor("#E5F2F7"))
-                    setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15f)
-                    setBackgroundColor(Color.parseColor("#071018"))
-                    setPadding(40, 26, 40, 26)
-                }
-            }
-        }
+        val adapter = styledChoiceAdapter(actions.toList())
         val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.vcs_vpn_router_home_actions_title)
             .setAdapter(adapter) { _, which ->
@@ -977,6 +967,27 @@ class HomeActivity : AppCompatActivity() {
                 .putExtra(MainActivity.EXTRA_SHOW_ADD_TUNNEL_FLOW, true)
         )
     }
+
+    private fun styledChoiceAdapter(items: List<String>): ArrayAdapter<String> =
+        object : ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, items) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View =
+                styleChoiceView(super.getView(position, convertView, parent))
+
+            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View =
+                styleChoiceView(super.getDropDownView(position, convertView, parent))
+        }
+
+    private fun styleChoiceView(view: View): View {
+        view.setBackgroundColor(Color.parseColor("#071018"))
+        return (view as? TextView)?.apply {
+            setTextColor(Color.parseColor("#E5F2F7"))
+            setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15f)
+            setPadding(dp(18), dp(12), dp(18), dp(12))
+        } ?: view
+    }
+
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
 
     private fun openSection(path: String) {
         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$baseUrl$path")))

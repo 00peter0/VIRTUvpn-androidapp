@@ -4,11 +4,13 @@
  */
 package com.wireguard.android.activity
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.ConnectivityManager
 import android.net.Network
@@ -17,7 +19,7 @@ import android.net.NetworkRequest
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
+import android.util.Log
 import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
@@ -36,12 +38,17 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.widget.addTextChangedListener
 import androidx.lifecycle.lifecycleScope
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import com.journeyapps.barcodescanner.CaptureActivity
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.backend.WgQuickBackend
@@ -50,9 +57,9 @@ import com.wireguard.android.util.SecureBrowserBlocker
 import com.wireguard.android.util.VcsDialogs
 import com.wireguard.android.util.VpnRouterAttestation
 import com.wireguard.android.util.VpnRouterManager
-import com.journeyapps.barcodescanner.ScanContract
-import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
@@ -65,6 +72,8 @@ import java.net.URL
 class SecureBrowserActivity : AppCompatActivity() {
     private lateinit var binding: SecureBrowserActivityBinding
     private var monitorJob: Job? = null
+    private var routerAttestationRetryJob: Job? = null
+    private var routerAttestationWatchJob: Job? = null
     private var egressLookupJob: Job? = null
     private var vpnNetworkCallback: ConnectivityManager.NetworkCallback? = null
     private var navigationDragActive = false
@@ -73,6 +82,8 @@ class SecureBrowserActivity : AppCompatActivity() {
     private var navigationStartX = 0f
     private var navigationStartY = 0f
     private var boundNetwork: Network? = null
+    private var boundNetworkKind: BoundNetworkKind? = null
+    private var routerAttestationWatchFailures = 0
     private var documentStartWebRtcProtection = false
     private var userInitiatedNavigation = false
     private var defaultUserAgent: String? = null
@@ -84,6 +95,8 @@ class SecureBrowserActivity : AppCompatActivity() {
     private var currentProtectionLabel: String? = null
     private var currentEgressSummary: String? = null
     private lateinit var egressStatusButton: TextView
+    private val browserTabs = mutableListOf(BrowserTab())
+    private var activeTabIndex = 0
     @Volatile
     private var blocked = true
 
@@ -97,10 +110,20 @@ class SecureBrowserActivity : AppCompatActivity() {
         confirmRouterPairing(pairing)
     }
 
+    private val cameraPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) {
+            launchRouterPairingScanner()
+        } else {
+            Toast.makeText(this, R.string.vcs_secure_browser_camera_permission_required, Toast.LENGTH_LONG).show()
+        }
+    }
+
     private data class BrowserProtection(
         val allowed: Boolean,
         val label: String,
-        val detail: String? = null
+        val detail: String? = null,
+        val retryRouterAttestation: Boolean = false,
+        val source: ProtectionSource = ProtectionSource.NONE
     )
 
     private data class EgressIdentity(
@@ -108,6 +131,23 @@ class SecureBrowserActivity : AppCompatActivity() {
         val country: String,
         val countryCode: String
     )
+
+    private data class BrowserTab(
+        var url: String? = null,
+        var title: String? = null
+    )
+
+    private enum class BoundNetworkKind {
+        VPN,
+        ROUTER_WIFI
+    }
+
+    private enum class ProtectionSource {
+        NONE,
+        VPN,
+        LOCAL_ROUTER,
+        ATTESTED_ROUTER
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -119,6 +159,8 @@ class SecureBrowserActivity : AppCompatActivity() {
         configureWebView(binding.secureWebview)
         configurePullToRefresh()
         configureBrowserTools()
+        ensureInitialTab()
+        renderBrowserTabs()
         renderQuickLinks()
         configureMovableNavigation()
         updateNavigationButtons()
@@ -131,7 +173,6 @@ class SecureBrowserActivity : AppCompatActivity() {
         binding.pairRouterButton.setOnClickListener { scanRouterPairingQr() }
         binding.pastePairRouterButton.setOnClickListener { showPasteRouterPairingDialog() }
         binding.forgetRoutersButton.setOnClickListener { confirmForgetRouters() }
-        binding.openVpnSettingsButton.setOnClickListener { openVpnSettings() }
         binding.urlInput.setOnEditorActionListener { _, _, _ ->
             openTypedUrl()
             true
@@ -152,8 +193,8 @@ class SecureBrowserActivity : AppCompatActivity() {
             isClickable = true
             isFocusable = true
             gravity = android.view.Gravity.CENTER
-            minWidth = dp(86)
-            maxWidth = dp(132)
+            minWidth = dp(116)
+            maxWidth = dp(168)
             setPadding(dp(10), 0, dp(10), 0)
             setSingleLine(true)
             ellipsize = android.text.TextUtils.TruncateAt.END
@@ -166,17 +207,23 @@ class SecureBrowserActivity : AppCompatActivity() {
         }
         val titleView = TextView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
+                0,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                1f
             ).also { it.marginEnd = dp(10) }
             gravity = android.view.Gravity.CENTER_VERTICAL
             setSingleLine(true)
+            ellipsize = android.text.TextUtils.TruncateAt.END
             text = getString(R.string.vcs_secure_browser_title)
             setTextColor(Color.WHITE)
             textSize = 18f
             setTypeface(typeface, android.graphics.Typeface.BOLD)
         }
         val actionBarView = LinearLayout(this).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
             addView(titleView)
@@ -189,7 +236,13 @@ class SecureBrowserActivity : AppCompatActivity() {
             setIcon(null)
             setDisplayShowTitleEnabled(false)
             setDisplayShowCustomEnabled(true)
-            customView = actionBarView
+            setCustomView(
+                actionBarView,
+                androidx.appcompat.app.ActionBar.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            )
         }
     }
 
@@ -220,6 +273,10 @@ class SecureBrowserActivity : AppCompatActivity() {
     override fun onPause() {
         monitorJob?.cancel()
         monitorJob = null
+        routerAttestationRetryJob?.cancel()
+        routerAttestationRetryJob = null
+        routerAttestationWatchJob?.cancel()
+        routerAttestationWatchJob = null
         egressLookupJob?.cancel()
         egressLookupJob = null
         unregisterVpnNetworkCallback()
@@ -230,6 +287,10 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        routerAttestationRetryJob?.cancel()
+        routerAttestationRetryJob = null
+        routerAttestationWatchJob?.cancel()
+        routerAttestationWatchJob = null
         egressLookupJob?.cancel()
         unregisterVpnNetworkCallback()
         unbindBrowserNetwork()
@@ -294,7 +355,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         }
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                if (blocked || !isAllowedBrowserUrl(request.url, request.isForMainFrame)) {
+                if (blocked || !ensureBoundNetworkStillProtected() || !isAllowedBrowserUrl(request.url, request.isForMainFrame)) {
                     lockBrowser(showToast = blocked.not())
                     return true
                 }
@@ -306,7 +367,9 @@ class SecureBrowserActivity : AppCompatActivity() {
             }
 
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-                if (blocked || !isAllowedBrowserUrl(request.url, request.isForMainFrame)) return blockedResponse()
+                if (blocked || !ensureBoundNetworkStillProtected() || !isAllowedBrowserUrl(request.url, request.isForMainFrame)) {
+                    return blockedResponse()
+                }
                 if (SecureBrowserBlocker.shouldBlock(request.url, request.isForMainFrame)) {
                     incrementBlockedTrackers()
                     return trackerBlockedResponse()
@@ -328,6 +391,7 @@ class SecureBrowserActivity : AppCompatActivity() {
                 binding.pageProgress.visibility = View.GONE
                 if (!documentStartWebRtcProtection) injectWebRtcProtection(view)
                 if (!url.isNullOrBlank() && url != "about:blank") {
+                    updateActiveBrowserTab(url, view.title)
                     binding.urlInput.setText(url)
                 }
                 updateSecurityBadges(url)
@@ -372,7 +436,6 @@ class SecureBrowserActivity : AppCompatActivity() {
     private fun showBrowserFeaturesDialog() {
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(18), dp(8), dp(18), dp(4))
         }
         val zoomValue = TextView(this).apply {
             text = getString(R.string.vcs_secure_browser_text_zoom_value, textZoom)
@@ -404,13 +467,12 @@ class SecureBrowserActivity : AppCompatActivity() {
         container.addView(featureInfo(binding.httpsBadge.text.toString(), binding.httpsBadge.currentTextColor))
         container.addView(featureInfo(binding.trackerBadge.text.toString(), binding.trackerBadge.currentTextColor))
 
-        val dialog = AlertDialog.Builder(this)
-            .setTitle(R.string.vcs_secure_browser_features)
-            .setView(container)
-            .setNegativeButton(android.R.string.cancel, null)
-            .create()
-        dialog.setOnShowListener { VcsDialogs.applyDefaultStyle(dialog) }
-        dialog.show()
+        VcsDialogs.show(
+            context = this,
+            title = getString(R.string.vcs_secure_browser_features),
+            customView = container,
+            negative = VcsDialogs.action(this, android.R.string.cancel)
+        )
     }
 
     private fun featureRow(): LinearLayout =
@@ -630,11 +692,20 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun scanRouterPairingQr() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            launchRouterPairingScanner()
+        } else {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    private fun launchRouterPairingScanner() {
         val options = ScanOptions()
             .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
             .setPrompt(getString(R.string.vcs_secure_browser_pair_router_scan_prompt))
             .setBeepEnabled(false)
             .setOrientationLocked(false)
+            .setCaptureActivity(CaptureActivity::class.java)
         pairRouterResultLauncher.launch(options)
     }
 
@@ -648,18 +719,18 @@ class SecureBrowserActivity : AppCompatActivity() {
             setTextColor(Color.parseColor("#FFFFFF"))
             setHintTextColor(Color.parseColor("#8EA2AE"))
             setBackgroundResource(R.drawable.vcs_dialog_input_background)
-            setPadding(28, 18, 28, 18)
+            setPadding(dp(14), dp(10), dp(14), dp(10))
         }
-        val dialog = AlertDialog.Builder(this)
-            .setTitle(R.string.vcs_secure_browser_paste_router_pair_title)
-            .setView(input)
-            .setNegativeButton(android.R.string.cancel, null)
-            .setNeutralButton(R.string.vcs_secure_browser_paste_router_pair_clipboard, null)
-            .setPositiveButton(R.string.vcs_secure_browser_router_pair_action, null)
-            .create()
-        dialog.setOnShowListener {
-            VcsDialogs.applyDefaultStyle(dialog)
-            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+        lateinit var dialog: AlertDialog
+        dialog = VcsDialogs.show(
+            context = this,
+            title = getString(R.string.vcs_secure_browser_paste_router_pair_title),
+            customView = input,
+            negative = VcsDialogs.action(this, android.R.string.cancel),
+            neutral = VcsDialogs.Action(
+                text = getString(R.string.vcs_secure_browser_paste_router_pair_clipboard),
+                dismissAfterClick = false
+            ) {
                 val text = clipboardText()
                 if (text.isNullOrBlank()) {
                     Toast.makeText(this@SecureBrowserActivity, R.string.vcs_secure_browser_paste_router_pair_empty, Toast.LENGTH_LONG).show()
@@ -667,18 +738,21 @@ class SecureBrowserActivity : AppCompatActivity() {
                     input.setText(text)
                     input.selectAll()
                 }
-            }
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            },
+            positive = VcsDialogs.Action(
+                text = getString(R.string.vcs_secure_browser_router_pair_action),
+                primary = true,
+                dismissAfterClick = false
+            ) {
                 val pairing = parsePairingKey(input.text?.toString().orEmpty())
                 if (pairing == null) {
                     Toast.makeText(this@SecureBrowserActivity, R.string.vcs_secure_browser_router_pair_error, Toast.LENGTH_LONG).show()
-                    return@setOnClickListener
+                } else {
+                    dialog.dismiss()
+                    confirmRouterPairing(pairing)
                 }
-                dialog.dismiss()
-                confirmRouterPairing(pairing)
             }
-        }
-        dialog.show()
+        )
     }
 
     private fun showStyledPlatformDialog(dialog: AlertDialog) {
@@ -697,16 +771,20 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun confirmRouterPairing(pairing: VpnRouterAttestation.Pairing) {
-        showStyledPlatformDialog(AlertDialog.Builder(this)
-            .setTitle(R.string.vcs_secure_browser_router_pair_title)
-            .setMessage(getString(R.string.vcs_secure_browser_router_pair_confirm, pairing.routerId.take(8)))
-            .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(R.string.vcs_secure_browser_router_pair_action) { _, _ ->
+        VcsDialogs.show(
+            context = this,
+            title = getString(R.string.vcs_secure_browser_router_pair_title),
+            message = getString(R.string.vcs_secure_browser_router_pair_confirm, pairing.routerId.take(8)),
+            negative = VcsDialogs.action(this, android.R.string.cancel),
+            positive = VcsDialogs.Action(
+                text = getString(R.string.vcs_secure_browser_router_pair_action),
+                primary = true
+            ) {
                 VpnRouterAttestation.importPairing(this, pairing)
                 Toast.makeText(this, R.string.vcs_secure_browser_router_pair_success, Toast.LENGTH_LONG).show()
                 refreshBrowserProtectionAsync()
             }
-            .create())
+        )
     }
 
     private fun confirmForgetRouters() {
@@ -727,10 +805,6 @@ class SecureBrowserActivity : AppCompatActivity() {
             .create())
     }
 
-    private fun openVpnSettings() {
-        startActivity(Intent(Settings.ACTION_VPN_SETTINGS))
-    }
-
     private fun openTypedUrl() {
         val url = normalizeUrl(binding.urlInput.text?.toString().orEmpty())
         if (url == null) return
@@ -748,6 +822,7 @@ class SecureBrowserActivity : AppCompatActivity() {
             }
             setBrowserProtection(protection)
             userInitiatedNavigation = true
+            updateActiveBrowserTab(url, title = null)
             loadUrlWithPrivacyHeaders(url)
             updateNavigationButtons()
         }
@@ -903,27 +978,195 @@ class SecureBrowserActivity : AppCompatActivity() {
         }
     }
 
-    private fun quickLinkButton(label: String, url: String): TextView {
-        return TextView(this).apply {
+    private fun ensureInitialTab() {
+        if (browserTabs.isEmpty()) browserTabs.add(BrowserTab())
+        activeTabIndex = activeTabIndex.coerceIn(browserTabs.indices)
+    }
+
+    private fun renderBrowserTabs() {
+        ensureInitialTab()
+        binding.browserTabsRow.removeAllViews()
+        browserTabs.forEachIndexed { index, tab ->
+            binding.browserTabsRow.addView(browserTabButton(index, tab))
+        }
+        binding.browserTabsRow.addView(newBrowserTabButton())
+    }
+
+    private fun browserTabButton(index: Int, tab: BrowserTab): View =
+        LinearLayout(this).apply {
+            val isActive = index == activeTabIndex
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                dp(36)
+            ).also { it.marginEnd = dp(8) }
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            background = getDrawable(R.drawable.fastest_button_background)
+            foreground = selectableForeground()
+            isClickable = true
+            isFocusable = true
+            minimumWidth = dp(104)
+            setPadding(dp(12), 0, dp(4), 0)
+            alpha = if (isActive) 1f else 0.72f
+            contentDescription = getString(R.string.vcs_secure_browser_tab_description, index + 1, tabLabel(tab))
+            setOnClickListener { switchBrowserTab(index) }
+            setOnLongClickListener {
+                closeBrowserTab(index)
+                true
+            }
+            addView(TextView(this@SecureBrowserActivity).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+                gravity = android.view.Gravity.CENTER
+                maxWidth = dp(132)
+                setSingleLine(true)
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                text = tabLabel(tab)
+                setTextColor(if (isActive) Color.WHITE else Color.parseColor("#AFC0CC"))
+                textSize = 12f
+                setTypeface(typeface, if (isActive) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
+            })
+            addView(TextView(this@SecureBrowserActivity).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(28), dp(28)).also {
+                    it.marginStart = dp(4)
+                }
+                background = getDrawable(R.drawable.fastest_button_background)
+                foreground = selectableForeground()
+                isClickable = true
+                isFocusable = true
+                gravity = android.view.Gravity.CENTER
+                setSingleLine(true)
+                text = "X"
+                setTextColor(Color.parseColor("#FF8A8A"))
+                textSize = 11f
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                contentDescription = getString(R.string.vcs_secure_browser_close_tab_description, tabLabel(tab))
+                alpha = if (browserTabs.size > 1) 1f else 0.42f
+                setOnClickListener { closeBrowserTab(index) }
+            })
+        }
+
+    private fun newBrowserTabButton(): TextView =
+        TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(44), dp(36))
+            background = getDrawable(R.drawable.fastest_button_background)
+            foreground = selectableForeground()
+            isClickable = true
+            isFocusable = true
+            gravity = android.view.Gravity.CENTER
+            setSingleLine(true)
+            setText(R.string.vcs_secure_browser_new_tab)
+            setTextColor(Color.WHITE)
+            textSize = 18f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            contentDescription = getString(R.string.vcs_secure_browser_new_tab_description)
+            setOnClickListener { openNewBrowserTab() }
+        }
+
+    private fun tabLabel(tab: BrowserTab): String {
+        val title = tab.title?.trim()
+        if (!title.isNullOrBlank() && title != "about:blank") return title
+        val url = tab.url?.trim()
+        if (!url.isNullOrBlank()) {
+            val host = runCatching { Uri.parse(url).host }.getOrNull()
+            if (!host.isNullOrBlank()) return host.removePrefix("www.")
+            return url
+        }
+        return getString(R.string.vcs_secure_browser_untitled_tab)
+    }
+
+    private fun openNewBrowserTab() {
+        saveActiveBrowserTab()
+        browserTabs.add(BrowserTab())
+        activeTabIndex = browserTabs.lastIndex
+        clearFindMatches()
+        resetPageSecurityState(null)
+        binding.urlInput.setText("")
+        binding.browserRefresh.isRefreshing = false
+        binding.secureWebview.stopLoading()
+        binding.secureWebview.loadUrl("about:blank")
+        renderBrowserTabs()
+        updateNavigationButtons()
+    }
+
+    private fun switchBrowserTab(index: Int) {
+        if (index !in browserTabs.indices || index == activeTabIndex) return
+        saveActiveBrowserTab()
+        activeTabIndex = index
+        val tab = browserTabs[index]
+        clearFindMatches()
+        resetPageSecurityState(tab.url)
+        binding.urlInput.setText(tab.url.orEmpty())
+        binding.browserRefresh.isRefreshing = false
+        binding.secureWebview.stopLoading()
+        if (tab.url.isNullOrBlank()) {
+            binding.secureWebview.loadUrl("about:blank")
+        } else {
+            loadUrlWithPrivacyHeaders(tab.url!!)
+        }
+        renderBrowserTabs()
+        updateNavigationButtons()
+    }
+
+    private fun closeBrowserTab(index: Int) {
+        if (index !in browserTabs.indices || browserTabs.size == 1) return
+        saveActiveBrowserTab()
+        browserTabs.removeAt(index)
+        activeTabIndex = when {
+            activeTabIndex > index -> activeTabIndex - 1
+            activeTabIndex >= browserTabs.size -> browserTabs.lastIndex
+            else -> activeTabIndex
+        }
+        val tab = browserTabs[activeTabIndex]
+        clearFindMatches()
+        resetPageSecurityState(tab.url)
+        binding.urlInput.setText(tab.url.orEmpty())
+        binding.browserRefresh.isRefreshing = false
+        binding.secureWebview.stopLoading()
+        if (tab.url.isNullOrBlank()) {
+            binding.secureWebview.loadUrl("about:blank")
+        } else {
+            loadUrlWithPrivacyHeaders(tab.url!!)
+        }
+        renderBrowserTabs()
+        updateNavigationButtons()
+    }
+
+    private fun saveActiveBrowserTab() {
+        val tab = browserTabs.getOrNull(activeTabIndex) ?: return
+        val webUrl = binding.secureWebview.url?.takeUnless { it == "about:blank" }
+        val typedUrl = binding.urlInput.text?.toString()?.trim()?.takeIf { it.isNotBlank() }
+        tab.url = webUrl ?: typedUrl ?: tab.url
+        tab.title = binding.secureWebview.title?.takeIf { it.isNotBlank() && it != "about:blank" } ?: tab.title
+    }
+
+    private fun updateActiveBrowserTab(url: String?, title: String?) {
+        val tab = browserTabs.getOrNull(activeTabIndex) ?: return
+        if (!url.isNullOrBlank() && url != "about:blank") tab.url = url
+        if (!title.isNullOrBlank() && title != "about:blank") tab.title = title
+        renderBrowserTabs()
+    }
+
+    private fun quickLinkButton(label: String, url: String): View {
+        return LinearLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 dp(40)
             ).also {
                 it.marginEnd = dp(8)
             }
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
             background = getDrawable(R.drawable.fastest_button_background)
             val outValue = TypedValue()
             theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
             foreground = getDrawable(outValue.resourceId)
             isClickable = true
             isFocusable = true
-            gravity = android.view.Gravity.CENTER
-            minWidth = dp(96)
-            setPadding(dp(16), 0, dp(16), 0)
-            text = label
-            setTextColor(getColor(android.R.color.white))
-            textSize = 13f
-            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            minimumWidth = dp(96)
+            setPadding(dp(14), 0, dp(6), 0)
             setOnClickListener {
                 binding.urlInput.setText(url)
                 openTypedUrl()
@@ -932,6 +1175,37 @@ class SecureBrowserActivity : AppCompatActivity() {
                 confirmDeleteBookmark(url)
                 true
             }
+            addView(TextView(this@SecureBrowserActivity).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+                gravity = android.view.Gravity.CENTER
+                maxWidth = dp(150)
+                setSingleLine(true)
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                text = label
+                setTextColor(getColor(android.R.color.white))
+                textSize = 13f
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+            })
+            addView(TextView(this@SecureBrowserActivity).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(30), dp(30)).also {
+                    it.marginStart = dp(4)
+                }
+                background = getDrawable(R.drawable.fastest_button_background)
+                foreground = selectableForeground()
+                isClickable = true
+                isFocusable = true
+                gravity = android.view.Gravity.CENTER
+                setSingleLine(true)
+                text = "X"
+                setTextColor(Color.parseColor("#FF8A8A"))
+                textSize = 12f
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                contentDescription = getString(R.string.vcs_secure_browser_delete_bookmark_description, label)
+                setOnClickListener { confirmDeleteBookmark(url) }
+            })
         }
     }
 
@@ -1027,27 +1301,58 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private suspend fun resolveBrowserProtection(): BrowserProtection = withContext(Dispatchers.IO) {
         if (bindToVpnNetwork()) {
-            return@withContext BrowserProtection(true, vpnProtectionLabel())
+            return@withContext BrowserProtection(true, vpnProtectionLabel(), source = ProtectionSource.VPN)
         }
         unbindBrowserNetwork()
         val routerStatus = runCatching { VpnRouterManager.getStatus(this@SecureBrowserActivity) }.getOrNull()
         if (routerStatus?.availability == VpnRouterManager.Availability.ENABLED) {
             val tunnel = routerStatus.activeTunnel ?: getString(R.string.vcs_vpn_status_no_tunnel)
-            return@withContext BrowserProtection(true, getString(R.string.vcs_secure_browser_egress_router, tunnel))
+            return@withContext BrowserProtection(
+                true,
+                getString(R.string.vcs_secure_browser_egress_router, tunnel),
+                source = ProtectionSource.LOCAL_ROUTER
+            )
+        }
+        if (!bindToWifiNetwork()) {
+            return@withContext BrowserProtection(
+                false,
+                getString(R.string.vcs_secure_browser_egress_blocked),
+                retryRouterAttestation = VpnRouterAttestation.pairedRouters(this@SecureBrowserActivity).isNotEmpty()
+            )
         }
         val attestation = runCatching { VpnRouterAttestation.verifyFromCurrentGatewayDetailed(this@SecureBrowserActivity) }.getOrNull()
         if (attestation?.result != null) {
+            Log.i(TAG, "Verified VPN Router attestation: ${attestation.result.routerId.take(8)}")
             return@withContext BrowserProtection(
                 true,
-                getString(R.string.vcs_secure_browser_egress_router_attested)
+                getString(R.string.vcs_secure_browser_egress_router_attested),
+                source = ProtectionSource.ATTESTED_ROUTER
             )
         }
-        val detail = when (attestation?.failureReason) {
-            VpnRouterAttestation.FailureReason.CLOCK_SKEW -> getString(R.string.vcs_secure_browser_blocked_clock_skew)
+        Log.i(TAG, "VPN Router attestation failed: ${attestation?.failureReason ?: "exception"}")
+        unbindBrowserNetwork()
+        val detail = attestationFailureDetail(attestation?.failureReason)
+        BrowserProtection(
+            false,
+            getString(R.string.vcs_secure_browser_egress_blocked),
+            detail,
+            retryRouterAttestation = attestation?.failureReason != VpnRouterAttestation.FailureReason.NO_PAIRING &&
+                attestation?.failureReason != VpnRouterAttestation.FailureReason.EXPIRED_PAIRING
+        )
+    }
+
+    private fun attestationFailureDetail(reason: VpnRouterAttestation.FailureReason?): String {
+        return when (reason) {
+            VpnRouterAttestation.FailureReason.NO_PAIRING -> getString(R.string.vcs_secure_browser_blocked_no_pairing)
+            VpnRouterAttestation.FailureReason.NO_WIFI_GATEWAY -> getString(R.string.vcs_secure_browser_blocked_no_gateway)
+            VpnRouterAttestation.FailureReason.UNREACHABLE -> getString(R.string.vcs_secure_browser_blocked_router_unreachable)
+            VpnRouterAttestation.FailureReason.INVALID_RESPONSE -> getString(R.string.vcs_secure_browser_blocked_router_unprotected)
+            VpnRouterAttestation.FailureReason.ROUTER_NOT_PAIRED -> getString(R.string.vcs_secure_browser_blocked_router_not_paired)
             VpnRouterAttestation.FailureReason.EXPIRED_PAIRING -> getString(R.string.vcs_secure_browser_blocked_pairing_expired)
-            else -> getString(R.string.vcs_secure_browser_blocked_detail)
+            VpnRouterAttestation.FailureReason.CLOCK_SKEW -> getString(R.string.vcs_secure_browser_blocked_clock_skew)
+            VpnRouterAttestation.FailureReason.BAD_SIGNATURE -> getString(R.string.vcs_secure_browser_blocked_bad_signature)
+            null -> getString(R.string.vcs_secure_browser_blocked_detail)
         }
-        BrowserProtection(false, getString(R.string.vcs_secure_browser_egress_blocked), detail)
     }
 
     private suspend fun vpnProtectionLabel(): String {
@@ -1069,23 +1374,27 @@ class SecureBrowserActivity : AppCompatActivity() {
         val connectivityManager = getSystemService(ConnectivityManager::class.java) ?: return
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                refreshBrowserProtectionAsync()
+                val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return
+                if (isUsableVpnCapabilities(capabilities)) {
+                    refreshBrowserProtectionAsync()
+                }
             }
 
             override fun onLost(network: Network) {
                 if (network == boundNetwork) {
                     lockBrowserFromNetworkCallback()
-                } else {
-                    refreshBrowserProtectionAsync()
                 }
             }
 
             override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
-                if (!networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN) ||
-                    !networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                ) {
-                    if (network == boundNetwork) lockBrowserFromNetworkCallback()
-                } else {
+                if (network == boundNetwork) {
+                    val stillProtected = when (boundNetworkKind) {
+                        BoundNetworkKind.VPN -> isUsableVpnCapabilities(networkCapabilities)
+                        BoundNetworkKind.ROUTER_WIFI -> isUsableRouterWifiCapabilities(networkCapabilities)
+                        null -> false
+                    }
+                    if (!stillProtected) lockBrowserFromNetworkCallback()
+                } else if (isUsableVpnCapabilities(networkCapabilities)) {
                     refreshBrowserProtectionAsync()
                 }
             }
@@ -1096,7 +1405,6 @@ class SecureBrowserActivity : AppCompatActivity() {
         }
         vpnNetworkCallback = callback
         val request = NetworkRequest.Builder()
-            .addTransportType(NetworkCapabilities.TRANSPORT_VPN)
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             .build()
         runCatching { connectivityManager.registerNetworkCallback(request, callback) }
@@ -1122,9 +1430,65 @@ class SecureBrowserActivity : AppCompatActivity() {
         setBrowserProtection(resolveBrowserProtection())
     }
 
+    private fun startRouterAttestationRetry() {
+        if (routerAttestationRetryJob?.isActive == true) return
+        routerAttestationRetryJob = lifecycleScope.launch {
+            while (isActive && blocked) {
+                delay(ROUTER_ATTESTATION_RETRY_MS)
+                if (!isActive || !blocked || !::binding.isInitialized) return@launch
+                val protection = resolveBrowserProtection()
+                setBrowserProtection(protection)
+                if (protection.allowed || !protection.retryRouterAttestation) return@launch
+            }
+        }
+    }
+
+    private fun startRouterAttestationWatch() {
+        if (routerAttestationWatchJob?.isActive == true) return
+        routerAttestationWatchFailures = 0
+        routerAttestationWatchJob = lifecycleScope.launch {
+            while (isActive && !blocked && boundNetworkKind == BoundNetworkKind.ROUTER_WIFI) {
+                delay(ROUTER_ATTESTATION_WATCH_MS)
+                if (!isActive || blocked || !::binding.isInitialized || boundNetworkKind != BoundNetworkKind.ROUTER_WIFI) {
+                    return@launch
+                }
+                val stillProtected = withContext(Dispatchers.IO) {
+                    if (!ensureBoundNetworkStillProtected()) return@withContext false
+                    val verification = runCatching {
+                        VpnRouterAttestation.verifyFromCurrentGatewayDetailed(this@SecureBrowserActivity)
+                    }.getOrNull()
+                    if (verification?.result != null) {
+                        routerAttestationWatchFailures = 0
+                        return@withContext true
+                    }
+                    when (verification?.failureReason) {
+                        VpnRouterAttestation.FailureReason.UNREACHABLE,
+                        VpnRouterAttestation.FailureReason.NO_WIFI_GATEWAY,
+                        null -> {
+                            routerAttestationWatchFailures++
+                            routerAttestationWatchFailures < ROUTER_ATTESTATION_WATCH_MAX_TRANSIENT_FAILURES
+                        }
+                        else -> false
+                    }
+                }
+                if (!stillProtected) {
+                    routerAttestationWatchFailures = 0
+                    setBrowserProtection(
+                        BrowserProtection(
+                            false,
+                            getString(R.string.vcs_secure_browser_egress_blocked),
+                            getString(R.string.vcs_secure_browser_blocked_detail),
+                            retryRouterAttestation = true
+                        )
+                    )
+                    return@launch
+                }
+            }
+        }
+    }
+
     private fun lockBrowserFromNetworkCallback() {
         lifecycleScope.launch {
-            unbindBrowserNetwork()
             if (::binding.isInitialized) {
                 setBrowserProtection(BrowserProtection(false, getString(R.string.vcs_secure_browser_egress_blocked)))
             }
@@ -1145,7 +1509,16 @@ class SecureBrowserActivity : AppCompatActivity() {
         egressStatusButton.contentDescription = protection.label
         egressStatusButton.setTextColor(getColor(if (protection.allowed) android.R.color.holo_green_light else android.R.color.holo_red_light))
         if (protection.allowed) {
+            routerAttestationRetryJob?.cancel()
+            routerAttestationRetryJob = null
             blocked = false
+            if (protection.source == ProtectionSource.ATTESTED_ROUTER) {
+                startRouterAttestationWatch()
+            } else {
+                routerAttestationWatchJob?.cancel()
+                routerAttestationWatchJob = null
+                routerAttestationWatchFailures = 0
+            }
             binding.vpnBlocker.visibility = View.GONE
             binding.secureWebview.visibility = View.VISIBLE
             val initialUrl = binding.urlInput.text?.toString().orEmpty()
@@ -1158,36 +1531,84 @@ class SecureBrowserActivity : AppCompatActivity() {
             }
         } else {
             egressLookupJob?.cancel()
+            routerAttestationWatchJob?.cancel()
+            routerAttestationWatchJob = null
+            routerAttestationWatchFailures = 0
             lockBrowser(showToast = !blocked)
             binding.secureWebview.visibility = View.GONE
             binding.vpnBlocker.visibility = View.VISIBLE
             binding.blockerDetail.text = protection.detail ?: getString(R.string.vcs_secure_browser_blocked_detail)
+            if (protection.retryRouterAttestation) {
+                startRouterAttestationRetry()
+            } else {
+                routerAttestationRetryJob?.cancel()
+                routerAttestationRetryJob = null
+            }
         }
         updateNavigationButtons()
     }
 
     private fun showEgressStatusDialog() {
         val baseLabel = currentProtectionLabel ?: getString(R.string.vcs_secure_browser_egress_checking)
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
         val message = TextView(this).apply {
-            setPadding(dp(22), dp(12), dp(22), dp(4))
             text = currentEgressSummary ?: baseLabel
             setTextColor(Color.parseColor("#E5F2F7"))
             textSize = 14f
+            setLineSpacing(dp(2).toFloat(), 1f)
         }
-        val dialog = AlertDialog.Builder(this)
-            .setTitle(R.string.vcs_secure_browser_egress_modal_title)
-            .setView(message)
-            .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(R.string.vcs_secure_browser_egress_modal_check, null)
-            .create()
-        dialog.setOnShowListener {
-            VcsDialogs.applyDefaultStyle(dialog)
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = !blocked
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                refreshEgressIdentityOnDemand(message)
-            }
+        content.addView(message)
+        if (blocked) {
+            content.addView(TextView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).also { it.topMargin = dp(12) }
+                text = getString(R.string.vcs_secure_browser_required_pair_flow)
+                setTextColor(Color.parseColor("#B8C8D2"))
+                textSize = 13f
+                setLineSpacing(dp(2).toFloat(), 1f)
+            })
         }
-        dialog.show()
+        lateinit var dialog: AlertDialog
+        val checkAction = VcsDialogs.Action(
+            text = getString(R.string.vcs_secure_browser_egress_modal_check),
+            primary = true,
+            dismissAfterClick = false
+        ) {
+            if (!blocked) refreshEgressIdentityOnDemand(message)
+        }
+        dialog = VcsDialogs.show(
+            context = this,
+            title = getString(R.string.vcs_secure_browser_egress_modal_title),
+            customView = content,
+            positive = if (blocked) {
+                VcsDialogs.Action(
+                    text = getString(R.string.vcs_secure_browser_pair_router),
+                    primary = true,
+                    dismissAfterClick = false
+                ) {
+                    dialog.dismiss()
+                    scanRouterPairingQr()
+                }
+            } else {
+                checkAction
+            },
+            neutral = if (blocked) {
+                VcsDialogs.Action(
+                    text = getString(R.string.vcs_secure_browser_paste_router_pair),
+                    dismissAfterClick = false
+                ) {
+                    dialog.dismiss()
+                    showPasteRouterPairingDialog()
+                }
+            } else {
+                null
+            },
+            negative = VcsDialogs.action(this, android.R.string.cancel)
+        )
     }
 
     private fun refreshEgressIdentityOnDemand(target: TextView? = null) {
@@ -1320,7 +1741,22 @@ class SecureBrowserActivity : AppCompatActivity() {
         val vpnNetwork = findVpnNetwork(connectivityManager) ?: return false
         if (boundNetwork == vpnNetwork) return true
         val bound = connectivityManager.bindProcessToNetwork(vpnNetwork)
-        if (bound) boundNetwork = vpnNetwork
+        if (bound) {
+            boundNetwork = vpnNetwork
+            boundNetworkKind = BoundNetworkKind.VPN
+        }
+        return bound
+    }
+
+    private fun bindToWifiNetwork(): Boolean {
+        val connectivityManager = getSystemService(ConnectivityManager::class.java) ?: return false
+        val wifiNetwork = findWifiNetwork(connectivityManager) ?: return false
+        if (boundNetwork == wifiNetwork) return true
+        val bound = connectivityManager.bindProcessToNetwork(wifiNetwork)
+        if (bound) {
+            boundNetwork = wifiNetwork
+            boundNetworkKind = BoundNetworkKind.ROUTER_WIFI
+        }
         return bound
     }
 
@@ -1334,16 +1770,55 @@ class SecureBrowserActivity : AppCompatActivity() {
         }
     }
 
+    private fun findWifiNetwork(connectivityManager: ConnectivityManager): Network? {
+        val activeNetwork = connectivityManager.activeNetwork
+        if (activeNetwork?.let { network -> isUsableWifiNetwork(connectivityManager, network) } == true) {
+            return activeNetwork
+        }
+        return connectivityManager.allNetworks.firstOrNull { network ->
+            isUsableWifiNetwork(connectivityManager, network)
+        }
+    }
+
     private fun isUsableVpnNetwork(connectivityManager: ConnectivityManager, network: Network): Boolean {
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return isUsableVpnCapabilities(capabilities)
+    }
+
+    private fun isUsableWifiNetwork(connectivityManager: ConnectivityManager, network: Network): Boolean {
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return isUsableRouterWifiCapabilities(capabilities)
+    }
+
+    private fun isUsableVpnCapabilities(capabilities: NetworkCapabilities): Boolean {
         return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN) &&
             capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
+    private fun isUsableRouterWifiCapabilities(capabilities: NetworkCapabilities): Boolean {
+        return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+    }
+
+    private fun ensureBoundNetworkStillProtected(): Boolean {
+        val network = boundNetwork ?: return true
+        val kind = boundNetworkKind ?: return false
+        val connectivityManager = getSystemService(ConnectivityManager::class.java) ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network)
+        val protected = when (kind) {
+            BoundNetworkKind.VPN -> capabilities?.let { isUsableVpnCapabilities(it) } == true
+            BoundNetworkKind.ROUTER_WIFI -> capabilities?.let { isUsableRouterWifiCapabilities(it) } == true
+        }
+        if (!protected) {
+            runOnUiThread { lockBrowser(showToast = false) }
+        }
+        return protected
     }
 
     private fun unbindBrowserNetwork() {
         if (boundNetwork == null) return
         getSystemService(ConnectivityManager::class.java)?.bindProcessToNetwork(null)
         boundNetwork = null
+        boundNetworkKind = null
     }
 
     private fun isAllowedBrowserUrl(uri: Uri, isTopLevel: Boolean): Boolean {
@@ -1403,8 +1878,12 @@ class SecureBrowserActivity : AppCompatActivity() {
         private const val PREF_NAVIGATION_PAD_Y = "secure_browser_navigation_pad_y"
         private const val PREF_TEXT_ZOOM = "secure_browser_text_zoom"
         private const val PREF_DESKTOP_MODE = "secure_browser_desktop_mode"
+        private const val TAG = "VirtuVPN/SecBrowser"
         private const val MIN_TEXT_ZOOM = 70
         private const val MAX_TEXT_ZOOM = 160
+        private const val ROUTER_ATTESTATION_RETRY_MS = 2_000L
+        private const val ROUTER_ATTESTATION_WATCH_MS = 3_000L
+        private const val ROUTER_ATTESTATION_WATCH_MAX_TRANSIENT_FAILURES = 3
         const val EXTRA_INITIAL_URL = "com.wireguard.android.extra.SECURE_BROWSER_INITIAL_URL"
         private const val GOOGLE_URL = "https://www.google.com/"
         private const val DESKTOP_USER_AGENT =

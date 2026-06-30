@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.net.VpnService
 import android.util.Log
 import com.wireguard.android.Application
+import com.wireguard.android.VpnRouterService
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.backend.WgQuickBackend
 import kotlinx.coroutines.Dispatchers
@@ -213,12 +214,13 @@ object VpnRouterManager {
     }
 
     private fun syncAttestationServer(context: Context, status: Status) {
-        if (status.availability == Availability.ENABLED) {
+        if (status.needsReconcile) {
             VpnRouterAttestationServer.start(context.applicationContext)
             VpnRouterAttestationServer.updateStatus(status)
         } else {
             VpnRouterAttestationServer.stop()
         }
+        VpnRouterService.ensureForStatus(context.applicationContext, status)
     }
 
     private suspend fun detect(context: Context): Status {

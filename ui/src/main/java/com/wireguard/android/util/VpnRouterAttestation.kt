@@ -11,7 +11,6 @@ import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.util.Base64
 import android.util.Log
-import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.OutputStream
@@ -80,8 +79,10 @@ object VpnRouterAttestation {
         if (pairings.isEmpty()) return Verification(null, FailureReason.NO_PAIRING)
         val gateway = currentWifiGateway(appContext) ?: return Verification(null, FailureReason.NO_WIFI_GATEWAY)
         val nonce = randomNonce()
-        val body = fetchAttestation(gateway.hostAddress ?: return Verification(null, FailureReason.NO_WIFI_GATEWAY), nonce)
+        val response = fetchAttestation(gateway.hostAddress ?: return Verification(null, FailureReason.NO_WIFI_GATEWAY), nonce)
             ?: return Verification(null, FailureReason.UNREACHABLE)
+        if (response.statusCode != 200) return Verification(null, FailureReason.INVALID_RESPONSE)
+        val body = response.body
         val json = runCatching { JSONObject(body) }.getOrNull() ?: return Verification(null, FailureReason.INVALID_RESPONSE)
         if (json.optString("app") != "VirtuVPN") return Verification(null, FailureReason.INVALID_RESPONSE)
         if (json.optString("kind") != "vpn-router-attestation") return Verification(null, FailureReason.INVALID_RESPONSE)
@@ -291,12 +292,17 @@ object VpnRouterAttestation {
         return runCatching { InetAddress.getByAddress(bytes) as? Inet4Address }.getOrNull()
     }
 
-    private fun fetchAttestation(host: String, nonce: String): String? {
+    private data class HttpResponse(
+        val statusCode: Int,
+        val body: String
+    )
+
+    private fun fetchAttestation(host: String, nonce: String): HttpResponse? {
         val encodedNonce = URLEncoder.encode(nonce, "UTF-8")
         return try {
             Socket().use { socket ->
-                socket.soTimeout = 2_500
-                socket.connect(InetSocketAddress(host, PORT), 1_500)
+                socket.soTimeout = 4_000
+                socket.connect(InetSocketAddress(host, PORT), 2_500)
                 val request =
                     "GET $PATH?nonce=$encodedNonce HTTP/1.1\r\n" +
                         "Host: $host:$PORT\r\n" +
@@ -307,8 +313,8 @@ object VpnRouterAttestation {
                 val headerEnd = response.indexOf("\r\n\r\n")
                 if (headerEnd <= 0) return null
                 val statusLine = response.substringBefore("\r\n")
-                if (!statusLine.contains(" 200 ")) return null
-                response.substring(headerEnd + 4)
+                val statusCode = statusLine.split(' ').getOrNull(1)?.toIntOrNull() ?: return null
+                HttpResponse(statusCode, response.substring(headerEnd + 4))
             }
         } catch (_: Throwable) {
             null
@@ -374,15 +380,14 @@ object VpnRouterAttestation {
 object VpnRouterAttestationServer {
     private const val TAG = "VirtuVPN/RouterAttest"
     private const val MAX_REQUEST_LINE = 2048
-    // Kept above the reconcile-monitor interval (2 s) so the status pushed by
-    // updateStatus() stays warm between ticks and attestation requests never pay
-    // the cost of a synchronous root-shell status probe while a client is waiting.
-    private const val STATUS_TTL_MS = 3_000L
+    // Kept above the foreground service interval (2 s). Requests must never run
+    // root probes; they only read this warmed cache and sign quickly.
+    private const val STATUS_TTL_MS = 10_000L
     @Volatile
     private var serverSocket: ServerSocket? = null
     @Volatile
     private var serverThread: Thread? = null
-    private val workerPool = Executors.newFixedThreadPool(3)
+    private val workerPool = Executors.newFixedThreadPool(8)
     private val permits = Semaphore(8)
     @Volatile
     private var cachedStatus: VpnRouterManager.Status? = null
@@ -426,6 +431,8 @@ object VpnRouterAttestationServer {
         runCatching { serverSocket?.close() }
         serverSocket = null
         serverThread = null
+        cachedStatus = null
+        cachedAt = 0L
     }
 
     /**
@@ -441,11 +448,7 @@ object VpnRouterAttestationServer {
 
     fun cachedStatus(context: Context): VpnRouterManager.Status? {
         val now = System.currentTimeMillis()
-        cachedStatus?.takeIf { now - cachedAt <= STATUS_TTL_MS }?.let { return it }
-        val status = runBlocking { VpnRouterManager.getStatus(context.applicationContext) }
-        cachedStatus = status
-        cachedAt = now
-        return status
+        return cachedStatus?.takeIf { now - cachedAt <= STATUS_TTL_MS }
     }
 
     private fun handleClient(context: Context, socket: Socket) {

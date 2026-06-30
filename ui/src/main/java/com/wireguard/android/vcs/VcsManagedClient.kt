@@ -483,7 +483,9 @@ object VcsManagedClient {
                 .put("txBytes", stats?.totalTx())
                 .put("metadata", metadataWithPendingActivation(context, tunnel.name, tunnel.state))
             if (latestHandshakeAt != null) body.put("latestHandshakeAt", Instant.ofEpochMilli(latestHandshakeAt).toString())
-            requestJson("POST", "${session.apiBase}/api/mobile/android/tunnels/${assignment.getString("id")}/state", body, session.token)
+            runCatching {
+                requestJson("POST", "${session.apiBase}/api/mobile/android/tunnels/${assignment.getString("id")}/state", body, session.token)
+            }
         }
     }
 
@@ -514,7 +516,9 @@ object VcsManagedClient {
         if (error != null) body.put("error", error.message ?: error.javaClass.simpleName)
         if (latestHandshakeAt != null) body.put("latestHandshakeAt", Instant.ofEpochMilli(latestHandshakeAt).toString())
         for (assignment in assignments) {
-            requestJson("POST", "${session.apiBase}/api/mobile/android/tunnels/${assignment.getString("id")}/state", body, session.token)
+            runCatching {
+                requestJson("POST", "${session.apiBase}/api/mobile/android/tunnels/${assignment.getString("id")}/state", body, session.token)
+            }
         }
     }
 
