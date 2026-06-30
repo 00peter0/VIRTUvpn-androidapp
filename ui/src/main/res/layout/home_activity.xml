@@ -39,7 +39,9 @@
                 android:layout_height="56dp"
                 android:layout_marginEnd="14dp"
                 android:contentDescription="@string/app_name"
-                android:src="@mipmap/ic_launcher" />
+                android:padding="2dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_logo" />
 
             <LinearLayout
                 android:layout_width="0dp"
