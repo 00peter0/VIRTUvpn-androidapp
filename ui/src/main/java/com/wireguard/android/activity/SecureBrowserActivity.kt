@@ -82,6 +82,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     private var findActiveMatch = 0
     private var blockedTrackers = 0
     private var currentProtectionLabel: String? = null
+    private var currentEgressSummary: String? = null
     @Volatile
     private var blocked = true
 
@@ -125,8 +126,8 @@ class SecureBrowserActivity : AppCompatActivity() {
         renderQuickLinks()
         configureMovableNavigation()
         updateNavigationButtons()
-        binding.egressStatus.setText(R.string.vcs_secure_browser_egress_checking)
-        binding.egressStatus.setOnClickListener { refreshEgressIdentityOnDemand() }
+        binding.egressStatus.setText(R.string.vcs_secure_browser_egress_checking_short)
+        binding.egressStatus.setOnClickListener { showEgressStatusDialog() }
         updateSecurityBadges(null)
         binding.goButton.setOnClickListener { openTypedUrl() }
         binding.savePageButton.setOnClickListener { saveCurrentPage() }
@@ -1070,12 +1071,16 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun setBrowserProtection(protection: BrowserProtection) {
         currentProtectionLabel = protection.label
+        currentEgressSummary = null
         egressLookupJob?.cancel()
-        binding.egressStatus.text = if (protection.allowed) {
-            getString(R.string.vcs_secure_browser_egress_tap_to_check, protection.label)
-        } else {
-            protection.label
-        }
+        binding.egressStatus.text = getString(
+            if (protection.allowed) {
+                R.string.vcs_secure_browser_egress_protected_short
+            } else {
+                R.string.vcs_secure_browser_egress_required_short
+            }
+        )
+        binding.egressStatus.contentDescription = protection.label
         binding.egressStatus.setTextColor(getColor(if (protection.allowed) android.R.color.holo_green_light else android.R.color.holo_red_light))
         if (protection.allowed) {
             blocked = false
@@ -1099,22 +1104,48 @@ class SecureBrowserActivity : AppCompatActivity() {
         updateNavigationButtons()
     }
 
-    private fun refreshEgressIdentityOnDemand() {
+    private fun showEgressStatusDialog() {
+        val baseLabel = currentProtectionLabel ?: getString(R.string.vcs_secure_browser_egress_checking)
+        val message = TextView(this).apply {
+            setPadding(dp(22), dp(12), dp(22), dp(4))
+            text = currentEgressSummary ?: baseLabel
+            setTextColor(Color.parseColor("#E5F2F7"))
+            textSize = 14f
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(R.string.vcs_secure_browser_egress_modal_title)
+            .setView(message)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.vcs_secure_browser_egress_modal_check, null)
+            .create()
+        dialog.setOnShowListener {
+            VcsDialogs.applyDefaultStyle(dialog)
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = !blocked
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                refreshEgressIdentityOnDemand(message)
+            }
+        }
+        dialog.show()
+    }
+
+    private fun refreshEgressIdentityOnDemand(target: TextView? = null) {
         if (blocked) return
         val baseLabel = currentProtectionLabel ?: return
         egressLookupJob?.cancel()
-        binding.egressStatus.text = getString(R.string.vcs_secure_browser_egress_checking)
+        target?.text = getString(R.string.vcs_secure_browser_egress_checking)
         egressLookupJob = lifecycleScope.launch {
             val identity = withContext(Dispatchers.IO) { fetchEgressIdentity() }
             if (identity != null && ::binding.isInitialized && !blocked) {
-                binding.egressStatus.text = getString(
+                currentEgressSummary = getString(
                     R.string.vcs_secure_browser_egress_with_country,
                     baseLabel,
                     listOf(flagEmoji(identity.countryCode), identity.country).filter { it.isNotBlank() }.joinToString(" "),
                     identity.ip
                 )
+                target?.text = currentEgressSummary
             } else if (::binding.isInitialized && !blocked) {
-                binding.egressStatus.text = getString(R.string.vcs_secure_browser_egress_tap_to_check, baseLabel)
+                currentEgressSummary = getString(R.string.vcs_secure_browser_egress_modal_unavailable)
+                target?.text = currentEgressSummary
             }
         }
     }

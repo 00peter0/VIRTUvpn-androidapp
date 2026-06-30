@@ -200,6 +200,9 @@
     <string name="vcs_secure_browser_stopped">Secure browser stopped because no protected connection is active</string>
     <string name="vcs_secure_browser_blocked_public_http">Only HTTPS pages are allowed in Secure Browser.</string>
     <string name="vcs_secure_browser_egress_checking">Checking protected route...</string>
+    <string name="vcs_secure_browser_egress_checking_short">Checking</string>
+    <string name="vcs_secure_browser_egress_protected_short">Protected</string>
+    <string name="vcs_secure_browser_egress_required_short">Required</string>
     <string name="vcs_secure_browser_egress_vpn">Protected via Android VPN provider</string>
     <string name="vcs_secure_browser_egress_virtu">Protected via VirtuVPN: %1$s</string>
     <string name="vcs_secure_browser_egress_router">Protected via VPN Router: %1$s</string>
@@ -232,6 +235,9 @@
     </plurals>
     <string name="vcs_secure_browser_egress_tap_to_check">%1$s · Tap to check exit</string>
     <string name="vcs_secure_browser_egress_description">Protected route status. Tap to check exit IP and country.</string>
+    <string name="vcs_secure_browser_egress_modal_title">Protected route</string>
+    <string name="vcs_secure_browser_egress_modal_check">Check exit</string>
+    <string name="vcs_secure_browser_egress_modal_unavailable">Exit check unavailable. The protected route is still enforced.</string>
     <string name="vcs_secure_browser_egress_with_country">%1$s · Exit %2$s · %3$s</string>
     <string name="vcs_secure_browser_egress_blocked">Protected route required</string>
     <string name="vcs_secure_browser_save">Save</string>
