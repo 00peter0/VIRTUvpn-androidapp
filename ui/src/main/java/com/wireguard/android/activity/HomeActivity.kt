@@ -947,15 +947,27 @@ class HomeActivity : AppCompatActivity() {
             getString(R.string.vcs_vpn_router_logo_action_client_page),
             getString(R.string.vcs_vpn_router_logo_action_add_tunnel)
         )
-        AlertDialog.Builder(this)
+        val adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, actions) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                return (super.getView(position, convertView, parent) as TextView).apply {
+                    setTextColor(Color.parseColor("#E5F2F7"))
+                    setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15f)
+                    setBackgroundColor(Color.parseColor("#071018"))
+                    setPadding(40, 26, 40, 26)
+                }
+            }
+        }
+        val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.vcs_vpn_router_home_actions_title)
-            .setItems(actions) { _, which ->
+            .setAdapter(adapter) { _, which ->
                 when (which) {
                     0 -> openRouterPairingPage()
                     1 -> openVpnMeshAddTunnelFlow()
                 }
             }
-            .show()
+            .create()
+        dialog.setOnShowListener { VcsDialogs.applyDefaultStyle(dialog) }
+        dialog.show()
     }
 
     private fun openVpnMeshAddTunnelFlow() {
