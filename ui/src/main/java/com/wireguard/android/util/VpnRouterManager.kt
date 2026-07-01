@@ -48,6 +48,7 @@ object VpnRouterManager {
 
     enum class Availability {
         ENABLED,
+        DEGRADED,
         READY,
         WAITING_FOR_TUNNEL,
         WAITING_FOR_HOTSPOT,
@@ -66,9 +67,15 @@ object VpnRouterManager {
         val canEnable: Boolean
             get() = availability == Availability.READY
         val canDisable: Boolean
-            get() = availability == Availability.ENABLED || availability == Availability.ERROR
+            get() = availability == Availability.ENABLED ||
+                availability == Availability.DEGRADED ||
+                availability == Availability.ERROR
         val needsReconcile: Boolean
-            get() = availability == Availability.ENABLED || availability == Availability.ERROR
+            get() = availability == Availability.ENABLED ||
+                availability == Availability.DEGRADED ||
+                availability == Availability.ERROR
+        val routerActive: Boolean
+            get() = canDisable
     }
 
     enum class OperationStage {
@@ -108,6 +115,11 @@ object VpnRouterManager {
         routerMutex.withLock {
         val appContext = context.applicationContext
         val status = detect(appContext)
+        if (status.availability == Availability.DEGRADED) {
+            val probed = probeDegradedLocked(appContext, status)
+            syncAttestationServer(appContext, probed)
+            return@withLock probed
+        }
         if (status.availability != Availability.ENABLED && status.availability != Availability.ERROR) {
             syncAttestationServer(appContext, status)
             return@withLock status
@@ -121,6 +133,13 @@ object VpnRouterManager {
             if (repaired.availability == Availability.ENABLED) rememberVirtuFallbackTunnel(appContext)
             syncAttestationServer(appContext, repaired)
             repaired
+        } catch (e: TunnelHealthException) {
+            Log.w(TAG, "VPN router tunnel is unhealthy; keeping hotspot clients fail-closed", e)
+            markTunnelDegraded(appContext, status, tunnelName, e.message ?: TUNNEL_HEALTH_FAILED_DETAIL)
+                .also {
+                    setOperation(appContext, OperationStage.ERROR, it.detail)
+                    syncAttestationServer(appContext, it)
+                }
         } catch (e: Throwable) {
             Log.e(TAG, "Unable to reconcile VPN router", e)
             setOperation(appContext, OperationStage.ERROR, e.message ?: e.javaClass.simpleName)
@@ -183,6 +202,13 @@ object VpnRouterManager {
             if (enabled.availability == Availability.ENABLED) rememberVirtuFallbackTunnel(appContext)
             syncAttestationServer(appContext, enabled)
             enabled
+        } catch (e: TunnelHealthException) {
+            Log.w(TAG, "VPN router enabled fail-closed because tunnel health failed", e)
+            markTunnelDegraded(appContext, status, tunnelName, e.message ?: TUNNEL_HEALTH_FAILED_DETAIL)
+                .also {
+                    setOperation(appContext, OperationStage.ERROR, it.detail)
+                    syncAttestationServer(appContext, it)
+                }
         } catch (e: Throwable) {
             Log.e(TAG, "Unable to enable VPN router", e)
             setOperation(appContext, OperationStage.ERROR, e.message ?: e.javaClass.simpleName)
@@ -198,23 +224,23 @@ object VpnRouterManager {
         val prior = runCatching { detect(appContext) }.getOrNull()
         try {
             removeRules()
+            clearRouterState(appContext)
             detect(appContext).also { syncAttestationServer(appContext, it) }
         } catch (e: Throwable) {
             Log.e(TAG, "Unable to disable VPN router", e)
+            setOperation(appContext, OperationStage.ERROR, e.message ?: e.javaClass.simpleName)
             Status(
                 availability = Availability.ERROR,
                 activeTunnel = prior?.activeTunnel,
                 tetherInterfaces = prior?.tetherInterfaces.orEmpty(),
                 detail = e.message ?: e.javaClass.simpleName
             ).also { syncAttestationServer(appContext, it) }
-        } finally {
-            clearLastRuleSignature(appContext)
         }
         }
     }
 
     private fun syncAttestationServer(context: Context, status: Status) {
-        if (status.needsReconcile) {
+        if (status.routerActive) {
             VpnRouterAttestationServer.start(context.applicationContext)
             VpnRouterAttestationServer.updateStatus(status)
         } else {
@@ -259,11 +285,12 @@ object VpnRouterManager {
                 )
             }
             return Status(
-                availability = Availability.ENABLED,
+                availability = degradedAvailability(context, runningTunnel),
                 activeTunnel = runningTunnel,
                 tetherInterfaces = tetherInterfaces,
                 uplinkInterfaces = uplinkInterfaces,
-                dnsResolvers = dnsResolvers
+                dnsResolvers = dnsResolvers,
+                detail = degradedDetail(context, runningTunnel)
             )
         }
         if (!hotspotActive) {
@@ -443,6 +470,16 @@ object VpnRouterManager {
         disableHotspotAutoShutdown(context)
         disableTetherOffload(context)
         if (allowFastPath && !VpnRouterRulePlanner.needsFullRebuild(lastSignature, snapshot, rulesHealthy)) {
+            setOperation(context, OperationStage.CHECKING_HEALTH, "Checking internet through VPN interface $tunnel")
+            if (!checkTunnelHealth(tunnel, dnsResolver)) {
+                if (recordTunnelHealthFailure(context) >= HEALTH_FAILURES_BEFORE_DEGRADED) {
+                    throw TunnelHealthException(TUNNEL_HEALTH_FAILED_DETAIL)
+                }
+                setOperation(context, OperationStage.CHECKING_HEALTH, "VPN tunnel probe missed; keeping router active until failures are sustained")
+                return
+            }
+            recordTunnelHealthSuccess(context)
+            clearDegradedTunnel(context)
             return
         }
         setOperation(context, OperationStage.LOCKING_HOTSPOT, "Blocking hotspot fallback before changing VPN routes")
@@ -549,6 +586,14 @@ object VpnRouterManager {
             checkedRun("allow installed VPN provider bootstrap $uid", "iptables -A $OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN")
             checkedRun("allow installed VPN provider IPv6 bootstrap $uid", "ip6tables -A $IPV6_OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN || true")
         }
+        VPN_BOOTSTRAP_SYSTEM_UIDS.forEach { uid ->
+            checkedRun("allow Android VPN bootstrap system UID $uid", "iptables -A $OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN || true")
+            checkedRun("allow Android VPN bootstrap IPv6 system UID $uid", "ip6tables -A $IPV6_OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN || true")
+        }
+        checkedRun("allow Android VPN bootstrap UDP DNS", "iptables -A $OUTPUT_CHAIN -p udp --dport 53 -j RETURN")
+        checkedRun("allow Android VPN bootstrap TCP DNS", "iptables -A $OUTPUT_CHAIN -p tcp --dport 53 -j RETURN")
+        checkedRun("allow Android VPN bootstrap IPv6 UDP DNS", "ip6tables -A $IPV6_OUTPUT_CHAIN -p udp --dport 53 -j RETURN || true")
+        checkedRun("allow Android VPN bootstrap IPv6 TCP DNS", "ip6tables -A $IPV6_OUTPUT_CHAIN -p tcp --dport 53 -j RETURN || true")
         downstreams.forEach { downstream ->
             checkedRun("allow phone egress to hotspot clients", "iptables -A $OUTPUT_CHAIN -o $downstream -j RETURN")
             checkedRun("allow phone IPv6 egress to hotspot clients", "ip6tables -A $IPV6_OUTPUT_CHAIN -o $downstream -j RETURN")
@@ -645,7 +690,7 @@ object VpnRouterManager {
             val fallbackAttempted = tryVirtuFallback(context, tunnel)
             val fallbackTunnel = if (fallbackAttempted) readVpnInterfaces().firstOrNull() else null
             if (!fallbackAttempted || fallbackTunnel == null || !checkTunnelHealth(fallbackTunnel, dnsResolver)) {
-                throw IllegalStateException("VPN tunnel health check failed; hotspot clients remain fail-closed")
+                throw TunnelHealthException(TUNNEL_HEALTH_FAILED_DETAIL)
             }
             if (fallbackTunnel != tunnel) {
                 setOperation(context, OperationStage.FALLING_BACK, "Fallback tunnel $fallbackTunnel is healthy; rebuilding router rules")
@@ -654,7 +699,15 @@ object VpnRouterManager {
             }
         }
         checkedRun("flush route cache", "ip route flush cache 2>/dev/null || true")
-        prefs.edit().putString(KEY_LAST_RULE_SIGNATURE, snapshot.signature()).apply()
+        prefs.edit()
+            .putString(KEY_LAST_RULE_SIGNATURE, snapshot.signature())
+            .remove(KEY_DEGRADED_TUNNEL)
+            .remove(KEY_DEGRADED_DETAIL)
+            .remove(KEY_HEALTH_FAILURES)
+            .remove(KEY_HEALTH_SUCCESSES)
+            .putString(KEY_OPERATION_STAGE, OperationStage.IDLE.name)
+            .putString(KEY_OPERATION_DETAIL, "")
+            .apply()
     }
 
     private fun verifyRouterRules(
@@ -680,6 +733,11 @@ object VpnRouterManager {
         vpnProviderUids.forEach { uid ->
             if (!commandSucceeds("iptables -C $OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN >/dev/null 2>&1")) return false
         }
+        VPN_BOOTSTRAP_SYSTEM_UIDS.forEach { uid ->
+            if (!commandSucceeds("iptables -C $OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN >/dev/null 2>&1")) return false
+        }
+        if (!commandSucceeds("iptables -C $OUTPUT_CHAIN -p udp --dport 53 -j RETURN >/dev/null 2>&1")) return false
+        if (!commandSucceeds("iptables -C $OUTPUT_CHAIN -p tcp --dport 53 -j RETURN >/dev/null 2>&1")) return false
         return downstreams.all { downstream ->
             commandSucceeds(
                 "ip rule show | grep -q \"^$HOTSPOT_VPN_RULE_PRIORITY:.*iif $downstream .*lookup $HOTSPOT_VPN_ROUTE_TABLE\" && " +
@@ -711,6 +769,98 @@ object VpnRouterManager {
             .edit()
             .remove(KEY_LAST_RULE_SIGNATURE)
             .apply()
+    }
+
+    private fun clearRouterState(context: Context) {
+        context.applicationContext
+            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .remove(KEY_LAST_RULE_SIGNATURE)
+            .remove(KEY_DEGRADED_TUNNEL)
+            .remove(KEY_DEGRADED_DETAIL)
+            .remove(KEY_HEALTH_FAILURES)
+            .remove(KEY_HEALTH_SUCCESSES)
+            .putString(KEY_OPERATION_STAGE, OperationStage.IDLE.name)
+            .putString(KEY_OPERATION_DETAIL, "")
+            .apply()
+    }
+
+    private fun clearDegradedTunnel(context: Context) {
+        context.applicationContext
+            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .remove(KEY_DEGRADED_TUNNEL)
+            .remove(KEY_DEGRADED_DETAIL)
+            .remove(KEY_HEALTH_FAILURES)
+            .remove(KEY_HEALTH_SUCCESSES)
+            .apply()
+    }
+
+    private fun degradedAvailability(context: Context, tunnel: String): Availability {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        return if (prefs.getString(KEY_DEGRADED_TUNNEL, null) == tunnel) Availability.DEGRADED else Availability.ENABLED
+    }
+
+    private fun degradedDetail(context: Context, tunnel: String): String? {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (prefs.getString(KEY_DEGRADED_TUNNEL, null) != tunnel) return null
+        return prefs.getString(KEY_DEGRADED_DETAIL, TUNNEL_HEALTH_FAILED_DETAIL)
+    }
+
+    private fun markTunnelDegraded(context: Context, base: Status, tunnel: String, detail: String): Status {
+        context.applicationContext
+            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_DEGRADED_TUNNEL, tunnel)
+            .putString(KEY_DEGRADED_DETAIL, detail)
+            .putInt(KEY_HEALTH_FAILURES, HEALTH_FAILURES_BEFORE_DEGRADED)
+            .putInt(KEY_HEALTH_SUCCESSES, 0)
+            .apply()
+        return base.copy(
+            availability = Availability.DEGRADED,
+            activeTunnel = base.activeTunnel ?: tunnel,
+            detail = detail
+        )
+    }
+
+    private suspend fun probeDegradedLocked(context: Context, status: Status): Status {
+        val tunnel = status.activeTunnel ?: return status
+        val dnsResolver = status.dnsResolvers.firstOrNull()?.takeIf(::isIpv4Address) ?: DnsMode.QUAD9.resolvers.first()
+        setOperation(context, OperationStage.CHECKING_HEALTH, "Checking internet through VPN interface $tunnel")
+        return if (checkTunnelHealth(tunnel, dnsResolver)) {
+            if (recordTunnelHealthSuccess(context) >= HEALTH_SUCCESSES_BEFORE_RECOVERY) {
+                clearDegradedTunnel(context)
+                setOperation(context, OperationStage.COMPLETE, "VPN router is protected")
+                status.copy(availability = Availability.ENABLED, detail = null).also { rememberVirtuFallbackTunnel(context) }
+            } else {
+                setOperation(context, OperationStage.CHECKING_HEALTH, "VPN tunnel recovered once; waiting for stable confirmation")
+                status.copy(availability = Availability.DEGRADED, detail = status.detail ?: TUNNEL_HEALTH_FAILED_DETAIL)
+            }
+        } else {
+            recordTunnelHealthFailure(context)
+            setOperation(context, OperationStage.ERROR, status.detail ?: TUNNEL_HEALTH_FAILED_DETAIL)
+            status.copy(availability = Availability.DEGRADED, detail = status.detail ?: TUNNEL_HEALTH_FAILED_DETAIL)
+        }
+    }
+
+    private fun recordTunnelHealthSuccess(context: Context): Int {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val successes = (prefs.getInt(KEY_HEALTH_SUCCESSES, 0) + 1).coerceAtMost(HEALTH_SUCCESSES_BEFORE_RECOVERY)
+        prefs.edit()
+            .putInt(KEY_HEALTH_SUCCESSES, successes)
+            .putInt(KEY_HEALTH_FAILURES, 0)
+            .apply()
+        return successes
+    }
+
+    private fun recordTunnelHealthFailure(context: Context): Int {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val failures = (prefs.getInt(KEY_HEALTH_FAILURES, 0) + 1).coerceAtMost(HEALTH_FAILURES_BEFORE_DEGRADED)
+        prefs.edit()
+            .putInt(KEY_HEALTH_FAILURES, failures)
+            .putInt(KEY_HEALTH_SUCCESSES, 0)
+            .apply()
+        return failures
     }
 
     private fun setOperation(context: Context, stage: OperationStage, detail: String? = null) {
@@ -902,14 +1052,38 @@ object VpnRouterManager {
 
     private fun checkTunnelHealth(tunnel: String, dnsResolver: String): Boolean {
         val checkedTunnel = checkedInterfaceName(tunnel)
-        val checkedResolver = dnsResolver.takeIf(::isIpv4Address) ?: "1.1.1.1"
-        val ipv4Ok = commandSucceeds("ping -I $checkedTunnel -c 1 -W 2 $checkedResolver >/dev/null 2>&1")
-        if (!ipv4Ok) return false
-        return commandSucceeds("ping -I $checkedTunnel -c 1 -W 3 example.com >/dev/null 2>&1") ||
-            commandSucceeds("ping -I $checkedTunnel -c 1 -W 2 1.1.1.1 >/dev/null 2>&1") ||
-            commandSucceeds("ping -I $checkedTunnel -c 1 -W 2 9.9.9.9 >/dev/null 2>&1")
+        val curlTargets = listOf(
+            "https://1.1.1.1/cdn-cgi/trace",
+            "https://cloudflare.com/cdn-cgi/trace",
+            "https://quad9.net/"
+        )
+        val successfulTcpProbes = curlTargets.count { url ->
+            commandSucceeds(
+                "curl --interface $checkedTunnel -4 -k -L --connect-timeout 3 --max-time 6 " +
+                    "-fsS -o /dev/null ${shellQuote(url)} >/dev/null 2>&1"
+            )
+        }
+        if (successfulTcpProbes >= 1) return true
+
+        val targets = listOfNotNull(
+            dnsResolver.takeIf(::isIpv4Address),
+            "1.1.1.1",
+            "9.9.9.9",
+            "8.8.8.8"
+        ).distinct()
+        val successfulProbes = targets.count { target ->
+            commandSucceeds("ping -I $checkedTunnel -c 1 -W 2 $target >/dev/null 2>&1")
+        }
+        if (successfulProbes >= 2) return true
+        return successfulProbes >= 1 &&
+            commandSucceeds("ping -I $checkedTunnel -c 1 -W 3 example.com >/dev/null 2>&1")
     }
 
+    private fun shellQuote(value: String): String {
+        return "'" + value.replace("'", "'\"'\"'") + "'"
+    }
+
+    private class TunnelHealthException(message: String) : IllegalStateException(message)
 
     private fun readVpnProviderUids(context: Context): List<Int> {
         return runCatching {
@@ -1043,8 +1217,15 @@ object VpnRouterManager {
     private const val KEY_OPERATION_DETAIL = "operation_detail"
     private const val KEY_LAST_RULE_SIGNATURE = "last_rule_signature"
     private const val KEY_LAST_VIRTU_TUNNEL = "last_virtu_tunnel"
+    private const val KEY_DEGRADED_TUNNEL = "degraded_tunnel"
+    private const val KEY_DEGRADED_DETAIL = "degraded_detail"
+    private const val KEY_HEALTH_FAILURES = "health_failures"
+    private const val KEY_HEALTH_SUCCESSES = "health_successes"
     private const val KEY_TETHER_OFFLOAD_PREVIOUS = "tether_offload_previous"
     private const val KEY_WIFI_AP_TIMEOUT_PREVIOUS = "wifi_ap_timeout_previous"
+    private const val TUNNEL_HEALTH_FAILED_DETAIL = "VPN tunnel has no internet; hotspot clients remain fail-closed"
+    private const val HEALTH_FAILURES_BEFORE_DEGRADED = 3
+    private const val HEALTH_SUCCESSES_BEFORE_RECOVERY = 2
     private const val TETHER_OFFLOAD_DISABLED_SETTING = "tether_offload_disabled"
     private const val WIFI_AP_TIMEOUT_SETTING = "wifi_ap_timeout_setting"
     private const val NAT_CHAIN = "VIRTUVPN_ROUTER"
@@ -1058,6 +1239,12 @@ object VpnRouterManager {
     private const val HOTSPOT_VPN_ROUTE_TABLE = 1047
     private const val HOTSPOT_BLOCK_ROUTE_TABLE = 1048
     private const val MAX_DNS_RESOLVERS = 2
+    private val VPN_BOOTSTRAP_SYSTEM_UIDS = listOf(
+        1000, // system_server / Android VPN and connectivity orchestration
+        1051, // dns resolver on Android builds that use AID_DNS
+        1052, // tether/system DNS helper on Samsung builds
+        1073 // network stack validation and bootstrap plumbing
+    )
     private val COMMON_ENCRYPTED_DNS_RESOLVERS = listOf(
         "1.0.0.1",
         "1.0.0.3",

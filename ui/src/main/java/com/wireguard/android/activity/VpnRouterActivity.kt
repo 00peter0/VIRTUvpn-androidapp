@@ -243,6 +243,10 @@ class VpnRouterActivity : AppCompatActivity() {
                 routerStatus.text = getString(R.string.vcs_vpn_router_on, tunnel, interfaces)
                 routerStatus.setTextColor(GREEN)
             }
+            VpnRouterManager.Availability.DEGRADED -> {
+                routerStatus.text = status.detail ?: getString(R.string.vcs_vpn_router_degraded)
+                routerStatus.setTextColor(RED)
+            }
             VpnRouterManager.Availability.READY -> {
                 routerStatus.text = getString(R.string.vcs_vpn_router_ready, tunnel, interfaces)
                 routerStatus.setTextColor(TEXT)

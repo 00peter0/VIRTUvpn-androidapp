@@ -79,7 +79,8 @@
             android:name=".activity.SecureBrowserActivity"
             android:exported="false"
             android:label="@string/vcs_secure_browser_title"
-            android:parentActivityName=".activity.HomeActivity" />
+            android:parentActivityName=".activity.HomeActivity"
+            android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
             android:name=".activity.VpnRouterActivity"

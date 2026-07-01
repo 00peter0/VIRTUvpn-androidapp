@@ -35,6 +35,13 @@ verifies the router attestation endpoint on the current WiFi gateway. Without
 that attestation, accepting ordinary private WiFi addressing would recreate the
 unsafe false-positive behavior.
 
+Product rule from router/client testing: safe browsing through a VirtuVPN Router
+hotspot should use VirtuVPN Secured Browser on the client device. The router
+protects the network path, but ordinary device browsers do not provide the
+VirtuVPN app's router attestation, fail-closed state handling, ephemeral session
+cleanup, WebRTC hardening, and tracker controls. Do not present generic browser
+privacy modes as equivalent protection.
+
 Router attestation:
 
 - endpoint: `http://<wifi-gateway>:8788/virtuvpn-router/attestation`,
@@ -50,11 +57,16 @@ Router attestation:
   `https://vcs.virtucomputing.com/router/pair#id=...&secret=...` are accepted
   pair-key formats; both must show a confirmation dialog before trust is stored,
 - client sends a random nonce,
-- router responds only while VPN Router status is `ENABLED`,
-- response includes router id, nonce, timestamp, protected state, and HMAC
-  signature,
-- client accepts only matching nonce, fresh timestamp, `protected=true`, and a
-  valid signature for the paired router id.
+- router responds only while VPN Router is active,
+- response includes router id, nonce, timestamp, router availability, protected
+  state, optional detail, and HMAC signature,
+- client accepts browsing only with matching nonce, fresh timestamp,
+  `protected=true`, `ENABLED` availability, and a valid signature for the paired
+  router id,
+- client treats a valid signed `protected=false` / `DEGRADED` response as proof
+  that the paired router is present but currently fail-closed, so the browser
+  remains blocked with a router-degraded explanation instead of showing a false
+  protected state.
 
 The attestation is intentionally lightweight and local to the hotspot. It does
 not rely on private IP addressing as a trust signal, and the router landing page
@@ -63,9 +75,12 @@ global HMAC secret embedded in the APK; a public guest APK must not contain the
 material needed to forge router attestations.
 
 Attestation proves that the current WiFi gateway knows the paired router secret
-and currently reports VPN Router enabled. It does not cryptographically prove the
-full internet egress path beyond that gateway; in the intended topology the WiFi
-gateway is the router and router firewall/routing rules enforce the VPN path.
+and reports the current VPN Router state. It does not cryptographically prove
+the full internet egress path beyond that gateway; in the intended topology the
+WiFi gateway is the router and router firewall/routing rules enforce the VPN
+path. If the router reports `DEGRADED`, the verified router is still trusted as
+the local gateway, but browsing is blocked because the selected VPN tunnel did
+not pass the router health gate.
 If router and client clocks differ too much, the timestamp freshness check fails
 closed and the browser remains blocked.
 When that specific failure is detected, the blocked screen tells the user to
@@ -215,6 +230,19 @@ is an intentional privacy-favoring tradeoff for the ephemeral browser mode.
 
 Bookmarks are intentionally persisted because they are explicit user state.
 
+Optional session memory:
+
+- The header has a `Sessions On/Off` button next to the VPN protection status.
+- `Sessions Off` is the default privacy mode. Leaving Secured Browser clears tab
+  sessions and browser state.
+- `Sessions On` keeps in-memory tab WebViews when the user leaves and returns to
+  Secured Browser, so page state, scroll position, videos, and form state can
+  survive app switching.
+- Returning to the browser still re-checks VPN/router protection before browsing
+  continues. If the protected route is gone, the browser blocks.
+- Turning `Sessions Off` explicitly destroys all tab WebViews and clears
+  cookies, WebStorage, cache, form data, and history, then opens a clean tab.
+
 ## Tracker And Ad Blocking
 
 `shouldInterceptRequest` blocks common advertising and tracking hosts with a
@@ -337,6 +365,10 @@ For every Secure Browser release:
 - verify a hotspot client without local VPN is blocked when attestation is not
   reachable or invalid,
 - verify a hotspot client without local VPN is allowed when attestation is valid,
+- verify the same hotspot client is blocked again when the paired router reports
+  `DEGRADED`,
+- verify router UI and landing-page copy instructs hotspot clients to browse
+  with VirtuVPN Secured Browser after install/pairing,
 - verify navigation works with VirtuVPN active,
 - verify Go userspace VirtuVPN remains connected while Secure Browser is open
   and the process is bound to the VPN network,
@@ -346,6 +378,9 @@ For every Secure Browser release:
   an explicit tap,
 - verify WebRTC leak tests do not expose local IP candidates,
 - verify cookies/cache/history are cleared after leaving the browser,
+- verify `Sessions On` keeps tab state when leaving and returning to Secured
+  Browser while protection is still valid,
+- verify turning `Sessions Off` destroys all tab sessions and opens a clean tab,
 - verify tracker/ad blocking does not break basic navigation,
 - verify the HTTPS-only badge and blocked tracker count update per page,
 - verify top-level requests carry DNT/GPC privacy headers and intercepted

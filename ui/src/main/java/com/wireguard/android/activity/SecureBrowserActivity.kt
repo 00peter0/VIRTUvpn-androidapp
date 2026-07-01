@@ -24,6 +24,7 @@ import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.HttpAuthHandler
 import android.webkit.PermissionRequest
@@ -84,6 +85,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     private var boundNetwork: Network? = null
     private var boundNetworkKind: BoundNetworkKind? = null
     private var routerAttestationWatchFailures = 0
+    private var lastEgressCorroborationAt = 0L
     private var documentStartWebRtcProtection = false
     private var userInitiatedNavigation = false
     private var defaultUserAgent: String? = null
@@ -95,6 +97,8 @@ class SecureBrowserActivity : AppCompatActivity() {
     private var currentProtectionLabel: String? = null
     private var currentEgressSummary: String? = null
     private lateinit var egressStatusButton: TextView
+    private lateinit var sessionMemoryButton: TextView
+    private var keepSessionsOnLeave = false
     private val browserTabs = mutableListOf(BrowserTab())
     private var activeTabIndex = 0
     @Volatile
@@ -134,7 +138,8 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private data class BrowserTab(
         var url: String? = null,
-        var title: String? = null
+        var title: String? = null,
+        var webView: WebView? = null
     )
 
     private enum class BoundNetworkKind {
@@ -151,11 +156,13 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN)
         binding = SecureBrowserActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         configureActionBar()
 
+        browserTabs.add(BrowserTab(webView = binding.secureWebview))
         configureWebView(binding.secureWebview)
         configurePullToRefresh()
         configureBrowserTools()
@@ -205,6 +212,28 @@ class SecureBrowserActivity : AppCompatActivity() {
             contentDescription = getString(R.string.vcs_secure_browser_egress_description)
             setOnClickListener { showEgressStatusDialog() }
         }
+        keepSessionsOnLeave = getPreferences(MODE_PRIVATE).getBoolean(PREF_KEEP_SESSIONS_ON_LEAVE, false)
+        sessionMemoryButton = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                dp(32)
+            ).also { it.marginStart = dp(8) }
+            background = getDrawable(R.drawable.fastest_button_background)
+            foreground = selectableForeground()
+            isClickable = true
+            isFocusable = true
+            gravity = android.view.Gravity.CENTER
+            minWidth = dp(92)
+            maxWidth = dp(132)
+            setPadding(dp(10), 0, dp(10), 0)
+            setSingleLine(true)
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            textSize = 12f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            contentDescription = getString(R.string.vcs_secure_browser_sessions_keep_description)
+            setOnClickListener { toggleSessionMemory() }
+        }
+        updateSessionMemoryButton()
         val titleView = TextView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 0,
@@ -228,6 +257,7 @@ class SecureBrowserActivity : AppCompatActivity() {
             gravity = android.view.Gravity.CENTER_VERTICAL
             addView(titleView)
             addView(egressStatusButton)
+            addView(sessionMemoryButton)
             addView(actionBarFeaturesButton())
         }
         supportActionBar?.apply {
@@ -263,9 +293,62 @@ class SecureBrowserActivity : AppCompatActivity() {
             setOnClickListener { showBrowserFeaturesDialog() }
         }
 
+    private fun toggleSessionMemory() {
+        keepSessionsOnLeave = !keepSessionsOnLeave
+        getPreferences(MODE_PRIVATE).edit().putBoolean(PREF_KEEP_SESSIONS_ON_LEAVE, keepSessionsOnLeave).apply()
+        updateSessionMemoryButton()
+        if (!keepSessionsOnLeave) {
+            resetAllBrowserSessions()
+            Toast.makeText(this, R.string.vcs_secure_browser_sessions_cleared, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun updateSessionMemoryButton() {
+        if (!::sessionMemoryButton.isInitialized) return
+        sessionMemoryButton.setText(
+            if (keepSessionsOnLeave) {
+                R.string.vcs_secure_browser_sessions_keep_on
+            } else {
+                R.string.vcs_secure_browser_sessions_keep_off
+            }
+        )
+        sessionMemoryButton.setTextColor(
+            getColor(if (keepSessionsOnLeave) android.R.color.holo_green_light else android.R.color.holo_orange_light)
+        )
+    }
+
+    private fun resetAllBrowserSessions() {
+        browserTabs.mapNotNull { it.webView }.forEach { webView ->
+            (webView.parent as? ViewGroup)?.removeView(webView)
+            webView.stopLoading()
+            webView.loadUrl("about:blank")
+            webView.destroy()
+        }
+        browserTabs.clear()
+        val freshWebView = WebView(this).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            visibility = if (blocked) View.GONE else View.VISIBLE
+        }
+        browserTabs.add(BrowserTab(webView = freshWebView))
+        activeTabIndex = 0
+        binding.browserRefresh.removeAllViews()
+        binding.browserRefresh.addView(freshWebView)
+        configureWebView(freshWebView)
+        binding.urlInput.setText("")
+        clearFindMatches()
+        resetPageSecurityState(null)
+        clearEphemeralBrowserData()
+        renderBrowserTabs()
+        updateNavigationButtons()
+    }
+
     override fun onResume() {
         super.onResume()
         if (!::binding.isInitialized) return
+        browserTabs.mapNotNull { it.webView }.forEach { it.onResume() }
         registerVpnNetworkCallback()
         monitorJob = lifecycleScope.launch { refreshBrowserProtection() }
     }
@@ -280,8 +363,14 @@ class SecureBrowserActivity : AppCompatActivity() {
         egressLookupJob?.cancel()
         egressLookupJob = null
         unregisterVpnNetworkCallback()
-        if (::binding.isInitialized) lockBrowser(showToast = false)
-        clearEphemeralBrowserData()
+        if (::binding.isInitialized) {
+            if (keepSessionsOnLeave) {
+                browserTabs.mapNotNull { it.webView }.forEach { it.onPause() }
+            } else {
+                lockBrowser(showToast = false)
+                clearEphemeralBrowserData()
+            }
+        }
         unbindBrowserNetwork()
         super.onPause()
     }
@@ -295,10 +384,13 @@ class SecureBrowserActivity : AppCompatActivity() {
         unregisterVpnNetworkCallback()
         unbindBrowserNetwork()
         if (::binding.isInitialized) {
-            binding.secureWebview.stopLoading()
-            binding.secureWebview.loadUrl("about:blank")
+            browserTabs.mapNotNull { it.webView }.forEach { webView ->
+                webView.stopLoading()
+                webView.loadUrl("about:blank")
+            }
             clearEphemeralBrowserData()
-            binding.secureWebview.destroy()
+            browserTabs.mapNotNull { it.webView }.forEach { it.destroy() }
+            browserTabs.clear()
         }
         super.onDestroy()
     }
@@ -330,8 +422,12 @@ class SecureBrowserActivity : AppCompatActivity() {
         defaultUserAgent = webView.settings.userAgentString
         textZoom = getPreferences(MODE_PRIVATE).getInt(PREF_TEXT_ZOOM, 100).coerceIn(MIN_TEXT_ZOOM, MAX_TEXT_ZOOM)
         desktopMode = getPreferences(MODE_PRIVATE).getBoolean(PREF_DESKTOP_MODE, false)
-        applyTextZoom()
-        applyDesktopMode(reload = false)
+        webView.settings.textZoom = textZoom
+        webView.settings.userAgentString = if (desktopMode) DESKTOP_USER_AGENT else defaultUserAgent
+        webView.settings.useWideViewPort = desktopMode
+        webView.settings.loadWithOverviewMode = desktopMode
+        updateTextZoomLabel()
+        updateDesktopModeButton()
         installDocumentStartWebRtcProtection(webView)
         webView.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView, newProgress: Int) {
@@ -421,7 +517,7 @@ class SecureBrowserActivity : AppCompatActivity() {
             if (query.isBlank()) {
                 clearFindMatches()
             } else {
-                binding.secureWebview.findAllAsync(query)
+                activeWebView().findAllAsync(query)
             }
         }
         binding.findInput.setOnEditorActionListener { _, _, _ ->
@@ -542,11 +638,11 @@ class SecureBrowserActivity : AppCompatActivity() {
     private fun configurePullToRefresh() {
         binding.browserRefresh.setColorSchemeColors(getColor(android.R.color.holo_green_light))
         binding.browserRefresh.setOnRefreshListener {
-            if (blocked || binding.secureWebview.url.isNullOrBlank() || binding.secureWebview.url == "about:blank") {
+            if (blocked || activeWebView().url.isNullOrBlank() || activeWebView().url == "about:blank") {
                 binding.browserRefresh.isRefreshing = false
                 return@setOnRefreshListener
             }
-            binding.secureWebview.reload()
+            activeWebView().reload()
             updateNavigationButtons()
         }
     }
@@ -558,7 +654,7 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun incrementBlockedTrackers() {
         blockedTrackers += 1
-        runOnUiThread { updateSecurityBadges(binding.secureWebview.url) }
+        runOnUiThread { updateSecurityBadges(activeWebView().url) }
     }
 
     private fun updateSecurityBadges(url: String?) {
@@ -581,7 +677,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         binding.findBar.visibility = View.VISIBLE
         binding.findInput.requestFocus()
         val query = binding.findInput.text?.toString().orEmpty()
-        if (query.isNotBlank()) binding.secureWebview.findAllAsync(query)
+        if (query.isNotBlank()) activeWebView().findAllAsync(query)
     }
 
     private fun hideFindBar() {
@@ -592,13 +688,13 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun findNext(backward: Boolean) {
         if (blocked || binding.findInput.text.isNullOrBlank()) return
-        binding.secureWebview.findNext(backward)
+        activeWebView().findNext(backward)
     }
 
     private fun clearFindMatches() {
         findMatches = 0
         findActiveMatch = 0
-        binding.secureWebview.clearMatches()
+        activeWebView().clearMatches()
         updateFindMatchLabel()
     }
 
@@ -617,7 +713,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun applyTextZoom() {
-        binding.secureWebview.settings.textZoom = textZoom
+        browserTabs.mapNotNull { it.webView }.forEach { it.settings.textZoom = textZoom }
         updateTextZoomLabel()
     }
 
@@ -632,12 +728,14 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun applyDesktopMode(reload: Boolean) {
-        binding.secureWebview.settings.userAgentString = if (desktopMode) DESKTOP_USER_AGENT else defaultUserAgent
-        binding.secureWebview.settings.useWideViewPort = desktopMode
-        binding.secureWebview.settings.loadWithOverviewMode = desktopMode
+        browserTabs.mapNotNull { it.webView }.forEach { webView ->
+            webView.settings.userAgentString = if (desktopMode) DESKTOP_USER_AGENT else defaultUserAgent
+            webView.settings.useWideViewPort = desktopMode
+            webView.settings.loadWithOverviewMode = desktopMode
+        }
         updateDesktopModeButton()
-        if (reload && !blocked && !binding.secureWebview.url.isNullOrBlank() && binding.secureWebview.url != "about:blank") {
-            binding.secureWebview.reload()
+        if (reload && !blocked && !activeWebView().url.isNullOrBlank() && activeWebView().url != "about:blank") {
+            activeWebView().reload()
         }
     }
 
@@ -649,7 +747,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun showLinkMenuFromHitTest(): Boolean {
-        val url = binding.secureWebview.hitTestResult
+        val url = activeWebView().hitTestResult
             .extra
             ?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
             ?: return false
@@ -829,34 +927,34 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun navigateBack() {
-        if (blocked || !binding.secureWebview.canGoBack()) return
-        binding.secureWebview.goBack()
+        if (blocked || !activeWebView().canGoBack()) return
+        activeWebView().goBack()
         updateNavigationButtons()
     }
 
     private fun navigateForward() {
-        if (blocked || !binding.secureWebview.canGoForward()) return
-        binding.secureWebview.goForward()
+        if (blocked || !activeWebView().canGoForward()) return
+        activeWebView().goForward()
         updateNavigationButtons()
     }
 
     private fun reloadPage() {
-        if (blocked || binding.secureWebview.url.isNullOrBlank() || binding.secureWebview.url == "about:blank") return
+        if (blocked || activeWebView().url.isNullOrBlank() || activeWebView().url == "about:blank") return
         binding.browserRefresh.isRefreshing = true
-        binding.secureWebview.reload()
+        activeWebView().reload()
         updateNavigationButtons()
     }
 
     private fun updateNavigationButtons() {
         val canNavigate = !blocked
         binding.browserRefresh.isEnabled = canNavigate &&
-            !binding.secureWebview.url.isNullOrBlank() &&
-            binding.secureWebview.url != "about:blank"
-        binding.browserBackButton.isEnabled = canNavigate && binding.secureWebview.canGoBack()
-        binding.browserForwardButton.isEnabled = canNavigate && binding.secureWebview.canGoForward()
+            !activeWebView().url.isNullOrBlank() &&
+            activeWebView().url != "about:blank"
+        binding.browserBackButton.isEnabled = canNavigate && activeWebView().canGoBack()
+        binding.browserForwardButton.isEnabled = canNavigate && activeWebView().canGoForward()
         binding.browserReloadButton.isEnabled = canNavigate &&
-            !binding.secureWebview.url.isNullOrBlank() &&
-            binding.secureWebview.url != "about:blank"
+            !activeWebView().url.isNullOrBlank() &&
+            activeWebView().url != "about:blank"
         binding.findToggleButton.isEnabled = canNavigate
         setButtonAlpha(binding.browserBackButton)
         setButtonAlpha(binding.browserForwardButton)
@@ -955,8 +1053,8 @@ class SecureBrowserActivity : AppCompatActivity() {
     private fun credentialsForHost(host: String): Pair<String, String>? {
         val candidates = listOf(
             binding.urlInput.text?.toString().orEmpty(),
-            binding.secureWebview.originalUrl.orEmpty(),
-            binding.secureWebview.url.orEmpty(),
+            activeWebView().originalUrl.orEmpty(),
+            activeWebView().url.orEmpty(),
             intent.getStringExtra(EXTRA_INITIAL_URL).orEmpty()
         )
         for (candidate in candidates) {
@@ -980,7 +1078,40 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun ensureInitialTab() {
         if (browserTabs.isEmpty()) browserTabs.add(BrowserTab())
+        browserTabs.firstOrNull()?.let { tab ->
+            if (tab.webView == null && ::binding.isInitialized) tab.webView = binding.secureWebview
+        }
         activeTabIndex = activeTabIndex.coerceIn(browserTabs.indices)
+    }
+
+    private fun activeWebView(): WebView {
+        ensureInitialTab()
+        return browserTabs[activeTabIndex].webView ?: newTabWebView().also {
+            browserTabs[activeTabIndex].webView = it
+        }
+    }
+
+    private fun newTabWebView(): WebView {
+        return WebView(this).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            visibility = if (blocked) View.GONE else View.VISIBLE
+            configureWebView(this)
+        }
+    }
+
+    private fun attachActiveWebView() {
+        val webView = activeWebView()
+        if (webView.parent == binding.browserRefresh) {
+            webView.visibility = if (blocked) View.GONE else View.VISIBLE
+            return
+        }
+        binding.browserRefresh.removeAllViews()
+        (webView.parent as? ViewGroup)?.removeView(webView)
+        binding.browserRefresh.addView(webView)
+        webView.visibility = if (blocked) View.GONE else View.VISIBLE
     }
 
     private fun renderBrowserTabs() {
@@ -1079,14 +1210,14 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun openNewBrowserTab() {
         saveActiveBrowserTab()
-        browserTabs.add(BrowserTab())
+        browserTabs.add(BrowserTab(webView = newTabWebView()))
         activeTabIndex = browserTabs.lastIndex
+        attachActiveWebView()
         clearFindMatches()
         resetPageSecurityState(null)
         binding.urlInput.setText("")
         binding.browserRefresh.isRefreshing = false
-        binding.secureWebview.stopLoading()
-        binding.secureWebview.loadUrl("about:blank")
+        activeWebView().loadUrl("about:blank")
         renderBrowserTabs()
         updateNavigationButtons()
     }
@@ -1096,15 +1227,13 @@ class SecureBrowserActivity : AppCompatActivity() {
         saveActiveBrowserTab()
         activeTabIndex = index
         val tab = browserTabs[index]
+        attachActiveWebView()
         clearFindMatches()
         resetPageSecurityState(tab.url)
         binding.urlInput.setText(tab.url.orEmpty())
         binding.browserRefresh.isRefreshing = false
-        binding.secureWebview.stopLoading()
-        if (tab.url.isNullOrBlank()) {
-            binding.secureWebview.loadUrl("about:blank")
-        } else {
-            loadUrlWithPrivacyHeaders(tab.url!!)
+        if (activeWebView().url.isNullOrBlank() || activeWebView().url == "about:blank") {
+            activeWebView().loadUrl("about:blank")
         }
         renderBrowserTabs()
         updateNavigationButtons()
@@ -1113,22 +1242,26 @@ class SecureBrowserActivity : AppCompatActivity() {
     private fun closeBrowserTab(index: Int) {
         if (index !in browserTabs.indices || browserTabs.size == 1) return
         saveActiveBrowserTab()
-        browserTabs.removeAt(index)
+        val removed = browserTabs.removeAt(index)
+        removed.webView?.let { webView ->
+            (webView.parent as? ViewGroup)?.removeView(webView)
+            webView.stopLoading()
+            webView.loadUrl("about:blank")
+            webView.destroy()
+        }
         activeTabIndex = when {
             activeTabIndex > index -> activeTabIndex - 1
             activeTabIndex >= browserTabs.size -> browserTabs.lastIndex
             else -> activeTabIndex
         }
         val tab = browserTabs[activeTabIndex]
+        attachActiveWebView()
         clearFindMatches()
         resetPageSecurityState(tab.url)
         binding.urlInput.setText(tab.url.orEmpty())
         binding.browserRefresh.isRefreshing = false
-        binding.secureWebview.stopLoading()
-        if (tab.url.isNullOrBlank()) {
-            binding.secureWebview.loadUrl("about:blank")
-        } else {
-            loadUrlWithPrivacyHeaders(tab.url!!)
+        if (activeWebView().url.isNullOrBlank() || activeWebView().url == "about:blank") {
+            activeWebView().loadUrl("about:blank")
         }
         renderBrowserTabs()
         updateNavigationButtons()
@@ -1136,10 +1269,10 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun saveActiveBrowserTab() {
         val tab = browserTabs.getOrNull(activeTabIndex) ?: return
-        val webUrl = binding.secureWebview.url?.takeUnless { it == "about:blank" }
+        val webUrl = activeWebView().url?.takeUnless { it == "about:blank" }
         val typedUrl = binding.urlInput.text?.toString()?.trim()?.takeIf { it.isNotBlank() }
         tab.url = webUrl ?: typedUrl ?: tab.url
-        tab.title = binding.secureWebview.title?.takeIf { it.isNotBlank() && it != "about:blank" } ?: tab.title
+        tab.title = activeWebView().title?.takeIf { it.isNotBlank() && it != "about:blank" } ?: tab.title
     }
 
     private fun updateActiveBrowserTab(url: String?, title: String?) {
@@ -1213,7 +1346,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         (value * resources.displayMetrics.density).toInt()
 
     private fun saveCurrentPage() {
-        val currentValue = binding.secureWebview.url?.takeUnless { it == "about:blank" }
+        val currentValue = activeWebView().url?.takeUnless { it == "about:blank" }
             ?: binding.urlInput.text?.toString().orEmpty()
         val url = normalizeUrl(currentValue)
         if (url == null) return
@@ -1323,9 +1456,12 @@ class SecureBrowserActivity : AppCompatActivity() {
         val attestation = runCatching { VpnRouterAttestation.verifyFromCurrentGatewayDetailed(this@SecureBrowserActivity) }.getOrNull()
         if (attestation?.result != null) {
             Log.i(TAG, "Verified VPN Router attestation: ${attestation.result.routerId.take(8)}")
+            val attestedLabel = attestation.result.tunnel
+                ?.let { getString(R.string.vcs_secure_browser_egress_router_attested_via, it) }
+                ?: getString(R.string.vcs_secure_browser_egress_router_attested)
             return@withContext BrowserProtection(
                 true,
-                getString(R.string.vcs_secure_browser_egress_router_attested),
+                attestedLabel,
                 source = ProtectionSource.ATTESTED_ROUTER
             )
         }
@@ -1347,6 +1483,7 @@ class SecureBrowserActivity : AppCompatActivity() {
             VpnRouterAttestation.FailureReason.NO_WIFI_GATEWAY -> getString(R.string.vcs_secure_browser_blocked_no_gateway)
             VpnRouterAttestation.FailureReason.UNREACHABLE -> getString(R.string.vcs_secure_browser_blocked_router_unreachable)
             VpnRouterAttestation.FailureReason.INVALID_RESPONSE -> getString(R.string.vcs_secure_browser_blocked_router_unprotected)
+            VpnRouterAttestation.FailureReason.ROUTER_DEGRADED -> getString(R.string.vcs_secure_browser_blocked_router_degraded)
             VpnRouterAttestation.FailureReason.ROUTER_NOT_PAIRED -> getString(R.string.vcs_secure_browser_blocked_router_not_paired)
             VpnRouterAttestation.FailureReason.EXPIRED_PAIRING -> getString(R.string.vcs_secure_browser_blocked_pairing_expired)
             VpnRouterAttestation.FailureReason.CLOCK_SKEW -> getString(R.string.vcs_secure_browser_blocked_clock_skew)
@@ -1446,18 +1583,24 @@ class SecureBrowserActivity : AppCompatActivity() {
     private fun startRouterAttestationWatch() {
         if (routerAttestationWatchJob?.isActive == true) return
         routerAttestationWatchFailures = 0
+        lastEgressCorroborationAt = 0L
         routerAttestationWatchJob = lifecycleScope.launch {
             while (isActive && !blocked && boundNetworkKind == BoundNetworkKind.ROUTER_WIFI) {
                 delay(ROUTER_ATTESTATION_WATCH_MS)
                 if (!isActive || blocked || !::binding.isInitialized || boundNetworkKind != BoundNetworkKind.ROUTER_WIFI) {
                     return@launch
                 }
+                var egressLeak = false
                 val stillProtected = withContext(Dispatchers.IO) {
                     if (!ensureBoundNetworkStillProtected()) return@withContext false
                     val verification = runCatching {
                         VpnRouterAttestation.verifyFromCurrentGatewayDetailed(this@SecureBrowserActivity)
                     }.getOrNull()
                     if (verification?.result != null) {
+                        if (shouldCorroborateEgress() && egressLeakDetected()) {
+                            egressLeak = true
+                            return@withContext false
+                        }
                         routerAttestationWatchFailures = 0
                         return@withContext true
                     }
@@ -1477,7 +1620,10 @@ class SecureBrowserActivity : AppCompatActivity() {
                         BrowserProtection(
                             false,
                             getString(R.string.vcs_secure_browser_egress_blocked),
-                            getString(R.string.vcs_secure_browser_blocked_detail),
+                            getString(
+                                if (egressLeak) R.string.vcs_secure_browser_blocked_egress_leak
+                                else R.string.vcs_secure_browser_blocked_detail
+                            ),
                             retryRouterAttestation = true
                         )
                     )
@@ -1520,10 +1666,10 @@ class SecureBrowserActivity : AppCompatActivity() {
                 routerAttestationWatchFailures = 0
             }
             binding.vpnBlocker.visibility = View.GONE
-            binding.secureWebview.visibility = View.VISIBLE
+            activeWebView().visibility = View.VISIBLE
             val initialUrl = binding.urlInput.text?.toString().orEmpty()
             if (userInitiatedNavigation &&
-                (binding.secureWebview.url.isNullOrBlank() || binding.secureWebview.url == "about:blank")
+                (activeWebView().url.isNullOrBlank() || activeWebView().url == "about:blank")
             ) {
                 normalizeUrl(initialUrl)?.takeIf { isAllowedBrowserUrl(Uri.parse(it), isTopLevel = true) }?.let {
                     loadUrlWithPrivacyHeaders(it)
@@ -1535,9 +1681,14 @@ class SecureBrowserActivity : AppCompatActivity() {
             routerAttestationWatchJob = null
             routerAttestationWatchFailures = 0
             lockBrowser(showToast = !blocked)
-            binding.secureWebview.visibility = View.GONE
+            activeWebView().visibility = View.GONE
             binding.vpnBlocker.visibility = View.VISIBLE
-            binding.blockerDetail.text = protection.detail ?: getString(R.string.vcs_secure_browser_blocked_detail)
+            val detailText = protection.detail ?: getString(R.string.vcs_secure_browser_blocked_detail)
+            binding.blockerDetail.text = if (protection.retryRouterAttestation) {
+                getString(R.string.vcs_secure_browser_blocked_retrying, detailText)
+            } else {
+                detailText
+            }
             if (protection.retryRouterAttestation) {
                 startRouterAttestationRetry()
             } else {
@@ -1650,6 +1801,30 @@ class SecureBrowserActivity : AppCompatActivity() {
         }.getOrDefault(EgressIdentity(ip, "", ""))
     }
 
+    /**
+     * Defence-in-depth corroboration on top of a passed router attestation: the
+     * router's fail-closed firewall already forces client traffic through the
+     * VPN, but here we independently confirm that this device's public exit is
+     * actually a VPN address and not a leaked private/CGNAT/carrier route.
+     * Returns false on transient lookup failure so we never false-block.
+     */
+    private fun egressLeakDetected(): Boolean {
+        val identity = fetchEgressIdentity() ?: return false
+        return isEgressAddressPrivate(identity.ip)
+    }
+
+    private fun isEgressAddressPrivate(ip: String): Boolean {
+        val normalized = ip.trim().removePrefix("[").removeSuffix("]").lowercase()
+        return isPrivateIpv4(normalized) || isPrivateIpv6(normalized)
+    }
+
+    private fun shouldCorroborateEgress(): Boolean {
+        val now = System.currentTimeMillis()
+        if (now - lastEgressCorroborationAt < EGRESS_CORROBORATION_INTERVAL_MS) return false
+        lastEgressCorroborationAt = now
+        return true
+    }
+
     private fun isValidIpLiteral(value: String): Boolean {
         if (value.any { it.isWhitespace() || it == '/' || it == '?' || it == '#' }) return false
         val parts = value.split('.')
@@ -1692,19 +1867,23 @@ class SecureBrowserActivity : AppCompatActivity() {
         binding.pageProgress.visibility = View.GONE
         clearFindMatches()
         resetPageSecurityState(null)
-        binding.secureWebview.stopLoading()
-        binding.secureWebview.loadUrl("about:blank")
+        browserTabs.mapNotNull { it.webView }.forEach { webView ->
+            webView.stopLoading()
+            webView.loadUrl("about:blank")
+        }
     }
 
     private fun loadUrlWithPrivacyHeaders(url: String) {
-        binding.secureWebview.loadUrl(url, PRIVACY_REQUEST_HEADERS)
+        activeWebView().loadUrl(url, PRIVACY_REQUEST_HEADERS)
     }
 
     private fun clearEphemeralBrowserData() {
         if (!::binding.isInitialized) return
-        binding.secureWebview.clearHistory()
-        binding.secureWebview.clearCache(true)
-        binding.secureWebview.clearFormData()
+        browserTabs.mapNotNull { it.webView }.forEach { webView ->
+            webView.clearHistory()
+            webView.clearCache(true)
+            webView.clearFormData()
+        }
         WebStorage.getInstance().deleteAllData()
         CookieManager.getInstance().removeAllCookies(null)
         CookieManager.getInstance().flush()
@@ -1878,12 +2057,14 @@ class SecureBrowserActivity : AppCompatActivity() {
         private const val PREF_NAVIGATION_PAD_Y = "secure_browser_navigation_pad_y"
         private const val PREF_TEXT_ZOOM = "secure_browser_text_zoom"
         private const val PREF_DESKTOP_MODE = "secure_browser_desktop_mode"
+        private const val PREF_KEEP_SESSIONS_ON_LEAVE = "secure_browser_keep_sessions_on_leave"
         private const val TAG = "VirtuVPN/SecBrowser"
         private const val MIN_TEXT_ZOOM = 70
         private const val MAX_TEXT_ZOOM = 160
         private const val ROUTER_ATTESTATION_RETRY_MS = 2_000L
         private const val ROUTER_ATTESTATION_WATCH_MS = 3_000L
         private const val ROUTER_ATTESTATION_WATCH_MAX_TRANSIENT_FAILURES = 3
+        private const val EGRESS_CORROBORATION_INTERVAL_MS = 30_000L
         const val EXTRA_INITIAL_URL = "com.wireguard.android.extra.SECURE_BROWSER_INITIAL_URL"
         private const val GOOGLE_URL = "https://www.google.com/"
         private const val DESKTOP_USER_AGENT =

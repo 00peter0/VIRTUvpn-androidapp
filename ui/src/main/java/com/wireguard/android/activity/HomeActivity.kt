@@ -854,6 +854,10 @@ class HomeActivity : AppCompatActivity() {
                 binding.vpnRouterStatus.text = getString(R.string.vcs_vpn_router_on, tunnel, interfaces)
                 binding.vpnRouterStatus.setTextColor(Color.parseColor("#86EFAC"))
             }
+            VpnRouterManager.Availability.DEGRADED -> {
+                binding.vpnRouterStatus.text = status.detail ?: getString(R.string.vcs_vpn_router_degraded)
+                binding.vpnRouterStatus.setTextColor(Color.parseColor("#F87171"))
+            }
             VpnRouterManager.Availability.READY -> {
                 binding.vpnRouterStatus.text = getString(R.string.vcs_vpn_router_ready, tunnel, interfaces)
                 binding.vpnRouterStatus.setTextColor(Color.parseColor("#AFC0CC"))
@@ -898,7 +902,7 @@ class HomeActivity : AppCompatActivity() {
                 backend.isAlwaysOn && backend.isLockdownEnabled
             }.getOrDefault(false)
             val activeHotspot = hotspotActive || HotspotDetector.isWifiHotspotActive(this@HomeActivity)
-            if (activeHotspot && lastVpnRouterStatus?.availability == VpnRouterManager.Availability.ENABLED) {
+            if (activeHotspot && lastVpnRouterStatus?.routerActive == true) {
                 binding.killSwitchStatus.setText(
                     if (protected) {
                         R.string.vcs_hotspot_vpn_router_active
@@ -921,7 +925,7 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun updateOpenVpnSettingsButtonState(status: VpnRouterManager.Status? = lastVpnRouterStatus) {
-        val routerActive = status?.availability == VpnRouterManager.Availability.ENABLED
+        val routerActive = status?.routerActive == true
         val canOpenSettings = hasActiveVirtuTunnel && !routerActive
         binding.openVpnSettingsButton.setText(R.string.vcs_open_vpn_settings)
         binding.openVpnSettingsButton.isEnabled = canOpenSettings
@@ -931,7 +935,7 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun canOpenVpnSettings(): Boolean =
-        hasActiveVirtuTunnel && lastVpnRouterStatus?.availability != VpnRouterManager.Availability.ENABLED
+        hasActiveVirtuTunnel && lastVpnRouterStatus?.routerActive != true
 
     private fun openVpnSettings() {
         startActivity(Intent(Settings.ACTION_VPN_SETTINGS))

@@ -73,6 +73,11 @@ When enabled, the app installs root rules that:
 - allow the router phone's own internet traffic only through the VPN interface,
 - allow the active VPN provider UID, installed Android `VpnService` provider
   UIDs, or WireGuard fwmark to use the physical uplink for tunnel transport,
+- allow narrow router-phone bootstrap traffic needed by Android VPN providers:
+  selected Android connectivity/DNS system UIDs and plain DNS on TCP/UDP port
+  53. This is phone OUTPUT only, not hotspot FORWARD, and exists so providers
+  such as NordVPN can resolve and establish a new `tun` interface while router
+  mode is fail-closed,
 - reject other router-phone traffic on physical uplinks while router mode is on,
 - allow hotspot-to-VPN forwarding immediately,
 - allow established VPN return traffic to hotspot clients,
@@ -129,9 +134,23 @@ the error instead of silently leaving clients on a direct uplink.
 
 The router treats the active VPN interface as a candidate until it passes a
 health gate. After installing fail-closed rules for the candidate, the app checks
-internet through that exact interface with `ping -I <vpn-interface>`. The first
-check targets the selected router DNS resolver, then a short internet/DNS check
-confirms that the tunnel can actually carry traffic.
+internet through that exact interface with TCP/HTTPS probes using
+`curl --interface <vpn-interface>`. This is the primary health signal because
+some Samsung/Android builds reject `ping -I <tun>` with `SO_BINDTODEVICE:
+Operation not permitted` even when ordinary HTTPS traffic through the tunnel is
+working. ICMP probes against the selected router DNS resolver and public IPv4
+targets remain only as a fallback signal for environments where interface-bound
+ping works.
+
+The health gate has hysteresis because some VPN providers and exits
+intermittently drop ICMP even while ordinary traffic works:
+
+- an already-enabled router tolerates transient missed probes and requires 3
+  consecutive failed health cycles before moving to `DEGRADED`,
+- a degraded router requires 2 consecutive successful health cycles before it
+  returns to `ENABLED`,
+- fail-closed route/firewall rules remain installed during both directions, so
+  clients either keep the existing protected path or have no internet.
 
 If the candidate health check fails, hotspot clients remain protected by
 `20901 -> table 1048 -> unreachable default`. They do not fall back to Android's
@@ -152,6 +171,11 @@ Fallback rules:
   can be allowed through the phone OUTPUT lockdown, but VirtuVPN cannot reliably
   restart those apps because Android does not expose a universal third-party VPN
   control API.
+- If a third-party tunnel is down or still connecting, the router keeps hotspot
+  clients blocked by `20901` while allowing only the provider/bootstrap path on
+  the router phone. Without this phone-side bootstrap, Android may show the
+  router phone as offline and the third-party provider may be unable to create
+  the next `tun` interface.
 
 This means a provider switch is never allowed to degrade into direct mobile
 tethering. The best outcome is a healthy new tunnel, the second-best outcome is
@@ -191,22 +215,31 @@ The UI may show router protection as active only when the health check also sees
 the policy routes, fallback unreachable route, IPv4/IPv6 hooks, and fail-closed
 OUTPUT/FORWARD tails. Chain existence alone is not enough for an active status.
 Background, Home, and VPN Router page refresh paths all reconcile both
-`ENABLED` and degraded `ERROR` states so a fail-closed router can self-heal
-without requiring a manual toggle.
+`ENABLED` and `DEGRADED` states so a fail-closed router can self-heal without
+requiring a manual toggle.
+
+When the rules signature is unchanged and route/firewall verification passes,
+reconcile performs only the tunnel-health sample. It does not flush chains or
+rewrite policy routes. A single weak provider probe does not immediately drop
+the router to degraded; the failure counter must cross the hysteresis threshold.
+This avoids Secure Browser protection flapping on providers such as NordVPN
+where ICMP behavior can be less stable than real HTTPS traffic.
 
 This protects speed tests and large downloads from repeated route/firewall churn
 while keeping the router fail-closed model intact.
 
 Hotspot clients get internet only through the router VPN path after the route,
-firewall, DNS, IPv6, and tunnel-health checks pass. For safer browsing on the
-client device itself, install VirtuVPN on that device and use client-side
-protection. The VPN Router page shows a QR code that opens the router
-download/pairing landing page.
+firewall, DNS, IPv6, and tunnel-health checks pass. Router tests showed that
+device-local browser safety must not be assumed from WiFi association or normal
+browser privacy modes. For safe web browsing on a hotspot client, install
+VirtuVPN on that client and use VirtuVPN Secured Browser with router pairing.
+The VPN Router page shows a QR code that opens the router download/pairing
+landing page.
 
 Secure Browser has its own detailed design document:
 `docs/virtu-secure-browser.md`.
 
-When VPN Router is enabled, the router phone also exposes a local attestation
+When VPN Router is active, the router phone also exposes a local attestation
 endpoint on the hotspot gateway at
 `/virtuvpn-router/attestation` port `8788`. VirtuVPN Secure Browser on a hotspot
 client can use this nonce-bound signed response to verify that the current WiFi
@@ -217,7 +250,15 @@ offers manual actions only: install/update VirtuVPN, open/import the pair link
 through the VirtuVPN app, and copy the Secure Browser pair key. It must not
 perform hidden redirects, background tests, or browsing-content serving.
 
-The endpoint is inactive unless router protection is enabled. Router pairing is
+The endpoint is inactive unless router protection is active. When router status
+is `ENABLED`, attestation returns a signed `protected=true`. When router rules
+are still fail-closed but the tunnel is `DEGRADED`, attestation returns a signed
+`protected=false` with the router availability/detail. Secure Browser treats
+that as a verified router that is currently unsafe for browsing and keeps the
+WebView blocked with a router-degraded message. This distinction prevents false
+green status while still proving that the client is talking to the paired router.
+
+Router pairing is
 intentionally QR/in-app/manual-paste only. `virtuvpn://router-pair` and the
 trusted `https://vcs.virtucomputing.com/router/pair#id=...&secret=...` landing
 URL may open VirtuVPN, but the client app must always require explicit
@@ -249,6 +290,11 @@ Secure Browser is an ephemeral session: pause/destroy clears cookies, WebStorage
 cache, form data, and WebView history. It is not exported to other apps, and it
 blocks private-address subresources from public HTTPS pages to reduce DNS
 rebinding/LAN probing risk.
+When the user explicitly enables `Sessions On`, Secured Browser keeps in-memory
+tab WebViews while the app is left and reopened, but it re-verifies the
+VPN/router protection path before browsing continues. Turning `Sessions Off`
+destroys all tab sessions and returns the browser to the default ephemeral
+behavior.
 Secure Browser intentionally does not enable Android cleartext traffic. `http:`,
 `ws:`, and top-level `data:` URLs are blocked; private LAN administration over
 cleartext should use the separate Web Terminal flow. Android Safe Browsing stays
@@ -299,6 +345,22 @@ The active resolver is applied with hotspot-only DNAT rules for TCP/UDP port 53.
 When Copy DNS from tunnel is selected, VirtuVPN first tries the active
 Virtu/WireGuard tunnel config, then Android resolver properties, then falls back
 to Quad9 secure DNS if no tunnel resolver can be read.
+
+Real-state interpretation: `Copy DNS from tunnel` does not mean the router is
+using a fallback just because the installed resolver is Quad9. If the rule
+signature contains resolver IPs read from the active tunnel/provider, those are
+provider DNS values. For example:
+
+```text
+dns_mode=copy_tunnel
+last_rule_signature=tun0|swlan0|9.9.9.9,149.112.112.112|...
+VIRTUVPN_ROUTER_DNS -i swlan0 --dport 53 -j DNAT --to-destination 9.9.9.9
+```
+
+This means the active tunnel/provider supplied Quad9 (`9.9.9.9`,
+`149.112.112.112`) and the router applied the first provider resolver to hotspot
+clients. The Quad9 fallback is used only when `copy_tunnel` cannot read any
+usable IPv4 DNS resolver from the tunnel config or Android DNS state.
 
 The router also blocks DoT, DoQ, UDP/443 QUIC, and common DoH resolver endpoints
 so automatic and opportunistic encrypted DNS is pushed back to plaintext DNS on
@@ -403,6 +465,8 @@ The active router landing page must provide:
 - Open/import pair link in VirtuVPN when Android can resolve the app link.
 - Copy Secure Browser pair key.
 - Visible pair key text for manual copy if clipboard integration fails.
+- Clear instruction that safe web browsing on hotspot clients should be done in
+  VirtuVPN Secured Browser after pairing.
 
 It must not provide hidden redirects, background tests, browsing surfaces, or
 network diagnostics. The page is only for download and explicit manual pairing.
@@ -433,9 +497,12 @@ Pairing incident resolved in builds 744-747:
   parser originally accepted only `virtuvpn://router-pair`. The client now
   accepts both the app URI and the landing URL fragment format.
 
-Router VPN protects the hotspot network path. For safer browsing on the client
-device, download VirtuVPN to that device and use client-side protection there.
-The client app is the supported path for device-local browser protection.
+Router VPN protects the hotspot network path. For safe browsing on the client
+device, download VirtuVPN to that device, pair Secured Browser with the router,
+and browse through VirtuVPN Secured Browser. The client app is the supported
+path for device-local browser protection because it can verify router
+attestation and fail closed when the router tunnel is degraded or unreachable.
+Ordinary browsers must not be presented as equivalent protection.
 
 ## Reconcile
 
@@ -452,6 +519,9 @@ Reconcile also keeps router-only safety settings active:
 - disables known hotspot auto-timeout settings while router mode is on,
 - allows installed VPN provider UIDs to bootstrap tunnel transport while keeping
   ordinary phone output locked down,
+- allows minimal Android VPN bootstrap DNS/connectivity from the router phone so
+  a provider can recover from a dead tunnel without opening hotspot-client
+  mobile fallback,
 - health-checks the candidate VPN interface before treating router protection as
   complete,
 - attempts VirtuVPN-managed fallback when the candidate tunnel fails health,
@@ -532,6 +602,8 @@ Before using a new rooted Android device as a production router:
    - new client has internet through the router VPN path,
    - the Router page shows the VirtuVPN download/pairing QR,
    - the active router landing page provides install/update and copy pair key,
+   - the landing page tells clients to use VirtuVPN Secured Browser for safe
+     browsing through the router hotspot,
    - the page only provides install/update and pair-key copy actions,
    - the install/update link serves the current guest APK.
 5. Verify DNS behavior:

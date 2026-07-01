@@ -70,12 +70,13 @@ class VpnRouterService : Service() {
     private suspend fun reconcileOnce(): Boolean {
         VpnRouterAttestationServer.start(applicationContext)
         val initial = VpnRouterManager.getStatus(applicationContext)
-        val status = if (initial.needsReconcile) {
+        val status = if (initial.needsReconcile || initial.availability == VpnRouterManager.Availability.DEGRADED) {
             VpnRouterManager.reconcile(applicationContext)
         } else {
             initial
         }
-        if (status.availability == VpnRouterManager.Availability.ENABLED) {
+        if (status.availability == VpnRouterManager.Availability.ENABLED ||
+            status.availability == VpnRouterManager.Availability.DEGRADED) {
             VpnRouterAttestationServer.updateStatus(status)
             updateNotification(status)
             inactiveTicks = 0
@@ -90,7 +91,11 @@ class VpnRouterService : Service() {
         val tunnel = status.activeTunnel ?: getString(R.string.vcs_vpn_status_no_tunnel)
         val interfaces = status.tetherInterfaces.takeIf { it.isNotEmpty() }?.joinToString(", ")
             ?: getString(R.string.vcs_vpn_router_no_interfaces)
-        val text = getString(R.string.vcs_vpn_router_service_active_detail, tunnel, interfaces)
+        val text = if (status.availability == VpnRouterManager.Availability.DEGRADED) {
+            status.detail ?: getString(R.string.vcs_vpn_router_service_degraded)
+        } else {
+            getString(R.string.vcs_vpn_router_service_active_detail, tunnel, interfaces)
+        }
         val notification = buildNotification(text)
         getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification)
     }
@@ -143,7 +148,7 @@ class VpnRouterService : Service() {
         fun ensureForStatus(context: Context, status: VpnRouterManager.Status) {
             val appContext = context.applicationContext
             val intent = Intent(appContext, VpnRouterService::class.java)
-            if (status.needsReconcile) {
+            if (status.routerActive) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     appContext.startForegroundService(intent)
                 } else {

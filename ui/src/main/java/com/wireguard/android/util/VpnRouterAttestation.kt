@@ -43,7 +43,8 @@ object VpnRouterAttestation {
     private val NONCE_REGEX = Regex("^[A-Za-z0-9_-]{24,96}$")
 
     data class Result(
-        val routerId: String
+        val routerId: String,
+        val tunnel: String? = null
     )
 
     data class Pairing(
@@ -58,6 +59,7 @@ object VpnRouterAttestation {
         NO_WIFI_GATEWAY,
         UNREACHABLE,
         INVALID_RESPONSE,
+        ROUTER_DEGRADED,
         ROUTER_NOT_PAIRED,
         EXPIRED_PAIRING,
         CLOCK_SKEW,
@@ -88,7 +90,6 @@ object VpnRouterAttestation {
         if (json.optString("kind") != "vpn-router-attestation") return Verification(null, FailureReason.INVALID_RESPONSE)
         if (json.optString("alg") != ALG) return Verification(null, FailureReason.INVALID_RESPONSE)
         if (json.optString("nonce") != nonce) return Verification(null, FailureReason.INVALID_RESPONSE)
-        if (!json.optBoolean("protected", false)) return Verification(null, FailureReason.INVALID_RESPONSE)
         val routerId = json.optString("routerId").takeIf { it.isNotBlank() }
             ?: return Verification(null, FailureReason.INVALID_RESPONSE)
         val pairing = pairings.firstOrNull { it.routerId == routerId }
@@ -102,20 +103,41 @@ object VpnRouterAttestation {
             return Verification(null, FailureReason.CLOCK_SKEW)
         }
         val signature = json.optString("signature")
-        val payload = payload(routerId, nonce, timestamp, protected = true)
+        val protected = json.optBoolean("protected", false)
+        val payload = payload(routerId, nonce, timestamp, protected)
         if (!constantTimeEquals(signature, sign(payload, pairing.secret))) return Verification(null, FailureReason.BAD_SIGNATURE)
-        return Verification(Result(routerId))
+        if (!protected) return Verification(null, FailureReason.ROUTER_DEGRADED)
+        val tunnel = json.optString("tunnel").takeIf { it.isNotBlank() }
+        val verifiedTunnel = tunnel?.takeIf {
+            constantTimeEquals(json.optString("tunnelSignature"), sign(tunnelPayload(routerId, nonce, timestamp, it), pairing.secret))
+        }
+        return Verification(Result(routerId, verifiedTunnel))
     }
 
     fun responseJson(context: Context, nonce: String): String? {
         if (!NONCE_REGEX.matches(nonce)) return null
         val status = VpnRouterAttestationServer.cachedStatus(context.applicationContext) ?: return null
-        if (status.availability != VpnRouterManager.Availability.ENABLED) return null
         val timestamp = System.currentTimeMillis()
         val routerId = routerId(context.applicationContext)
         val secret = routerSecret(context.applicationContext)
+        if (status.availability != VpnRouterManager.Availability.ENABLED) {
+            val payload = payload(routerId, nonce, timestamp, protected = false)
+            return JSONObject()
+                .put("app", "VirtuVPN")
+                .put("kind", "vpn-router-attestation")
+                .put("version", 1)
+                .put("alg", ALG)
+                .put("routerId", routerId)
+                .put("nonce", nonce)
+                .put("timestamp", timestamp)
+                .put("protected", false)
+                .put("availability", status.availability.name)
+                .put("detail", status.detail ?: "")
+                .put("signature", sign(payload, secret))
+                .toString()
+        }
         val payload = payload(routerId, nonce, timestamp, protected = true)
-        return JSONObject()
+        val json = JSONObject()
             .put("app", "VirtuVPN")
             .put("kind", "vpn-router-attestation")
             .put("version", 1)
@@ -125,7 +147,14 @@ object VpnRouterAttestation {
             .put("timestamp", timestamp)
             .put("protected", true)
             .put("signature", sign(payload, secret))
-            .toString()
+        // Optional, separately-signed metadata for a richer client status.
+        // Older clients ignore it; the security gate above stays unchanged.
+        val tunnel = status.activeTunnel?.takeIf { it.isNotBlank() }
+        if (tunnel != null) {
+            json.put("tunnel", tunnel)
+                .put("tunnelSignature", sign(tunnelPayload(routerId, nonce, timestamp, tunnel), secret))
+        }
+        return json.toString()
     }
 
     fun pathMatches(path: String): Boolean = path == PATH
@@ -345,6 +374,9 @@ object VpnRouterAttestation {
 
     private fun payload(routerId: String, nonce: String, timestamp: Long, protected: Boolean): String =
         listOf("v2", routerId, nonce, timestamp.toString(), protected.toString()).joinToString("|")
+
+    private fun tunnelPayload(routerId: String, nonce: String, timestamp: Long, tunnel: String): String =
+        listOf("tunnel", routerId, nonce, timestamp.toString(), tunnel).joinToString("|")
 
     private fun sign(payload: String, secret: String): String {
         val mac = Mac.getInstance("HmacSHA256")
