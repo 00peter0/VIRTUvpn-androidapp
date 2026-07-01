@@ -343,11 +343,18 @@
                 android:layout_height="match_parent"
                 android:enabled="false">
 
-                <WebView
-                    android:id="@+id/secure_webview"
+                <FrameLayout
+                    android:id="@+id/browser_webview_host"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:visibility="gone" />
+                    android:layout_height="match_parent">
+
+                    <WebView
+                        android:id="@+id/secure_webview"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:visibility="gone" />
+
+                </FrameLayout>
 
             </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 

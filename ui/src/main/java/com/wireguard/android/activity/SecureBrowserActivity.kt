@@ -36,6 +36,7 @@ import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -101,7 +102,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     private lateinit var egressStatusButton: TextView
     private lateinit var sessionMemoryButton: TextView
     private var keepSessionsOnLeave = false
-    private val browserTabs = mutableListOf(BrowserTab())
+    private val browserTabs = mutableListOf<BrowserTab>()
     private var activeTabIndex = 0
     @Volatile
     private var blocked = true
@@ -169,11 +170,11 @@ class SecureBrowserActivity : AppCompatActivity() {
 
         configureActionBar()
 
-        browserTabs.add(BrowserTab(webView = binding.secureWebview))
-        configureWebView(binding.secureWebview)
+        restoreRetainedBrowserSession()
         configurePullToRefresh()
         configureBrowserTools()
         ensureInitialTab()
+        attachActiveWebView()
         renderBrowserTabs()
         renderQuickLinks()
         configureMovableNavigation()
@@ -305,6 +306,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         getPreferences(MODE_PRIVATE).edit().putBoolean(PREF_KEEP_SESSIONS_ON_LEAVE, keepSessionsOnLeave).apply()
         updateSessionMemoryButton()
         if (!keepSessionsOnLeave) {
+            clearRetainedBrowserSession()
             resetAllBrowserSessions()
             Toast.makeText(this, R.string.vcs_secure_browser_sessions_cleared, Toast.LENGTH_SHORT).show()
         }
@@ -325,6 +327,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun resetAllBrowserSessions() {
+        clearRetainedBrowserSession()
         browserTabs.mapNotNull { it.webView }.forEach { webView ->
             (webView.parent as? ViewGroup)?.removeView(webView)
             webView.stopLoading()
@@ -341,8 +344,8 @@ class SecureBrowserActivity : AppCompatActivity() {
         }
         browserTabs.add(BrowserTab(webView = freshWebView))
         activeTabIndex = 0
-        binding.browserRefresh.removeAllViews()
-        binding.browserRefresh.addView(freshWebView)
+        binding.browserWebviewHost.removeAllViews()
+        binding.browserWebviewHost.addView(freshWebView)
         configureWebView(freshWebView)
         binding.urlInput.setText("")
         clearFindMatches()
@@ -372,6 +375,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         unregisterVpnNetworkCallback()
         if (::binding.isInitialized) {
             if (keepSessionsOnLeave) {
+                saveActiveBrowserTab()
                 browserTabs.mapNotNull { it.webView }.forEach { it.onPause() }
             } else {
                 lockBrowser(showToast = false)
@@ -391,13 +395,17 @@ class SecureBrowserActivity : AppCompatActivity() {
         unregisterVpnNetworkCallback()
         unbindBrowserNetwork()
         if (::binding.isInitialized) {
-            browserTabs.mapNotNull { it.webView }.forEach { webView ->
-                webView.stopLoading()
-                webView.loadUrl("about:blank")
+            if (keepSessionsOnLeave) {
+                retainBrowserSession()
+            } else {
+                browserTabs.mapNotNull { it.webView }.forEach { webView ->
+                    webView.stopLoading()
+                    webView.loadUrl("about:blank")
+                }
+                clearEphemeralBrowserData()
+                browserTabs.mapNotNull { it.webView }.forEach { it.destroy() }
+                browserTabs.clear()
             }
-            clearEphemeralBrowserData()
-            browserTabs.mapNotNull { it.webView }.forEach { it.destroy() }
-            browserTabs.clear()
         }
         super.onDestroy()
     }
@@ -463,7 +471,7 @@ class SecureBrowserActivity : AppCompatActivity() {
                     return true
                 }
                 if (request.isForMainFrame) {
-                    loadUrlWithPrivacyHeaders(request.url.toString())
+                    view.loadUrl(request.url.toString(), PRIVACY_REQUEST_HEADERS)
                     return true
                 }
                 return false
@@ -482,23 +490,28 @@ class SecureBrowserActivity : AppCompatActivity() {
 
             override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
                 super.onPageStarted(view, url, favicon)
-                resetPageSecurityState(url)
-                binding.pageProgress.progress = 5
-                binding.pageProgress.visibility = View.VISIBLE
+                updateBrowserTabForWebView(view, url, title = null)
+                if (view == activeWebView()) {
+                    resetPageSecurityState(url)
+                    binding.pageProgress.progress = 5
+                    binding.pageProgress.visibility = View.VISIBLE
+                }
                 if (!documentStartWebRtcProtection) injectWebRtcProtection(view)
             }
 
             override fun onPageFinished(view: WebView, url: String?) {
                 super.onPageFinished(view, url)
-                binding.browserRefresh.isRefreshing = false
-                binding.pageProgress.visibility = View.GONE
                 if (!documentStartWebRtcProtection) injectWebRtcProtection(view)
                 if (!url.isNullOrBlank() && url != "about:blank") {
-                    updateActiveBrowserTab(url, view.title)
-                    binding.urlInput.setText(url)
+                    updateBrowserTabForWebView(view, url, view.title)
+                    if (view == activeWebView()) binding.urlInput.setText(url)
                 }
-                updateSecurityBadges(url)
-                updateNavigationButtons()
+                if (view == activeWebView()) {
+                    binding.browserRefresh.isRefreshing = false
+                    binding.pageProgress.visibility = View.GONE
+                    updateSecurityBadges(url)
+                    updateNavigationButtons()
+                }
             }
 
             override fun onReceivedHttpAuthRequest(view: WebView, handler: HttpAuthHandler, host: String, realm: String) {
@@ -644,6 +657,9 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun configurePullToRefresh() {
         binding.browserRefresh.setColorSchemeColors(getColor(android.R.color.holo_green_light))
+        binding.browserRefresh.setOnChildScrollUpCallback { _, _ ->
+            blocked || activeWebView().canScrollVertically(-1)
+        }
         binding.browserRefresh.setOnRefreshListener {
             if (blocked || activeWebView().url.isNullOrBlank() || activeWebView().url == "about:blank") {
                 binding.browserRefresh.isRefreshing = false
@@ -912,12 +928,18 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun openTypedUrl() {
         val url = normalizeUrl(binding.urlInput.text?.toString().orEmpty())
+        openUrlInActiveTab(url)
+    }
+
+    private fun openUrlInActiveTab(url: String?) {
         if (url == null) return
         val uri = Uri.parse(url)
         if (!isAllowedBrowserUrl(uri, isTopLevel = true)) {
             Toast.makeText(this, R.string.vcs_secure_browser_blocked_public_http, Toast.LENGTH_LONG).show()
             return
         }
+        val targetTabIndex = activeTabIndex
+        val targetWebView = activeWebView()
         lifecycleScope.launch {
             val protection = resolveBrowserProtection()
             if (!protection.allowed) {
@@ -925,10 +947,16 @@ class SecureBrowserActivity : AppCompatActivity() {
                 Toast.makeText(this@SecureBrowserActivity, R.string.vcs_secure_browser_stopped, Toast.LENGTH_LONG).show()
                 return@launch
             }
+            if (targetTabIndex !in browserTabs.indices) return@launch
+            activeTabIndex = targetTabIndex
+            browserTabs[targetTabIndex].webView = targetWebView
+            attachActiveWebView()
+            binding.urlInput.setText(url)
             setBrowserProtection(protection)
             userInitiatedNavigation = true
             updateActiveBrowserTab(url, title = null)
-            loadUrlWithPrivacyHeaders(url)
+            targetWebView.stopLoading()
+            targetWebView.loadUrl(url, PRIVACY_REQUEST_HEADERS)
             updateNavigationButtons()
         }
     }
@@ -1091,6 +1119,49 @@ class SecureBrowserActivity : AppCompatActivity() {
         activeTabIndex = activeTabIndex.coerceIn(browserTabs.indices)
     }
 
+    private fun restoreRetainedBrowserSession() {
+        if (!keepSessionsOnLeave || retainedBrowserTabs.isEmpty()) {
+            browserTabs.add(BrowserTab(webView = binding.secureWebview))
+            configureWebView(binding.secureWebview)
+            return
+        }
+        (binding.secureWebview.parent as? ViewGroup)?.removeView(binding.secureWebview)
+        binding.secureWebview.destroy()
+        browserTabs.clear()
+        browserTabs.addAll(retainedBrowserTabs)
+        activeTabIndex = retainedActiveTabIndex.coerceIn(browserTabs.indices)
+        retainedBrowserTabs = emptyList()
+        retainedActiveTabIndex = 0
+        browserTabs.mapNotNull { it.webView }.forEach { webView ->
+            (webView.parent as? ViewGroup)?.removeView(webView)
+            webView.visibility = View.GONE
+            configureWebView(webView)
+        }
+    }
+
+    private fun retainBrowserSession() {
+        saveActiveBrowserTab()
+        browserTabs.mapNotNull { it.webView }.forEach { webView ->
+            webView.onPause()
+            webView.visibility = View.GONE
+            (webView.parent as? ViewGroup)?.removeView(webView)
+        }
+        retainedBrowserTabs = browserTabs.toList()
+        retainedActiveTabIndex = activeTabIndex
+        browserTabs.clear()
+    }
+
+    private fun clearRetainedBrowserSession() {
+        retainedBrowserTabs.mapNotNull { it.webView }.forEach { webView ->
+            (webView.parent as? ViewGroup)?.removeView(webView)
+            webView.stopLoading()
+            webView.loadUrl("about:blank")
+            webView.destroy()
+        }
+        retainedBrowserTabs = emptyList()
+        retainedActiveTabIndex = 0
+    }
+
     private fun activeWebView(): WebView {
         ensureInitialTab()
         return browserTabs[activeTabIndex].webView ?: newTabWebView().also {
@@ -1100,7 +1171,7 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun newTabWebView(): WebView {
         return WebView(this).apply {
-            layoutParams = ViewGroup.LayoutParams(
+            layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
@@ -1111,14 +1182,23 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun attachActiveWebView() {
         val webView = activeWebView()
-        if (webView.parent == binding.browserRefresh) {
-            webView.visibility = if (blocked) View.GONE else View.VISIBLE
-            return
+        browserTabs.mapNotNull { it.webView }.forEach { tabWebView ->
+            if (tabWebView != webView) tabWebView.visibility = View.GONE
         }
-        binding.browserRefresh.removeAllViews()
-        (webView.parent as? ViewGroup)?.removeView(webView)
-        binding.browserRefresh.addView(webView)
+        if (webView.parent != binding.browserWebviewHost) {
+            (webView.parent as? ViewGroup)?.removeView(webView)
+            binding.browserWebviewHost.addView(
+                webView,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            )
+        }
         webView.visibility = if (blocked) View.GONE else View.VISIBLE
+        webView.bringToFront()
+        binding.browserWebviewHost.requestLayout()
+        binding.browserWebviewHost.invalidate()
     }
 
     private fun renderBrowserTabs() {
@@ -1289,6 +1369,13 @@ class SecureBrowserActivity : AppCompatActivity() {
         renderBrowserTabs()
     }
 
+    private fun updateBrowserTabForWebView(webView: WebView, url: String?, title: String?) {
+        val tab = browserTabs.firstOrNull { it.webView == webView } ?: return
+        if (!url.isNullOrBlank() && url != "about:blank") tab.url = url
+        if (!title.isNullOrBlank() && title != "about:blank") tab.title = title
+        renderBrowserTabs()
+    }
+
     private fun quickLinkButton(label: String, url: String): View {
         return LinearLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(
@@ -1308,8 +1395,7 @@ class SecureBrowserActivity : AppCompatActivity() {
             minimumWidth = dp(96)
             setPadding(dp(14), 0, dp(6), 0)
             setOnClickListener {
-                binding.urlInput.setText(url)
-                openTypedUrl()
+                openUrlInActiveTab(normalizeUrl(url))
             }
             setOnLongClickListener {
                 confirmDeleteBookmark(url)
@@ -2098,6 +2184,8 @@ class SecureBrowserActivity : AppCompatActivity() {
             "Sec-GPC" to "1"
         )
         private val DEFAULT_BOOKMARKS = listOf(GOOGLE_URL)
+        private var retainedBrowserTabs: List<BrowserTab> = emptyList()
+        private var retainedActiveTabIndex = 0
         private const val WEBRTC_PROTECTION_SCRIPT = """
             (function() {
               if (window.__virtuvpnWebRtcProtection) return;
