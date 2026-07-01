@@ -62,6 +62,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import org.json.JSONArray
@@ -103,6 +105,11 @@ class SecureBrowserActivity : AppCompatActivity() {
     private var activeTabIndex = 0
     @Volatile
     private var blocked = true
+    // Serializes protection evaluation so the periodic attestation watch and
+    // event-driven resolveBrowserProtection never run concurrently and stomp
+    // each other's network binding (root cause of the block/unblock flapping
+    // over a router hotspot).
+    private val protectionMutex = Mutex()
 
     private val pairRouterResultLauncher = registerForActivityResult(ScanContract()) { result ->
         val qrCode = result.contents ?: return@registerForActivityResult
@@ -1433,21 +1440,25 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private suspend fun resolveBrowserProtection(): BrowserProtection = withContext(Dispatchers.IO) {
+        protectionMutex.withLock { resolveBrowserProtectionLocked() }
+    }
+
+    private suspend fun resolveBrowserProtectionLocked(): BrowserProtection {
         if (bindToVpnNetwork()) {
-            return@withContext BrowserProtection(true, vpnProtectionLabel(), source = ProtectionSource.VPN)
+            return BrowserProtection(true, vpnProtectionLabel(), source = ProtectionSource.VPN)
         }
         unbindBrowserNetwork()
         val routerStatus = runCatching { VpnRouterManager.getStatus(this@SecureBrowserActivity) }.getOrNull()
         if (routerStatus?.availability == VpnRouterManager.Availability.ENABLED) {
             val tunnel = routerStatus.activeTunnel ?: getString(R.string.vcs_vpn_status_no_tunnel)
-            return@withContext BrowserProtection(
+            return BrowserProtection(
                 true,
                 getString(R.string.vcs_secure_browser_egress_router, tunnel),
                 source = ProtectionSource.LOCAL_ROUTER
             )
         }
         if (!bindToWifiNetwork()) {
-            return@withContext BrowserProtection(
+            return BrowserProtection(
                 false,
                 getString(R.string.vcs_secure_browser_egress_blocked),
                 retryRouterAttestation = VpnRouterAttestation.pairedRouters(this@SecureBrowserActivity).isNotEmpty()
@@ -1459,7 +1470,7 @@ class SecureBrowserActivity : AppCompatActivity() {
             val attestedLabel = attestation.result.tunnel
                 ?.let { getString(R.string.vcs_secure_browser_egress_router_attested_via, it) }
                 ?: getString(R.string.vcs_secure_browser_egress_router_attested)
-            return@withContext BrowserProtection(
+            return BrowserProtection(
                 true,
                 attestedLabel,
                 source = ProtectionSource.ATTESTED_ROUTER
@@ -1468,7 +1479,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         Log.i(TAG, "VPN Router attestation failed: ${attestation?.failureReason ?: "exception"}")
         unbindBrowserNetwork()
         val detail = attestationFailureDetail(attestation?.failureReason)
-        BrowserProtection(
+        return BrowserProtection(
             false,
             getString(R.string.vcs_secure_browser_egress_blocked),
             detail,
@@ -1592,26 +1603,34 @@ class SecureBrowserActivity : AppCompatActivity() {
                 }
                 var egressLeak = false
                 val stillProtected = withContext(Dispatchers.IO) {
-                    if (!ensureBoundNetworkStillProtected()) return@withContext false
-                    val verification = runCatching {
-                        VpnRouterAttestation.verifyFromCurrentGatewayDetailed(this@SecureBrowserActivity)
-                    }.getOrNull()
-                    if (verification?.result != null) {
-                        if (shouldCorroborateEgress() && egressLeakDetected()) {
-                            egressLeak = true
-                            return@withContext false
+                    protectionMutex.withLock {
+                        val verification = runCatching {
+                            VpnRouterAttestation.verifyFromCurrentGatewayDetailed(this@SecureBrowserActivity)
+                        }.getOrNull()
+                        if (verification?.result != null) {
+                            if (shouldCorroborateEgress() && egressLeakDetected()) {
+                                egressLeak = true
+                                return@withLock false
+                            }
+                            routerAttestationWatchFailures = 0
+                            return@withLock true
                         }
-                        routerAttestationWatchFailures = 0
-                        return@withContext true
-                    }
-                    when (verification?.failureReason) {
-                        VpnRouterAttestation.FailureReason.UNREACHABLE,
-                        VpnRouterAttestation.FailureReason.NO_WIFI_GATEWAY,
-                        null -> {
-                            routerAttestationWatchFailures++
-                            routerAttestationWatchFailures < ROUTER_ATTESTATION_WATCH_MAX_TRANSIENT_FAILURES
+                        // Only block immediately on authoritative negatives (router
+                        // signed protected=false, bad/absent pairing). Network-ish
+                        // blips (unreachable, malformed/transient response, missing
+                        // gateway, clock skew) are tolerated for a few cycles so a
+                        // single hiccup does not flap the browser. Genuine network
+                        // loss is handled by the onLost NetworkCallback.
+                        when (verification?.failureReason) {
+                            VpnRouterAttestation.FailureReason.ROUTER_DEGRADED,
+                            VpnRouterAttestation.FailureReason.BAD_SIGNATURE,
+                            VpnRouterAttestation.FailureReason.ROUTER_NOT_PAIRED,
+                            VpnRouterAttestation.FailureReason.EXPIRED_PAIRING -> false
+                            else -> {
+                                routerAttestationWatchFailures++
+                                routerAttestationWatchFailures < ROUTER_ATTESTATION_WATCH_MAX_TRANSIENT_FAILURES
+                            }
                         }
-                        else -> false
                     }
                 }
                 if (!stillProtected) {
