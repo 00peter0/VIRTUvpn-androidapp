@@ -149,6 +149,7 @@ object VcsManagedClient {
     private const val KEY_LAST_UPDATE_PROMPT = "last_update_prompt"
     private const val KEY_LAST_UPDATE_URL = "last_update_url"
     private const val TIMEOUT_MS = 15_000
+    private val deviceSessionRefreshLock = Any()
 
     data class SyncResult(
         val imported: Int,
@@ -982,8 +983,20 @@ object VcsManagedClient {
             DeviceJsonResponse(requestJson(method, url, body, session.token), session)
         } catch (e: MobileHttpException) {
             if (e.status != HttpURLConnection.HTTP_UNAUTHORIZED) throw e
-            val refreshed = restoreManagedSessionFromAccount(context) ?: throw e
+            val refreshed = refreshDeviceSessionAfterUnauthorized(context, session, e)
             DeviceJsonResponse(requestJson(method, url, body, refreshed.token), refreshed)
+        }
+    }
+
+    private fun refreshDeviceSessionAfterUnauthorized(context: Context, failedSession: Session, cause: MobileHttpException): Session {
+        return synchronized(deviceSessionRefreshLock) {
+            val stored = loadSession(context)
+            if (stored != null && stored.apiBase == failedSession.apiBase && stored.token != failedSession.token) {
+                return@synchronized stored
+            }
+            val refreshed = restoreManagedSessionFromAccount(context) ?: throw cause
+            if (refreshed.apiBase != failedSession.apiBase) throw cause
+            refreshed
         }
     }
 

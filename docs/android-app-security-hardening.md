@@ -416,6 +416,10 @@ Implemented:
   imported/config ack, command ack, and state reporting.
 - Account login, enrollment complete, and account-session restore remain
   outside this retry path to avoid recursive refresh loops.
+- Refresh is process-local single-flight: concurrent 401 handlers serialize on a
+  refresh lock and compare the failed token with the currently stored token.
+  If another request already refreshed the session, the waiting request reuses
+  that stored token instead of issuing another refresh.
 
 Remaining:
 - VCS App currently stores managed-device tokens as `MobileDevice.tokenHash`
