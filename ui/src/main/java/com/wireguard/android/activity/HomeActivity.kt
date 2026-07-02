@@ -81,7 +81,7 @@ class HomeActivity : AppCompatActivity() {
         }
 
         binding.vpnMeshButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_VPN_MESH) }
-        binding.secureBrowserButton.setOnClickListener { if (requireSignedInForHome()) startActivity(Intent(this, SecureBrowserActivity::class.java)) }
+        binding.secureBrowserButton.setOnClickListener { startActivity(Intent(this, SecureBrowserActivity::class.java)) }
         binding.managedAccessButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_MANAGED_ACCESS) }
         binding.enrollButton.setOnClickListener { showEnrollDialog() }
         binding.syncButton.setOnClickListener { syncManagedAccess() }
@@ -420,9 +420,32 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun enrollFromText(value: String) {
+        val request = try {
+            VcsManagedClient.parseEnrollmentPayloadForConfirmation(value)
+        } catch (e: Throwable) {
+            Toast.makeText(this, getString(R.string.vcs_enroll_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
+            updateSignedInState()
+            return
+        }
+        confirmEnrollment(request)
+    }
+
+    private fun confirmEnrollment(request: VcsManagedClient.EnrollmentRequest) {
+        VcsDialogs.show(
+            context = this,
+            title = getString(R.string.vcs_enroll_confirm_title),
+            message = getString(R.string.vcs_enroll_confirm_message, request.host),
+            negative = VcsDialogs.action(this, android.R.string.cancel),
+            positive = VcsDialogs.action(this, R.string.vcs_enroll_submit, primary = true) {
+                completeEnrollment(request)
+            }
+        )
+    }
+
+    private fun completeEnrollment(request: VcsManagedClient.EnrollmentRequest) {
         lifecycleScope.launch {
             try {
-                val result = VcsManagedClient.handleEnrollmentPayload(this@HomeActivity, value)
+                val result = VcsManagedClient.completeEnrollmentRequest(this@HomeActivity, request)
                 Toast.makeText(this@HomeActivity, enrollResultMessage(result), Toast.LENGTH_LONG).show()
             } catch (e: Throwable) {
                 Toast.makeText(this@HomeActivity, getString(R.string.vcs_enroll_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
@@ -527,9 +550,9 @@ class HomeActivity : AppCompatActivity() {
         val enrolled = VcsManagedClient.hasSession(this)
         listOf(
             binding.vpnMeshButton,
-            binding.managedAccessButton,
-            binding.secureBrowserButton
+            binding.managedAccessButton
         ).forEach { setProtectedButtonState(it, signedIn) }
+        setProtectedButtonState(binding.secureBrowserButton, true)
         listOf(
             binding.syncButton,
             binding.checkUpdatesButton

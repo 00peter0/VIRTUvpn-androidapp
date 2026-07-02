@@ -99,8 +99,7 @@ class TunnelListFragment : BaseFragment() {
                     }
                 } else if (qrCode.contains("vcs_android_enrollment") || qrCode.startsWith("virtuvpn://enroll")) {
                     try {
-                        val result = VcsManagedClient.handleEnrollmentPayload(activity, qrCode)
-                        showSnackbar(enrollResultMessage(result))
+                        confirmEnrollment(VcsManagedClient.parseEnrollmentPayloadForConfirmation(qrCode))
                     } catch (e: Throwable) {
                         showSnackbar(getString(R.string.vcs_enroll_error, e.message ?: e.javaClass.simpleName))
                     }
@@ -119,6 +118,24 @@ class TunnelListFragment : BaseFragment() {
             .setPositiveButton(R.string.vcs_secure_browser_router_pair_action) { _, _ ->
                 VpnRouterAttestation.importPairing(requireContext(), pairing)
                 showSnackbar(getString(R.string.vcs_secure_browser_router_pair_success))
+            }
+            .show()
+    }
+
+    private fun confirmEnrollment(request: VcsManagedClient.EnrollmentRequest) {
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.vcs_enroll_confirm_title)
+            .setMessage(getString(R.string.vcs_enroll_confirm_message, request.host))
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.vcs_enroll_submit) { _, _ ->
+                viewLifecycleOwner.lifecycleScope.launch {
+                    try {
+                        val result = VcsManagedClient.completeEnrollmentRequest(requireContext(), request)
+                        showSnackbar(enrollResultMessage(result))
+                    } catch (e: Throwable) {
+                        showSnackbar(getString(R.string.vcs_enroll_error, e.message ?: e.javaClass.simpleName))
+                    }
+                }
             }
             .show()
     }

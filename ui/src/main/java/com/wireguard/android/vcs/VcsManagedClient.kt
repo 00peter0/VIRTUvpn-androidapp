@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Environment
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import com.wireguard.android.Application
 import com.wireguard.android.BuildConfig
 import com.wireguard.android.R
@@ -30,6 +31,7 @@ import java.util.Locale
 object VcsManagedClient {
     private const val PREFS = "vcs_managed_client"
     private const val DEFAULT_API_BASE = "https://vcs.virtucomputing.com"
+    private const val TRUSTED_ENROLLMENT_HOST = "vcs.virtucomputing.com"
     private const val KEY_ACCOUNT_API_BASE = "account_api_base"
     private const val KEY_ACCOUNT_ACCESS_TOKEN = "account_access_token"
     private const val KEY_ACCOUNT_EXPIRES_AT = "account_expires_at"
@@ -59,6 +61,7 @@ object VcsManagedClient {
     data class UpdateCheck(val available: Boolean, val versionName: String?)
     data class UpdateDownloadStart(val downloadId: Long, val fileName: String)
     data class SessionInfo(val apiBase: String, val deviceId: String?)
+    data class EnrollmentRequest(val apiBaseUrl: String, val enrollmentToken: String, val host: String)
     data class AccountInfo(
         val apiBase: String,
         val email: String?,
@@ -132,17 +135,28 @@ object VcsManagedClient {
         if (uri == null) return false
         val scheme = uri.scheme?.lowercase(Locale.US)
         return scheme == "virtuvpn" && uri.host == "enroll" ||
-            (scheme == "https" || scheme == "http") && uri.path == "/api/mobile/android/enroll/open"
+            scheme == "https" && uri.path == "/api/mobile/android/enroll/open"
     }
 
     suspend fun handleEnrollmentPayload(context: Context, payload: String): EnrollResult = withContext(Dispatchers.IO) {
-        val parsed = parseEnrollmentPayload(payload)
-        completeEnrollment(context, parsed.apiBaseUrl, parsed.enrollmentToken)
+        completeEnrollment(context, parseEnrollmentPayloadForConfirmation(payload))
     }
 
     suspend fun handleEnrollmentUri(context: Context, uri: Uri): EnrollResult? = withContext(Dispatchers.IO) {
-        val parsed = parseEnrollmentUri(uri) ?: return@withContext null
-        completeEnrollment(context, parsed.apiBaseUrl, parsed.enrollmentToken)
+        val parsed = parseEnrollmentUriForConfirmation(uri) ?: return@withContext null
+        completeEnrollment(context, parsed)
+    }
+
+    fun parseEnrollmentPayloadForConfirmation(payload: String): EnrollmentRequest {
+        return validateEnrollmentPayload(parseEnrollmentPayload(payload))
+    }
+
+    fun parseEnrollmentUriForConfirmation(uri: Uri): EnrollmentRequest? {
+        return validateEnrollmentPayload(parseEnrollmentUri(uri) ?: return null)
+    }
+
+    suspend fun completeEnrollmentRequest(context: Context, request: EnrollmentRequest): EnrollResult = withContext(Dispatchers.IO) {
+        completeEnrollment(context, request)
     }
 
     suspend fun syncManagedTunnels(context: Context): SyncResult = withContext(Dispatchers.IO) {
@@ -702,19 +716,19 @@ object VcsManagedClient {
         return applied
     }
 
-    private fun completeEnrollment(context: Context, apiBaseUrl: String, enrollmentToken: String): EnrollResult {
+    private fun completeEnrollment(context: Context, request: EnrollmentRequest): EnrollResult {
         val body = deviceRegistrationBody()
-            .put("enrollmentToken", enrollmentToken)
+            .put("enrollmentToken", request.enrollmentToken)
             .put("devicePublicKey", JSONObject.NULL)
-        val response = requestJson("POST", "${apiBaseUrl.trimEnd('/')}/api/mobile/android/enroll/complete", body, null)
+        val response = requestJson("POST", "${request.apiBaseUrl}/api/mobile/android/enroll/complete", body, null)
         val device = response.getJSONObject("device")
-        storeManagedDeviceSession(context, apiBaseUrl.trimEnd('/'), response.getString("accessToken"), device.getString("id"))
+        storeManagedDeviceSession(context, request.apiBaseUrl, response.getString("accessToken"), device.getString("id"))
         return EnrollResult(device.optString("deviceName").ifBlank { null })
     }
 
     private fun parseEnrollmentPayload(payload: String): EnrollmentPayload {
         val trimmed = payload.trim()
-        if (trimmed.startsWith("virtuvpn://") || trimmed.startsWith("https://") || trimmed.startsWith("http://")) {
+        if (trimmed.startsWith("virtuvpn://") || trimmed.startsWith("https://")) {
             val uri = Uri.parse(trimmed)
             return parseEnrollmentUri(uri) ?: error("Enrollment link is not supported")
         }
@@ -730,12 +744,25 @@ object VcsManagedClient {
                 uri.getQueryParameter("token") ?: error("Enrollment link is missing token"),
             )
         }
-        if ((uri.scheme == "https" || uri.scheme == "http") && uri.path == "/api/mobile/android/enroll/open") {
+        if (uri.scheme == "https" && uri.path == "/api/mobile/android/enroll/open") {
             val token = uri.getQueryParameter("token") ?: error("Enrollment link is missing token")
             val apiBaseUrl = "${uri.scheme}://${uri.authority}"
             return EnrollmentPayload(apiBaseUrl, token)
         }
         return null
+    }
+
+    private fun validateEnrollmentPayload(payload: EnrollmentPayload): EnrollmentRequest {
+        val normalized = normalizeApiBase(payload.apiBaseUrl)
+        val uri = normalized.toUri()
+        val scheme = uri.scheme?.lowercase(Locale.US)
+        val host = uri.host?.lowercase(Locale.US) ?: error("Enrollment server is missing host")
+        if (scheme != "https") error("Enrollment server must use HTTPS")
+        if (host != TRUSTED_ENROLLMENT_HOST) error("Enrollment server is not trusted: $host")
+        val path = uri.encodedPath.orEmpty()
+        if (path.isNotBlank()) error("Enrollment server must not include a path")
+        if (payload.enrollmentToken.isBlank()) error("Enrollment link is missing token")
+        return EnrollmentRequest("https://$host", payload.enrollmentToken, host)
     }
 
     private fun requestJson(method: String, url: String, body: JSONObject?, bearerToken: String?): JSONObject {

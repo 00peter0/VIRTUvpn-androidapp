@@ -246,4 +246,6 @@
     <string name="biometric_prompt_private_key_title">Authentifizieren, um privaten Schlüssel anzuzeigen</string>
     <string name="biometric_auth_error">Authentifizierungsfehler</string>
     <string name="biometric_auth_error_reason">Authentifizierungsfehler: %s</string>
+    <string name="vcs_enroll_confirm_title">Dieses Gerät registrieren?</string>
+    <string name="vcs_enroll_confirm_message">Dieses Gerät beim VCS-Server %1$s registrieren? Fahre nur fort, wenn dies deine VirtuComputing VCS App ist.</string>
 </resources>

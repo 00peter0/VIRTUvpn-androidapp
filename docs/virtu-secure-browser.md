@@ -309,6 +309,13 @@ the client device can also run when it verifies the local router attestation fro
 the current WiFi gateway. The VPN Router page provides a download/pairing QR for
 clients that want local Secure Browser protection.
 
+The Android Home screen allows opening Secured Browser even when the user is not
+signed in to VCS. This guest path is only for browser protection on client
+devices. VPN Mesh, Managed Access, sync, update, and other managed functions
+remain behind VCS sign-in or enrollment. Opening the browser without sign-in does
+not bypass the no-leak gate: pages stay blocked until the device has a local VPN,
+a verified VPN Router hotspot, or local router protection.
+
 When Secure Browser is blocked because no local VPN or verified router is
 available, the blocker screen shows `Pair with VPN Router`. That action opens
 the QR scanner so a hotspot client can scan the pairing QR shown on the router

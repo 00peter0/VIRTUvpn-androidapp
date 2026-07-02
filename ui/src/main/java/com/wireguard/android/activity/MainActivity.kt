@@ -142,17 +142,37 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
             return
         }
         if (!VcsManagedClient.isEnrollmentUri(uri)) return
-        enrollmentIntentPending = true
-        lifecycleScope.launch {
-            try {
-                val result = VcsManagedClient.handleEnrollmentUri(this@MainActivity, uri) ?: return@launch
-                Toast.makeText(this@MainActivity, enrollResultMessage(result), Toast.LENGTH_LONG).show()
-            } catch (e: Throwable) {
-                Toast.makeText(this@MainActivity, getString(R.string.vcs_enroll_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
-            } finally {
-                finishEnrollmentFlow()
-            }
+        val request = try {
+            VcsManagedClient.parseEnrollmentUriForConfirmation(uri)
+        } catch (e: Throwable) {
+            Toast.makeText(this, getString(R.string.vcs_enroll_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
+            finishEnrollmentFlow()
+            return
         }
+        if (request == null) return
+        enrollmentIntentPending = true
+        confirmEnrollment(request)
+    }
+
+    private fun confirmEnrollment(request: VcsManagedClient.EnrollmentRequest) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.vcs_enroll_confirm_title)
+            .setMessage(getString(R.string.vcs_enroll_confirm_message, request.host))
+            .setNegativeButton(android.R.string.cancel) { _, _ -> finishEnrollmentFlow() }
+            .setPositiveButton(R.string.vcs_enroll_submit) { _, _ ->
+                lifecycleScope.launch {
+                    try {
+                        val result = VcsManagedClient.completeEnrollmentRequest(this@MainActivity, request)
+                        Toast.makeText(this@MainActivity, enrollResultMessage(result), Toast.LENGTH_LONG).show()
+                    } catch (e: Throwable) {
+                        Toast.makeText(this@MainActivity, getString(R.string.vcs_enroll_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
+                    } finally {
+                        finishEnrollmentFlow()
+                    }
+                }
+            }
+            .setOnCancelListener { finishEnrollmentFlow() }
+            .show()
     }
 
     private fun confirmRouterPairing(pairing: VpnRouterAttestation.Pairing) {
