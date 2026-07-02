@@ -105,6 +105,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     private var documentStartWebRtcProtection = false
     private var userInitiatedNavigation = false
     private var desktopMode = false
+    private var thirdPartyCookiesEnabled = true
     private var textZoom = 100
     private var findMatches = 0
     private var findActiveMatch = 0
@@ -441,7 +442,8 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun configureWebView(webView: WebView) {
-        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
+        thirdPartyCookiesEnabled = getPreferences(MODE_PRIVATE).getBoolean(PREF_THIRD_PARTY_COOKIES, true)
+        applyThirdPartyCookiePolicy(webView)
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -599,6 +601,10 @@ class SecureBrowserActivity : AppCompatActivity() {
         container.addView(featureActionButton(binding.desktopModeButton.text.toString()) {
             toggleDesktopMode()
             (it as? TextView)?.text = binding.desktopModeButton.text
+        })
+        container.addView(featureActionButton(thirdPartyCookiesLabel()) {
+            toggleThirdPartyCookies()
+            (it as? TextView)?.text = thirdPartyCookiesLabel()
         })
         container.addView(featureInfo(binding.httpsBadge.text.toString(), binding.httpsBadge.currentTextColor))
         container.addView(featureInfo(binding.trackerBadge.text.toString(), binding.trackerBadge.currentTextColor))
@@ -789,6 +795,25 @@ class SecureBrowserActivity : AppCompatActivity() {
             if (desktopMode) R.string.vcs_secure_browser_desktop_on else R.string.vcs_secure_browser_desktop_off
         )
         binding.desktopModeButton.alpha = if (desktopMode) 1f else 0.72f
+    }
+
+    private fun toggleThirdPartyCookies() {
+        thirdPartyCookiesEnabled = !thirdPartyCookiesEnabled
+        getPreferences(MODE_PRIVATE).edit().putBoolean(PREF_THIRD_PARTY_COOKIES, thirdPartyCookiesEnabled).apply()
+        browserTabs.mapNotNull { it.webView }.forEach(::applyThirdPartyCookiePolicy)
+    }
+
+    private fun thirdPartyCookiesLabel(): String =
+        getString(
+            if (thirdPartyCookiesEnabled) {
+                R.string.vcs_secure_browser_third_party_cookies_on
+            } else {
+                R.string.vcs_secure_browser_third_party_cookies_off
+            }
+        )
+
+    private fun applyThirdPartyCookiePolicy(webView: WebView) {
+        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, thirdPartyCookiesEnabled)
     }
 
     private fun showLinkMenuFromHitTest(): Boolean {
@@ -2208,6 +2233,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         private const val PREF_TEXT_ZOOM = "secure_browser_text_zoom"
         private const val PREF_DESKTOP_MODE = "secure_browser_desktop_mode"
         private const val PREF_KEEP_SESSIONS_ON_LEAVE = "secure_browser_keep_sessions_on_leave"
+        private const val PREF_THIRD_PARTY_COOKIES = "secure_browser_third_party_cookies"
         private const val TAG = "VirtuVPN/SecBrowser"
         private const val MIN_TEXT_ZOOM = 70
         private const val MAX_TEXT_ZOOM = 160

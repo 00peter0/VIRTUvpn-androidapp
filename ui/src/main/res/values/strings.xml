@@ -297,6 +297,8 @@
     <string name="vcs_secure_browser_desktop_on">Desktop on</string>
     <string name="vcs_secure_browser_desktop_off">Desktop off</string>
     <string name="vcs_secure_browser_desktop_mode_description">Toggle desktop mode</string>
+    <string name="vcs_secure_browser_third_party_cookies_on">Third-party cookies on</string>
+    <string name="vcs_secure_browser_third_party_cookies_off">Third-party cookies off</string>
     <string name="vcs_secure_browser_link">Link</string>
     <string name="vcs_secure_browser_link_open">Open link</string>
     <string name="vcs_secure_browser_link_copy">Copy link</string>

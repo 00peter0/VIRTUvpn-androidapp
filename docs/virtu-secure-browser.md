@@ -152,6 +152,8 @@ Secure Browser WebView settings:
 - third-party cookies are enabled because Cloudflare/Turnstile and similar
   challenge flows commonly rely on cross-origin challenge storage; browser state
   is still cleared by the ephemeral/session controls,
+- third-party cookies can be turned off from the Features menu for stricter
+  privacy testing; some challenge-protected sites may stop working when disabled,
 - file and content access are disabled,
 - file-to-file and file-to-network access are disabled,
 - mixed content is blocked,
@@ -389,7 +391,8 @@ order:
   the VPN.
 - Third-party cookies are enabled for challenge compatibility. In `Sessions Off`
   mode they are cleared when leaving the browser; in `Sessions On` mode they
-  persist until session memory is disabled or the browser state is cleared.
+  persist until session memory is disabled or the browser state is cleared. The
+  Features menu can disable them per browser session preference.
 - Secure Browser cookie cleanup is process-global and may sign out other in-app
   WebView features such as Web Terminal.
 - Host-based tracker blocking is best-effort and does not replace a full
@@ -437,3 +440,5 @@ For every Secure Browser release:
   browser lock,
 - verify find-in-page, text zoom, desktop mode, and long-press link actions work
   without bypassing URL policy.
+- verify the Features third-party cookie toggle applies to existing tabs and
+  persists across browser restarts.
