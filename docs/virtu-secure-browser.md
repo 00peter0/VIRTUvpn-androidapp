@@ -206,10 +206,14 @@ Preferred path:
 - `WebViewCompat.addDocumentStartJavaScript(...)` installs the protection before
   page scripts run.
 
-Fallback:
+Strict requirement:
 
-- runtime JavaScript injection in `onPageStarted` and `onPageFinished` for older
-  WebView providers that do not support document-start scripts.
+- if the device WebView provider does not support document-start JavaScript,
+  Secured Browser stays blocked and instructs the user to update Android System
+  WebView, Google Chrome, or the Android system image on that device.
+- this requirement applies to the device running Secured Browser: a hotspot
+  client must update the client device WebView; the router phone must update its
+  own WebView only when Secured Browser runs on the router phone itself.
 
 VPN binding is still the primary network protection. WebRTC blocking is
 defense-in-depth for local IP privacy.
@@ -357,8 +361,9 @@ order:
   WebView features such as Web Terminal.
 - Host-based tracker blocking is best-effort and does not replace a full
   extension-grade content blocker.
-- WebRTC protection depends on WebView behavior; document-start injection is the
-  preferred path, with runtime injection as compatibility fallback.
+- WebRTC protection requires document-start injection. Devices with older
+  WebView providers remain blocked until Android System WebView, Google Chrome,
+  or the Android system image is updated.
 - A malicious website may still fingerprint browser/device characteristics not
   controlled by this feature.
 

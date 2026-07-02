@@ -520,12 +520,10 @@ class SecureBrowserActivity : AppCompatActivity() {
                     binding.pageProgress.progress = 5
                     binding.pageProgress.visibility = View.VISIBLE
                 }
-                if (!documentStartWebRtcProtection) injectWebRtcProtection(view)
             }
 
             override fun onPageFinished(view: WebView, url: String?) {
                 super.onPageFinished(view, url)
-                if (!documentStartWebRtcProtection) injectWebRtcProtection(view)
                 if (!url.isNullOrBlank() && url != "about:blank") {
                     updateBrowserTabForWebView(view, url, view.title)
                     if (view == activeWebView()) binding.urlInput.setText(url)
@@ -1554,6 +1552,14 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private suspend fun resolveBrowserProtectionLocked(): BrowserProtection {
+        if (!documentStartWebRtcProtection) {
+            unbindBrowserNetwork()
+            return BrowserProtection(
+                false,
+                getString(R.string.vcs_secure_browser_egress_blocked),
+                getString(R.string.vcs_secure_browser_blocked_webview_update)
+            )
+        }
         if (bindToVpnNetwork()) {
             return BrowserProtection(true, vpnProtectionLabel(), source = ProtectionSource.VPN)
         }
@@ -2064,11 +2070,6 @@ class SecureBrowserActivity : AppCompatActivity() {
         } else {
             false
         }
-    }
-
-    private fun injectWebRtcProtection(webView: WebView) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) return
-        webView.evaluateJavascript(WEBRTC_PROTECTION_SCRIPT, null)
     }
 
     private fun bindToVpnNetwork(): Boolean {
