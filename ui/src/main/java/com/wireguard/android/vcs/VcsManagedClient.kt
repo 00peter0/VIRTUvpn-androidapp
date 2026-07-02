@@ -138,15 +138,6 @@ object VcsManagedClient {
             scheme == "https" && uri.path == "/api/mobile/android/enroll/open"
     }
 
-    suspend fun handleEnrollmentPayload(context: Context, payload: String): EnrollResult = withContext(Dispatchers.IO) {
-        completeEnrollment(context, parseEnrollmentPayloadForConfirmation(payload))
-    }
-
-    suspend fun handleEnrollmentUri(context: Context, uri: Uri): EnrollResult? = withContext(Dispatchers.IO) {
-        val parsed = parseEnrollmentUriForConfirmation(uri) ?: return@withContext null
-        completeEnrollment(context, parsed)
-    }
-
     fun parseEnrollmentPayloadForConfirmation(payload: String): EnrollmentRequest {
         return validateEnrollmentPayload(parseEnrollmentPayload(payload))
     }
