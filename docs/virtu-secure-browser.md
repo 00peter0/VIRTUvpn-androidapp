@@ -149,11 +149,13 @@ ready state.
 Secure Browser WebView settings:
 
 - JavaScript is enabled because modern websites require it,
-- third-party cookies are enabled because Cloudflare/Turnstile and similar
-  challenge flows commonly rely on cross-origin challenge storage; browser state
-  is still cleared by the ephemeral/session controls,
-- third-party cookies can be turned off from the Features menu for stricter
-  privacy testing; some challenge-protected sites may stop working when disabled,
+- cookies are enabled because Cloudflare/Turnstile and similar challenge flows
+  commonly rely on cookie/storage state; browser state is still cleared by the
+  ephemeral/session controls,
+- cookies can be turned off from the Features menu for stricter privacy testing;
+  disabling cookies also clears current browser cookies/storage/cache so test
+  pages immediately see the stricter mode. Some challenge-protected sites may
+  stop working when disabled,
 - file and content access are disabled,
 - file-to-file and file-to-network access are disabled,
 - mixed content is blocked,
@@ -389,10 +391,11 @@ order:
   security control.
 - Android Safe Browsing may contact Google Safe Browsing infrastructure through
   the VPN.
-- Third-party cookies are enabled for challenge compatibility. In `Sessions Off`
-  mode they are cleared when leaving the browser; in `Sessions On` mode they
-  persist until session memory is disabled or the browser state is cleared. The
-  Features menu can disable them per browser session preference.
+- Cookies are enabled for challenge compatibility. In `Sessions Off` mode they
+  are cleared when leaving the browser; in `Sessions On` mode they persist until
+  session memory is disabled or the browser state is cleared. The Features menu
+  can disable cookies globally for the Secured Browser WebView and clears browser
+  state when switching cookies off.
 - Secure Browser cookie cleanup is process-global and may sign out other in-app
   WebView features such as Web Terminal.
 - Host-based tracker blocking is best-effort and does not replace a full
@@ -440,5 +443,5 @@ For every Secure Browser release:
   browser lock,
 - verify find-in-page, text zoom, desktop mode, and long-press link actions work
   without bypassing URL policy.
-- verify the Features third-party cookie toggle applies to existing tabs and
-  persists across browser restarts.
+- verify the Features cookie toggle applies to existing tabs, persists across
+  browser restarts, and clears cookie/storage state when switched off.

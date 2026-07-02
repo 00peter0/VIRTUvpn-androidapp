@@ -105,7 +105,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     private var documentStartWebRtcProtection = false
     private var userInitiatedNavigation = false
     private var desktopMode = false
-    private var thirdPartyCookiesEnabled = true
+    private var browserCookiesEnabled = true
     private var textZoom = 100
     private var findMatches = 0
     private var findActiveMatch = 0
@@ -442,8 +442,8 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun configureWebView(webView: WebView) {
-        thirdPartyCookiesEnabled = getPreferences(MODE_PRIVATE).getBoolean(PREF_THIRD_PARTY_COOKIES, true)
-        applyThirdPartyCookiePolicy(webView)
+        browserCookiesEnabled = getPreferences(MODE_PRIVATE).getBoolean(PREF_BROWSER_COOKIES, true)
+        applyCookiePolicy(webView)
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -602,9 +602,9 @@ class SecureBrowserActivity : AppCompatActivity() {
             toggleDesktopMode()
             (it as? TextView)?.text = binding.desktopModeButton.text
         })
-        container.addView(featureActionButton(thirdPartyCookiesLabel()) {
-            toggleThirdPartyCookies()
-            (it as? TextView)?.text = thirdPartyCookiesLabel()
+        container.addView(featureActionButton(browserCookiesLabel()) {
+            toggleBrowserCookies()
+            (it as? TextView)?.text = browserCookiesLabel()
         })
         container.addView(featureInfo(binding.httpsBadge.text.toString(), binding.httpsBadge.currentTextColor))
         container.addView(featureInfo(binding.trackerBadge.text.toString(), binding.trackerBadge.currentTextColor))
@@ -797,23 +797,28 @@ class SecureBrowserActivity : AppCompatActivity() {
         binding.desktopModeButton.alpha = if (desktopMode) 1f else 0.72f
     }
 
-    private fun toggleThirdPartyCookies() {
-        thirdPartyCookiesEnabled = !thirdPartyCookiesEnabled
-        getPreferences(MODE_PRIVATE).edit().putBoolean(PREF_THIRD_PARTY_COOKIES, thirdPartyCookiesEnabled).apply()
-        browserTabs.mapNotNull { it.webView }.forEach(::applyThirdPartyCookiePolicy)
+    private fun toggleBrowserCookies() {
+        browserCookiesEnabled = !browserCookiesEnabled
+        getPreferences(MODE_PRIVATE).edit().putBoolean(PREF_BROWSER_COOKIES, browserCookiesEnabled).apply()
+        browserTabs.mapNotNull { it.webView }.forEach(::applyCookiePolicy)
+        if (!browserCookiesEnabled) {
+            clearEphemeralBrowserData()
+        }
     }
 
-    private fun thirdPartyCookiesLabel(): String =
+    private fun browserCookiesLabel(): String =
         getString(
-            if (thirdPartyCookiesEnabled) {
-                R.string.vcs_secure_browser_third_party_cookies_on
+            if (browserCookiesEnabled) {
+                R.string.vcs_secure_browser_cookies_on
             } else {
-                R.string.vcs_secure_browser_third_party_cookies_off
+                R.string.vcs_secure_browser_cookies_off
             }
         )
 
-    private fun applyThirdPartyCookiePolicy(webView: WebView) {
-        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, thirdPartyCookiesEnabled)
+    private fun applyCookiePolicy(webView: WebView) {
+        CookieManager.getInstance().setAcceptCookie(browserCookiesEnabled)
+        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, browserCookiesEnabled)
+        CookieManager.getInstance().flush()
     }
 
     private fun showLinkMenuFromHitTest(): Boolean {
@@ -2233,7 +2238,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         private const val PREF_TEXT_ZOOM = "secure_browser_text_zoom"
         private const val PREF_DESKTOP_MODE = "secure_browser_desktop_mode"
         private const val PREF_KEEP_SESSIONS_ON_LEAVE = "secure_browser_keep_sessions_on_leave"
-        private const val PREF_THIRD_PARTY_COOKIES = "secure_browser_third_party_cookies"
+        private const val PREF_BROWSER_COOKIES = "secure_browser_cookies"
         private const val TAG = "VirtuVPN/SecBrowser"
         private const val MIN_TEXT_ZOOM = 70
         private const val MAX_TEXT_ZOOM = 160
