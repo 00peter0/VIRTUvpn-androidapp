@@ -389,8 +389,8 @@ Possibly if assignment error should be reported back to VCS App.
 
 ## R2 - Device token 401 does not restore from account session
 
-Status: Client refresh-on-401 implemented. Server-side device token TTL remains
-pending.
+Status: Client refresh-on-401, single-flight, and device refresh-token fallback
+implemented. Short access-token TTL enforcement remains pending.
 
 Risk:
 If the managed device token expires, calls fail even when account session can
@@ -420,16 +420,30 @@ Implemented:
   refresh lock and compare the failed token with the currently stored token.
   If another request already refreshed the session, the waiting request reuses
   that stored token instead of issuing another refresh.
+- Newer clients store `deviceRefreshToken` from login/account-restore and
+  enrollment responses through the same encrypted secret storage used for access
+  tokens.
+- On HTTP 401 the refresh order is account-first, then device-refresh-token
+  fallback. Account-bound devices keep using account restore as the preferred
+  path; enrollment-only devices can recover through
+  `grantType=device_refresh_token` without a signed-in account.
+- Device refresh tokens are treated as managed-device secrets: clear-session and
+  keystore failure cleanup remove them together with the managed access token.
 
 Remaining:
-- VCS App currently stores managed-device tokens as `MobileDevice.tokenHash`
-  without a dedicated expiry field. True short-lived device tokens require a
-  server-side TTL/revocation design before the client can preemptively refresh
-  on expiry.
+- VCS App R2-server A provides refresh-token infrastructure, but access-token
+  expiry is still nullable and not enforced for legacy compatibility. Short
+  access-token TTL must be gated by an Android version known to store and use
+  `deviceRefreshToken`.
+- Current server refresh tokens are stable/non-sliding for 90 days. For
+  enrollment-only fleet devices, expiry means a new enrollment is required
+  unless a future server policy adds sliding refresh-token renewal.
 
 Outside-Android impact:
-No Android-side dependency on a new endpoint. Server-side TTL would need a
-separate VCS App schema/API change.
+Short access-token TTL and any sliding refresh-token policy are VCS App server
+changes. Keep the client invariant account-first: account restore may replace
+the stored refresh token, so device-refresh-token fallback is not the preferred
+path for signed-in devices.
 
 ## R3 - Corrupt JSON preferences can crash sync/startup paths
 

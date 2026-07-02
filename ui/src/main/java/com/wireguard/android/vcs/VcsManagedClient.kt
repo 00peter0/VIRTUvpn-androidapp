@@ -142,6 +142,7 @@ object VcsManagedClient {
     private const val KEY_EXTERNAL_VPN_MESH_TUNNELS = "external_vpn_mesh_tunnels"
     private const val KEY_API_BASE = "api_base"
     private const val KEY_ACCESS_TOKEN = "access_token"
+    private const val KEY_DEVICE_REFRESH_TOKEN = "device_refresh_token"
     private const val KEY_DEVICE_ID = "device_id"
     private const val KEY_ASSIGNMENTS = "assignments"
     private const val KEY_PENDING_BUNDLE_ASSIGNMENTS = "pending_bundle_assignments"
@@ -221,6 +222,7 @@ object VcsManagedClient {
             edit {
                 remove(KEY_ACCOUNT_ACCESS_TOKEN)
                 remove(KEY_ACCESS_TOKEN)
+                remove(KEY_DEVICE_REFRESH_TOKEN)
             }
         }
     }
@@ -271,6 +273,7 @@ object VcsManagedClient {
         managedPrefs(context).edit {
             remove(KEY_API_BASE)
             remove(KEY_ACCESS_TOKEN)
+            remove(KEY_DEVICE_REFRESH_TOKEN)
             remove(KEY_DEVICE_ID)
             remove(KEY_ASSIGNMENTS)
             remove(KEY_PENDING_BUNDLE_ASSIGNMENTS)
@@ -912,7 +915,7 @@ object VcsManagedClient {
             .put("devicePublicKey", JSONObject.NULL)
         val response = requestJson("POST", "${request.apiBaseUrl}/api/mobile/android/enroll/complete", body, null)
         val device = response.getJSONObject("device")
-        storeManagedDeviceSession(context, request.apiBaseUrl, response.getString("accessToken"), device.getString("id"))
+        storeManagedDeviceSessionFromResponse(context, request.apiBaseUrl, response)
         return EnrollResult(device.optString("deviceName").ifBlank { null })
     }
 
@@ -994,15 +997,24 @@ object VcsManagedClient {
             if (stored != null && stored.apiBase == failedSession.apiBase && stored.token != failedSession.token) {
                 return@synchronized stored
             }
-            val refreshed = restoreManagedSessionFromAccount(context) ?: throw cause
+            val refreshed = restoreManagedSessionForUnauthorized(context) ?: throw cause
             if (refreshed.apiBase != failedSession.apiBase) throw cause
             refreshed
         }
     }
 
+    private fun restoreManagedSessionForUnauthorized(context: Context): Session? {
+        val accountRefreshed = try {
+            restoreManagedSessionFromAccount(context)
+        } catch (e: MobileHttpException) {
+            if (e.status == HttpURLConnection.HTTP_UNAUTHORIZED) null else throw e
+        }
+        return accountRefreshed ?: restoreManagedSessionFromDeviceRefreshToken(context)
+    }
+
     private fun requireSession(context: Context): Session =
         loadSession(context)
-            ?: restoreManagedSessionFromAccount(context)
+            ?: restoreManagedSessionForUnauthorized(context)
             ?: error("Sign in to VCS to use Virtu VPN.")
 
     private fun deviceRegistrationBody(): JSONObject {
@@ -1086,20 +1098,41 @@ object VcsManagedClient {
         return storeManagedDeviceSessionFromResponse(context, account.apiBase, response)
     }
 
+    private fun restoreManagedSessionFromDeviceRefreshToken(context: Context): Session? {
+        val prefs = managedPrefs(context)
+        val apiBase = prefs.getString(KEY_API_BASE, null) ?: return null
+        val refreshToken = prefs.getSecretString(KEY_DEVICE_REFRESH_TOKEN) ?: return null
+        val body = deviceRegistrationBody()
+            .put("grantType", "device_refresh_token")
+            .put("deviceRefreshToken", refreshToken)
+        val response = try {
+            requestJson("POST", "$apiBase/api/mobile/android/auth/device", body, null)
+        } catch (e: MobileHttpException) {
+            if (e.status == HttpURLConnection.HTTP_UNAUTHORIZED) {
+                clearSession(context)
+                return null
+            }
+            throw e
+        }
+        return storeManagedDeviceSessionFromResponse(context, apiBase, response)
+    }
+
     private fun storeManagedDeviceSessionFromResponse(context: Context, apiBase: String, response: JSONObject): Session? {
         val accessToken = response.optString("deviceAccessToken").takeIf { it.isNotBlank() }
             ?: response.optString("accessToken").takeIf { it.isNotBlank() }
             ?: return null
+        val refreshToken = response.optString("deviceRefreshToken").takeIf { it.isNotBlank() }
         val deviceId = response.optJSONObject("device")?.optString("id")?.takeIf { it.isNotBlank() }
-        storeManagedDeviceSession(context, apiBase, accessToken, deviceId)
+        storeManagedDeviceSession(context, apiBase, accessToken, refreshToken, deviceId)
         return Session(apiBase, accessToken, deviceId)
     }
 
-    private fun storeManagedDeviceSession(context: Context, apiBase: String, accessToken: String, deviceId: String?) {
+    private fun storeManagedDeviceSession(context: Context, apiBase: String, accessToken: String, refreshToken: String?, deviceId: String?) {
         val prefs = managedPrefs(context)
         prefs.edit {
             putString(KEY_API_BASE, apiBase.trimEnd('/'))
             prefs.putSecretString(this, KEY_ACCESS_TOKEN, accessToken)
+            if (refreshToken != null) prefs.putSecretString(this, KEY_DEVICE_REFRESH_TOKEN, refreshToken)
             putString(KEY_DEVICE_ID, deviceId)
         }
     }
