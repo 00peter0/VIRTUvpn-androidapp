@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.VpnService
 import android.util.Log
+import androidx.core.content.edit
 import com.wireguard.android.Application
 import com.wireguard.android.VpnRouterService
 import com.wireguard.android.backend.Tunnel
@@ -256,6 +257,7 @@ object VpnRouterManager {
                 detail = e.message ?: "root required"
             )
         }
+        pruneMissingStoredTunnelReferences(context)
 
         val runningTunnel = readVpnInterfaces().firstOrNull()
         val allUpInterfaces = readUpInterfaces()
@@ -776,6 +778,7 @@ object VpnRouterManager {
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .remove(KEY_LAST_RULE_SIGNATURE)
+            .remove(KEY_LAST_VIRTU_TUNNEL)
             .remove(KEY_DEGRADED_TUNNEL)
             .remove(KEY_DEGRADED_DETAIL)
             .remove(KEY_HEALTH_FAILURES)
@@ -1034,20 +1037,47 @@ object VpnRouterManager {
     }
 
     private suspend fun tryVirtuFallback(context: Context, failedTunnel: String): Boolean {
-        val fallbackName = context.applicationContext
-            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val fallbackName = prefs
             .getString(KEY_LAST_VIRTU_TUNNEL, null)
             ?.takeIf { name -> name.isNotBlank() }
             ?: return false
         setOperation(context, OperationStage.FALLING_BACK, "New tunnel $failedTunnel failed health check; restoring Virtu tunnel $fallbackName")
         return runCatching {
             val tunnels = Application.getTunnelManager().getTunnels()
-            val fallback = tunnels[fallbackName] ?: return false
+            val fallback = tunnels[fallbackName] ?: run {
+                prefs.edit { remove(KEY_LAST_VIRTU_TUNNEL) }
+                return false
+            }
             val state = fallback.setStateAsync(Tunnel.State.UP)
             state == Tunnel.State.UP
         }.onFailure { e ->
             Log.w(TAG, "Unable to restore Virtu VPN router fallback tunnel $fallbackName", e)
         }.getOrDefault(false)
+    }
+
+    private suspend fun pruneMissingStoredTunnelReferences(context: Context) {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val configuredTunnelNames = runCatching {
+            Application.getTunnelManager().getTunnels().map { tunnel -> tunnel.name }.toSet()
+        }.getOrDefault(emptySet())
+        val editor = prefs.edit()
+        var changed = false
+        val lastVirtuTunnel = prefs.getString(KEY_LAST_VIRTU_TUNNEL, null)
+        if (!lastVirtuTunnel.isNullOrBlank() && lastVirtuTunnel !in configuredTunnelNames) {
+            editor.remove(KEY_LAST_VIRTU_TUNNEL)
+            changed = true
+        }
+        val degradedTunnel = prefs.getString(KEY_DEGRADED_TUNNEL, null)
+        if (!degradedTunnel.isNullOrBlank() && configuredTunnelNames.none { name -> name == degradedTunnel }) {
+            editor
+                .remove(KEY_DEGRADED_TUNNEL)
+                .remove(KEY_DEGRADED_DETAIL)
+                .remove(KEY_HEALTH_FAILURES)
+                .remove(KEY_HEALTH_SUCCESSES)
+            changed = true
+        }
+        if (changed) editor.apply()
     }
 
     private fun checkTunnelHealth(tunnel: String, dnsResolver: String): Boolean {
