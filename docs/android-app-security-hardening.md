@@ -371,7 +371,8 @@ Possibly if assignment error should be reported back to VCS App.
 
 ## R2 - Device token 401 does not restore from account session
 
-Status: Needs discussion before implementation.
+Status: Client refresh-on-401 implemented. Server-side device token TTL remains
+pending.
 
 Risk:
 If the managed device token expires, calls fail even when account session can
@@ -387,8 +388,26 @@ Preferred direction:
 - Retry the original request once.
 - Avoid infinite retry loops.
 
+Implemented:
+- Device-token API calls now use a refresh-aware request path.
+- On HTTP 401 from a managed-device request, Android calls the existing
+  `POST /api/mobile/android/auth/device` endpoint with the account token,
+  stores the returned managed-device token, and retries the original request
+  once.
+- Covered flows include sync, update check, heartbeat, tunnel provision,
+  imported/config ack, command ack, and state reporting.
+- Account login, enrollment complete, and account-session restore remain
+  outside this retry path to avoid recursive refresh loops.
+
+Remaining:
+- VCS App currently stores managed-device tokens as `MobileDevice.tokenHash`
+  without a dedicated expiry field. True short-lived device tokens require a
+  server-side TTL/revocation design before the client can preemptively refresh
+  on expiry.
+
 Outside-Android impact:
-No expected server change unless API error format needs refinement.
+No Android-side dependency on a new endpoint. Server-side TTL would need a
+separate VCS App schema/API change.
 
 ## R3 - Corrupt JSON preferences can crash sync/startup paths
 

@@ -172,6 +172,8 @@ object VcsManagedClient {
     )
     private data class ImportResult(val localTunnelName: String, val applied: Boolean, val current: Boolean)
     private data class ValidatedUpdateUrl(val value: String)
+    private data class DeviceJsonResponse(val json: JSONObject, val session: Session)
+    private class MobileHttpException(val status: Int, override val message: String) : IllegalStateException(message)
     private data class AccountSession(
         val apiBase: String,
         val token: String,
@@ -296,9 +298,11 @@ object VcsManagedClient {
     }
 
     suspend fun syncManagedTunnels(context: Context): SyncResult = withContext(Dispatchers.IO) {
-        val session = requireSession(context)
+        var session = requireSession(context)
         val syncUrl = "${session.apiBase}/api/mobile/android/sync?appVersion=${urlEncode(BuildConfig.VERSION_NAME)}&appVersionCode=${BuildConfig.VERSION_CODE}&androidVersion=${urlEncode(Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString())}"
-        val sync = requestJson("GET", syncUrl, null, session.token)
+        val syncResponse = requestDeviceJson(context, session, "GET", syncUrl, null)
+        session = syncResponse.session
+        val sync = syncResponse.json
         val updateVersionName = rememberUpdateAvailable(context, session.apiBase, sync.optJSONObject("update"))
         val assignments = sync.optJSONArray("assignments") ?: JSONArray()
         val bundleAssignments = sync.optJSONArray("bundleAssignments") ?: JSONArray()
@@ -330,7 +334,7 @@ object VcsManagedClient {
                 assignment.put("localTunnelName", localTunnelName)
             }
             if (bundleImport.current) {
-                ackManagedBundleImport(session, bundle, localTunnelName)
+                session = ackManagedBundleImport(context, session, bundle, localTunnelName)
             }
             if (bundleImport.applied) imported += 1
             if (!bundleImport.current) skippedRunning += 1
@@ -340,7 +344,9 @@ object VcsManagedClient {
             if (assignment.optString("status") != "ACTIVE" && assignment.optString("status") != "REISSUE_REQUIRED") continue
             if (assignment.optString("kind") != "VPN_ROUTE" && assignment.optString("kind") != "AGENT_GATEWAY_PROFILE") continue
             val assignmentId = assignment.getString("id")
-            val provision = requestJson("POST", "${session.apiBase}/api/mobile/android/tunnels/$assignmentId/provision", JSONObject(), session.token)
+            val provisionResponse = requestDeviceJson(context, session, "POST", "${session.apiBase}/api/mobile/android/tunnels/$assignmentId/provision", JSONObject())
+            session = provisionResponse.session
+            val provision = provisionResponse.json
             val configImport = importManagedConfig(context, session, provision)
             val localTunnelName = configImport.localTunnelName
             assignment.put("localTunnelName", localTunnelName)
@@ -409,14 +415,15 @@ object VcsManagedClient {
     suspend fun checkForManagedUpdate(context: Context): UpdateCheck = withContext(Dispatchers.IO) {
         val session = requireSession(context)
         val updateUrl = "${session.apiBase}/api/mobile/android/update?appVersion=${urlEncode(BuildConfig.VERSION_NAME)}&appVersionCode=${BuildConfig.VERSION_CODE}&androidVersion=${urlEncode(Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString())}"
-        val update = requestJson("GET", updateUrl, null, session.token)
-        val latestVersion = rememberUpdateAvailable(context, session.apiBase, update)
+        val updateResponse = requestDeviceJson(context, session, "GET", updateUrl, null)
+        val latestVersion = rememberUpdateAvailable(context, updateResponse.session.apiBase, updateResponse.json)
         UpdateCheck(latestVersion != null, latestVersion)
     }
 
     suspend fun reportDeviceHeartbeat(context: Context) = withContext(Dispatchers.IO) {
         val session = requireSession(context)
-        requestJson("POST", "${session.apiBase}/api/mobile/android/device/heartbeat", deviceRegistrationBody(), session.token)
+        requestDeviceJson(context, session, "POST", "${session.apiBase}/api/mobile/android/device/heartbeat", deviceRegistrationBody())
+        Unit
     }
 
     fun localTunnelNamesForSection(context: Context, section: String?): Set<String> {
@@ -653,7 +660,7 @@ object VcsManagedClient {
     private fun urlEncode(value: String): String = java.net.URLEncoder.encode(value, StandardCharsets.UTF_8.name())
 
     suspend fun reportCurrentStates(context: Context) = withContext(Dispatchers.IO) {
-        val session = loadSession(context) ?: restoreManagedSessionFromAccount(context) ?: return@withContext
+        var session = loadSession(context) ?: restoreManagedSessionFromAccount(context) ?: return@withContext
         val assignments = loadAssignments(context)
         val tunnels = Application.getTunnelManager().getTunnels()
         for (i in 0 until assignments.length()) {
@@ -671,7 +678,7 @@ object VcsManagedClient {
                 .put("metadata", metadataWithPendingActivation(context, tunnel.name, tunnel.state))
             if (latestHandshakeAt != null) body.put("latestHandshakeAt", Instant.ofEpochMilli(latestHandshakeAt).toString())
             runCatching {
-                requestJson("POST", "${session.apiBase}/api/mobile/android/tunnels/${assignment.getString("id")}/state", body, session.token)
+                session = requestDeviceJson(context, session, "POST", "${session.apiBase}/api/mobile/android/tunnels/${assignment.getString("id")}/state", body).session
             }
         }
     }
@@ -685,7 +692,7 @@ object VcsManagedClient {
     ) = withContext(Dispatchers.IO) {
         val metadata = activationMetadata(tunnelName, requestedState, actualState, error)
         storePendingActivation(context, tunnelName, metadata)
-        val session = loadSession(context) ?: restoreManagedSessionFromAccount(context) ?: return@withContext
+        var session = loadSession(context) ?: restoreManagedSessionFromAccount(context) ?: return@withContext
         val assignments = assignmentsForLocalTunnel(context, tunnelName)
         if (assignments.isEmpty()) return@withContext
         val tunnels = Application.getTunnelManager().getTunnels()
@@ -704,7 +711,7 @@ object VcsManagedClient {
         if (latestHandshakeAt != null) body.put("latestHandshakeAt", Instant.ofEpochMilli(latestHandshakeAt).toString())
         for (assignment in assignments) {
             runCatching {
-                requestJson("POST", "${session.apiBase}/api/mobile/android/tunnels/${assignment.getString("id")}/state", body, session.token)
+                session = requestDeviceJson(context, session, "POST", "${session.apiBase}/api/mobile/android/tunnels/${assignment.getString("id")}/state", body).session
             }
         }
     }
@@ -716,6 +723,7 @@ object VcsManagedClient {
         assignments: JSONArray,
         bundleLocalTunnelName: String?
     ) {
+        var activeSession = session
         for (i in 0 until commands.length()) {
             val command = commands.getJSONObject(i)
             val commandId = command.getString("id")
@@ -741,9 +749,9 @@ object VcsManagedClient {
                     result.put("localTunnelName", localTunnelName)
                 }
                 if (action == "report_state") reportCurrentStates(context)
-                ackCommand(session, commandId, result.put("ok", true))
+                activeSession = ackCommand(context, activeSession, commandId, result.put("ok", true))
             } catch (e: Throwable) {
-                ackCommand(session, commandId, result.put("ok", false).put("error", e.message ?: e.javaClass.simpleName))
+                activeSession = ackCommand(context, activeSession, commandId, result.put("ok", false).put("error", e.message ?: e.javaClass.simpleName))
             }
         }
     }
@@ -823,25 +831,27 @@ object VcsManagedClient {
         return if (Instant.now().minusSeconds(300).isBefore(observedAt)) metadata else null
     }
 
-    private fun ackCommand(session: Session, commandId: String, body: JSONObject) {
-        requestJson("POST", "${session.apiBase}/api/mobile/android/commands/$commandId/ack", body, session.token)
+    private fun ackCommand(context: Context, session: Session, commandId: String, body: JSONObject): Session {
+        return requestDeviceJson(context, session, "POST", "${session.apiBase}/api/mobile/android/commands/$commandId/ack", body).session
     }
 
-    private fun ackTunnelImported(session: Session, assignmentId: String, localTunnelName: String, configVersion: Int, bundleImport: Boolean = false) {
+    private fun ackTunnelImported(context: Context, session: Session, assignmentId: String, localTunnelName: String, configVersion: Int, bundleImport: Boolean = false): Session {
         val body = JSONObject()
             .put("localTunnelName", localTunnelName)
             .put("configVersion", configVersion)
         if (bundleImport) body.put("bundleImport", true)
-        requestJson("POST", "${session.apiBase}/api/mobile/android/tunnels/$assignmentId/ack-imported", body, session.token)
+        return requestDeviceJson(context, session, "POST", "${session.apiBase}/api/mobile/android/tunnels/$assignmentId/ack-imported", body).session
     }
 
-    private fun ackManagedBundleImport(session: Session, bundle: JSONObject, localTunnelName: String) {
+    private fun ackManagedBundleImport(context: Context, session: Session, bundle: JSONObject, localTunnelName: String): Session {
+        var activeSession = session
         val configVersion = bundle.optInt("configVersion", 1)
-        val ids = bundle.optJSONArray("assignmentIds") ?: return
+        val ids = bundle.optJSONArray("assignmentIds") ?: return activeSession
         for (i in 0 until ids.length()) {
             val assignmentId = ids.optString(i).takeIf { it.isNotBlank() } ?: continue
-            ackTunnelImported(session, assignmentId, localTunnelName, configVersion, bundleImport = true)
+            activeSession = ackTunnelImported(context, activeSession, assignmentId, localTunnelName, configVersion, bundleImport = true)
         }
+        return activeSession
     }
 
     private suspend fun importManagedBundle(context: Context, bundle: JSONObject): ImportResult {
@@ -890,7 +900,7 @@ object VcsManagedClient {
             }
         }
         if (applied.current) {
-            ackTunnelImported(session, assignmentId, preferredName, configVersion)
+            ackTunnelImported(context, session, assignmentId, preferredName, configVersion)
         }
         return applied
     }
@@ -962,9 +972,19 @@ object VcsManagedClient {
         val text = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
         if (status !in 200..299) {
             val message = runCatching { JSONObject(text).optString("error") }.getOrNull()?.takeIf { it.isNotBlank() } ?: "HTTP $status"
-            error(message)
+            throw MobileHttpException(status, message)
         }
         return if (text.isBlank()) JSONObject() else JSONObject(text)
+    }
+
+    private fun requestDeviceJson(context: Context, session: Session, method: String, url: String, body: JSONObject?): DeviceJsonResponse {
+        return try {
+            DeviceJsonResponse(requestJson(method, url, body, session.token), session)
+        } catch (e: MobileHttpException) {
+            if (e.status != HttpURLConnection.HTTP_UNAUTHORIZED) throw e
+            val refreshed = restoreManagedSessionFromAccount(context) ?: throw e
+            DeviceJsonResponse(requestJson(method, url, body, refreshed.token), refreshed)
+        }
     }
 
     private fun requireSession(context: Context): Session =
