@@ -201,8 +201,8 @@ Discuss server changes before implementation.
 
 ## S3 - Plaintext managed/account session storage
 
-Status: Step 1 implemented: centralized `VcsManagedClient` storage accessor
-without behavior change. Token encryption remains pending.
+Status: Step 1 and step 2 implemented for API bearer tokens. Server-side token
+TTL/refresh remains pending under R2.
 
 Risk:
 `VcsManagedClient` stores account access token, managed device token, API base,
@@ -245,6 +245,24 @@ Implemented step 1:
   prepares the next migration step.
 - Direct `getSharedPreferences(PREFS, ...)` calls are removed from
   `VcsManagedClient`; D4 is closed for this file.
+
+Implemented step 2:
+- Account and managed-device bearer tokens are encrypted at rest with an
+  Android Keystore-backed AES/GCM key.
+- Stored secret values use an `enc:v1:` prefix so the app can distinguish new
+  encrypted values from legacy plaintext values.
+- Existing plaintext token values are migrated on first read: the plaintext
+  token is returned for the current operation, an encrypted replacement is
+  written back to the same key, and future reads use the encrypted value.
+- Keystore decrypt/encrypt failure returns `null` for the token and clears both
+  token keys. This fails closed into the existing sign-in/enroll-required flow
+  instead of looping on a permanently broken secret.
+- The Keystore key is not user-auth/biometric gated, preserving background
+  heartbeat, sync, state reporting, quick tile, commands, and post-unlock boot
+  behavior.
+- `apiBase`, `deviceId`, expiry, display/account metadata, assignments, pending
+  activations, and update prompt fields remain in the existing preferences file
+  for this step.
 
 Threat model notes:
 - Keystore-backed value encryption raises the bar against other apps, backup or
