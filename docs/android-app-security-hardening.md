@@ -131,7 +131,8 @@ Security consequence:
 
 ## S2 - APK update URL and integrity checks
 
-Status: Needs discussion before implementation.
+Status: App-side origin/path hardening implemented. APK digest validation remains
+server-dependent.
 
 Risk:
 The managed sync response can provide `apkUrl`, which is stored and later opened
@@ -161,6 +162,32 @@ Preferred app-side direction:
 - Reject file/content/custom schemes.
 - Validate version code/name against expected update metadata when available.
 - Add APK digest validation if the trusted server provides a digest.
+
+Implemented behavior:
+- Managed update still uses the existing VCS App routes only:
+  `/api/mobile/android/update` and `/api/mobile/android/update/apk`.
+- Router guest, enrollment install, and dashboard APK routes are unchanged:
+  `/api/mobile/android/apk/guest`, `/api/mobile/android/apk/install?token=...`,
+  and `/api/mobile/android/apk`.
+- Android validates the server-provided `apkUrl` before storing it and validates
+  it again before opening a previously stored update URL.
+- Accepted update URL requirements:
+  - `https`,
+  - same host and effective HTTPS port as the active managed `apiBase`,
+  - exact path `/api/mobile/android/update/apk`,
+  - no userinfo and no fragment.
+- Invalid or stale stored update URLs are removed from app preferences before
+  any `DownloadManager` or external `ACTION_VIEW` open is attempted.
+- `download=1` remains appended locally when needed, preserving the current
+  native download behavior.
+
+Integrity note:
+- The current VCS App update JSON does not provide an APK digest. The server APK
+  response exposes version headers and the Android package installer enforces
+  package signing for updates, but app-side digest verification should wait until
+  the trusted server publishes a digest/version metadata field through the
+  existing `/api/mobile/android/update` response. Do not add a duplicate update
+  endpoint for this.
 
 Verification:
 - Legitimate update still downloads and opens installer.

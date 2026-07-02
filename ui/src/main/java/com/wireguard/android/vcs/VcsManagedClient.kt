@@ -71,6 +71,7 @@ object VcsManagedClient {
         val expiresAtMillis: Long
     )
     private data class ImportResult(val localTunnelName: String, val applied: Boolean, val current: Boolean)
+    private data class ValidatedUpdateUrl(val value: String)
     private data class AccountSession(
         val apiBase: String,
         val token: String,
@@ -154,7 +155,7 @@ object VcsManagedClient {
         val session = requireSession(context)
         val syncUrl = "${session.apiBase}/api/mobile/android/sync?appVersion=${urlEncode(BuildConfig.VERSION_NAME)}&appVersionCode=${BuildConfig.VERSION_CODE}&androidVersion=${urlEncode(Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString())}"
         val sync = requestJson("GET", syncUrl, null, session.token)
-        val updateVersionName = rememberUpdateAvailable(context, sync.optJSONObject("update"))
+        val updateVersionName = rememberUpdateAvailable(context, session.apiBase, sync.optJSONObject("update"))
         val assignments = sync.optJSONArray("assignments") ?: JSONArray()
         val bundleAssignments = sync.optJSONArray("bundleAssignments") ?: JSONArray()
         val bundleState = sync.optJSONObject("bundleState")
@@ -225,30 +226,37 @@ object VcsManagedClient {
     }
 
 
-    private fun rememberUpdateAvailable(context: Context, update: JSONObject?): String? {
+    private fun rememberUpdateAvailable(context: Context, apiBase: String, update: JSONObject?): String? {
         if (update == null || !update.optBoolean("updateAvailable", false)) return null
         val latestVersion = update.optString("latestVersionName").takeIf { it.isNotBlank() } ?: return null
         val apkUrl = update.optString("apkUrl").takeIf { it.isNotBlank() } ?: return null
+        val validatedUrl = validateManagedUpdateUrl(apiBase, apkUrl).value
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_LAST_UPDATE_PROMPT, latestVersion)
-            .putString(KEY_LAST_UPDATE_URL, apkUrl)
+            .putString(KEY_LAST_UPDATE_URL, validatedUrl)
             .apply()
         return latestVersion
     }
 
     fun openManagedUpdate(context: Context): UpdateDownloadStart? {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val session = loadSession(context) ?: restoreManagedSessionFromAccount(context) ?: return null
         val latestVersion = prefs.getString(KEY_LAST_UPDATE_PROMPT, null) ?: return null
         val apkUrl = prefs.getString(KEY_LAST_UPDATE_URL, null) ?: return null
-        return downloadStoredUpdate(context, latestVersion, apkUrl)
+        val validatedUrl = runCatching { validateManagedUpdateUrl(session.apiBase, apkUrl) }
+            .getOrElse {
+                prefs.edit().remove(KEY_LAST_UPDATE_PROMPT).remove(KEY_LAST_UPDATE_URL).apply()
+                return null
+            }
+        return downloadStoredUpdate(context, latestVersion, validatedUrl)
     }
 
     suspend fun checkForManagedUpdate(context: Context): UpdateCheck = withContext(Dispatchers.IO) {
         val session = requireSession(context)
         val updateUrl = "${session.apiBase}/api/mobile/android/update?appVersion=${urlEncode(BuildConfig.VERSION_NAME)}&appVersionCode=${BuildConfig.VERSION_CODE}&androidVersion=${urlEncode(Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString())}"
         val update = requestJson("GET", updateUrl, null, session.token)
-        val latestVersion = rememberUpdateAvailable(context, update)
+        val latestVersion = rememberUpdateAvailable(context, session.apiBase, update)
         UpdateCheck(latestVersion != null, latestVersion)
     }
 
@@ -351,7 +359,7 @@ object VcsManagedClient {
             ?: counts.keys.firstOrNull { it.contains("Managed Access", ignoreCase = true) }
     }
 
-    private fun downloadStoredUpdate(context: Context, latestVersion: String, apkUrl: String): UpdateDownloadStart? {
+    private fun downloadStoredUpdate(context: Context, latestVersion: String, apkUrl: ValidatedUpdateUrl): UpdateDownloadStart? {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val fileName = updateDownloadFileName(latestVersion)
         return try {
@@ -366,11 +374,11 @@ object VcsManagedClient {
                 .setAllowedOverRoaming(true)
             val downloadId = manager.enqueue(request)
             observeUpdateDownload(context.applicationContext, manager, downloadId, fileName, apkUrl)
-            prefs.edit().putString(KEY_LAST_UPDATE_PROMPT, latestVersion).putString(KEY_LAST_UPDATE_URL, apkUrl).apply()
+            prefs.edit().putString(KEY_LAST_UPDATE_PROMPT, latestVersion).putString(KEY_LAST_UPDATE_URL, apkUrl.value).apply()
             UpdateDownloadStart(downloadId, fileName)
         } catch (_: Throwable) {
             if (!openUpdateUrl(context, apkUrl)) null else {
-                prefs.edit().putString(KEY_LAST_UPDATE_PROMPT, latestVersion).putString(KEY_LAST_UPDATE_URL, apkUrl).apply()
+                prefs.edit().putString(KEY_LAST_UPDATE_PROMPT, latestVersion).putString(KEY_LAST_UPDATE_URL, apkUrl.value).apply()
                 UpdateDownloadStart(-1L, fileName)
             }
         }
@@ -381,7 +389,7 @@ object VcsManagedClient {
         return "VirtuVPN-$safeVersion-${System.currentTimeMillis()}.apk"
     }
 
-    private fun observeUpdateDownload(context: Context, manager: DownloadManager, downloadId: Long, fileName: String, apkUrl: String) {
+    private fun observeUpdateDownload(context: Context, manager: DownloadManager, downloadId: Long, fileName: String, apkUrl: ValidatedUpdateUrl) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(receiverContext: Context, intent: Intent) {
                 val completedId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
@@ -434,7 +442,7 @@ object VcsManagedClient {
         }
     }
 
-    private fun openDownloadedUpdate(context: Context, manager: DownloadManager, downloadId: Long, apkUrl: String): Boolean {
+    private fun openDownloadedUpdate(context: Context, manager: DownloadManager, downloadId: Long, apkUrl: ValidatedUpdateUrl): Boolean {
         val uri = manager.getUriForDownloadedFile(downloadId) ?: return openUpdateUrl(context, apkUrl)
         val intent = Intent(Intent.ACTION_VIEW)
             .setDataAndType(uri, "application/vnd.android.package-archive")
@@ -448,20 +456,41 @@ object VcsManagedClient {
         }
     }
 
-    private fun updateDownloadUri(apkUrl: String): Uri {
-        val uri = Uri.parse(apkUrl)
-        if (!uri.path.orEmpty().endsWith("/api/mobile/android/update/apk")) return uri
+    private fun updateDownloadUri(apkUrl: ValidatedUpdateUrl): Uri {
+        val uri = apkUrl.value.toUri()
         if (uri.getQueryParameter("download") == "1") return uri
         return uri.buildUpon().appendQueryParameter("download", "1").build()
     }
 
-    private fun openUpdateUrl(context: Context, apkUrl: String): Boolean {
+    private fun openUpdateUrl(context: Context, apkUrl: ValidatedUpdateUrl): Boolean {
         val intent = Intent(Intent.ACTION_VIEW, updateDownloadUri(apkUrl))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         return runCatching {
             context.startActivity(intent)
             true
         }.getOrDefault(false)
+    }
+
+    private fun validateManagedUpdateUrl(apiBase: String, apkUrl: String): ValidatedUpdateUrl {
+        val base = normalizeApiBase(apiBase).toUri()
+        val uri = apkUrl.toUri()
+        val scheme = uri.scheme?.lowercase(Locale.US) ?: error("Update URL is missing scheme")
+        val baseScheme = base.scheme?.lowercase(Locale.US) ?: error("Managed API base is missing scheme")
+        val host = uri.host?.lowercase(Locale.US) ?: error("Update URL is missing host")
+        val baseHost = base.host?.lowercase(Locale.US) ?: error("Managed API base is missing host")
+        val port = effectiveHttpsPort(uri)
+        val basePort = effectiveHttpsPort(base)
+        if (scheme != "https") error("Update URL must use HTTPS")
+        if (baseScheme != "https") error("Managed API base must use HTTPS")
+        if (host != baseHost || port != basePort) error("Update URL origin is not trusted")
+        if (uri.encodedPath != "/api/mobile/android/update/apk") error("Update URL path is not trusted")
+        if (uri.userInfo != null) error("Update URL must not include user info")
+        if (uri.fragment != null) error("Update URL must not include a fragment")
+        return ValidatedUpdateUrl(uri.buildUpon().scheme("https").authority(uri.authority).path("/api/mobile/android/update/apk").build().toString())
+    }
+
+    private fun effectiveHttpsPort(uri: Uri): Int {
+        return if (uri.port == -1 && uri.scheme?.lowercase(Locale.US) == "https") 443 else uri.port
     }
 
     private fun urlEncode(value: String): String = java.net.URLEncoder.encode(value, StandardCharsets.UTF_8.name())
