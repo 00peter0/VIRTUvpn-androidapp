@@ -781,7 +781,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun browserUserAgent(): String {
-        return if (desktopMode) DESKTOP_USER_AGENT else MOBILE_USER_AGENT
+        return WEBVIEW_USER_AGENT
     }
 
     private fun updateDesktopModeButton() {
@@ -2221,10 +2221,8 @@ class SecureBrowserActivity : AppCompatActivity() {
         private const val LOCAL_ROUTER_STATUS_TTL_MS = 10_000L
         const val EXTRA_INITIAL_URL = "com.wireguard.android.extra.SECURE_BROWSER_INITIAL_URL"
         private const val GOOGLE_URL = "https://www.google.com/"
-        private const val MOBILE_USER_AGENT =
+        private const val WEBVIEW_USER_AGENT =
             "Mozilla/5.0 (Linux; Android 10; K; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/149.0.0.0 Mobile Safari/537.36"
-        private const val DESKTOP_USER_AGENT =
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36"
         private val PRIVACY_REQUEST_HEADERS = mapOf(
             "DNT" to "1",
             "Sec-GPC" to "1",

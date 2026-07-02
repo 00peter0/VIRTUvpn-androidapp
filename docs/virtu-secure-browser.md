@@ -175,12 +175,14 @@ pull-to-refresh reloads:
   the Android package name on WebView providers that still emit the platform
   header.
 
-Secure Browser also overrides the Android WebView default User-Agent. Mobile
-mode uses a fixed Android WebView-compatible UA and desktop mode uses a fixed
-Linux desktop UA. These values are intentionally hardcoded instead of derived
-from the real device, so browser checks see a plausible Chromium/WebView client
-without exposing the exact device model, Android build fingerprint, and local
-language stack such as `SM-T860`, `sk-SK`, or `cs-CZ`.
+Secure Browser also overrides the Android WebView default User-Agent with a fixed
+Android WebView-compatible UA. The value is intentionally hardcoded instead of
+derived from the real device, so browser checks see a plausible Chromium/WebView
+client without exposing the exact device model, Android build fingerprint, and
+local language stack such as `SM-T860`, `sk-SK`, or `cs-CZ`. Desktop mode changes
+viewport/layout behavior only; it does not switch to a Linux desktop UA because
+that conflicts with Android WebView Client Hints and can break bot-protection
+challenges.
 
 Where the installed Android WebView provider supports it, Secure Browser also
 sets an empty `X-Requested-With` allowlist so third-party websites do not receive
