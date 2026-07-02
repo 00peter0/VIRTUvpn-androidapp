@@ -5,6 +5,7 @@
 package com.wireguard.android.activity
 
 import android.content.BroadcastReceiver
+import android.content.res.ColorStateList
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -923,7 +924,7 @@ class HomeActivity : AppCompatActivity() {
 
     private fun updateKillSwitchStatus() {
         binding.killSwitchStatus.setText(R.string.vcs_kill_switch_checking)
-        binding.killSwitchStatus.setTextColor(Color.parseColor("#AFC0CC"))
+        setKillSwitchVisualState("#AFC0CC")
         lifecycleScope.launch {
             val protected = runCatching {
                 val backend = Application.getBackend()
@@ -938,18 +939,24 @@ class HomeActivity : AppCompatActivity() {
                         R.string.vcs_kill_switch_off_router_active
                     }
                 )
-                binding.killSwitchStatus.setTextColor(if (protected) Color.parseColor("#86EFAC") else Color.parseColor("#AFC0CC"))
+                setKillSwitchVisualState(if (protected) "#86EFAC" else "#AFC0CC")
             } else if (activeHotspot) {
                 binding.killSwitchStatus.setText(R.string.vcs_hotspot_vpn_bypass_warning)
-                binding.killSwitchStatus.setTextColor(Color.parseColor("#F87171"))
+                setKillSwitchVisualState("#F87171")
             } else if (protected) {
                 binding.killSwitchStatus.setText(R.string.vcs_kill_switch_protected)
-                binding.killSwitchStatus.setTextColor(Color.parseColor("#86EFAC"))
+                setKillSwitchVisualState("#86EFAC")
             } else {
                 binding.killSwitchStatus.setText(R.string.vcs_kill_switch_unprotected)
-                binding.killSwitchStatus.setTextColor(Color.parseColor("#FBBF24"))
+                setKillSwitchVisualState("#FBBF24")
             }
         }
+    }
+
+    private fun setKillSwitchVisualState(color: String) {
+        val parsed = Color.parseColor(color)
+        binding.killSwitchStatus.setTextColor(parsed)
+        binding.killSwitchStatusDot.backgroundTintList = ColorStateList.valueOf(parsed)
     }
 
     private fun updateOpenVpnSettingsButtonState(status: VpnRouterManager.Status? = lastVpnRouterStatus) {
