@@ -165,7 +165,14 @@ lookups go through the bound VPN network.
 Secure Browser sends privacy preference signals on top-level navigations:
 
 - `DNT: 1`,
-- `Sec-GPC: 1`.
+- `Sec-GPC: 1`,
+- `Accept-Language: en-US,en;q=0.9`.
+
+Secure Browser also overrides the Android WebView default User-Agent. Mobile
+mode uses a stable generic Android Mobile UA and desktop mode uses a stable
+generic Linux desktop UA. This prevents the default WebView header from exposing
+the exact device model, Android build fingerprint, and local language stack
+such as `SM-T860`, `sk-SK`, or `cs-CZ`.
 
 At document start it also exposes `navigator.globalPrivacyControl = true`,
 `navigator.doNotTrack = "1"`, and installs a `no-referrer` meta policy as early
@@ -403,6 +410,8 @@ For every Secure Browser release:
 - verify the HTTPS-only badge and blocked tracker count update per page,
 - verify top-level requests carry DNT/GPC privacy headers and intercepted
   responses include the no-referrer policy,
+- verify browser fingerprint pages do not show the physical device model in
+  User-Agent and show only the normalized Accept-Language value,
 - verify progress bar and pull-to-refresh do not remain stuck after page load or
   browser lock,
 - verify find-in-page, text zoom, desktop mode, and long-press link actions work

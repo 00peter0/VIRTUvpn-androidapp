@@ -103,7 +103,6 @@ class SecureBrowserActivity : AppCompatActivity() {
     private var routerAttestationWatchFailures = 0
     private var documentStartWebRtcProtection = false
     private var userInitiatedNavigation = false
-    private var defaultUserAgent: String? = null
     private var desktopMode = false
     private var textZoom = 100
     private var findMatches = 0
@@ -458,11 +457,10 @@ class SecureBrowserActivity : AppCompatActivity() {
                 safeBrowsingEnabled = true
             }
         }
-        defaultUserAgent = webView.settings.userAgentString
         textZoom = getPreferences(MODE_PRIVATE).getInt(PREF_TEXT_ZOOM, 100).coerceIn(MIN_TEXT_ZOOM, MAX_TEXT_ZOOM)
         desktopMode = getPreferences(MODE_PRIVATE).getBoolean(PREF_DESKTOP_MODE, false)
         webView.settings.textZoom = textZoom
-        webView.settings.userAgentString = if (desktopMode) DESKTOP_USER_AGENT else defaultUserAgent
+        webView.settings.userAgentString = browserUserAgent()
         webView.settings.useWideViewPort = desktopMode
         webView.settings.loadWithOverviewMode = desktopMode
         updateTextZoomLabel()
@@ -774,7 +772,7 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun applyDesktopMode(reload: Boolean) {
         browserTabs.mapNotNull { it.webView }.forEach { webView ->
-            webView.settings.userAgentString = if (desktopMode) DESKTOP_USER_AGENT else defaultUserAgent
+            webView.settings.userAgentString = browserUserAgent()
             webView.settings.useWideViewPort = desktopMode
             webView.settings.loadWithOverviewMode = desktopMode
         }
@@ -782,6 +780,10 @@ class SecureBrowserActivity : AppCompatActivity() {
         if (reload && !blocked && !activeWebView().url.isNullOrBlank() && activeWebView().url != "about:blank") {
             activeWebView().reload()
         }
+    }
+
+    private fun browserUserAgent(): String {
+        return if (desktopMode) DESKTOP_USER_AGENT else MOBILE_USER_AGENT
     }
 
     private fun updateDesktopModeButton() {
@@ -2196,11 +2198,14 @@ class SecureBrowserActivity : AppCompatActivity() {
         private const val LOCAL_ROUTER_STATUS_TTL_MS = 10_000L
         const val EXTRA_INITIAL_URL = "com.wireguard.android.extra.SECURE_BROWSER_INITIAL_URL"
         private const val GOOGLE_URL = "https://www.google.com/"
+        private const val MOBILE_USER_AGENT =
+            "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36"
         private const val DESKTOP_USER_AGENT =
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
         private val PRIVACY_REQUEST_HEADERS = mapOf(
             "DNT" to "1",
-            "Sec-GPC" to "1"
+            "Sec-GPC" to "1",
+            "Accept-Language" to "en-US,en;q=0.9"
         )
         private val PRIVACY_RESPONSE_HEADERS = mapOf(
             "Referrer-Policy" to "no-referrer",
