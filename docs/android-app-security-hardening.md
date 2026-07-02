@@ -323,7 +323,7 @@ Possible if self-hosted deployments still use HTTP.
 
 ## S5 - PrivacyChecker trusted WiFi signal
 
-Status: Needs discussion before implementation.
+Status: Implemented in Android app.
 
 Risk:
 SSID substring heuristics can create a false security signal. The product rule
@@ -429,6 +429,14 @@ Preferred direction:
 - Cover IPv4, CGNAT `100.64/10`, loopback, link-local, IPv6 ULA/link-local,
   IPv4-mapped IPv6, and numeric host variants.
 - Add unit tests at the utility level.
+
+Implemented:
+- Added `PrivateAddressClassifier` as the shared classifier.
+- `SecureBrowserUrlPolicy`, `WebTerminalBrowserActivity`, and
+  `VpnRouterAttestation.isAllowedClientAddress` now use the shared classifier
+  instead of maintaining separate private-IP logic.
+- Unit tests cover RFC1918, loopback, link-local, CGNAT `100.64/10`, IPv6 ULA,
+  IPv4-mapped IPv6, local hostnames, and decimal/hex/octal IPv4 forms.
 
 Outside-Android impact:
 No expected server change.

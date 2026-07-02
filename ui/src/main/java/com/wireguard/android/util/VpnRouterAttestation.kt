@@ -15,7 +15,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.OutputStream
 import java.net.Inet4Address
-import java.net.Inet6Address
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.ServerSocket
@@ -396,16 +395,7 @@ object VpnRouterAttestation {
     }
 
     fun isAllowedClientAddress(address: InetAddress): Boolean {
-        if (address.isLoopbackAddress || address.isLinkLocalAddress || address.isSiteLocalAddress) return true
-        if (address is Inet4Address) {
-            val bytes = address.address.map { it.toInt() and 0xff }
-            return bytes[0] == 100 && bytes[1] in 64..127
-        }
-        if (address is Inet6Address) {
-            val first = address.address.first().toInt() and 0xff
-            return first and 0xfe == 0xfc
-        }
-        return false
+        return PrivateAddressClassifier.isPrivateAddress(address)
     }
 }
 
