@@ -230,8 +230,13 @@ object VcsManagedClient {
         if (update == null || !update.optBoolean("updateAvailable", false)) return null
         val latestVersion = update.optString("latestVersionName").takeIf { it.isNotBlank() } ?: return null
         val apkUrl = update.optString("apkUrl").takeIf { it.isNotBlank() } ?: return null
-        val validatedUrl = validateManagedUpdateUrl(apiBase, apkUrl).value
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val validatedUrl = runCatching { validateManagedUpdateUrl(apiBase, apkUrl).value }
+            .getOrElse {
+                prefs.edit().remove(KEY_LAST_UPDATE_PROMPT).remove(KEY_LAST_UPDATE_URL).apply()
+                return null
+            }
+        prefs
             .edit()
             .putString(KEY_LAST_UPDATE_PROMPT, latestVersion)
             .putString(KEY_LAST_UPDATE_URL, validatedUrl)

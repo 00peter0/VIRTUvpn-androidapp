@@ -6437,11 +6437,22 @@
     <issue
         id="UseKtx"
         message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)"
+        errorLine1="                prefs.edit().remove(KEY_LAST_UPDATE_PROMPT).remove(KEY_LAST_UPDATE_URL).apply()"
+        errorLine2="                ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
+            line="236"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        prefs"
         errorLine2="        ^">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="234"
+            line="239"
             column="9"/>
     </issue>
 
@@ -6452,7 +6463,7 @@
         errorLine2="                ~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="249"
+            line="254"
             column="17"/>
     </issue>
 
@@ -6463,7 +6474,7 @@
         errorLine2="        ^">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="298"
+            line="303"
             column="9"/>
     </issue>
 
@@ -6474,7 +6485,7 @@
         errorLine2="            ~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="377"
+            line="382"
             column="13"/>
     </issue>
 
@@ -6485,7 +6496,7 @@
         errorLine2="                ~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="381"
+            line="386"
             column="17"/>
     </issue>
 
@@ -6496,7 +6507,7 @@
         errorLine2="        ~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="656"
+            line="661"
             column="9"/>
     </issue>
 
@@ -6507,7 +6518,7 @@
         errorLine2="                      ~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="752"
+            line="757"
             column="23"/>
     </issue>
 
@@ -6518,7 +6529,7 @@
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="847"
+            line="852"
             column="9"/>
     </issue>
 
@@ -6529,7 +6540,7 @@
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="906"
+            line="911"
             column="9"/>
     </issue>
 
@@ -6540,7 +6551,7 @@
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="914"
+            line="919"
             column="9"/>
     </issue>
 
@@ -6551,7 +6562,7 @@
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="918"
+            line="923"
             column="9"/>
     </issue>
 
