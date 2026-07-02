@@ -56,6 +56,7 @@ import com.wireguard.android.R
 import com.wireguard.android.backend.WgQuickBackend
 import com.wireguard.android.databinding.SecureBrowserActivityBinding
 import com.wireguard.android.util.SecureBrowserBlocker
+import com.wireguard.android.util.SecureBrowserUrlPolicy
 import com.wireguard.android.util.VcsDialogs
 import com.wireguard.android.util.VpnRouterAttestation
 import com.wireguard.android.util.VpnRouterManager
@@ -2072,53 +2073,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun isAllowedBrowserUrl(uri: Uri, isTopLevel: Boolean): Boolean {
-        return when (uri.scheme?.lowercase()) {
-            "https" -> !uri.host.isNullOrBlank() && (isTopLevel || !isPrivateHttpHost(uri.host))
-            "wss" -> !uri.host.isNullOrBlank() && (isTopLevel || !isPrivateHttpHost(uri.host))
-            "about", "blob" -> true
-            else -> false
-        }
-    }
-
-    private fun isPrivateHttpHost(host: String?): Boolean {
-        val normalized = host
-            ?.trim()
-            ?.lowercase()
-            ?.removePrefix("[")
-            ?.removeSuffix("]")
-            ?: return false
-        if (normalized == "localhost") return true
-        if (!normalized.contains('.')) return true
-        if (normalized.endsWith(".local") ||
-            normalized.endsWith(".lan") ||
-            normalized.endsWith(".internal") ||
-            normalized.endsWith(".home") ||
-            normalized.endsWith(".test") ||
-            normalized.endsWith(".vcs")
-        ) return true
-        return isPrivateIpv4(normalized) || isPrivateIpv6(normalized)
-    }
-
-    private fun isPrivateIpv4(host: String): Boolean {
-        val octets = host.split('.')
-        if (octets.size != 4) return false
-        val values = octets.map { it.toIntOrNull() ?: return false }
-        if (values.any { it !in 0..255 }) return false
-        val first = values[0]
-        val second = values[1]
-        return first == 10 ||
-            first == 127 ||
-            first == 169 && second == 254 ||
-            first == 172 && second in 16..31 ||
-            first == 192 && second == 168 ||
-            first == 100 && second in 64..127
-    }
-
-    private fun isPrivateIpv6(host: String): Boolean {
-        return host == "::1" ||
-            host.startsWith("fc") ||
-            host.startsWith("fd") ||
-            host.startsWith("fe80:")
+        return SecureBrowserUrlPolicy.isAllowed(uri.scheme, uri.host, isTopLevel)
     }
 
     companion object {
