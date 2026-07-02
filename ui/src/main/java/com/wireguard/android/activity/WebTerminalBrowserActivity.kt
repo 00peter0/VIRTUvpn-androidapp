@@ -24,6 +24,7 @@ import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.databinding.WebTerminalBrowserActivityBinding
 import com.wireguard.android.util.PrivateAddressClassifier
+import com.wireguard.android.util.SecureBrowserUrlPolicy
 import com.wireguard.android.vcs.VcsAuthGate
 import java.io.ByteArrayInputStream
 
@@ -169,15 +170,7 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
     }
 
     private fun normalizeUrl(value: String): String? {
-        val trimmed = value.trim()
-        if (trimmed.isBlank()) return null
-        val withScheme = if (trimmed.contains("://")) trimmed else "http://$trimmed"
-        val uri = Uri.parse(withScheme)
-        val scheme = uri.scheme?.lowercase()
-        if (scheme != "http" && scheme != "https") return null
-        if (uri.host.isNullOrBlank()) return null
-        if (!isAllowedTerminalUrl(uri)) return null
-        return uri.toString()
+        return SecureBrowserUrlPolicy.normalizeHttpOrHttpsUrl(value, ::isAllowedTerminalUrl)
     }
 
     private fun credentialsForHost(host: String): Pair<String, String>? {

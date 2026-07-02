@@ -862,23 +862,7 @@ object VcsManagedClient {
         val configText = bundle.getString("config")
         val preferredName = sanitizeTunnelName(bundle.optString("configFilename", bundle.optString("displayName", "VCS Managed Access")))
         val config = Config.parse(ByteArrayInputStream(configText.toByteArray(StandardCharsets.UTF_8)))
-        val applied = withContext(Dispatchers.Main.immediate) {
-            val manager = Application.getTunnelManager()
-            val tunnels = manager.getTunnels()
-            val existing = tunnels[preferredName]
-            if (existing == null) {
-                manager.create(preferredName, config)
-                ImportResult(preferredName, applied = true, current = true)
-            } else if (existing.getConfigAsync() == config) {
-                ImportResult(preferredName, applied = false, current = true)
-            } else if (existing.state == Tunnel.State.UP) {
-                ImportResult(preferredName, applied = false, current = false)
-            } else {
-                existing.setConfigAsync(config)
-                ImportResult(preferredName, applied = true, current = true)
-            }
-        }
-        return applied
+        return applyImportedConfig(preferredName, config)
     }
 
     private suspend fun importManagedConfig(context: Context, session: Session, provision: JSONObject): ImportResult {
@@ -887,7 +871,15 @@ object VcsManagedClient {
         val configVersion = provision.optInt("configVersion", 1)
         val preferredName = sanitizeTunnelName(provision.optString("configFilename", provision.optString("displayName", "vcs-$assignmentId")))
         val config = Config.parse(ByteArrayInputStream(configText.toByteArray(StandardCharsets.UTF_8)))
-        val applied = withContext(Dispatchers.Main.immediate) {
+        val applied = applyImportedConfig(preferredName, config)
+        if (applied.current) {
+            ackTunnelImported(context, session, assignmentId, preferredName, configVersion)
+        }
+        return applied
+    }
+
+    private suspend fun applyImportedConfig(preferredName: String, config: Config): ImportResult {
+        return withContext(Dispatchers.Main.immediate) {
             val manager = Application.getTunnelManager()
             val tunnels = manager.getTunnels()
             val existing = tunnels[preferredName]
@@ -903,10 +895,6 @@ object VcsManagedClient {
                 ImportResult(preferredName, applied = true, current = true)
             }
         }
-        if (applied.current) {
-            ackTunnelImported(context, session, assignmentId, preferredName, configVersion)
-        }
-        return applied
     }
 
     private fun completeEnrollment(context: Context, request: EnrollmentRequest): EnrollResult {

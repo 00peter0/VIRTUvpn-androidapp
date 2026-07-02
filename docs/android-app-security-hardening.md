@@ -361,6 +361,8 @@ Preferred direction:
 Verification:
 - No screen says a connection is protected because of SSID or mobile data alone.
 - Existing privacy/status UI still renders.
+- `PrivacyChecker` no longer marks mobile data or SSID-derived WiFi names as
+  trusted and no longer adjusts score based on SSID heuristics.
 
 Outside-Android impact:
 No expected server change.
@@ -498,7 +500,7 @@ No expected server change.
 
 ## D2 - Duplicate URL normalization
 
-Status: Needs discussion before implementation.
+Status: Implemented in Android app.
 
 Risk:
 Secure Browser and Web Terminal maintain similar URL normalization code.
@@ -513,12 +515,19 @@ Preferred direction:
 - Keep Secure Browser security policy separate from Web Terminal access policy
   if their threat models differ.
 
+Implemented:
+- `SecureBrowserUrlPolicy` owns the shared trim/default-scheme/parse/allow
+  normalization path.
+- Secure Browser still allows only HTTPS top-level navigation.
+- Web Terminal still defaults to HTTP and applies its separate terminal access
+  policy, including private/local host restrictions for cleartext.
+
 Outside-Android impact:
 No expected server change.
 
 ## D3 - Managed config import duplication
 
-Status: Needs discussion before implementation.
+Status: Implemented in Android app.
 
 Risk:
 `importManagedBundle` and `importManagedConfig` have near-identical
@@ -531,6 +540,14 @@ Discovery before coding:
 Preferred direction:
 - Extract a shared `applyImportedConfig(preferredName, config)` helper only if
   behavior is exactly common.
+
+Implemented:
+- `importManagedBundle` and `importManagedConfig` now share
+  `applyImportedConfig(preferredName, config)` for create/update/current
+  handling.
+- Assignment ack behavior remains outside the shared helper, so direct managed
+  config imports still ack imported assignments and bundle imports keep their
+  existing bundle ack flow.
 
 Outside-Android impact:
 No expected server change.

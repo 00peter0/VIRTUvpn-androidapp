@@ -1097,14 +1097,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun normalizeUrl(value: String): String? {
-        val trimmed = value.trim()
-        if (trimmed.isBlank()) return null
-        val withScheme = if (trimmed.contains("://")) trimmed else "https://$trimmed"
-        val uri = Uri.parse(withScheme)
-        val scheme = uri.scheme?.lowercase()
-        if (scheme != "https") return null
-        if (uri.host.isNullOrBlank()) return null
-        return uri.toString()
+        return SecureBrowserUrlPolicy.normalizeHttpsUrl(value)
     }
 
     private fun credentialsForHost(host: String): Pair<String, String>? {
