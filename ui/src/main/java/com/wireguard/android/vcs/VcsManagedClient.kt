@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -81,6 +82,29 @@ object VcsManagedClient {
         val role: String?,
         val tenantName: String?
     )
+    private class ManagedPrefs(context: Context) {
+        private val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+        fun edit(block: SharedPreferences.Editor.() -> Unit) {
+            prefs.edit().apply {
+                block()
+                apply()
+            }
+        }
+
+        fun getString(key: String, defaultValue: String? = null): String? = prefs.getString(key, defaultValue)
+        fun getStringSet(key: String, defaultValue: Set<String> = emptySet()): Set<String> = prefs.getStringSet(key, defaultValue).orEmpty()
+        fun getInt(key: String, defaultValue: Int = 0): Int = prefs.getInt(key, defaultValue)
+        fun getLong(key: String, defaultValue: Long = 0): Long = prefs.getLong(key, defaultValue)
+
+        fun getSecretString(key: String): String? = getString(key)
+
+        fun putSecretString(editor: SharedPreferences.Editor, key: String, value: String?) {
+            editor.putString(key, value)
+        }
+    }
+
+    private fun managedPrefs(context: Context) = ManagedPrefs(context)
 
     fun hasSession(context: Context): Boolean = loadSession(context) != null
 
@@ -104,15 +128,15 @@ object VcsManagedClient {
     }
 
     fun clearAccountSession(context: Context) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .remove(KEY_ACCOUNT_API_BASE)
-            .remove(KEY_ACCOUNT_ACCESS_TOKEN)
-            .remove(KEY_ACCOUNT_EXPIRES_AT)
-            .remove(KEY_ACCOUNT_EMAIL)
-            .remove(KEY_ACCOUNT_NAME)
-            .remove(KEY_ACCOUNT_ROLE)
-            .remove(KEY_ACCOUNT_TENANT_NAME)
-            .apply()
+        managedPrefs(context).edit {
+            remove(KEY_ACCOUNT_API_BASE)
+            remove(KEY_ACCOUNT_ACCESS_TOKEN)
+            remove(KEY_ACCOUNT_EXPIRES_AT)
+            remove(KEY_ACCOUNT_EMAIL)
+            remove(KEY_ACCOUNT_NAME)
+            remove(KEY_ACCOUNT_ROLE)
+            remove(KEY_ACCOUNT_TENANT_NAME)
+        }
     }
 
     fun clearAllVcsState(context: Context) {
@@ -121,15 +145,15 @@ object VcsManagedClient {
     }
 
     fun clearSession(context: Context) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .remove(KEY_API_BASE)
-            .remove(KEY_ACCESS_TOKEN)
-            .remove(KEY_DEVICE_ID)
-            .remove(KEY_ASSIGNMENTS)
-            .remove(KEY_PENDING_BUNDLE_ASSIGNMENTS)
-            .remove(KEY_LAST_UPDATE_PROMPT)
-            .remove(KEY_LAST_UPDATE_URL)
-            .apply()
+        managedPrefs(context).edit {
+            remove(KEY_API_BASE)
+            remove(KEY_ACCESS_TOKEN)
+            remove(KEY_DEVICE_ID)
+            remove(KEY_ASSIGNMENTS)
+            remove(KEY_PENDING_BUNDLE_ASSIGNMENTS)
+            remove(KEY_LAST_UPDATE_PROMPT)
+            remove(KEY_LAST_UPDATE_URL)
+        }
     }
 
     fun isEnrollmentUri(uri: Uri?): Boolean {
@@ -230,28 +254,33 @@ object VcsManagedClient {
         if (update == null || !update.optBoolean("updateAvailable", false)) return null
         val latestVersion = update.optString("latestVersionName").takeIf { it.isNotBlank() } ?: return null
         val apkUrl = update.optString("apkUrl").takeIf { it.isNotBlank() } ?: return null
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val prefs = managedPrefs(context)
         val validatedUrl = runCatching { validateManagedUpdateUrl(apiBase, apkUrl).value }
             .getOrElse {
-                prefs.edit().remove(KEY_LAST_UPDATE_PROMPT).remove(KEY_LAST_UPDATE_URL).apply()
+                prefs.edit {
+                    remove(KEY_LAST_UPDATE_PROMPT)
+                    remove(KEY_LAST_UPDATE_URL)
+                }
                 return null
             }
-        prefs
-            .edit()
-            .putString(KEY_LAST_UPDATE_PROMPT, latestVersion)
-            .putString(KEY_LAST_UPDATE_URL, validatedUrl)
-            .apply()
+        prefs.edit {
+            putString(KEY_LAST_UPDATE_PROMPT, latestVersion)
+            putString(KEY_LAST_UPDATE_URL, validatedUrl)
+        }
         return latestVersion
     }
 
     fun openManagedUpdate(context: Context): UpdateDownloadStart? {
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val prefs = managedPrefs(context)
         val session = loadSession(context) ?: restoreManagedSessionFromAccount(context) ?: return null
         val latestVersion = prefs.getString(KEY_LAST_UPDATE_PROMPT, null) ?: return null
         val apkUrl = prefs.getString(KEY_LAST_UPDATE_URL, null) ?: return null
         val validatedUrl = runCatching { validateManagedUpdateUrl(session.apiBase, apkUrl) }
             .getOrElse {
-                prefs.edit().remove(KEY_LAST_UPDATE_PROMPT).remove(KEY_LAST_UPDATE_URL).apply()
+                prefs.edit {
+                    remove(KEY_LAST_UPDATE_PROMPT)
+                    remove(KEY_LAST_UPDATE_URL)
+                }
                 return null
             }
         return downloadStoredUpdate(context, latestVersion, validatedUrl)
@@ -300,20 +329,17 @@ object VcsManagedClient {
         if (cleanNames.isEmpty()) return
         val names = loadExternalVpnMeshTunnelNames(context).toMutableSet()
         names.addAll(cleanNames)
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putStringSet(KEY_EXTERNAL_VPN_MESH_TUNNELS, names)
-            .apply()
+        managedPrefs(context).edit {
+            putStringSet(KEY_EXTERNAL_VPN_MESH_TUNNELS, names)
+        }
     }
 
     private fun loadExternalVpnMeshTunnelNames(context: Context): Set<String> {
-        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getStringSet(KEY_EXTERNAL_VPN_MESH_TUNNELS, emptySet())
-            .orEmpty()
+        return managedPrefs(context).getStringSet(KEY_EXTERNAL_VPN_MESH_TUNNELS)
     }
 
     fun pendingManagedAccessAssignments(context: Context): Int {
-        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(KEY_PENDING_BUNDLE_ASSIGNMENTS, 0)
+        return managedPrefs(context).getInt(KEY_PENDING_BUNDLE_ASSIGNMENTS)
     }
 
     data class WebTerminalLink(
@@ -365,7 +391,7 @@ object VcsManagedClient {
     }
 
     private fun downloadStoredUpdate(context: Context, latestVersion: String, apkUrl: ValidatedUpdateUrl): UpdateDownloadStart? {
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val prefs = managedPrefs(context)
         val fileName = updateDownloadFileName(latestVersion)
         return try {
             val manager = context.getSystemService(DownloadManager::class.java) ?: return if (openUpdateUrl(context, apkUrl)) UpdateDownloadStart(-1L, fileName) else null
@@ -379,11 +405,17 @@ object VcsManagedClient {
                 .setAllowedOverRoaming(true)
             val downloadId = manager.enqueue(request)
             observeUpdateDownload(context.applicationContext, manager, downloadId, fileName, apkUrl)
-            prefs.edit().putString(KEY_LAST_UPDATE_PROMPT, latestVersion).putString(KEY_LAST_UPDATE_URL, apkUrl.value).apply()
+            prefs.edit {
+                putString(KEY_LAST_UPDATE_PROMPT, latestVersion)
+                putString(KEY_LAST_UPDATE_URL, apkUrl.value)
+            }
             UpdateDownloadStart(downloadId, fileName)
         } catch (_: Throwable) {
             if (!openUpdateUrl(context, apkUrl)) null else {
-                prefs.edit().putString(KEY_LAST_UPDATE_PROMPT, latestVersion).putString(KEY_LAST_UPDATE_URL, apkUrl.value).apply()
+                prefs.edit {
+                    putString(KEY_LAST_UPDATE_PROMPT, latestVersion)
+                    putString(KEY_LAST_UPDATE_URL, apkUrl.value)
+                }
                 UpdateDownloadStart(-1L, fileName)
             }
         }
@@ -655,14 +687,16 @@ object VcsManagedClient {
     }
 
     private fun storePendingActivation(context: Context, tunnelName: String, metadata: JSONObject) {
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val prefs = managedPrefs(context)
         val all = JSONObject(prefs.getString(KEY_PENDING_TUNNEL_ACTIVATIONS, "{}") ?: "{}")
         all.put(tunnelName, metadata)
-        prefs.edit().putString(KEY_PENDING_TUNNEL_ACTIVATIONS, all.toString()).apply()
+        prefs.edit {
+            putString(KEY_PENDING_TUNNEL_ACTIVATIONS, all.toString())
+        }
     }
 
     private fun pendingActivation(context: Context, tunnelName: String): JSONObject? {
-        val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_PENDING_TUNNEL_ACTIVATIONS, "{}") ?: "{}"
+        val raw = managedPrefs(context).getString(KEY_PENDING_TUNNEL_ACTIVATIONS, "{}") ?: "{}"
         val all = JSONObject(raw)
         val metadata = all.optJSONObject(tunnelName) ?: return null
         val observedAt = runCatching { Instant.parse(metadata.optString("observedAt")) }.getOrNull() ?: return metadata
@@ -849,15 +883,16 @@ object VcsManagedClient {
             role = user?.optString("role")?.takeIf { it.isNotBlank() },
             tenantName = tenant?.optString("name")?.takeIf { it.isNotBlank() }
         )
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putString(KEY_ACCOUNT_API_BASE, account.apiBase)
-            .putString(KEY_ACCOUNT_ACCESS_TOKEN, account.token)
-            .putLong(KEY_ACCOUNT_EXPIRES_AT, account.expiresAtMillis)
-            .putString(KEY_ACCOUNT_EMAIL, account.email)
-            .putString(KEY_ACCOUNT_NAME, account.name)
-            .putString(KEY_ACCOUNT_ROLE, account.role)
-            .putString(KEY_ACCOUNT_TENANT_NAME, account.tenantName)
-            .apply()
+        val prefs = managedPrefs(context)
+        prefs.edit {
+            putString(KEY_ACCOUNT_API_BASE, account.apiBase)
+            prefs.putSecretString(this, KEY_ACCOUNT_ACCESS_TOKEN, account.token)
+            putLong(KEY_ACCOUNT_EXPIRES_AT, account.expiresAtMillis)
+            putString(KEY_ACCOUNT_EMAIL, account.email)
+            putString(KEY_ACCOUNT_NAME, account.name)
+            putString(KEY_ACCOUNT_ROLE, account.role)
+            putString(KEY_ACCOUNT_TENANT_NAME, account.tenantName)
+        }
         storeManagedDeviceSessionFromResponse(context, apiBase, response)
         return account.toInfo()
     }
@@ -867,8 +902,8 @@ object VcsManagedClient {
     }
 
     private fun loadAccountSession(context: Context): AccountSession? {
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val token = prefs.getString(KEY_ACCOUNT_ACCESS_TOKEN, null) ?: return null
+        val prefs = managedPrefs(context)
+        val token = prefs.getSecretString(KEY_ACCOUNT_ACCESS_TOKEN) ?: return null
         val expiresAt = prefs.getLong(KEY_ACCOUNT_EXPIRES_AT, 0)
         if (expiresAt > 0 && expiresAt <= System.currentTimeMillis()) {
             clearAccountSession(context)
@@ -886,9 +921,9 @@ object VcsManagedClient {
     }
 
     private fun loadSession(context: Context): Session? {
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val prefs = managedPrefs(context)
         val apiBase = prefs.getString(KEY_API_BASE, null) ?: return null
-        val token = prefs.getString(KEY_ACCESS_TOKEN, null) ?: return null
+        val token = prefs.getSecretString(KEY_ACCESS_TOKEN) ?: return null
         return Session(apiBase, token, prefs.getString(KEY_DEVICE_ID, null))
     }
 
@@ -908,23 +943,28 @@ object VcsManagedClient {
     }
 
     private fun storeManagedDeviceSession(context: Context, apiBase: String, accessToken: String, deviceId: String?) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putString(KEY_API_BASE, apiBase.trimEnd('/'))
-            .putString(KEY_ACCESS_TOKEN, accessToken)
-            .putString(KEY_DEVICE_ID, deviceId)
-            .apply()
+        val prefs = managedPrefs(context)
+        prefs.edit {
+            putString(KEY_API_BASE, apiBase.trimEnd('/'))
+            prefs.putSecretString(this, KEY_ACCESS_TOKEN, accessToken)
+            putString(KEY_DEVICE_ID, deviceId)
+        }
     }
 
     private fun storeAssignments(context: Context, assignments: JSONArray) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_ASSIGNMENTS, assignments.toString()).apply()
+        managedPrefs(context).edit {
+            putString(KEY_ASSIGNMENTS, assignments.toString())
+        }
     }
 
     private fun storePendingBundleAssignments(context: Context, count: Int) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt(KEY_PENDING_BUNDLE_ASSIGNMENTS, count).apply()
+        managedPrefs(context).edit {
+            putInt(KEY_PENDING_BUNDLE_ASSIGNMENTS, count)
+        }
     }
 
     private fun loadAssignments(context: Context): JSONArray {
-        val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_ASSIGNMENTS, "[]") ?: "[]"
+        val raw = managedPrefs(context).getString(KEY_ASSIGNMENTS, "[]") ?: "[]"
         return JSONArray(raw)
     }
 

@@ -201,7 +201,8 @@ Discuss server changes before implementation.
 
 ## S3 - Plaintext managed/account session storage
 
-Status: Needs discussion before implementation.
+Status: Step 1 implemented: centralized `VcsManagedClient` storage accessor
+without behavior change. Token encryption remains pending.
 
 Risk:
 `VcsManagedClient` stores account access token, managed device token, API base,
@@ -225,10 +226,37 @@ Required decisions:
 
 Preferred app-side direction:
 - Introduce one private storage accessor before migration.
-- Use Android Keystore-backed encrypted storage for bearer tokens and sensitive
-  config/session material.
+- Do not use `EncryptedSharedPreferences`; `androidx.security:security-crypto`
+  is deprecated and should not become a new foundation.
+- Use Android Keystore-backed AES/GCM value encryption, or an equivalent
+  maintained AEAD implementation, for bearer token values.
+- The token encryption key must not require per-use biometric/user
+  authentication. Managed sync, heartbeat, state reporting, commands, quick tile,
+  and boot/autoconnect paths need background access after device unlock.
 - Migrate existing plaintext values once, then remove plaintext copies.
 - Keep `allowBackup=false` and current deny-all backup rules.
+
+Implemented step 1:
+- `VcsManagedClient` now routes all `vcs_managed_client` access through a small
+  private `ManagedPrefs` accessor.
+- `ManagedPrefs` exposes separate secret read/write methods for token fields,
+  but the implementation still stores values in the same existing
+  `SharedPreferences` file. This is deliberately behavior-preserving and only
+  prepares the next migration step.
+- Direct `getSharedPreferences(PREFS, ...)` calls are removed from
+  `VcsManagedClient`; D4 is closed for this file.
+
+Threat model notes:
+- Keystore-backed value encryption raises the bar against other apps, backup or
+  offline extraction, and non-root forensics.
+- It does not protect against live root code running as, or instrumenting, the
+  VirtuVPN app process. A live root attacker can generally ask Android Keystore
+  to decrypt for the app UID.
+- S3 protects API access tokens at rest. It does not encrypt WireGuard private
+  keys in the existing config store. Encrypting tunnel configs is a separate,
+  larger design change.
+- Stronger defense-in-depth also needs server-side token TTL, refresh, and
+  revocation work; that overlaps with R2.
 
 Verification:
 - Existing enrolled device keeps working after update.
@@ -242,7 +270,7 @@ No server change expected, unless token rotation policy is changed.
 
 ## S4 - Cleartext HTTP and transport policy
 
-Status: Needs discussion before implementation.
+Status: Implemented for `VcsManagedClient` as part of S3 step 1.
 
 Risk:
 Enrollment/API parsing currently accepts `http://` in several places even though
@@ -441,6 +469,12 @@ Discovery before coding:
 Preferred direction:
 - Add one private `prefs(context)` accessor.
 - Use it as a stepping stone toward encrypted storage.
+
+Implemented:
+- Added `ManagedPrefs` with plain and secret read/write methods.
+- Replaced direct `getSharedPreferences(PREFS, ...)` calls in
+  `VcsManagedClient`.
+- No behavior change yet; encrypted token migration remains S3 step 2.
 
 Outside-Android impact:
 No expected server change.
