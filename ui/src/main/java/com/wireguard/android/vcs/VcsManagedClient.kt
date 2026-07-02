@@ -50,6 +50,7 @@ object VcsManagedClient {
     private const val KEY_DEVICE_REFRESH_TOKEN = "device_refresh_token"
     private const val KEY_DEVICE_ID = "device_id"
     private const val KEY_ASSIGNMENTS = "assignments"
+    private const val KEY_MANAGED_TUNNEL_OWNERS = "managed_tunnel_owners"
     private const val KEY_PENDING_BUNDLE_ASSIGNMENTS = "pending_bundle_assignments"
     private const val KEY_PENDING_TUNNEL_ACTIVATIONS = "pending_tunnel_activations"
     private const val KEY_LAST_UPDATE_PROMPT = "last_update_prompt"
@@ -206,6 +207,7 @@ object VcsManagedClient {
 
     suspend fun syncManagedTunnels(context: Context): SyncResult = withContext(Dispatchers.IO) {
         var session = requireSession(context)
+        val previouslyAssignedTunnelNames = managedTunnelNames(loadAssignments(context))
         val syncUrl = "${session.apiBase}/api/mobile/android/sync?appVersion=${urlEncode(BuildConfig.VERSION_NAME)}&appVersionCode=${BuildConfig.VERSION_CODE}&androidVersion=${urlEncode(Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString())}"
         val syncResponse = requestDeviceJson(context, session, "GET", syncUrl, null)
         session = syncResponse.session
@@ -269,6 +271,9 @@ object VcsManagedClient {
             for (i in 0 until bundleAssignments.length()) storedAssignments.put(bundleAssignments.getJSONObject(i))
         }
         storeAssignments(context, storedAssignments)
+        val activeManagedTunnelNames = managedTunnelNames(storedAssignments)
+        reconcileManagedTunnelOwnership(context, previouslyAssignedTunnelNames, activeManagedTunnelNames)
+        prunePendingTunnelActivations(context, activeManagedTunnelNames)
         storePendingBundleAssignments(context, pendingBundleAssignments)
         processCommands(context, session, commands, storedAssignments, bundleLocalTunnelName)
         val device = sync.optJSONObject("device")
@@ -738,6 +743,50 @@ object VcsManagedClient {
         return if (Instant.now().minusSeconds(300).isBefore(observedAt)) metadata else null
     }
 
+    private suspend fun reconcileManagedTunnelOwnership(
+        context: Context,
+        previouslyAssignedTunnelNames: Set<String>,
+        activeManagedTunnelNames: Set<String>
+    ) {
+        val knownManagedTunnelNames = loadManagedTunnelOwnership(context) + previouslyAssignedTunnelNames
+        val staleManagedTunnelNames = knownManagedTunnelNames - activeManagedTunnelNames
+        val failedCleanupNames = mutableSetOf<String>()
+        if (staleManagedTunnelNames.isNotEmpty()) {
+            val manager = Application.getTunnelManager()
+            val tunnels = manager.getTunnels()
+            for (name in staleManagedTunnelNames) {
+                val tunnel = tunnels[name] ?: continue
+                val deleted = runCatching { manager.delete(tunnel) }.isSuccess
+                if (!deleted) failedCleanupNames.add(name)
+            }
+        }
+        storeManagedTunnelOwnership(context, activeManagedTunnelNames + failedCleanupNames)
+    }
+
+    private suspend fun prunePendingTunnelActivations(context: Context, activeManagedTunnelNames: Set<String>) {
+        val prefs = managedPrefs(context)
+        val raw = prefs.getString(KEY_PENDING_TUNNEL_ACTIVATIONS, "{}") ?: "{}"
+        val pending = runCatching { JSONObject(raw) }.getOrElse {
+            prefs.edit { remove(KEY_PENDING_TUNNEL_ACTIVATIONS) }
+            return
+        }
+        if (pending.length() == 0) return
+        val existingTunnelNames = Application.getTunnelManager().getTunnels().map { it.name }.toSet()
+        var changed = false
+        val keys = pending.keys().asSequence().toList()
+        for (name in keys) {
+            if (name !in activeManagedTunnelNames && name !in existingTunnelNames) {
+                pending.remove(name)
+                changed = true
+            }
+        }
+        if (changed) {
+            prefs.edit {
+                if (pending.length() == 0) remove(KEY_PENDING_TUNNEL_ACTIVATIONS) else putString(KEY_PENDING_TUNNEL_ACTIVATIONS, pending.toString())
+            }
+        }
+    }
+
     private fun ackCommand(context: Context, session: Session, commandId: String, body: JSONObject): Session {
         return requestDeviceJson(context, session, "POST", "${session.apiBase}/api/mobile/android/commands/$commandId/ack", body).session
     }
@@ -1034,6 +1083,23 @@ object VcsManagedClient {
         }
     }
 
+    private fun loadManagedTunnelOwnership(context: Context): Set<String> {
+        val raw = managedPrefs(context).getString(KEY_MANAGED_TUNNEL_OWNERS, "[]") ?: "[]"
+        val names = runCatching { JSONArray(raw) }.getOrElse { return emptySet() }
+        return jsonStringSet(names)
+    }
+
+    private fun storeManagedTunnelOwnership(context: Context, names: Set<String>) {
+        val sortedNames = names.filter { it.isNotBlank() }.sorted()
+        managedPrefs(context).edit {
+            if (sortedNames.isEmpty()) {
+                remove(KEY_MANAGED_TUNNEL_OWNERS)
+            } else {
+                putString(KEY_MANAGED_TUNNEL_OWNERS, JSONArray(sortedNames).toString())
+            }
+        }
+    }
+
     private fun storePendingBundleAssignments(context: Context, count: Int) {
         managedPrefs(context).edit {
             putInt(KEY_PENDING_BUNDLE_ASSIGNMENTS, count)
@@ -1043,6 +1109,24 @@ object VcsManagedClient {
     private fun loadAssignments(context: Context): JSONArray {
         val raw = managedPrefs(context).getString(KEY_ASSIGNMENTS, "[]") ?: "[]"
         return JSONArray(raw)
+    }
+
+    private fun managedTunnelNames(assignments: JSONArray): Set<String> {
+        val names = mutableSetOf<String>()
+        for (i in 0 until assignments.length()) {
+            val assignment = assignments.optJSONObject(i) ?: continue
+            assignment.optString("localTunnelName").takeIf { it.isNotBlank() }?.let(names::add)
+            assignment.optString("bundleLocalTunnelName").takeIf { it.isNotBlank() }?.let(names::add)
+        }
+        return names
+    }
+
+    private fun jsonStringSet(values: JSONArray): Set<String> {
+        val result = mutableSetOf<String>()
+        for (i in 0 until values.length()) {
+            values.optString(i).takeIf { it.isNotBlank() }?.let(result::add)
+        }
+        return result
     }
 
     private fun sanitizeTunnelName(value: String): String {
