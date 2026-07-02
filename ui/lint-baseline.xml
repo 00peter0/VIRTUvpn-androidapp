@@ -338,7 +338,7 @@
         errorLine2="             ~~~~~~~~~~~~~">
         <location
             file="src/main/AndroidManifest.xml"
-            line="121"
+            line="122"
             column="14"/>
     </issue>
 
@@ -349,7 +349,7 @@
         errorLine2="             ~~~~~~~~~~~~~">
         <location
             file="src/main/AndroidManifest.xml"
-            line="131"
+            line="132"
             column="14"/>
     </issue>
 
@@ -393,7 +393,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="218"
+            line="217"
             column="26"/>
     </issue>
 
@@ -404,7 +404,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="218"
+            line="217"
             column="26"/>
     </issue>
 
@@ -415,7 +415,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="241"
+            line="240"
             column="26"/>
     </issue>
 
@@ -426,7 +426,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="241"
+            line="240"
             column="26"/>
     </issue>
 
@@ -437,7 +437,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="302"
+            line="301"
             column="26"/>
     </issue>
 
@@ -448,7 +448,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="302"
+            line="301"
             column="26"/>
     </issue>
 
@@ -459,7 +459,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="647"
+            line="645"
             column="26"/>
     </issue>
 
@@ -470,7 +470,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="647"
+            line="645"
             column="26"/>
     </issue>
 
@@ -481,7 +481,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="665"
+            line="663"
             column="26"/>
     </issue>
 
@@ -492,7 +492,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="665"
+            line="663"
             column="26"/>
     </issue>
 
@@ -503,7 +503,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="677"
+            line="675"
             column="13"/>
     </issue>
 
@@ -514,7 +514,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1244"
+            line="1239"
             column="26"/>
     </issue>
 
@@ -525,7 +525,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1244"
+            line="1239"
             column="26"/>
     </issue>
 
@@ -536,7 +536,7 @@
         errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1275"
+            line="1270"
             column="30"/>
     </issue>
 
@@ -547,7 +547,7 @@
         errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1275"
+            line="1270"
             column="30"/>
     </issue>
 
@@ -558,7 +558,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1294"
+            line="1289"
             column="26"/>
     </issue>
 
@@ -569,7 +569,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1294"
+            line="1289"
             column="26"/>
     </issue>
 
@@ -580,7 +580,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1411"
+            line="1406"
             column="26"/>
     </issue>
 
@@ -591,7 +591,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1411"
+            line="1406"
             column="26"/>
     </issue>
 
@@ -602,7 +602,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1414"
+            line="1409"
             column="26"/>
     </issue>
 
@@ -613,7 +613,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1414"
+            line="1409"
             column="26"/>
     </issue>
 
@@ -624,7 +624,7 @@
         errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1444"
+            line="1439"
             column="30"/>
     </issue>
 
@@ -635,7 +635,7 @@
         errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1444"
+            line="1439"
             column="30"/>
     </issue>
 
@@ -6045,7 +6045,7 @@
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="318"
+            line="317"
             column="9"/>
     </issue>
 
@@ -6056,7 +6056,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="580"
+            line="578"
             column="26"/>
     </issue>
 
@@ -6067,7 +6067,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="631"
+            line="629"
             column="26"/>
     </issue>
 
@@ -6078,7 +6078,7 @@
         errorLine2="                                           ~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="707"
+            line="705"
             column="44"/>
     </issue>
 
@@ -6089,7 +6089,7 @@
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="756"
+            line="754"
             column="9"/>
     </issue>
 
@@ -6100,7 +6100,7 @@
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="771"
+            line="769"
             column="9"/>
     </issue>
 
@@ -6111,7 +6111,7 @@
         errorLine2="                                 ~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="799"
+            line="801"
             column="34"/>
     </issue>
 
@@ -6122,7 +6122,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="862"
+            line="864"
             column="26"/>
     </issue>
 
@@ -6133,7 +6133,7 @@
         errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="863"
+            line="865"
             column="30"/>
     </issue>
 
@@ -6144,7 +6144,7 @@
         errorLine2="                  ~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="958"
+            line="960"
             column="19"/>
     </issue>
 
@@ -6155,19 +6155,8 @@
         errorLine2="        ^">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1083"
+            line="1085"
             column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="        val uri = Uri.parse(withScheme)"
-        errorLine2="                  ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1103"
-            column="19"/>
     </issue>
 
     <issue
@@ -6177,7 +6166,7 @@
         errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1118"
+            line="1113"
             column="37"/>
     </issue>
 
@@ -6188,7 +6177,7 @@
         errorLine2="                                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1267"
+            line="1262"
             column="61"/>
     </issue>
 
@@ -6199,7 +6188,7 @@
         errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1282"
+            line="1277"
             column="30"/>
     </issue>
 
@@ -6210,7 +6199,7 @@
         errorLine2="                                     ~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1313"
+            line="1308"
             column="38"/>
     </issue>
 
@@ -6221,7 +6210,7 @@
         errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1451"
+            line="1446"
             column="30"/>
     </issue>
 
@@ -6232,7 +6221,7 @@
         errorLine2="                  ~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1468"
+            line="1463"
             column="19"/>
     </issue>
 
@@ -6243,7 +6232,7 @@
         errorLine2="        ^">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1526"
+            line="1521"
             column="9"/>
     </issue>
 
@@ -6254,7 +6243,7 @@
         errorLine2="                  ~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1545"
+            line="1540"
             column="19"/>
     </issue>
 
@@ -6265,7 +6254,7 @@
         errorLine2="                                                                       ~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1861"
+            line="1856"
             column="72"/>
     </issue>
 
@@ -6276,7 +6265,7 @@
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1895"
+            line="1890"
             column="26"/>
     </issue>
 
@@ -6287,7 +6276,7 @@
         errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1907"
+            line="1902"
             column="30"/>
     </issue>
 
@@ -6419,7 +6408,7 @@
         errorLine2="                      ~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="791"
+            line="816"
             column="23"/>
     </issue>
 
@@ -6529,7 +6518,7 @@
         errorLine2="                                                   ~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/util/VpnRouterAttestation.kt"
-            line="198"
+            line="197"
             column="52"/>
     </issue>
 
@@ -6540,7 +6529,7 @@
         errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/util/VpnRouterAttestation.kt"
-            line="203"
+            line="202"
             column="33"/>
     </issue>
 
@@ -6551,7 +6540,7 @@
         errorLine2="        ^">
         <location
             file="src/main/java/com/wireguard/android/util/VpnRouterAttestation.kt"
-            line="213"
+            line="212"
             column="9"/>
     </issue>
 
@@ -6562,7 +6551,7 @@
         errorLine2="            ~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/util/VpnRouterAttestation.kt"
-            line="253"
+            line="252"
             column="13"/>
     </issue>
 
@@ -6573,7 +6562,7 @@
         errorLine2="        ^">
         <location
             file="src/main/java/com/wireguard/android/util/VpnRouterAttestation.kt"
-            line="263"
+            line="262"
             column="9"/>
     </issue>
 
@@ -6584,7 +6573,7 @@
         errorLine2="        ^">
         <location
             file="src/main/java/com/wireguard/android/util/VpnRouterAttestation.kt"
-            line="273"
+            line="272"
             column="9"/>
     </issue>
 
@@ -6595,7 +6584,7 @@
         errorLine2="        ~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/util/VpnRouterAttestation.kt"
-            line="363"
+            line="362"
             column="9"/>
     </issue>
 
@@ -6606,7 +6595,7 @@
         errorLine2="        ~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/util/VpnRouterAttestation.kt"
-            line="371"
+            line="370"
             column="9"/>
     </issue>
 
@@ -6767,22 +6756,11 @@
     <issue
         id="UseKtx"
         message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="        val uri = Uri.parse(withScheme)"
-        errorLine2="                  ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/WebTerminalBrowserActivity.kt"
-            line="174"
-            column="19"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
         errorLine1="        val uri = runCatching { Uri.parse(terminalUrl.orEmpty()) }.getOrNull() ?: return null"
         errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/WebTerminalBrowserActivity.kt"
-            line="183"
+            line="177"
             column="33"/>
     </issue>
 
