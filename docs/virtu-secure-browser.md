@@ -149,7 +149,9 @@ ready state.
 Secure Browser WebView settings:
 
 - JavaScript is enabled because modern websites require it,
-- third-party cookies are disabled,
+- third-party cookies are enabled because Cloudflare/Turnstile and similar
+  challenge flows commonly rely on cross-origin challenge storage; browser state
+  is still cleared by the ephemeral/session controls,
 - file and content access are disabled,
 - file-to-file and file-to-network access are disabled,
 - mixed content is blocked,
@@ -168,7 +170,10 @@ pull-to-refresh reloads:
 
 - `DNT: 1`,
 - `Sec-GPC: 1`,
-- `Accept-Language: en-US,en;q=0.9`.
+- `Accept-Language: en-US,en;q=0.9`,
+- `X-Requested-With: false` on app-initiated top-level requests to avoid leaking
+  the Android package name on WebView providers that still emit the platform
+  header.
 
 Secure Browser also overrides the Android WebView default User-Agent. Mobile
 mode uses a fixed Android WebView-compatible UA and desktop mode uses a fixed
@@ -179,8 +184,9 @@ language stack such as `SM-T860`, `sk-SK`, or `cs-CZ`.
 
 Where the installed Android WebView provider supports it, Secure Browser also
 sets an empty `X-Requested-With` allowlist so third-party websites do not receive
-the Android application package name. Older WebView providers that do not expose
-this control may still add the platform header.
+the Android application package name. Older WebView providers that do not honor
+this control may still add the platform header on requests that are not initiated
+through the app's top-level navigation path.
 
 At document start it also exposes `navigator.globalPrivacyControl = true`,
 `navigator.doNotTrack = "1"`, and installs a `no-referrer` meta policy as early
@@ -379,6 +385,9 @@ order:
   security control.
 - Android Safe Browsing may contact Google Safe Browsing infrastructure through
   the VPN.
+- Third-party cookies are enabled for challenge compatibility. In `Sessions Off`
+  mode they are cleared when leaving the browser; in `Sessions On` mode they
+  persist until session memory is disabled or the browser state is cleared.
 - Secure Browser cookie cleanup is process-global and may sign out other in-app
   WebView features such as Web Terminal.
 - Host-based tracker blocking is best-effort and does not replace a full

@@ -441,7 +441,7 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun configureWebView(webView: WebView) {
-        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, false)
+        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -2228,7 +2228,8 @@ class SecureBrowserActivity : AppCompatActivity() {
         private val PRIVACY_REQUEST_HEADERS = mapOf(
             "DNT" to "1",
             "Sec-GPC" to "1",
-            "Accept-Language" to "en-US,en;q=0.9"
+            "Accept-Language" to "en-US,en;q=0.9",
+            "X-Requested-With" to "false"
         )
         private val PRIVACY_RESPONSE_HEADERS = mapOf(
             "Referrer-Policy" to "no-referrer",
