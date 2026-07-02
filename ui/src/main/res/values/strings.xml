@@ -209,7 +209,6 @@
     <string name="vcs_secure_browser_blocked_router_unreachable">The paired VPN Router is not reachable from this Wi-Fi. Reconnect to the router hotspot and try again.</string>
     <string name="vcs_secure_browser_blocked_router_unprotected">The paired VPN Router is reachable, but it is not currently reporting protected VPN routing.</string>
     <string name="vcs_secure_browser_blocked_router_degraded">The paired VPN Router is fail-closed because its selected VPN tunnel has no internet. Switch to a working tunnel on the router.</string>
-    <string name="vcs_secure_browser_blocked_egress_leak">The VPN Router reported protected, but this device\'s public exit is not a VPN address. Browsing was blocked to prevent a leak.</string>
     <string name="vcs_secure_browser_blocked_router_not_paired">This hotspot is a VPN Router, but it is not one of the paired routers on this device. Pair it from the router QR code.</string>
     <string name="vcs_secure_browser_blocked_bad_signature">The VPN Router signature did not match the saved pair key. Remove paired routers and pair again.</string>
     <string name="vcs_secure_browser_blocked_clock_skew">Verified router found, but the phone clocks differ too much. Check date and time on both devices, then try again.</string>

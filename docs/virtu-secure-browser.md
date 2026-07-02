@@ -316,6 +316,12 @@ On the router phone itself, Secure Browser may run while VPN Router is enabled
 because router OUTPUT lockdown prevents normal phone traffic from bypassing the
 VPN. The browser still shows the router tunnel in the egress header.
 
+While running as a verified hotspot client, Secure Browser periodically
+re-checks the local router attestation and fails closed if the router reports an
+authoritative unprotected state. This watch loop does not call public IP or geo
+lookup services. Exit IP/country lookup remains an explicit user action from the
+egress status dialog.
+
 ## Router Pairing Troubleshooting
 
 If a hotspot client remains blocked after pairing, check the layers in this

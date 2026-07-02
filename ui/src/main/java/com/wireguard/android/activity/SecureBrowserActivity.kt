@@ -88,7 +88,6 @@ class SecureBrowserActivity : AppCompatActivity() {
     private var boundNetwork: Network? = null
     private var boundNetworkKind: BoundNetworkKind? = null
     private var routerAttestationWatchFailures = 0
-    private var lastEgressCorroborationAt = 0L
     private var documentStartWebRtcProtection = false
     private var userInitiatedNavigation = false
     private var defaultUserAgent: String? = null
@@ -1680,24 +1679,18 @@ class SecureBrowserActivity : AppCompatActivity() {
     private fun startRouterAttestationWatch() {
         if (routerAttestationWatchJob?.isActive == true) return
         routerAttestationWatchFailures = 0
-        lastEgressCorroborationAt = 0L
         routerAttestationWatchJob = lifecycleScope.launch {
             while (isActive && !blocked && boundNetworkKind == BoundNetworkKind.ROUTER_WIFI) {
                 delay(ROUTER_ATTESTATION_WATCH_MS)
                 if (!isActive || blocked || !::binding.isInitialized || boundNetworkKind != BoundNetworkKind.ROUTER_WIFI) {
                     return@launch
                 }
-                var egressLeak = false
                 val stillProtected = withContext(Dispatchers.IO) {
                     protectionMutex.withLock {
                         val verification = runCatching {
                             VpnRouterAttestation.verifyFromCurrentGatewayDetailed(this@SecureBrowserActivity)
                         }.getOrNull()
                         if (verification?.result != null) {
-                            if (shouldCorroborateEgress() && egressLeakDetected()) {
-                                egressLeak = true
-                                return@withLock false
-                            }
                             routerAttestationWatchFailures = 0
                             return@withLock true
                         }
@@ -1725,10 +1718,7 @@ class SecureBrowserActivity : AppCompatActivity() {
                         BrowserProtection(
                             false,
                             getString(R.string.vcs_secure_browser_egress_blocked),
-                            getString(
-                                if (egressLeak) R.string.vcs_secure_browser_blocked_egress_leak
-                                else R.string.vcs_secure_browser_blocked_detail
-                            ),
+                            getString(R.string.vcs_secure_browser_blocked_detail),
                             retryRouterAttestation = true
                         )
                     )
@@ -1904,30 +1894,6 @@ class SecureBrowserActivity : AppCompatActivity() {
                 countryCode = json.optString("country_code")
             )
         }.getOrDefault(EgressIdentity(ip, "", ""))
-    }
-
-    /**
-     * Defence-in-depth corroboration on top of a passed router attestation: the
-     * router's fail-closed firewall already forces client traffic through the
-     * VPN, but here we independently confirm that this device's public exit is
-     * actually a VPN address and not a leaked private/CGNAT/carrier route.
-     * Returns false on transient lookup failure so we never false-block.
-     */
-    private fun egressLeakDetected(): Boolean {
-        val identity = fetchEgressIdentity() ?: return false
-        return isEgressAddressPrivate(identity.ip)
-    }
-
-    private fun isEgressAddressPrivate(ip: String): Boolean {
-        val normalized = ip.trim().removePrefix("[").removeSuffix("]").lowercase()
-        return isPrivateIpv4(normalized) || isPrivateIpv6(normalized)
-    }
-
-    private fun shouldCorroborateEgress(): Boolean {
-        val now = System.currentTimeMillis()
-        if (now - lastEgressCorroborationAt < EGRESS_CORROBORATION_INTERVAL_MS) return false
-        lastEgressCorroborationAt = now
-        return true
     }
 
     private fun isValidIpLiteral(value: String): Boolean {
@@ -2169,7 +2135,6 @@ class SecureBrowserActivity : AppCompatActivity() {
         private const val ROUTER_ATTESTATION_RETRY_MS = 2_000L
         private const val ROUTER_ATTESTATION_WATCH_MS = 3_000L
         private const val ROUTER_ATTESTATION_WATCH_MAX_TRANSIENT_FAILURES = 3
-        private const val EGRESS_CORROBORATION_INTERVAL_MS = 30_000L
         const val EXTRA_INITIAL_URL = "com.wireguard.android.extra.SECURE_BROWSER_INITIAL_URL"
         private const val GOOGLE_URL = "https://www.google.com/"
         private const val DESKTOP_USER_AGENT =
