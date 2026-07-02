@@ -9,7 +9,6 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
-import android.view.View
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.addCallback
@@ -31,16 +30,11 @@ import kotlinx.coroutines.launch
 
 class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener {
     private var actionBar: ActionBar? = null
-    private var isTwoPaneLayout = false
     private var backPressedCallback: OnBackPressedCallback? = null
     private var enrollmentIntentPending = false
 
     private fun handleBackPressed() {
         val backStackEntries = supportFragmentManager.backStackEntryCount
-        if (isTwoPaneLayout && backStackEntries <= 1) {
-            finish()
-            return
-        }
         if (backStackEntries >= 1)
             supportFragmentManager.popBackStack()
         if (backStackEntries == 1)
@@ -51,8 +45,7 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
         val backStackEntries = supportFragmentManager.backStackEntryCount
         backPressedCallback?.isEnabled = backStackEntries >= 1
         if (actionBar == null) return
-        val minBackStackEntries = if (isTwoPaneLayout) 2 else 1
-        actionBar!!.setDisplayHomeAsUpEnabled(backStackEntries >= minBackStackEntries)
+        actionBar!!.setDisplayHomeAsUpEnabled(backStackEntries >= 1)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,7 +53,6 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
         if (!allowsUnsignedEnrollment(intent) && !VcsAuthGate.requireSignedIn(this)) return
         setContentView(R.layout.main_activity)
         actionBar = supportActionBar
-        isTwoPaneLayout = findViewById<View?>(R.id.master_detail_wrapper) != null
         supportFragmentManager.addOnBackStackChangedListener(this)
         backPressedCallback = onBackPressedDispatcher.addCallback(this) { handleBackPressed() }
         onBackStackChanged()
@@ -125,7 +117,7 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
     private fun syncResultMessage(result: VcsManagedClient.SyncResult): String {
         return when {
             result.skippedRunning > 0 -> getString(R.string.vcs_sync_skipped_running, result.skippedRunning)
-            result.pendingBundleAssignments > 0 -> getString(R.string.vcs_sync_bundle_pending, result.pendingBundleAssignments)
+            result.pendingBundleAssignments > 0 -> getString(R.string.vcs_sync_bundle_pending)
             result.assigned == 0 -> getString(R.string.vcs_sync_no_assignments)
             result.imported == 0 -> getString(R.string.vcs_sync_checked_no_imports, result.assigned)
             else -> getString(R.string.vcs_sync_success, result.imported, result.assigned)
@@ -199,7 +191,7 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
             }
             R.id.menu_action_edit -> {
                 supportFragmentManager.commit {
-                    replace(if (isTwoPaneLayout) R.id.detail_container else R.id.list_detail_container, TunnelEditorFragment())
+                    replace(R.id.list_detail_container, TunnelEditorFragment())
                     setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
                     addToBackStack(null)
                 }
@@ -231,7 +223,7 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
             fragmentManager.popBackStackImmediate()
         } else if (backStackEntries == 0) {
             fragmentManager.commit {
-                add(if (isTwoPaneLayout) R.id.detail_container else R.id.list_detail_container, TunnelDetailFragment())
+                add(R.id.list_detail_container, TunnelDetailFragment())
                 setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
                 addToBackStack(null)
             }

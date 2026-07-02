@@ -4,6 +4,7 @@
  */
 package com.wireguard.android
 
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Intent
 import android.graphics.Bitmap
@@ -68,12 +69,7 @@ class QuickTileService : TileService() {
                     Log.d(TAG, "No tunnel set, so launching main activity")
                     val intent = Intent(this@QuickTileService, MainActivity::class.java)
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                        startActivityAndCollapse(PendingIntent.getActivity(this@QuickTileService, 0, intent, PendingIntent.FLAG_IMMUTABLE))
-                    } else {
-                        @Suppress("DEPRECATION")
-                        startActivityAndCollapse(intent)
-                    }
+                    startActivityAndCollapseCompat(intent, 0)
                 }
 
                 else -> {
@@ -192,8 +188,13 @@ class QuickTileService : TileService() {
     private fun launchSignInFromTile() {
         Toast.makeText(this, R.string.vcs_sign_in_required, Toast.LENGTH_LONG).show()
         val intent = VcsAuthGate.signInIntent(this)
+        startActivityAndCollapseCompat(intent, 1)
+    }
+
+    @SuppressLint("StartActivityAndCollapseDeprecated")
+    private fun startActivityAndCollapseCompat(intent: Intent, requestCode: Int) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startActivityAndCollapse(PendingIntent.getActivity(this, 1, intent, PendingIntent.FLAG_IMMUTABLE))
+            startActivityAndCollapse(PendingIntent.getActivity(this, requestCode, intent, PendingIntent.FLAG_IMMUTABLE))
         } else {
             @Suppress("DEPRECATION")
             startActivityAndCollapse(intent)

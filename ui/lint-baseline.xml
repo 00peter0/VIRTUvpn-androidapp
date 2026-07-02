@@ -2,145 +2,13 @@
 <issues format="6" by="lint 8.13.2" type="baseline" client="gradle" dependencies="false" name="AGP (8.13.2)" variant="all" version="8.13.2">
 
     <issue
-        id="GestureBackNavigation"
-        message="`onBackPressed` is no longer called for back gestures; migrate to AndroidX&apos;s backward compatible `OnBackPressedDispatcher`"
-        errorLine1="    override fun onBackPressed() {"
-        errorLine2="                 ~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/WebTerminalBrowserActivity.kt"
-            line="79"
-            column="18"/>
-    </issue>
-
-    <issue
-        id="InlinedApi"
-        message="Field requires API level 36 (current min is 24): `android.net.TetheringManager#TETHERING_WIFI`"
-        errorLine1="        return interfaces.any { it.type == TetheringManager.TETHERING_WIFI }"
-        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/util/HotspotDetector.kt"
-            line="34"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 36 (current min is 24): `android.net.TetheringInterface#getType`"
-        errorLine1="        return interfaces.any { it.type == TetheringManager.TETHERING_WIFI }"
-        errorLine2="                                   ~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/util/HotspotDetector.kt"
-            line="34"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Class requires API level 36 (current min is 24): `android.net.TetheringManager`"
-        errorLine1="        val manager = context.getSystemService(TetheringManager::class.java) ?: return null"
-        errorLine2="                                               ~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/util/HotspotDetector.kt"
-            line="38"
-            column="48"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Cast to `TetheringEventCallback` requires API level 36 (current min is 24)"
-        errorLine1="        val callback = object : TetheringManager.TetheringEventCallback {"
-        errorLine2="                       ^">
-        <location
-            file="src/main/java/com/wireguard/android/util/HotspotDetector.kt"
-            line="40"
-            column="24"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Class requires API level 36 (current min is 24): `android.net.TetheringManager.TetheringEventCallback`"
-        errorLine1="        val callback = object : TetheringManager.TetheringEventCallback {"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/util/HotspotDetector.kt"
-            line="40"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 36 (current min is 24): `android.net.TetheringManager#registerTetheringEventCallback`"
-        errorLine1="        manager.registerTetheringEventCallback(executor, callback)"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/util/HotspotDetector.kt"
-            line="45"
-            column="17"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 36 (current min is 24): `android.net.TetheringManager#unregisterTetheringEventCallback`"
-        errorLine1="            runCatching { manager.unregisterTetheringEventCallback(callback) }"
-        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/util/HotspotDetector.kt"
-            line="47"
-            column="35"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="`android:windowLightNavigationBar` requires API level 27 (current min is 24)"
-        errorLine1="        &lt;item name=&quot;android:windowLightNavigationBar&quot;>false&lt;/item>"
-        errorLine2="              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/styles.xml"
-            line="44"
-            column="15"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="`android:enforceNavigationBarContrast` requires API level 29 (current min is 24)"
-        errorLine1="        &lt;item name=&quot;android:enforceNavigationBarContrast&quot;>false&lt;/item>"
-        errorLine2="              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/styles.xml"
-            line="45"
-            column="15"/>
-    </issue>
-
-    <issue
-        id="StartActivityAndCollapseDeprecated"
-        message="TileService#startActivityAndCollapse(Intent) is deprecated. Use TileService#startActivityAndCollapse(PendingIntent) instead."
-        errorLine1="                        startActivityAndCollapse(intent)"
-        errorLine2="                                                 ~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/QuickTileService.kt"
-            line="75"
-            column="50"/>
-    </issue>
-
-    <issue
-        id="StartActivityAndCollapseDeprecated"
-        message="TileService#startActivityAndCollapse(Intent) is deprecated. Use TileService#startActivityAndCollapse(PendingIntent) instead."
-        errorLine1="            startActivityAndCollapse(intent)"
-        errorLine2="                                     ~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/QuickTileService.kt"
-            line="199"
-            column="38"/>
-    </issue>
-
-    <issue
         id="UnusedAttribute"
         message="Attribute `enableOnBackInvokedCallback` is only used in API level 33 and higher (current min is 24)"
         errorLine1="        android:enableOnBackInvokedCallback=&quot;true&quot;"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/AndroidManifest.xml"
-            line="56"
+            line="57"
             column="9"/>
     </issue>
 
@@ -470,7 +338,7 @@
         errorLine2="             ~~~~~~~~~~~~~">
         <location
             file="src/main/AndroidManifest.xml"
-            line="119"
+            line="121"
             column="14"/>
     </issue>
 
@@ -481,30 +349,8 @@
         errorLine2="             ~~~~~~~~~~~~~">
         <location
             file="src/main/AndroidManifest.xml"
-            line="129"
+            line="131"
             column="14"/>
-    </issue>
-
-    <issue
-        id="MissingInflatedId"
-        message="`@layout/main_activity` does not contain a declaration with id `master_detail_wrapper`"
-        errorLine1="        isTwoPaneLayout = findViewById&lt;View?>(R.id.master_detail_wrapper) != null"
-        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/MainActivity.kt"
-            line="63"
-            column="47"/>
-    </issue>
-
-    <issue
-        id="UnspecifiedRegisterReceiverFlag"
-        message="`receiver` is missing `RECEIVER_EXPORTED` or `RECEIVER_NOT_EXPORTED` flag for unprotected broadcasts registered for android.intent.action.DOWNLOAD_COMPLETE"
-        errorLine1="            context.registerReceiver(receiver, filter)"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="406"
-            column="13"/>
     </issue>
 
     <issue
@@ -530,35 +376,13 @@
     </issue>
 
     <issue
-        id="Deprecated"
-        message="`android:editable` is deprecated: Use an `&lt;EditText>` to make it editable"
-        errorLine1="                                android:editable=&quot;false&quot;"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/layout/tunnel_editor_fragment.xml"
-            line="133"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="DiscouragedApi"
-        message="Fixed screen orientations will be ignored in most cases, starting from Android 16. Android is moving toward a model where apps are expected to adapt to various orientations, display sizes, and aspect ratios."
-        errorLine1="            android:screenOrientation=&quot;fullSensor&quot;"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/AndroidManifest.xml"
-            line="162"
-            column="13"/>
-    </issue>
-
-    <issue
         id="UseCompatLoadingForDrawables"
         message="Use `ResourcesCompat.getDrawable()`"
         errorLine1="        val icon = SlashDrawable(resources.getDrawable(R.drawable.ic_tile, Application.get().theme))"
         errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/QuickTileService.kt"
-            line="119"
+            line="115"
             column="34"/>
     </issue>
 
@@ -835,102 +659,6 @@
             file="src/main/res/layout/vcs_sign_in_dialog.xml"
             line="92"
             column="13"/>
-    </issue>
-
-    <issue
-        id="StringFormatInvalid"
-        message="Format string &apos;`vcs_sync_bundle_pending`&apos; is not a valid format string so it should not be passed to `String.format`"
-        errorLine1="            result.pendingBundleAssignments > 0 -> getString(R.string.vcs_sync_bundle_pending, result.pendingBundleAssignments)"
-        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="386"
-            column="52"/>
-        <location
-            file="src/main/res/values/strings.xml"
-            line="562"
-            column="5"
-            message="This definition does not require arguments"/>
-    </issue>
-
-    <issue
-        id="StringFormatInvalid"
-        message="Format string &apos;`vcs_sync_bundle_pending`&apos; is not a valid format string so it should not be passed to `String.format`"
-        errorLine1="            result.pendingBundleAssignments > 0 -> getString(R.string.vcs_sync_bundle_pending, result.pendingBundleAssignments)"
-        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/MainActivity.kt"
-            line="128"
-            column="52"/>
-        <location
-            file="src/main/res/values/strings.xml"
-            line="562"
-            column="5"
-            message="This definition does not require arguments"/>
-    </issue>
-
-    <issue
-        id="StringFormatInvalid"
-        message="Format string &apos;`vcs_sync_bundle_pending`&apos; is not a valid format string so it should not be passed to `String.format`"
-        errorLine1="                                result.pendingBundleAssignments > 0 -> getString(R.string.vcs_sync_bundle_pending, result.pendingBundleAssignments)"
-        errorLine2="                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/fragment/TunnelListFragment.kt"
-            line="166"
-            column="72"/>
-        <location
-            file="src/main/res/values/strings.xml"
-            line="562"
-            column="5"
-            message="This definition does not require arguments"/>
-    </issue>
-
-    <issue
-        id="StringFormatInvalid"
-        message="Format string &apos;`vcs_sync_bundle_pending`&apos; is not a valid format string so it should not be passed to `String.format`"
-        errorLine1="            result.pendingBundleAssignments > 0 -> getString(R.string.vcs_sync_bundle_pending, result.pendingBundleAssignments)"
-        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/fragment/TunnelListFragment.kt"
-            line="282"
-            column="52"/>
-        <location
-            file="src/main/res/values/strings.xml"
-            line="562"
-            column="5"
-            message="This definition does not require arguments"/>
-    </issue>
-
-    <issue
-        id="StringFormatInvalid"
-        message="Format string &apos;`vcs_managed_access_pending_empty`&apos; is not a valid format string so it should not be passed to `String.format`"
-        errorLine1="                getString(R.string.vcs_managed_access_pending_empty, pendingManagedAccess)"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/fragment/TunnelListFragment.kt"
-            line="406"
-            column="17"/>
-        <location
-            file="src/main/res/values/strings.xml"
-            line="563"
-            column="5"
-            message="This definition does not require arguments"/>
-    </issue>
-
-    <issue
-        id="StringFormatInvalid"
-        message="Format string &apos;`vcs_managed_access_pending_empty`&apos; is not a valid format string so it should not be passed to `String.format`"
-        errorLine1="                getString(R.string.vcs_managed_access_pending_empty, pendingManagedAccess)"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/fragment/TunnelListFragment.kt"
-            line="406"
-            column="17"/>
-        <location
-            file="src/main/res/values/strings.xml"
-            line="563"
-            column="5"
-            message="This definition does not require arguments"/>
     </issue>
 
     <issue
@@ -4707,39 +4435,6 @@
     </issue>
 
     <issue
-        id="ChromeOsAbiSupport"
-        message="Missing x86_64 ABI support for ChromeOS"
-        errorLine1="            abiFilters += listOf(&quot;arm64-v8a&quot;, &quot;armeabi-v7a&quot;)"
-        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="30"
-            column="27"/>
-    </issue>
-
-    <issue
-        id="UnsafeImplicitIntentLaunch"
-        message="The intent action `android.intent.action.MAIN (used to start an activity)` matches the intent filter of a non-exported component `com.wireguard.android.activity.LogViewerActivity` from a manifest. If you are trying to invoke this specific component via the action then you should make the intent explicit by calling `Intent.set{Component,Class,ClassName}`."
-        errorLine1="            val intent = Intent(Intent.ACTION_MAIN)"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/Application.kt"
-            line="59"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="DataExtractionRules"
-        message="The attribute `android:allowBackup` is deprecated from Android 12 and higher and may be removed in future versions. Consider adding the attribute `android:dataExtractionRules` specifying an `@xml` resource which configures cloud backups and device transfers on Android 12 and higher."
-        errorLine1="        android:allowBackup=&quot;false&quot;"
-        errorLine2="                             ~~~~~">
-        <location
-            file="src/main/AndroidManifest.xml"
-            line="54"
-            column="30"/>
-    </issue>
-
-    <issue
         id="NotifyDataSetChanged"
         message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
         errorLine1="        notifyDataSetChanged()"
@@ -4791,17 +4486,6 @@
         <location
             file="src/main/java/com/wireguard/android/fragment/TunnelListFragment.kt"
             line="480"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is never &lt; 24"
-        errorLine1="        if (BuildConfig.MIN_SDK_VERSION > Build.VERSION.SDK_INT) {"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/Application.kt"
-            line="58"
             column="13"/>
     </issue>
 
@@ -6328,7 +6012,7 @@
         errorLine2="                                                                                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/QuickTileService.kt"
-            line="89"
+            line="85"
             column="110"/>
     </issue>
 
@@ -6339,7 +6023,7 @@
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/QuickTileService.kt"
-            line="122"
+            line="118"
             column="17"/>
     </issue>
 
@@ -6350,7 +6034,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/QuickTileService.kt"
-            line="128"
+            line="124"
             column="13"/>
     </issue>
 
@@ -6735,7 +6419,7 @@
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="102"
+            line="103"
             column="9"/>
     </issue>
 
@@ -6746,7 +6430,7 @@
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="119"
+            line="120"
             column="9"/>
     </issue>
 
@@ -6757,7 +6441,7 @@
         errorLine2="        ^">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="226"
+            line="227"
             column="9"/>
     </issue>
 
@@ -6768,7 +6452,7 @@
         errorLine2="        ^">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="284"
+            line="285"
             column="9"/>
     </issue>
 
@@ -6779,7 +6463,7 @@
         errorLine2="            ~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="363"
+            line="364"
             column="13"/>
     </issue>
 
@@ -6790,7 +6474,7 @@
         errorLine2="                ~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="367"
+            line="368"
             column="17"/>
     </issue>
 
@@ -6801,7 +6485,7 @@
         errorLine2="                  ~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="451"
+            line="447"
             column="19"/>
     </issue>
 
@@ -6812,7 +6496,7 @@
         errorLine2="        ~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="626"
+            line="622"
             column="9"/>
     </issue>
 
@@ -6823,7 +6507,7 @@
         errorLine2="                      ~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="722"
+            line="718"
             column="23"/>
     </issue>
 
@@ -6834,7 +6518,7 @@
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="804"
+            line="800"
             column="9"/>
     </issue>
 
@@ -6845,7 +6529,7 @@
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="863"
+            line="859"
             column="9"/>
     </issue>
 
@@ -6856,7 +6540,7 @@
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="871"
+            line="867"
             column="9"/>
     </issue>
 
@@ -6867,7 +6551,7 @@
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="875"
+            line="871"
             column="9"/>
     </issue>
 
@@ -7219,7 +6903,7 @@
         errorLine2="                  ~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/WebTerminalBrowserActivity.kt"
-            line="172"
+            line="174"
             column="19"/>
     </issue>
 
@@ -7230,7 +6914,7 @@
         errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/WebTerminalBrowserActivity.kt"
-            line="181"
+            line="183"
             column="33"/>
     </issue>
 

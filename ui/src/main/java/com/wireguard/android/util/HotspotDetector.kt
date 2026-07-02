@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.annotation.RequiresApi
 import java.util.concurrent.Executor
 
 object HotspotDetector {
@@ -20,7 +21,7 @@ object HotspotDetector {
     }
 
     fun registerWifiHotspotCallback(context: Context, onChanged: (Boolean) -> Unit): AutoCloseable? {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
+        if (Build.VERSION.SDK_INT < 36) return null
         return try {
             registerTetheringCallback(context.applicationContext, onChanged)
         } catch (e: Throwable) {
@@ -29,11 +30,12 @@ object HotspotDetector {
         }
     }
 
+    @RequiresApi(36)
     private fun hasWifiTetheredInterface(interfaces: Set<TetheringInterface>): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
         return interfaces.any { it.type == TetheringManager.TETHERING_WIFI }
     }
 
+    @RequiresApi(36)
     private fun registerTetheringCallback(context: Context, onChanged: (Boolean) -> Unit): AutoCloseable? {
         val manager = context.getSystemService(TetheringManager::class.java) ?: return null
         val executor = Executor { command -> Handler(Looper.getMainLooper()).post(command) }

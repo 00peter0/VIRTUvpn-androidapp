@@ -69,6 +69,7 @@ android {
     lint {
         baseline = file("lint-baseline.xml")
         disable += "LongLogTag"
+        disable += "ChromeOsAbiSupport"
         warning += "MissingTranslation"
         warning += "ImpliedQuantity"
     }

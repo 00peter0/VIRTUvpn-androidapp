@@ -163,7 +163,7 @@ class TunnelListFragment : BaseFragment() {
                         showSnackbar(
                             when {
                                 result.skippedRunning > 0 -> getString(R.string.vcs_sync_skipped_running, result.skippedRunning)
-                                result.pendingBundleAssignments > 0 -> getString(R.string.vcs_sync_bundle_pending, result.pendingBundleAssignments)
+                                result.pendingBundleAssignments > 0 -> getString(R.string.vcs_sync_bundle_pending)
                                 result.assigned == 0 -> getString(R.string.vcs_sync_no_assignments)
                                 result.imported == 0 -> getString(R.string.vcs_sync_checked_no_imports, result.assigned)
                                 else -> getString(R.string.vcs_sync_success, result.imported, result.assigned)
@@ -279,7 +279,7 @@ class TunnelListFragment : BaseFragment() {
     private fun syncResultMessage(result: VcsManagedClient.SyncResult): String {
         return when {
             result.skippedRunning > 0 -> getString(R.string.vcs_sync_skipped_running, result.skippedRunning)
-            result.pendingBundleAssignments > 0 -> getString(R.string.vcs_sync_bundle_pending, result.pendingBundleAssignments)
+            result.pendingBundleAssignments > 0 -> getString(R.string.vcs_sync_bundle_pending)
             result.assigned == 0 -> getString(R.string.vcs_sync_no_assignments)
             result.imported == 0 -> getString(R.string.vcs_sync_checked_no_imports, result.assigned)
             else -> getString(R.string.vcs_sync_success, result.imported, result.assigned)
@@ -403,7 +403,7 @@ class TunnelListFragment : BaseFragment() {
                 0
             }
             activeBinding.emptyStateText.text = if (pendingManagedAccess > 0 && filtered.isEmpty()) {
-                getString(R.string.vcs_managed_access_pending_empty, pendingManagedAccess)
+                getString(R.string.vcs_managed_access_pending_empty)
             } else {
                 getString(R.string.tunnel_list_placeholder)
             }

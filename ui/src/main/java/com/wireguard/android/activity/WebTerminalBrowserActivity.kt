@@ -17,6 +17,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.wireguard.android.Application
@@ -48,6 +49,16 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
             ?.let { normalizeUrl(it) }
 
         configureWebView(binding.terminalWebview)
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (binding.terminalWebview.canGoBack()) {
+                    binding.terminalWebview.goBack()
+                } else {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        })
         loadTerminal()
     }
 
@@ -73,15 +84,6 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
     override fun onSupportNavigateUp(): Boolean {
         finish()
         return true
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        if (binding.terminalWebview.canGoBack()) {
-            binding.terminalWebview.goBack()
-            return
-        }
-        super.onBackPressed()
     }
 
     @SuppressLint("SetJavaScriptEnabled")
