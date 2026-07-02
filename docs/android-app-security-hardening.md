@@ -288,12 +288,12 @@ No server change expected, unless token rotation policy is changed.
 
 ## S4 - Cleartext HTTP and transport policy
 
-Status: Implemented for `VcsManagedClient` as part of S3 step 1.
+Status: Implemented for managed Android API/enrollment/update transport.
 
 Risk:
-Enrollment/API parsing currently accepts `http://` in several places even though
-target SDK and default platform policy may block cleartext in practice. The code
-should explicitly express the product guarantee.
+Enrollment/API transport must not silently fall back to HTTP or an attacker
+controlled TLS endpoint. The code should explicitly express the product
+guarantee and pin the trusted production host with a rotation plan.
 
 Discovery before coding:
 - Read `VcsManagedClient.isEnrollmentUri`, `parseEnrollmentUri`,
@@ -309,8 +309,25 @@ Required decisions:
 
 Preferred app-side direction:
 - Reject HTTP enrollment/API bases in production.
-- Add `network_security_config` with cleartext disabled.
-- Consider certificate pinning only with a rotation plan.
+- Add `network_security_config` for the trusted production domain.
+- Pin only with a rotation plan and backup/intermediate/root pins.
+
+Implemented:
+- `VcsManagedClient` rejects HTTP enrollment and managed API/update bases before
+  network calls.
+- `network_security_config` pins `vcs.virtucomputing.com` and subdomains to the
+  observed Let's Encrypt chain and forbids cleartext for that domain.
+- The config intentionally does not set a global cleartext deny because
+  VirtuVPN Router attestation uses a local, non-public
+  `http://<wifi-gateway>:8788` endpoint. Blocking all cleartext at the platform
+  layer would break verified router pairing/browser compatibility.
+- Pin-set expiration is `2028-08-15`; cert-chain rotation must be checked and a
+  new app released before that date.
+
+Residual:
+- APK downloads launched through Android `DownloadManager` are still protected
+  by HTTPS plus same-origin/path validation, but app-level certificate pinning is
+  not a complete substitute for verifying the downloaded APK artifact itself.
 
 Verification:
 - HTTPS enrollment and sync still work.
@@ -319,7 +336,8 @@ Verification:
   router attestation, not managed API enrollment.
 
 Outside-Android impact:
-Possible if self-hosted deployments still use HTTP.
+Certificate-chain rotation for `vcs.virtucomputing.com` now needs app-release
+coordination before the configured pin expiration.
 
 ## S5 - PrivacyChecker trusted WiFi signal
 

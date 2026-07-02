@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">vcs.virtucomputing.com</domain>
+        <pin-set expiration="2028-08-15">
+            <!-- Current Let's Encrypt chain observed for vcs.virtucomputing.com on 2026-07-02. -->
+            <pin digest="SHA-256">SUlPcqGLUPz4ZSoKEB+aUtORwa5VlMr7QQGthRGqzQs=</pin>
+            <pin digest="SHA-256">s/tdAOmUzd8syaTuqfgGvFcn6DzA5Cmb+Vby1ST+U3Y=</pin>
+            <pin digest="SHA-256">sCkq5UWXjg+7mKu9lMhhYF5bGLsy7VI/UNW3tccdR7w=</pin>
+            <pin digest="SHA-256">diGVwiVYbubAI3RW4hB9xU8e/CH2GnkuvVFZE8zmgzI=</pin>
+        </pin-set>
+    </domain-config>
+</network-security-config>
