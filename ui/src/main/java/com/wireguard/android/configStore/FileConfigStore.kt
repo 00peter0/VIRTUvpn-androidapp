@@ -7,8 +7,11 @@ package com.wireguard.android.configStore
 import android.content.Context
 import android.util.Log
 import com.wireguard.android.R
+import com.wireguard.android.util.AndroidKeystoreAead
+import com.wireguard.android.util.EncryptedSecretCodec
 import com.wireguard.config.BadConfigException
 import com.wireguard.config.Config
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileNotFoundException
@@ -26,7 +29,7 @@ class FileConfigStore(private val context: Context) : ConfigStore {
         val file = fileFor(name)
         if (!file.createNewFile())
             throw IOException(context.getString(R.string.config_file_exists_error, file.name))
-        FileOutputStream(file, false).use { it.write(config.toWgQuickString().toByteArray(StandardCharsets.UTF_8)) }
+        writeEncryptedConfig(file, config)
         return config
     }
 
@@ -51,7 +54,19 @@ class FileConfigStore(private val context: Context) : ConfigStore {
 
     @Throws(BadConfigException::class, IOException::class)
     override fun load(name: String): Config {
-        FileInputStream(fileFor(name)).use { stream -> return Config.parse(stream) }
+        val file = fileFor(name)
+        val stored = FileInputStream(file).use { stream -> stream.readBytes().toString(StandardCharsets.UTF_8) }
+        val configText = if (EncryptedSecretCodec.isEncryptedValue(stored)) {
+            codec.decrypt(stored)
+        } else {
+            stored
+        }
+        val config = Config.parse(ByteArrayInputStream(configText.toByteArray(StandardCharsets.UTF_8)))
+        if (!EncryptedSecretCodec.isEncryptedValue(stored)) {
+            Log.i(TAG, "Migrating plaintext WireGuard configuration for tunnel $name to encrypted storage")
+            writeEncryptedText(file, configText)
+        }
+        return config
     }
 
     @Throws(IOException::class)
@@ -72,11 +87,23 @@ class FileConfigStore(private val context: Context) : ConfigStore {
         val file = fileFor(name)
         if (!file.isFile)
             throw FileNotFoundException(context.getString(R.string.config_not_found_error, file.name))
-        FileOutputStream(file, false).use { stream -> stream.write(config.toWgQuickString().toByteArray(StandardCharsets.UTF_8)) }
+        writeEncryptedConfig(file, config)
         return config
+    }
+
+    private fun writeEncryptedConfig(file: File, config: Config) {
+        writeEncryptedText(file, config.toWgQuickString())
+    }
+
+    private fun writeEncryptedText(file: File, configText: String) {
+        FileOutputStream(file, false).use { stream ->
+            stream.write(codec.encrypt(configText).toByteArray(StandardCharsets.UTF_8))
+        }
     }
 
     companion object {
         private const val TAG = "WireGuard/FileConfigStore"
+        private const val CONFIG_KEY_ALIAS = "virtuvpn_wireguard_config_aes_gcm"
+        private val codec = EncryptedSecretCodec(AndroidKeystoreAead(CONFIG_KEY_ALIAS))
     }
 }

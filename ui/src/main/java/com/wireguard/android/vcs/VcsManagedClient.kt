@@ -9,8 +9,6 @@ import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
@@ -19,6 +17,9 @@ import com.wireguard.android.BuildConfig
 import com.wireguard.android.R
 import com.wireguard.android.activity.MainActivity
 import com.wireguard.android.backend.Tunnel
+import com.wireguard.android.util.AndroidKeystoreAead
+import com.wireguard.android.util.EncryptedSecretCodec
+import com.wireguard.android.util.EncryptedSecretMigrator
 import com.wireguard.config.Config
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -29,103 +30,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.time.Instant
-import java.util.Base64
 import java.util.Locale
-import javax.crypto.Cipher
-import javax.crypto.KeyGenerator
-import javax.crypto.SecretKey
-import javax.crypto.spec.GCMParameterSpec
-
-internal interface ManagedSecretAead {
-    fun encrypt(plaintext: ByteArray): ManagedSecretCiphertext
-    fun decrypt(ciphertext: ManagedSecretCiphertext): ByteArray
-}
-
-internal data class ManagedSecretCiphertext(val iv: ByteArray, val ciphertext: ByteArray)
-
-internal class ManagedSecretCodec(private val aead: ManagedSecretAead) {
-    fun encrypt(value: String): String {
-        val encrypted = aead.encrypt(value.toByteArray(StandardCharsets.UTF_8))
-        return "$PREFIX${b64(encrypted.iv)}:${b64(encrypted.ciphertext)}"
-    }
-
-    fun decrypt(value: String): String {
-        if (!isEncryptedValue(value)) error("Secret value is not encrypted")
-        val encoded = value.removePrefix(PREFIX)
-        val separator = encoded.indexOf(':')
-        if (separator <= 0 || separator == encoded.lastIndex) error("Encrypted secret value is malformed")
-        val iv = unb64(encoded.substring(0, separator))
-        val ciphertext = unb64(encoded.substring(separator + 1))
-        return aead.decrypt(ManagedSecretCiphertext(iv, ciphertext)).toString(StandardCharsets.UTF_8)
-    }
-
-    companion object {
-        private const val PREFIX = "enc:v1:"
-
-        fun isEncryptedValue(value: String): Boolean = value.startsWith(PREFIX)
-
-        private fun b64(value: ByteArray): String = Base64.getEncoder().encodeToString(value)
-        private fun unb64(value: String): ByteArray = Base64.getDecoder().decode(value)
-    }
-}
-
-internal class ManagedSecretMigrator(private val codec: ManagedSecretCodec) {
-    fun readSecret(
-        stored: String?,
-        writeEncrypted: (String) -> Unit,
-        clearSecrets: () -> Unit
-    ): String? {
-        stored ?: return null
-        if (ManagedSecretCodec.isEncryptedValue(stored)) {
-            return runCatching { codec.decrypt(stored) }
-                .getOrElse {
-                    clearSecrets()
-                    null
-                }
-        }
-        return runCatching {
-            writeEncrypted(codec.encrypt(stored))
-            stored
-        }.getOrElse {
-            clearSecrets()
-            null
-        }
-    }
-}
-
-private object AndroidKeystoreSecretAead : ManagedSecretAead {
-    private const val TRANSFORMATION = "AES/GCM/NoPadding"
-    private const val GCM_TAG_BITS = 128
-
-    override fun encrypt(plaintext: ByteArray): ManagedSecretCiphertext {
-        val cipher = Cipher.getInstance(TRANSFORMATION)
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey())
-        return ManagedSecretCiphertext(cipher.iv, cipher.doFinal(plaintext))
-    }
-
-    override fun decrypt(ciphertext: ManagedSecretCiphertext): ByteArray {
-        val cipher = Cipher.getInstance(TRANSFORMATION)
-        cipher.init(Cipher.DECRYPT_MODE, secretKey(), GCMParameterSpec(GCM_TAG_BITS, ciphertext.iv))
-        return cipher.doFinal(ciphertext.ciphertext)
-    }
-
-    private fun secretKey(): SecretKey {
-        val keyStore = java.security.KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-        (keyStore.getKey(VcsManagedClient.tokenKeyAlias(), null) as? SecretKey)?.let { return it }
-        val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
-        val spec = KeyGenParameterSpec.Builder(
-            VcsManagedClient.tokenKeyAlias(),
-            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-        )
-            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-            .setRandomizedEncryptionRequired(true)
-            .setUserAuthenticationRequired(false)
-            .build()
-        generator.init(spec)
-        return generator.generateKey()
-    }
-}
 
 object VcsManagedClient {
     private const val PREFS = "vcs_managed_client"
@@ -187,8 +92,8 @@ object VcsManagedClient {
     )
     private class ManagedPrefs(context: Context) {
         private val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        private val secretCodec = ManagedSecretCodec(AndroidKeystoreSecretAead)
-        private val secretMigrator = ManagedSecretMigrator(secretCodec)
+        private val secretCodec = EncryptedSecretCodec(AndroidKeystoreAead(TOKEN_KEY_ALIAS))
+        private val secretMigrator = EncryptedSecretMigrator(secretCodec)
 
         fun edit(block: SharedPreferences.Editor.() -> Unit) {
             prefs.edit().apply {
@@ -228,8 +133,6 @@ object VcsManagedClient {
     }
 
     private fun managedPrefs(context: Context) = ManagedPrefs(context)
-
-    internal fun tokenKeyAlias(): String = TOKEN_KEY_ALIAS
 
     fun hasSession(context: Context): Boolean = loadSession(context) != null
 

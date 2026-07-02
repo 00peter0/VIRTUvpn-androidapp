@@ -183,16 +183,29 @@ public final class WgQuickBackend implements Backend {
         Objects.requireNonNull(config, "Trying to set state up with a null config");
 
         final File tempFile = new File(localTemporaryDir, tunnel.getName() + ".conf");
-        try (final FileOutputStream stream = new FileOutputStream(tempFile, false)) {
-            stream.write(config.toWgQuickString().getBytes(StandardCharsets.UTF_8));
+        final int result;
+        try {
+            try (final FileOutputStream stream = new FileOutputStream(tempFile, false)) {
+                stream.write(config.toWgQuickString().getBytes(StandardCharsets.UTF_8));
+            }
+            // wg-quick needs a file path; keep the transient plaintext config owner-only.
+            // noinspection ResultOfMethodCallIgnored
+            tempFile.setReadable(false, false);
+            // noinspection ResultOfMethodCallIgnored
+            tempFile.setReadable(true, true);
+            // noinspection ResultOfMethodCallIgnored
+            tempFile.setWritable(false, false);
+            // noinspection ResultOfMethodCallIgnored
+            tempFile.setWritable(true, true);
+            String command = String.format("wg-quick %s '%s'",
+                    state.toString().toLowerCase(Locale.ENGLISH), tempFile.getAbsolutePath());
+            if (state == State.UP)
+                command = "cat /sys/module/wireguard/version && " + command;
+            result = rootShell.run(null, command);
+        } finally {
+            // noinspection ResultOfMethodCallIgnored
+            tempFile.delete();
         }
-        String command = String.format("wg-quick %s '%s'",
-                state.toString().toLowerCase(Locale.ENGLISH), tempFile.getAbsolutePath());
-        if (state == State.UP)
-            command = "cat /sys/module/wireguard/version && " + command;
-        final int result = rootShell.run(null, command);
-        // noinspection ResultOfMethodCallIgnored
-        tempFile.delete();
         if (result != 0)
             throw new BackendException(Reason.WG_QUICK_CONFIG_ERROR_CODE, result);
 

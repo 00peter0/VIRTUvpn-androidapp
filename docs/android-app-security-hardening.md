@@ -270,9 +270,8 @@ Threat model notes:
 - It does not protect against live root code running as, or instrumenting, the
   VirtuVPN app process. A live root attacker can generally ask Android Keystore
   to decrypt for the app UID.
-- S3 protects API access tokens at rest. It does not encrypt WireGuard private
-  keys in the existing config store. Encrypting tunnel configs is a separate,
-  larger design change.
+- S3 protects API access tokens at rest. WireGuard tunnel config encryption is
+  handled separately by WG1 below.
 - Stronger defense-in-depth also needs server-side token TTL, refresh, and
   revocation work; that overlaps with R2.
 
@@ -282,6 +281,62 @@ Verification:
 - Corrupt or missing encrypted storage fails closed and asks user to sign in or
   enroll again.
 - Sync and update flows still work.
+
+## WG1 - WireGuard private keys at rest
+
+Status: Implemented in Android app.
+
+Risk:
+WireGuard `.conf` files contain `PrivateKey` and can also contain peer
+`PreSharedKey` values. The upstream file-backed config store writes
+`wg-quick` text directly to app-internal storage. On a dedicated rooted router
+device, a plaintext config file is one of the most valuable local secrets.
+
+Design:
+- Keep the existing `ConfigStore` and WireGuard `Config` APIs unchanged.
+- Encrypt the persisted config text with Android Keystore-backed AES/GCM before
+  writing it to disk.
+- Use a separate Keystore alias for WireGuard configs:
+  `virtuvpn_wireguard_config_aes_gcm`.
+- Do not require biometric or per-use user authentication for the Keystore key.
+  The router must be able to bring up tunnels headlessly after normal device
+  unlock/boot flows.
+- Decrypt only when loading a config into memory for normal tunnel operation.
+- Migrate legacy plaintext `.conf` files on first successful load by rewriting
+  the same file in encrypted form.
+
+Implemented:
+- Added a shared `SecretCrypto` utility for versioned `enc:v1:` AES/GCM values.
+- `VcsManagedClient` token encryption now uses the shared utility instead of a
+  token-only duplicate implementation.
+- `FileConfigStore.create` and `FileConfigStore.save` write encrypted config
+  payloads.
+- `FileConfigStore.load` accepts both encrypted and legacy plaintext configs.
+  Legacy plaintext is parsed first, then rewritten encrypted. If encrypted
+  config decryption fails, loading fails closed and the tunnel cannot start from
+  that corrupted/unreadable secret.
+- `WgQuickBackend` still has to materialize a transient plaintext config file
+  because `wg-quick` consumes a file path. That temporary file is now restricted
+  to owner read/write and deleted in a `finally` block so it is not left behind
+  after command failures.
+
+Threat model notes:
+- This protects WireGuard private keys against casual file disclosure, backup or
+  offline extraction, and other apps without live root access.
+- It does not protect against a live root attacker that can instrument the
+  VirtuVPN process, read process memory while the tunnel is being started, or
+  cause the app UID to ask Keystore for decryption.
+- Explicit config export can still produce a plaintext WireGuard config because
+  export is an intentional user/admin action. That flow should remain treated as
+  sensitive.
+
+Verification:
+- Existing plaintext tunnels still load.
+- After first load, the `.conf` file no longer contains plaintext
+  `PrivateKey =` or `PreSharedKey =` lines.
+- Newly created or saved tunnels are encrypted on disk immediately.
+- Temporary `wg-quick` config files are owner-only and cleaned up after tunnel
+  state changes.
 
 Outside-Android impact:
 No server change expected, unless token rotation policy is changed.
