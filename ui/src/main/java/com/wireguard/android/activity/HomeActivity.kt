@@ -277,9 +277,9 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun filterHomeSelectableTunnels(tunnels: List<com.wireguard.android.model.ObservableTunnel>): List<com.wireguard.android.model.ObservableTunnel> {
-        val managedAccessNames = VcsManagedClient.localTunnelNamesForSection(this, MainActivity.TUNNEL_SECTION_MANAGED_ACCESS)
-        if (managedAccessNames.isEmpty()) return tunnels
-        return tunnels.filter { tunnel -> tunnel.name !in managedAccessNames }
+        val vpnMeshNames = VcsManagedClient.localTunnelNamesForSection(this, MainActivity.TUNNEL_SECTION_VPN_MESH)
+        if (vpnMeshNames.isEmpty()) return emptyList()
+        return tunnels.filter { tunnel -> tunnel.name in vpnMeshNames }
     }
 
     private fun persistHomeTunnelSelection(name: String) {
@@ -303,10 +303,12 @@ class HomeActivity : AppCompatActivity() {
             try {
                 val manager = Application.getTunnelManager()
                 val tunnels = manager.getTunnels()
-                val targetName = vpnStatusToggleTargetName
-                    ?: manager.lastUsedTunnel?.name
-                    ?: tunnels.firstOrNull()?.name
-                val target = targetName?.let { tunnels[it] } ?: tunnels.firstOrNull()
+                val selectableTunnels = filterHomeSelectableTunnels(tunnels.toList())
+                val selectableNames = selectableTunnels.map { it.name }.toSet()
+                val targetName = vpnStatusToggleTargetName?.takeIf { it in selectableNames }
+                    ?: manager.lastUsedTunnel?.name?.takeIf { it in selectableNames }
+                    ?: selectableTunnels.firstOrNull()?.name
+                val target = targetName?.let { tunnels[it] }
                 if (target == null) {
                     Toast.makeText(this@HomeActivity, R.string.vcs_vpn_status_toggle_unavailable, Toast.LENGTH_SHORT).show()
                     refreshVpnStatus()
@@ -319,8 +321,11 @@ class HomeActivity : AppCompatActivity() {
                 reconcileVpnRouterFromHome(showProgress = true)
             } catch (e: Throwable) {
                 val manager = Application.getTunnelManager()
+                val selectableNames = filterHomeSelectableTunnels(manager.getTunnels().toList()).map { it.name }.toSet()
                 val targetName = vpnStatusToggleTargetName
+                    ?.takeIf { it in selectableNames }
                     ?: manager.lastUsedTunnel?.name
+                        ?.takeIf { it in selectableNames }
                 val target = targetName?.let { manager.getTunnels()[it] }
                 val requestedState = if (checked) Tunnel.State.UP else Tunnel.State.DOWN
                 if (target != null) {
