@@ -46,6 +46,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.widget.addTextChangedListener
 import androidx.lifecycle.lifecycleScope
+import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import com.journeyapps.barcodescanner.CaptureActivity
@@ -460,9 +461,8 @@ class SecureBrowserActivity : AppCompatActivity() {
         textZoom = getPreferences(MODE_PRIVATE).getInt(PREF_TEXT_ZOOM, 100).coerceIn(MIN_TEXT_ZOOM, MAX_TEXT_ZOOM)
         desktopMode = getPreferences(MODE_PRIVATE).getBoolean(PREF_DESKTOP_MODE, false)
         webView.settings.textZoom = textZoom
-        webView.settings.userAgentString = browserUserAgent()
-        webView.settings.useWideViewPort = desktopMode
-        webView.settings.loadWithOverviewMode = desktopMode
+        applyFingerprintPolicy(webView)
+        disableRequestedWithHeader(webView)
         updateTextZoomLabel()
         updateDesktopModeButton()
         installDocumentStartWebRtcProtection(webView)
@@ -493,7 +493,7 @@ class SecureBrowserActivity : AppCompatActivity() {
                     return true
                 }
                 if (request.isForMainFrame) {
-                    view.loadUrl(request.url.toString(), PRIVACY_REQUEST_HEADERS)
+                    loadUrlWithPrivacyHeaders(view, request.url.toString())
                     return true
                 }
                 return false
@@ -685,7 +685,7 @@ class SecureBrowserActivity : AppCompatActivity() {
                 binding.browserRefresh.isRefreshing = false
                 return@setOnRefreshListener
             }
-            activeWebView().reload()
+            reloadActivePage()
             updateNavigationButtons()
         }
     }
@@ -772,13 +772,11 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun applyDesktopMode(reload: Boolean) {
         browserTabs.mapNotNull { it.webView }.forEach { webView ->
-            webView.settings.userAgentString = browserUserAgent()
-            webView.settings.useWideViewPort = desktopMode
-            webView.settings.loadWithOverviewMode = desktopMode
+            applyFingerprintPolicy(webView)
         }
         updateDesktopModeButton()
         if (reload && !blocked && !activeWebView().url.isNullOrBlank() && activeWebView().url != "about:blank") {
-            activeWebView().reload()
+            reloadActivePage()
         }
     }
 
@@ -980,7 +978,7 @@ class SecureBrowserActivity : AppCompatActivity() {
             userInitiatedNavigation = true
             updateActiveBrowserTab(url, title = null)
             targetWebView.stopLoading()
-            targetWebView.loadUrl(url, PRIVACY_REQUEST_HEADERS)
+            loadUrlWithPrivacyHeaders(targetWebView, url)
             updateNavigationButtons()
         }
     }
@@ -1000,7 +998,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     private fun reloadPage() {
         if (blocked || activeWebView().url.isNullOrBlank() || activeWebView().url == "about:blank") return
         binding.browserRefresh.isRefreshing = true
-        activeWebView().reload()
+        reloadActivePage()
         updateNavigationButtons()
     }
 
@@ -1213,6 +1211,7 @@ class SecureBrowserActivity : AppCompatActivity() {
             )
         }
         webView.visibility = if (blocked) View.GONE else View.VISIBLE
+        applyFingerprintPolicy(webView)
         webView.bringToFront()
         binding.browserWebviewHost.requestLayout()
         binding.browserWebviewHost.invalidate()
@@ -2030,8 +2029,32 @@ class SecureBrowserActivity : AppCompatActivity() {
         }
     }
 
+    private fun applyFingerprintPolicy(webView: WebView) {
+        webView.settings.userAgentString = browserUserAgent()
+        webView.settings.useWideViewPort = desktopMode
+        webView.settings.loadWithOverviewMode = desktopMode
+    }
+
+    @SuppressLint("RestrictedApi")
+    private fun disableRequestedWithHeader(webView: WebView) {
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
+            WebSettingsCompat.setRequestedWithHeaderOriginAllowList(webView.settings, emptySet())
+        }
+    }
+
+    private fun reloadActivePage() {
+        val webView = activeWebView()
+        val url = webView.url?.takeIf { it.isNotBlank() && it != "about:blank" } ?: return
+        loadUrlWithPrivacyHeaders(webView, url)
+    }
+
     private fun loadUrlWithPrivacyHeaders(url: String) {
-        activeWebView().loadUrl(url, PRIVACY_REQUEST_HEADERS)
+        loadUrlWithPrivacyHeaders(activeWebView(), url)
+    }
+
+    private fun loadUrlWithPrivacyHeaders(webView: WebView, url: String) {
+        applyFingerprintPolicy(webView)
+        webView.loadUrl(url, PRIVACY_REQUEST_HEADERS)
     }
 
     private fun clearEphemeralBrowserData() {

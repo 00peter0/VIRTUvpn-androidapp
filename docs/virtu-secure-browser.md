@@ -162,7 +162,9 @@ Secure Browser WebView settings:
 Safe Browsing is a malware/phishing protection tradeoff. Any Safe Browsing
 lookups go through the bound VPN network.
 
-Secure Browser sends privacy preference signals on top-level navigations:
+Secure Browser sends privacy preference signals on top-level navigations,
+including typed URLs, quick URLs, tab switches, desktop-mode reloads, and
+pull-to-refresh reloads:
 
 - `DNT: 1`,
 - `Sec-GPC: 1`,
@@ -173,6 +175,11 @@ mode uses a stable generic Android Mobile UA and desktop mode uses a stable
 generic Linux desktop UA. This prevents the default WebView header from exposing
 the exact device model, Android build fingerprint, and local language stack
 such as `SM-T860`, `sk-SK`, or `cs-CZ`.
+
+Where the installed Android WebView provider supports it, Secure Browser also
+sets an empty `X-Requested-With` allowlist so third-party websites do not receive
+the Android application package name. Older WebView providers that do not expose
+this control may still add the platform header.
 
 At document start it also exposes `navigator.globalPrivacyControl = true`,
 `navigator.doNotTrack = "1"`, and installs a `no-referrer` meta policy as early
@@ -408,10 +415,12 @@ For every Secure Browser release:
 - verify turning `Sessions Off` destroys all tab sessions and opens a clean tab,
 - verify tracker/ad blocking does not break basic navigation,
 - verify the HTTPS-only badge and blocked tracker count update per page,
-- verify top-level requests carry DNT/GPC privacy headers and intercepted
-  responses include the no-referrer policy,
+- verify top-level requests and browser reloads carry DNT/GPC privacy headers
+  and intercepted responses include the no-referrer policy,
 - verify browser fingerprint pages do not show the physical device model in
-  User-Agent and show only the normalized Accept-Language value,
+  User-Agent, show only the normalized Accept-Language value, and do not show
+  `X-Requested-With` when the device WebView supports the requested-with
+  allowlist control,
 - verify progress bar and pull-to-refresh do not remain stuck after page load or
   browser lock,
 - verify find-in-page, text zoom, desktop mode, and long-press link actions work
