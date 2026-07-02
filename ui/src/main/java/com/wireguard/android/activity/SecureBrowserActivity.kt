@@ -79,6 +79,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     private var monitorJob: Job? = null
     private var routerAttestationRetryJob: Job? = null
     private var routerAttestationWatchJob: Job? = null
+    private var localRouterWatchJob: Job? = null
     private var egressLookupJob: Job? = null
     private var vpnNetworkCallback: ConnectivityManager.NetworkCallback? = null
     private var navigationDragActive = false
@@ -88,6 +89,17 @@ class SecureBrowserActivity : AppCompatActivity() {
     private var navigationStartY = 0f
     private var boundNetwork: Network? = null
     private var boundNetworkKind: BoundNetworkKind? = null
+    // Source of the currently granted protection. Read from the WebView thread in
+    // ensureBoundNetworkStillProtected(), written from the main thread, so it must
+    // stay @Volatile. It lets the per-request gate stay fail-closed while still
+    // allowing the legitimate router-local mode, which runs without a boundNetwork.
+    @Volatile
+    private var currentProtectionSource: ProtectionSource = ProtectionSource.NONE
+    // Last time we positively confirmed the on-device VPN Router is ENABLED. Kept
+    // warm by startLocalRouterWatch() so the synchronous request gate never has to
+    // call the suspend/root-shell VpnRouterManager.getStatus() on the WebView thread.
+    @Volatile
+    private var localRouterProtectedAt = 0L
     private var routerAttestationWatchFailures = 0
     private var documentStartWebRtcProtection = false
     private var userInitiatedNavigation = false
@@ -358,9 +370,17 @@ class SecureBrowserActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (!::binding.isInitialized) return
-        browserTabs.mapNotNull { it.webView }.forEach { it.onResume() }
+        // Re-establish protection BEFORE resuming the WebViews. Since boundNetwork ==
+        // null is now fail-closed, resuming a session-on tab first could let it fire
+        // requests before refreshBrowserProtection() re-binds the VPN/router network,
+        // which would needlessly lock the browser right after returning to it.
         registerVpnNetworkCallback()
-        monitorJob = lifecycleScope.launch { refreshBrowserProtection() }
+        monitorJob = lifecycleScope.launch {
+            refreshBrowserProtection()
+            if (!blocked) {
+                browserTabs.mapNotNull { it.webView }.forEach { it.onResume() }
+            }
+        }
     }
 
     override fun onPause() {
@@ -370,6 +390,8 @@ class SecureBrowserActivity : AppCompatActivity() {
         routerAttestationRetryJob = null
         routerAttestationWatchJob?.cancel()
         routerAttestationWatchJob = null
+        localRouterWatchJob?.cancel()
+        localRouterWatchJob = null
         egressLookupJob?.cancel()
         egressLookupJob = null
         unregisterVpnNetworkCallback()
@@ -391,6 +413,8 @@ class SecureBrowserActivity : AppCompatActivity() {
         routerAttestationRetryJob = null
         routerAttestationWatchJob?.cancel()
         routerAttestationWatchJob = null
+        localRouterWatchJob?.cancel()
+        localRouterWatchJob = null
         egressLookupJob?.cancel()
         unregisterVpnNetworkCallback()
         unbindBrowserNetwork()
@@ -1729,6 +1753,52 @@ class SecureBrowserActivity : AppCompatActivity() {
         }
     }
 
+    private fun cancelRouterAttestationWatch() {
+        routerAttestationWatchJob?.cancel()
+        routerAttestationWatchJob = null
+        routerAttestationWatchFailures = 0
+    }
+
+    private fun cancelLocalRouterWatch() {
+        localRouterWatchJob?.cancel()
+        localRouterWatchJob = null
+        localRouterProtectedAt = 0L
+    }
+
+    // Router-local mode (Secure Browser running on the router phone) has no bound
+    // network: protection comes from the router's OUTPUT lockdown while VPN Router
+    // is ENABLED. This watch keeps localRouterProtectedAt warm so the synchronous
+    // request gate can stay fail-closed without calling the suspend/root-shell
+    // getStatus() per request, and it locks the browser the moment the router
+    // leaves the ENABLED state.
+    private fun startLocalRouterWatch() {
+        if (localRouterWatchJob?.isActive == true) return
+        localRouterWatchJob = lifecycleScope.launch {
+            while (isActive && !blocked && currentProtectionSource == ProtectionSource.LOCAL_ROUTER) {
+                delay(LOCAL_ROUTER_WATCH_MS)
+                if (!isActive || blocked || !::binding.isInitialized ||
+                    currentProtectionSource != ProtectionSource.LOCAL_ROUTER
+                ) {
+                    return@launch
+                }
+                val stillEnabled = withContext(Dispatchers.IO) {
+                    protectionMutex.withLock {
+                        runCatching { VpnRouterManager.getStatus(this@SecureBrowserActivity) }
+                            .getOrNull()?.availability == VpnRouterManager.Availability.ENABLED
+                    }
+                }
+                if (stillEnabled) {
+                    localRouterProtectedAt = System.currentTimeMillis()
+                } else {
+                    setBrowserProtection(
+                        BrowserProtection(false, getString(R.string.vcs_secure_browser_egress_blocked))
+                    )
+                    return@launch
+                }
+            }
+        }
+    }
+
     private fun lockBrowserFromNetworkCallback() {
         lifecycleScope.launch {
             if (::binding.isInitialized) {
@@ -1738,6 +1808,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun setBrowserProtection(protection: BrowserProtection) {
+        currentProtectionSource = if (protection.allowed) protection.source else ProtectionSource.NONE
         currentProtectionLabel = protection.label
         currentEgressSummary = null
         egressLookupJob?.cancel()
@@ -1754,15 +1825,29 @@ class SecureBrowserActivity : AppCompatActivity() {
             routerAttestationRetryJob?.cancel()
             routerAttestationRetryJob = null
             blocked = false
-            if (protection.source == ProtectionSource.ATTESTED_ROUTER) {
-                startRouterAttestationWatch()
-            } else {
-                routerAttestationWatchJob?.cancel()
-                routerAttestationWatchJob = null
-                routerAttestationWatchFailures = 0
+            when (protection.source) {
+                ProtectionSource.ATTESTED_ROUTER -> {
+                    cancelLocalRouterWatch()
+                    startRouterAttestationWatch()
+                }
+                ProtectionSource.LOCAL_ROUTER -> {
+                    cancelRouterAttestationWatch()
+                    // resolveBrowserProtection() only returns LOCAL_ROUTER after it
+                    // just saw VpnRouterManager ENABLED, so this timestamp is fresh.
+                    localRouterProtectedAt = System.currentTimeMillis()
+                    startLocalRouterWatch()
+                }
+                else -> {
+                    cancelRouterAttestationWatch()
+                    cancelLocalRouterWatch()
+                }
             }
             binding.vpnBlocker.visibility = View.GONE
             activeWebView().visibility = View.VISIBLE
+            // Protection may have been granted only now (e.g. VPN came up via the
+            // network callback while onResume() still saw us blocked). Resume the
+            // WebViews here too so session-on tabs paused in onPause() wake up.
+            browserTabs.mapNotNull { it.webView }.forEach { it.onResume() }
             val initialUrl = binding.urlInput.text?.toString().orEmpty()
             if (userInitiatedNavigation &&
                 (activeWebView().url.isNullOrBlank() || activeWebView().url == "about:blank")
@@ -1773,9 +1858,8 @@ class SecureBrowserActivity : AppCompatActivity() {
             }
         } else {
             egressLookupJob?.cancel()
-            routerAttestationWatchJob?.cancel()
-            routerAttestationWatchJob = null
-            routerAttestationWatchFailures = 0
+            cancelRouterAttestationWatch()
+            cancelLocalRouterWatch()
             lockBrowser(showToast = !blocked)
             activeWebView().visibility = View.GONE
             binding.vpnBlocker.visibility = View.VISIBLE
@@ -2051,18 +2135,39 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun ensureBoundNetworkStillProtected(): Boolean {
-        val network = boundNetwork ?: return true
-        val kind = boundNetworkKind ?: return false
-        val connectivityManager = getSystemService(ConnectivityManager::class.java) ?: return false
-        val capabilities = connectivityManager.getNetworkCapabilities(network)
-        val protected = when (kind) {
-            BoundNetworkKind.VPN -> capabilities?.let { isUsableVpnCapabilities(it) } == true
-            BoundNetworkKind.ROUTER_WIFI -> capabilities?.let { isUsableRouterWifiCapabilities(it) } == true
+        val network = boundNetwork
+        val kind = boundNetworkKind
+        if (network != null && kind != null) {
+            val connectivityManager = getSystemService(ConnectivityManager::class.java)
+                ?: return failClosedRequestGate()
+            val capabilities = connectivityManager.getNetworkCapabilities(network)
+            val protected = when (kind) {
+                BoundNetworkKind.VPN -> capabilities?.let { isUsableVpnCapabilities(it) } == true
+                BoundNetworkKind.ROUTER_WIFI -> capabilities?.let { isUsableRouterWifiCapabilities(it) } == true
+            }
+            if (!protected) runOnUiThread { lockBrowser(showToast = false) }
+            return protected
         }
-        if (!protected) {
-            runOnUiThread { lockBrowser(showToast = false) }
+        // No bound network. Only router-local mode is legitimately unbound: the
+        // router firewall enforces VPN egress while VPN Router is ENABLED. We must
+        // never allow a request just because boundNetwork is null (fail-closed),
+        // but we also cannot run getStatus() synchronously here (suspend + root
+        // shell), so we trust the warm timestamp kept by startLocalRouterWatch().
+        if (currentProtectionSource == ProtectionSource.LOCAL_ROUTER) {
+            val fresh = System.currentTimeMillis() - localRouterProtectedAt < LOCAL_ROUTER_STATUS_TTL_MS
+            if (!fresh) {
+                // Stale cache: fail closed now and re-verify asynchronously.
+                refreshBrowserProtectionAsync()
+                return failClosedRequestGate()
+            }
+            return true
         }
-        return protected
+        return failClosedRequestGate()
+    }
+
+    private fun failClosedRequestGate(): Boolean {
+        runOnUiThread { lockBrowser(showToast = false) }
+        return false
     }
 
     private fun unbindBrowserNetwork() {
@@ -2090,6 +2195,11 @@ class SecureBrowserActivity : AppCompatActivity() {
         private const val ROUTER_ATTESTATION_RETRY_MS = 2_000L
         private const val ROUTER_ATTESTATION_WATCH_MS = 3_000L
         private const val ROUTER_ATTESTATION_WATCH_MAX_TRANSIENT_FAILURES = 3
+        private const val LOCAL_ROUTER_WATCH_MS = 3_000L
+        // TTL must exceed LOCAL_ROUTER_WATCH_MS so the per-request gate does not
+        // false-block between watch ticks, but stay short enough that a router that
+        // silently leaves ENABLED fails closed within a few seconds.
+        private const val LOCAL_ROUTER_STATUS_TTL_MS = 10_000L
         const val EXTRA_INITIAL_URL = "com.wireguard.android.extra.SECURE_BROWSER_INITIAL_URL"
         private const val GOOGLE_URL = "https://www.google.com/"
         private const val DESKTOP_USER_AGENT =
