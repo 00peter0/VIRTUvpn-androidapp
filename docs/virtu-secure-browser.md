@@ -171,10 +171,11 @@ pull-to-refresh reloads:
 - `Accept-Language: en-US,en;q=0.9`.
 
 Secure Browser also overrides the Android WebView default User-Agent. Mobile
-mode uses a stable generic Android Mobile UA and desktop mode uses a stable
-generic Linux desktop UA. This prevents the default WebView header from exposing
-the exact device model, Android build fingerprint, and local language stack
-such as `SM-T860`, `sk-SK`, or `cs-CZ`.
+mode uses a fixed Android WebView-compatible UA and desktop mode uses a fixed
+Linux desktop UA. These values are intentionally hardcoded instead of derived
+from the real device, so browser checks see a plausible Chromium/WebView client
+without exposing the exact device model, Android build fingerprint, and local
+language stack such as `SM-T860`, `sk-SK`, or `cs-CZ`.
 
 Where the installed Android WebView provider supports it, Secure Browser also
 sets an empty `X-Requested-With` allowlist so third-party websites do not receive
