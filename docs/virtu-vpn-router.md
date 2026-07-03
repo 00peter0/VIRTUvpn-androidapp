@@ -234,21 +234,29 @@ device-local browser safety must not be assumed from WiFi association or normal
 browser privacy modes. For safe web browsing on a hotspot client, install
 VirtuVPN on that client and use VirtuVPN Secured Browser with router pairing.
 The VPN Router page shows a QR code that opens the router download/pairing
-landing page.
+landing page served locally by the router phone over the hotspot.
 
 Secure Browser has its own detailed design document:
 `docs/virtu-secure-browser.md`.
 
-When VPN Router is active, the router phone also exposes a local attestation
-endpoint on the hotspot gateway at
-`/virtuvpn-router/attestation` port `8788`. VirtuVPN Secure Browser on a hotspot
-client can use this nonce-bound signed response to verify that the current WiFi
-gateway is the paired VirtuVPN Router before allowing browser traffic without a
-local VPN transport. Pairing uses a random per-router secret exposed through the
-router pairing landing page while router protection is active. The landing page
-offers manual actions only: install/update VirtuVPN, open/import the pair link
-through the VirtuVPN app, and copy the Secure Browser pair key. It must not
-perform hidden redirects, background tests, or browsing-content serving.
+When VPN Router is active, the router phone exposes a local HTTP server on the
+hotspot gateway at port `8788`. The same server provides:
+
+- `/router/pair#id=...&secret=...`: local download/pairing HTML for hotspot
+  clients,
+- `/virtuvpn.apk`: local download of the same VirtuVPN APK installed on the
+  router phone,
+- `/virtuvpn-router/attestation`: nonce-bound signed router attestation for
+  VirtuVPN Secured Browser.
+
+VirtuVPN Secure Browser on a hotspot client can use the attestation response to
+verify that the current WiFi gateway is the paired VirtuVPN Router before
+allowing browser traffic without a local VPN transport. Pairing uses a random
+per-router secret exposed through the local router pairing landing page while
+router protection is active. The landing page offers manual actions only:
+install/update VirtuVPN from the router, copy the Secure Browser pair key, and
+show the pair key for manual paste. It must not perform hidden redirects,
+background tests, or browsing-content serving.
 
 The endpoint is inactive unless router protection is active. When router status
 is `ENABLED`, attestation returns a signed `protected=true`. When router rules
@@ -259,13 +267,14 @@ WebView blocked with a router-degraded message. This distinction prevents false
 green status while still proving that the client is talking to the paired router.
 
 Router pairing is
-intentionally QR/in-app/manual-paste only. `virtuvpn://router-pair` and the
-trusted `https://vcs.virtucomputing.com/router/pair#id=...&secret=...` landing
-URL may open VirtuVPN, but the client app must always require explicit
-confirmation before storing the router secret. This prevents a web page from
-silently replacing the trusted router. Clients can store multiple paired
-routers, pairings expire after 7 days, and the Secure Browser blocker screen
-provides an explicit unpair action.
+intentionally QR/in-app/manual-paste only. `virtuvpn://router-pair`,
+`http://<router-gateway>:8788/router/pair#id=...&secret=...`, and the legacy
+`https://vcs.virtucomputing.com/router/pair#id=...&secret=...` format must all
+parse through the same client-side pairing parser, but the client app must
+always require explicit confirmation before storing the router secret. This
+prevents a web page from silently replacing the trusted router. Clients can
+store multiple paired routers, pairings expire after 7 days, and the Secure
+Browser blocker screen provides an explicit unpair action.
 
 The attestation server may still bind on all local addresses for Android
 compatibility, but router firewall rules restrict TCP port `8788` to detected
@@ -449,20 +458,16 @@ not guess or overwrite the user's hotspot password.
 ## Client app download and pairing
 
 The VPN Router page shows a QR code for connected client devices. When router
-protection is inactive, the QR may point directly to the guest APK download.
-When router protection is active, the QR points to a router pairing landing page
-on the trusted Virtu infrastructure. That page must remain simple and manual.
-
-Guest APK download:
+protection is active, the QR points to the local hotspot landing page:
 
 ```text
-https://vcs.virtucomputing.com/api/mobile/android/apk/guest
+http://<router-gateway>:8788/router/pair#id=<router-id>&secret=<router-secret>
 ```
 
-The active router landing page must provide:
+The local active-router landing page must provide:
 
-- Install/update VirtuVPN app.
-- Open/import pair link in VirtuVPN when Android can resolve the app link.
+- Install/update VirtuVPN app from the router phone:
+  `http://<router-gateway>:8788/virtuvpn.apk`.
 - Copy Secure Browser pair key.
 - Visible pair key text for manual copy if clipboard integration fails.
 - Clear instruction that safe web browsing on hotspot clients should be done in
@@ -470,11 +475,20 @@ The active router landing page must provide:
 
 It must not provide hidden redirects, background tests, browsing surfaces, or
 network diagnostics. The page is only for download and explicit manual pairing.
+It is intentionally not bound to VCS sign-in, enrollment, or internet access.
+An unenrolled app installation behaves as the guest browser client; after
+enrollment/sign-in the same APK unlocks full VCS functionality.
+
+The older VCS-hosted router pair page and `/api/mobile/android/apk/guest`
+distribution path are retained as legacy/fallback release paths only. Current
+router builds must prefer the local hotspot URL so a hotspot client can install
+VirtuVPN without VCS account, enrollment token, or internet access.
 
 Supported pair-key formats:
 
 ```text
 virtuvpn://router-pair?id=<router-id>&secret=<router-secret>
+http://<router-gateway>:8788/router/pair#id=<router-id>&secret=<router-secret>
 https://vcs.virtucomputing.com/router/pair#id=<router-id>&secret=<router-secret>
 ```
 

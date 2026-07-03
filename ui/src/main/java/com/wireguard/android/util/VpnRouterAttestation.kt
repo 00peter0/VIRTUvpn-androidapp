@@ -14,9 +14,11 @@ import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.OutputStream
+import java.io.File
 import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.InetSocketAddress
+import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.URLDecoder
@@ -30,6 +32,9 @@ import javax.crypto.spec.SecretKeySpec
 object VpnRouterAttestation {
     const val PORT = 8788
     private const val PATH = "/virtuvpn-router/attestation"
+    private const val PAIR_PAGE_PATH = "/router/pair"
+    private const val APK_PATH = "/virtuvpn.apk"
+    private const val LEGACY_DOWNLOAD_URL = "https://vcs.virtucomputing.com/api/mobile/android/apk/guest"
     private const val ALG = "HMAC-SHA256"
     private const val MAX_AGE_MS = 30_000L
     private const val PREFS = "virtuvpn_router_attestation"
@@ -173,6 +178,19 @@ object VpnRouterAttestation {
     fun pairingLandingUrl(context: Context): String {
         val routerId = routerId(context.applicationContext)
         val secret = routerSecret(context.applicationContext)
+        val host = VpnRouterAttestationServer.localRouterHost() ?: "192.168.115.186"
+        return Uri.Builder()
+            .scheme("http")
+            .encodedAuthority("$host:$PORT")
+            .path(PAIR_PAGE_PATH)
+            .encodedFragment("id=${Uri.encode(routerId)}&secret=${Uri.encode(secret)}")
+            .build()
+            .toString()
+    }
+
+    fun legacyPairingLandingUrl(context: Context): String {
+        val routerId = routerId(context.applicationContext)
+        val secret = routerSecret(context.applicationContext)
         return Uri.Builder()
             .scheme("https")
             .authority("vcs.virtucomputing.com")
@@ -184,6 +202,10 @@ object VpnRouterAttestation {
 
     fun isPairingUri(uri: Uri): Boolean =
         uri.scheme == "virtuvpn" && uri.host == "router-pair"
+
+    fun pairPagePathMatches(path: String): Boolean = path == PAIR_PAGE_PATH
+
+    fun apkPathMatches(path: String): Boolean = path == APK_PATH
 
     fun parsePairingUri(uri: Uri): Pairing? {
         if (!isPairingUri(uri)) return null
@@ -473,6 +495,21 @@ object VpnRouterAttestationServer {
         return cachedStatus?.takeIf { now - cachedAt <= STATUS_TTL_MS }
     }
 
+    fun localRouterHost(): String? {
+        val interfaces = cachedStatus?.tetherInterfaces.orEmpty()
+        for (name in interfaces) {
+            val address = runCatching {
+                NetworkInterface.getByName(name)
+                    ?.inetAddresses
+                    ?.asSequence()
+                    ?.filterIsInstance<Inet4Address>()
+                    ?.firstOrNull { !it.isLoopbackAddress && !it.isLinkLocalAddress }
+            }.getOrNull()
+            if (address != null) return address.hostAddress
+        }
+        return null
+    }
+
     private fun handleClient(context: Context, socket: Socket) {
         socket.use { client ->
             client.soTimeout = 1_500
@@ -493,6 +530,14 @@ object VpnRouterAttestationServer {
             drainRequestHeaders(client)
             val target = parts[1]
             val path = target.substringBefore('?')
+            if (VpnRouterAttestation.pairPagePathMatches(path)) {
+                writeResponse(client.getOutputStream(), 200, localPairingPage(), "text/html")
+                return
+            }
+            if (VpnRouterAttestation.apkPathMatches(path)) {
+                writeApkResponse(context, client.getOutputStream())
+                return
+            }
             if (!VpnRouterAttestation.pathMatches(path)) {
                 writeResponse(client.getOutputStream(), 404, "Not Found")
                 return
@@ -554,6 +599,107 @@ object VpnRouterAttestationServer {
         output.write(bytes)
         output.flush()
     }
+
+    private fun writeApkResponse(context: Context, output: OutputStream) {
+        val sourceDir = context.applicationInfo.sourceDir
+        val apk = File(sourceDir)
+        if (!apk.isFile) {
+            writeResponse(output, 404, "APK not available")
+            return
+        }
+        val headers =
+            "HTTP/1.1 200 OK\r\n" +
+                "Content-Type: application/vnd.android.package-archive\r\n" +
+                "Content-Disposition: attachment; filename=\"virtuvpn-router-local.apk\"\r\n" +
+                "Cache-Control: no-store\r\n" +
+                "Content-Length: ${apk.length()}\r\n" +
+                "Connection: close\r\n\r\n"
+        output.write(headers.toByteArray(Charsets.UTF_8))
+        apk.inputStream().use { input -> input.copyTo(output) }
+        output.flush()
+    }
+
+    private fun localPairingPage(): String = """
+        <!doctype html>
+        <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+          <title>VirtuVPN Router</title>
+          <style>
+            :root{color-scheme:dark;--bg:#030607;--panel:#07100d;--line:rgba(255,255,255,.13);--text:#eefdf7;--muted:#8aa49a;--green:#10b981;--cyan:#67e8f9}
+            *{box-sizing:border-box} body{margin:0;min-height:100svh;display:grid;place-items:center;background:radial-gradient(circle at 50% 0%,rgba(16,185,129,.18),transparent 36%),linear-gradient(180deg,#07100d 0%,#020403 100%);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;padding:22px}
+            main{width:min(430px,100%);border:1px solid var(--line);border-radius:18px;background:linear-gradient(180deg,rgba(12,25,20,.92),rgba(3,7,6,.96));padding:24px 20px 22px;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.09),inset 0 -2px 0 rgba(0,0,0,.45)}
+            .iconButton{width:124px;height:124px;margin:0 auto 18px;border-radius:26px;border:1px solid rgba(110,231,183,.6);background:linear-gradient(180deg,rgba(16,185,129,.28),rgba(3,7,6,.98));display:grid;place-items:center;box-shadow:0 18px 42px rgba(0,0,0,.52),0 0 34px rgba(16,185,129,.22),inset 0 1px 0 rgba(255,255,255,.18),inset 0 -4px 0 rgba(0,0,0,.38);overflow:hidden}
+            .iconMark{width:86px;height:86px;border-radius:22px;background:linear-gradient(135deg,#34d399,#0891b2);display:grid;place-items:center;color:#03120d;font-size:42px;font-weight:900;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -3px 0 rgba(0,0,0,.22)}
+            .eyebrow{margin:0 0 6px;text-transform:uppercase;letter-spacing:.18em;color:rgba(110,231,183,.86);font-size:11px;font-weight:800}.title{margin:0;font-size:25px;line-height:1.08;font-weight:850;letter-spacing:0}.copy{margin:12px auto 0;max-width:330px;color:var(--muted);font-size:14px;line-height:1.5}.actions{display:grid;gap:10px;margin-top:20px}
+            .safeNote{margin:2px 0 0;border:1px solid rgba(103,232,249,.18);border-radius:12px;background:rgba(8,145,178,.08);color:#b7d8d0;font-size:12px;line-height:1.45;padding:10px 12px;text-align:left}
+            .primary,.secondary{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:13px;text-decoration:none;font-weight:850;font-size:15px;letter-spacing:0}.button{appearance:none;width:100%;cursor:pointer}.primary{background:linear-gradient(180deg,#34d399,#059669);color:#02120b;border:1px solid rgba(167,243,208,.72);box-shadow:0 14px 28px rgba(5,150,105,.24),inset 0 1px 0 rgba(255,255,255,.38),inset 0 -2px 0 rgba(0,0,0,.22)}.secondary{color:#cffafe;border:1px solid rgba(103,232,249,.28);background:rgba(8,145,178,.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}.secondary.copied{color:#d1fae5;border-color:rgba(110,231,183,.42);background:rgba(16,185,129,.14)}
+            .pairKey{display:block;max-height:88px;overflow:auto;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:rgba(0,0,0,.26);color:#bbf7d0;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;font-size:11px;line-height:1.45;overflow-wrap:anywhere;padding:10px;text-align:left;user-select:all}.status{margin-top:14px;color:rgba(238,253,247,.45);font-size:12px}
+          </style>
+        </head>
+        <body>
+          <main>
+            <div class="iconButton" aria-hidden="true"><div class="iconMark">V</div></div>
+            <p class="eyebrow">VirtuVPN</p>
+            <h1 class="title" id="title">Pair VPN Router</h1>
+            <p class="copy" id="copy">Use this page on a device connected to the VirtuVPN Router hotspot. Install or update VirtuVPN from this router, copy the browser pair key, then paste it in Secured Browser.</p>
+            <div class="actions">
+              <a class="primary" href="/virtuvpn.apk">Install or update VirtuVPN APK</a>
+              <button class="secondary button" id="copyPair" type="button">Copy browser pair key</button>
+              <p class="safeNote">For safe browsing through this hotspot, use VirtuVPN Secured Browser. It verifies VPN Router protection before loading pages. No VCS sign-in or enroll is required for this guest browser flow.</p>
+              <code class="pairKey" id="pairKey">Pair key missing</code>
+            </div>
+            <div class="status" id="status">Ready to pair Secured Browser with this VPN Router.</div>
+          </main>
+          <script>
+            const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+            const id = params.get("id") || "";
+            const secret = params.get("secret") || "";
+            const hasPairing = id.length > 0 && secret.length > 0;
+            const pairKey = hasPairing ? `virtuvpn://router-pair?id=${'$'}{encodeURIComponent(id)}&secret=${'$'}{encodeURIComponent(secret)}` : "";
+            const pairNode = document.getElementById("pairKey");
+            const copyButton = document.getElementById("copyPair");
+            const status = document.getElementById("status");
+            if (hasPairing) {
+              pairNode.textContent = pairKey;
+            } else {
+              document.getElementById("title").textContent = "Pairing link missing";
+              document.getElementById("copy").textContent = "This QR link is missing router pairing data. Open the QR again from the VPN Router page.";
+              copyButton.disabled = true;
+              status.textContent = "Open the QR again from the router.";
+            }
+            async function copyText(value) {
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                try { await navigator.clipboard.writeText(value); return true; } catch (_) {}
+              }
+              const input = document.createElement("textarea");
+              input.value = value;
+              input.setAttribute("readonly", "");
+              input.style.position = "fixed";
+              input.style.left = "-9999px";
+              document.body.appendChild(input);
+              input.select();
+              const ok = document.execCommand("copy");
+              document.body.removeChild(input);
+              return ok;
+            }
+            copyButton.addEventListener("click", async () => {
+              if (!pairKey) return;
+              const ok = await copyText(pairKey);
+              if (ok) {
+                copyButton.textContent = "Browser pair key copied";
+                copyButton.classList.add("copied");
+                status.textContent = "Open VirtuVPN Secured Browser and paste the copied pair key.";
+                window.setTimeout(() => { copyButton.textContent = "Copy browser pair key"; copyButton.classList.remove("copied"); }, 1800);
+              } else {
+                status.textContent = "Copy failed. Select and copy the browser pair key manually.";
+              }
+            });
+          </script>
+        </body>
+        </html>
+    """.trimIndent()
 
     private fun statusText(status: Int): String = when (status) {
         200 -> "OK"

@@ -53,9 +53,11 @@ Router attestation:
   so a guest can use more than one trusted router without silent overwrite,
 - guest pairings expire after 7 days and can be removed from the blocked browser
   screen with `Forget paired routers`,
-- `virtuvpn://router-pair?id=...&secret=...` and
-  `https://vcs.virtucomputing.com/router/pair#id=...&secret=...` are accepted
-  pair-key formats; both must show a confirmation dialog before trust is stored,
+- `virtuvpn://router-pair?id=...&secret=...`,
+  `http://<wifi-gateway>:8788/router/pair#id=...&secret=...`, and the legacy
+  `https://vcs.virtucomputing.com/router/pair#id=...&secret=...` format are
+  accepted pair-key formats; all must show a confirmation dialog before trust is
+  stored,
 - client sends a random nonce,
 - router responds only while VPN Router is active,
 - response includes router id, nonce, timestamp, router availability, protected
@@ -69,10 +71,16 @@ Router attestation:
   protected state.
 
 The attestation is intentionally lightweight and local to the hotspot. It does
-not rely on private IP addressing as a trust signal, and the router landing page
-is limited to manual install/update and explicit pair-key actions. There is no
-global HMAC secret embedded in the APK; a public guest APK must not contain the
-material needed to forge router attestations.
+not rely on private IP addressing as a trust signal. Current router builds serve
+the landing page and APK download from the router phone itself:
+`http://<wifi-gateway>:8788/router/pair#...` and
+`http://<wifi-gateway>:8788/virtuvpn.apk`. The page is limited to manual
+install/update and explicit pair-key copy actions, so a guest can install
+VirtuVPN Secured Browser from the hotspot without VCS sign-in, VCS enrollment,
+or external internet. The older VCS-hosted router page remains a legacy fallback
+format only; active router QR links must prefer the local hotspot page. There is
+no global HMAC secret embedded in the APK; a public guest APK must not contain
+the material needed to forge router attestations.
 
 Attestation proves that the current WiFi gateway knows the paired router secret
 and reports the current VPN Router state. It does not cryptographically prove
@@ -365,9 +373,10 @@ egress status dialog.
 If a hotspot client remains blocked after pairing, check the layers in this
 order:
 
-1. Client app version: the client must include the parser that accepts both
-   `virtuvpn://router-pair?...` and
-   `https://vcs.virtucomputing.com/router/pair#...`.
+1. Client app version: the client must include the parser that accepts
+   `virtuvpn://router-pair?...`,
+   `http://<wifi-gateway>:8788/router/pair#...`, and the legacy
+   `https://vcs.virtucomputing.com/router/pair#...` format.
 2. Pairing storage: `virtuvpn_router_attestation` preferences must contain the
    paired router id and secret after the confirmation dialog. If the file is
    missing, pairing did not complete.
