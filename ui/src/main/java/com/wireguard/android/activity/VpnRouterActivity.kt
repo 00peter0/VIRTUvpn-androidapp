@@ -280,11 +280,15 @@ class VpnRouterActivity : AppCompatActivity() {
             }
         )
         routerGuestAccessStatus.setTextColor(if (active) GREEN else YELLOW)
-        val qrValue = if (active) VpnRouterAttestation.pairingLandingUrl(this) else VIRTUVPN_DOWNLOAD_URL
+        val qrValue = if (active) {
+            VpnRouterAttestation.pairingLandingUrl(this)
+        } else {
+            "VirtuVPN Router guest install is available after router mode is enabled."
+        }
         routerGuestDownload.text = if (active) {
             getString(R.string.vcs_vpn_router_guest_download)
         } else {
-            getString(R.string.vcs_vpn_router_guest_download)
+            getString(R.string.vcs_vpn_router_guest_download_inactive)
         }
         routerGuestQr.setImageBitmap(createQrBitmap(qrValue))
     }
@@ -315,6 +319,5 @@ class VpnRouterActivity : AppCompatActivity() {
         val YELLOW: Int = Color.parseColor("#FBBF24")
         val RED: Int = Color.parseColor("#F87171")
         const val QR_SIZE: Int = 512
-        const val VIRTUVPN_DOWNLOAD_URL: String = "https://vcs.virtucomputing.com/api/mobile/android/apk/guest"
     }
 }

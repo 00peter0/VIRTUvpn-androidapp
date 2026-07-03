@@ -161,6 +161,7 @@
     <string name="vcs_vpn_router_guest_access_active">Scan the QR with a client device, install VirtuVPN, and pair Secured Browser. Use Secured Browser for safe browsing through this router.</string>
     <string name="vcs_vpn_router_guest_access_inactive">Client app download appears after router mode is enabled.</string>
     <string name="vcs_vpn_router_guest_download">Scan QR to install and use Secured Browser</string>
+    <string name="vcs_vpn_router_guest_download_inactive">Enable VPN Router to show local install QR</string>
     <string name="vcs_vpn_router_guest_download_description">Downloading guest APK for client devices</string>
     <string name="vcs_vpn_router_guest_download_started">VirtuVPN guest app download started</string>
     <string name="vcs_vpn_router_guest_download_failed">VirtuVPN guest app download failed: %1$s</string>
