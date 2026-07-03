@@ -480,9 +480,9 @@ An unenrolled app installation behaves as the guest browser client; after
 enrollment/sign-in the same APK unlocks full VCS functionality.
 
 The router-local `/virtuvpn.apk` endpoint is the only no-enroll guest install
-path for this router flow. Do not keep a second VCS `/api/mobile/android/apk/guest`
-download path in the web app; it duplicates the router guest model. Dashboard
-download and enrollment-token install endpoints remain separate flows.
+path for this router flow. Do not keep a second VCS guest download path in the
+web app; it duplicates the router guest model. Dashboard download and
+enrollment-token install endpoints remain separate flows.
 
 Supported pair-key formats:
 
@@ -619,7 +619,7 @@ Before using a new rooted Android device as a production router:
    - the landing page tells clients to use VirtuVPN Secured Browser for safe
      browsing through the router hotspot,
    - the page only provides install/update and pair-key copy actions,
-   - the install/update link serves the current guest APK.
+   - the install/update link serves the APK from the router-local endpoint.
 5. Verify DNS behavior:
    - selected router resolver is used,
    - competing DoH/DoT providers are blocked,

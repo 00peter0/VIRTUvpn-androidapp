@@ -169,8 +169,7 @@ Implemented behavior:
 - Enrollment install and dashboard APK routes are unchanged:
   `/api/mobile/android/apk/install?token=...` and `/api/mobile/android/apk`.
   Router guest install is served locally by the VPN Router phone at
-  `http://<router-gateway>:8788/virtuvpn.apk`, not by a VCS
-  `/api/mobile/android/apk/guest` route.
+  `http://<router-gateway>:8788/virtuvpn.apk`, not by a VCS guest route.
 - Android validates the server-provided `apkUrl` before storing it and validates
   it again before opening a previously stored update URL.
 - Accepted update URL requirements:

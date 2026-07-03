@@ -77,10 +77,10 @@ the landing page and APK download from the router phone itself:
 `http://<wifi-gateway>:8788/virtuvpn.apk`. The page is limited to manual
 install/update and explicit pair-key copy actions, so a guest can install
 VirtuVPN Secured Browser from the hotspot without VCS sign-in, VCS enrollment,
-or external internet. The VCS `/api/mobile/android/apk/guest` endpoint should
-not be kept as a second guest download path because it duplicates this router
-flow. There is no global HMAC secret embedded in the APK; a public guest APK
-must not contain the material needed to forge router attestations.
+or external internet. A second VCS-served guest download path should not be kept
+because it duplicates this router flow. There is no global HMAC secret embedded
+in the APK; a public guest APK must not contain the material needed to forge
+router attestations.
 
 Attestation proves that the current WiFi gateway knows the paired router secret
 and reports the current VPN Router state. It does not cryptographically prove
