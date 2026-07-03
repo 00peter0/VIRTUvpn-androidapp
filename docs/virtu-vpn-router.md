@@ -479,10 +479,10 @@ It is intentionally not bound to VCS sign-in, enrollment, or internet access.
 An unenrolled app installation behaves as the guest browser client; after
 enrollment/sign-in the same APK unlocks full VCS functionality.
 
-The older VCS-hosted router pair page and `/api/mobile/android/apk/guest`
-distribution path are retained as legacy/fallback release paths only. Current
-router builds must prefer the local hotspot URL so a hotspot client can install
-VirtuVPN without VCS account, enrollment token, or internet access.
+The router-local `/virtuvpn.apk` endpoint is the only no-enroll guest install
+path for this router flow. Do not keep a second VCS `/api/mobile/android/apk/guest`
+download path in the web app; it duplicates the router guest model. Dashboard
+download and enrollment-token install endpoints remain separate flows.
 
 Supported pair-key formats:
 

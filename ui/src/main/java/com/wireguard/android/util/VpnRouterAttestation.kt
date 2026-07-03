@@ -13,8 +13,8 @@ import android.util.Base64
 import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.OutputStream
 import java.io.File
+import java.io.OutputStream
 import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.InetSocketAddress
@@ -34,7 +34,6 @@ object VpnRouterAttestation {
     private const val PATH = "/virtuvpn-router/attestation"
     private const val PAIR_PAGE_PATH = "/router/pair"
     private const val APK_PATH = "/virtuvpn.apk"
-    private const val LEGACY_DOWNLOAD_URL = "https://vcs.virtucomputing.com/api/mobile/android/apk/guest"
     private const val ALG = "HMAC-SHA256"
     private const val MAX_AGE_MS = 30_000L
     private const val PREFS = "virtuvpn_router_attestation"
@@ -601,8 +600,7 @@ object VpnRouterAttestationServer {
     }
 
     private fun writeApkResponse(context: Context, output: OutputStream) {
-        val sourceDir = context.applicationInfo.sourceDir
-        val apk = File(sourceDir)
+        val apk = File(context.applicationInfo.sourceDir)
         if (!apk.isFile) {
             writeResponse(output, 404, "APK not available")
             return

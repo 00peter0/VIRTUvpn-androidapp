@@ -166,9 +166,11 @@ Preferred app-side direction:
 Implemented behavior:
 - Managed update still uses the existing VCS App routes only:
   `/api/mobile/android/update` and `/api/mobile/android/update/apk`.
-- Router guest, enrollment install, and dashboard APK routes are unchanged:
-  `/api/mobile/android/apk/guest`, `/api/mobile/android/apk/install?token=...`,
-  and `/api/mobile/android/apk`.
+- Enrollment install and dashboard APK routes are unchanged:
+  `/api/mobile/android/apk/install?token=...` and `/api/mobile/android/apk`.
+  Router guest install is served locally by the VPN Router phone at
+  `http://<router-gateway>:8788/virtuvpn.apk`, not by a VCS
+  `/api/mobile/android/apk/guest` route.
 - Android validates the server-provided `apkUrl` before storing it and validates
   it again before opening a previously stored update URL.
 - Accepted update URL requirements:
