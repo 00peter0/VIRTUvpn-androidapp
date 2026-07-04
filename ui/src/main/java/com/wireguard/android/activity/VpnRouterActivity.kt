@@ -10,7 +10,6 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.RadioGroup
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -34,7 +33,7 @@ class VpnRouterActivity : AppCompatActivity() {
     private lateinit var routerGuestAccessStatus: TextView
     private lateinit var routerGuestDownload: TextView
     private lateinit var routerGuestQr: ImageView
-    private lateinit var routerDnsGroup: RadioGroup
+    private lateinit var routerDnsSelector: TextView
     private var routerMonitorJob: Job? = null
     private var operationDialog: AlertDialog? = null
     private var operationDialogMessage: TextView? = null
@@ -53,20 +52,8 @@ class VpnRouterActivity : AppCompatActivity() {
         routerGuestAccessStatus = findViewById(R.id.router_guest_access_status)
         routerGuestDownload = findViewById(R.id.router_guest_download)
         routerGuestQr = findViewById(R.id.router_guest_qr)
-        routerDnsGroup = findViewById(R.id.router_dns_group)
-        routerDnsGroup.setOnCheckedChangeListener { _, checkedId ->
-            val mode = when (checkedId) {
-                R.id.router_dns_cloudflare -> VpnRouterManager.DnsMode.CLOUDFLARE
-                R.id.router_dns_quad9 -> VpnRouterManager.DnsMode.QUAD9
-                R.id.router_dns_family -> VpnRouterManager.DnsMode.FAMILY
-                else -> VpnRouterManager.DnsMode.COPY_TUNNEL
-            }
-            VpnRouterManager.setDnsMode(this, mode)
-            lifecycleScope.launch {
-                val router = VpnRouterManager.reconcile(this@VpnRouterActivity)
-                renderRouterStatus(router)
-            }
-        }
+        routerDnsSelector = findViewById(R.id.router_dns_selector)
+        routerDnsSelector.setOnClickListener { showDnsModeSelector() }
         refreshStatus(showProgress = false)
     }
 
@@ -216,16 +203,43 @@ class VpnRouterActivity : AppCompatActivity() {
     }
 
     private fun renderDnsMode() {
-        val checkedId = when (VpnRouterManager.getDnsMode(this)) {
-            VpnRouterManager.DnsMode.CLOUDFLARE -> R.id.router_dns_cloudflare
-            VpnRouterManager.DnsMode.QUAD9 -> R.id.router_dns_quad9
-            VpnRouterManager.DnsMode.FAMILY -> R.id.router_dns_family
-            VpnRouterManager.DnsMode.COPY_TUNNEL -> R.id.router_dns_copy_tunnel
-        }
-        if (routerDnsGroup.checkedRadioButtonId != checkedId) {
-            routerDnsGroup.check(checkedId)
+        routerDnsSelector.text = labelForDnsMode(VpnRouterManager.getDnsMode(this))
+    }
+
+    private fun showDnsModeSelector() {
+        val modes = listOf(
+            VpnRouterManager.DnsMode.COPY_TUNNEL,
+            VpnRouterManager.DnsMode.CLOUDFLARE,
+            VpnRouterManager.DnsMode.QUAD9,
+            VpnRouterManager.DnsMode.FAMILY
+        )
+        val current = VpnRouterManager.getDnsMode(this)
+        VcsDialogs.showChoice(
+            context = this,
+            title = getString(R.string.vcs_vpn_router_dns),
+            items = modes.map { labelForDnsMode(it) },
+            selectedIndex = modes.indexOf(current).takeIf { it >= 0 }
+        ) { which ->
+            val mode = modes[which]
+            if (mode == current) return@showChoice
+            VpnRouterManager.setDnsMode(this, mode)
+            renderDnsMode()
+            lifecycleScope.launch {
+                val router = VpnRouterManager.reconcile(this@VpnRouterActivity)
+                renderRouterStatus(router)
+            }
         }
     }
+
+    private fun labelForDnsMode(mode: VpnRouterManager.DnsMode): String =
+        getString(
+            when (mode) {
+                VpnRouterManager.DnsMode.COPY_TUNNEL -> R.string.vcs_vpn_router_dns_copy_tunnel
+                VpnRouterManager.DnsMode.CLOUDFLARE -> R.string.vcs_vpn_router_dns_cloudflare
+                VpnRouterManager.DnsMode.QUAD9 -> R.string.vcs_vpn_router_dns_quad9
+                VpnRouterManager.DnsMode.FAMILY -> R.string.vcs_vpn_router_dns_family
+            }
+        )
 
     private fun renderRouterStatus(status: VpnRouterManager.Status) {
         val tunnel = status.activeTunnel ?: getString(R.string.vcs_vpn_status_no_tunnel)

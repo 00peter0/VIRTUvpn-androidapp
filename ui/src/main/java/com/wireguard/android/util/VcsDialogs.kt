@@ -6,7 +6,9 @@ package com.wireguard.android.util
 
 import android.content.Context
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -32,6 +34,33 @@ object VcsDialogs {
 
     fun action(text: CharSequence, primary: Boolean = false, onClick: (() -> Unit)? = null) =
         Action(text, primary, onClick = onClick)
+
+    fun showChoice(
+        context: Context,
+        title: CharSequence,
+        items: List<CharSequence>,
+        selectedIndex: Int? = null,
+        cancelText: CharSequence = context.getString(android.R.string.cancel),
+        onChoice: (Int) -> Unit
+    ): AlertDialog {
+        val list = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        lateinit var dialog: AlertDialog
+        items.forEachIndexed { index, item ->
+            list.addView(createChoiceRow(context, item, selectedIndex == index) {
+                onChoice(index)
+                dialog.dismiss()
+            })
+        }
+        dialog = show(
+            context = context,
+            title = title,
+            customView = list,
+            negative = Action(cancelText)
+        )
+        return dialog
+    }
 
     fun show(
         context: Context,
@@ -136,6 +165,39 @@ object VcsDialogs {
             dialog.getButton(which)?.apply {
                 setTextColor(if (primary) Color.parseColor("#5EEAD4") else Color.parseColor("#E5F2F7"))
                 isAllCaps = false
+            }
+        }
+    }
+
+    private fun createChoiceRow(
+        context: Context,
+        text: CharSequence,
+        selected: Boolean,
+        onClick: () -> Unit
+    ): TextView {
+        return TextView(context).apply {
+            minHeight = dp(context, 50)
+            gravity = Gravity.CENTER_VERTICAL
+            includeFontPadding = false
+            isClickable = true
+            isFocusable = true
+            maxLines = 3
+            this.text = if (selected) "✓ $text" else text
+            textSize = 15f
+            typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+            setTextColor(if (selected) Color.parseColor("#D1FAE5") else Color.parseColor("#E5F2F7"))
+            background = ContextCompat.getDrawable(context, R.drawable.vcs_dialog_secondary_button)
+            foreground = android.util.TypedValue().let { outValue ->
+                context.theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
+                ContextCompat.getDrawable(context, outValue.resourceId)
+            }
+            setPadding(dp(context, 16), dp(context, 10), dp(context, 16), dp(context, 10))
+            setOnClickListener { onClick() }
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = dp(context, 8)
             }
         }
     }

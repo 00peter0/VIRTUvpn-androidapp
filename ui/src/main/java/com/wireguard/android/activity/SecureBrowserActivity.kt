@@ -827,22 +827,21 @@ class SecureBrowserActivity : AppCompatActivity() {
             ?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
             ?: return false
         if (!isAllowedBrowserUrl(Uri.parse(url), isTopLevel = true)) return false
-        AlertDialog.Builder(this)
-            .setTitle(url)
-            .setItems(
-                arrayOf(
-                    getString(R.string.vcs_secure_browser_link_open),
-                    getString(R.string.vcs_secure_browser_link_copy),
-                    getString(R.string.vcs_secure_browser_link_share)
-                )
-            ) { _, which ->
+        VcsDialogs.showChoice(
+            context = this,
+            title = url,
+            items = listOf(
+                getString(R.string.vcs_secure_browser_link_open),
+                getString(R.string.vcs_secure_browser_link_copy),
+                getString(R.string.vcs_secure_browser_link_share)
+            )
+        ) { which ->
                 when (which) {
                     0 -> openLinkFromMenu(url)
                     1 -> copyLink(url)
                     2 -> shareLink(url)
                 }
-            }
-            .show()
+        }
         return true
     }
 

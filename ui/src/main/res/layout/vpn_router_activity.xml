@@ -245,49 +245,22 @@
                         android:textStyle="bold" />
                 </LinearLayout>
 
-                <RadioGroup
-                    android:id="@+id/router_dns_group"
+                <TextView
+                    android:id="@+id/router_dns_selector"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:orientation="vertical">
-
-                    <RadioButton
-                        android:id="@+id/router_dns_copy_tunnel"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:buttonTint="#3B82F6"
-                        android:text="@string/vcs_vpn_router_dns_copy_tunnel"
-                        android:textColor="#FFFFFF"
-                        android:textSize="14sp" />
-
-                    <RadioButton
-                        android:id="@+id/router_dns_cloudflare"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:buttonTint="#3B82F6"
-                        android:text="@string/vcs_vpn_router_dns_cloudflare"
-                        android:textColor="#FFFFFF"
-                        android:textSize="14sp" />
-
-                    <RadioButton
-                        android:id="@+id/router_dns_quad9"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:buttonTint="#3B82F6"
-                        android:text="@string/vcs_vpn_router_dns_quad9"
-                        android:textColor="#FFFFFF"
-                        android:textSize="14sp" />
-
-                    <RadioButton
-                        android:id="@+id/router_dns_family"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:buttonTint="#3B82F6"
-                        android:text="@string/vcs_vpn_router_dns_family"
-                        android:textColor="#FFFFFF"
-                        android:textSize="14sp" />
-                </RadioGroup>
+                    android:background="@drawable/vcs_dialog_secondary_button"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:minHeight="50dp"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="12dp"
+                    android:text="@string/vcs_vpn_router_dns_copy_tunnel"
+                    android:textColor="#E5F2F7"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
 
                 <TextView
                     android:layout_width="match_parent"

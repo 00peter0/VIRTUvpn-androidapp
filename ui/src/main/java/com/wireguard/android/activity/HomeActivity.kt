@@ -22,7 +22,6 @@ import android.view.MenuItem
 import android.view.View
 import android.view.WindowManager
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -263,17 +262,18 @@ class HomeActivity : AppCompatActivity() {
                     getString(R.string.vcs_vpn_status_select_tunnel_stopped, tunnel.name)
                 }
             }
-            val adapter = styledChoiceAdapter(labels)
-            val dialog = AlertDialog.Builder(this@HomeActivity)
-                .setTitle(R.string.vcs_vpn_status_select_tunnel_title)
-                .setAdapter(adapter) { _, which ->
+            VcsDialogs.showChoice(
+                context = this@HomeActivity,
+                title = getString(R.string.vcs_vpn_status_select_tunnel_title),
+                items = labels,
+                selectedIndex = tunnels.indexOfFirst { it.name == vpnStatusToggleTargetName }
+                    .takeIf { it >= 0 }
+            ) { which ->
                     val selected = tunnels[which]
                     persistHomeTunnelSelection(selected.name)
                     vpnStatusToggleTargetName = selected.name
                     updateVpnStatus()
-                }
-                .show()
-            VcsDialogs.applyDefaultStyle(dialog)
+            }
         }
     }
 
@@ -985,18 +985,16 @@ class HomeActivity : AppCompatActivity() {
             getString(R.string.vcs_vpn_router_logo_action_client_page),
             getString(R.string.vcs_vpn_router_logo_action_add_tunnel)
         )
-        val adapter = styledChoiceAdapter(actions.toList())
-        val dialog = AlertDialog.Builder(this)
-            .setTitle(R.string.vcs_vpn_router_home_actions_title)
-            .setAdapter(adapter) { _, which ->
+        VcsDialogs.showChoice(
+            context = this,
+            title = getString(R.string.vcs_vpn_router_home_actions_title),
+            items = actions.toList()
+        ) { which ->
                 when (which) {
                     0 -> openRouterPairingPage()
                     1 -> openVpnMeshAddTunnelFlow()
                 }
-            }
-            .create()
-        dialog.setOnShowListener { VcsDialogs.applyDefaultStyle(dialog) }
-        dialog.show()
+        }
     }
 
     private fun openVpnMeshAddTunnelFlow() {
@@ -1005,24 +1003,6 @@ class HomeActivity : AppCompatActivity() {
                 .putExtra(MainActivity.EXTRA_TUNNEL_SECTION, MainActivity.TUNNEL_SECTION_VPN_MESH)
                 .putExtra(MainActivity.EXTRA_SHOW_ADD_TUNNEL_FLOW, true)
         )
-    }
-
-    private fun styledChoiceAdapter(items: List<String>): ArrayAdapter<String> =
-        object : ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, items) {
-            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View =
-                styleChoiceView(super.getView(position, convertView, parent))
-
-            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View =
-                styleChoiceView(super.getDropDownView(position, convertView, parent))
-        }
-
-    private fun styleChoiceView(view: View): View {
-        view.setBackgroundColor(Color.parseColor("#071018"))
-        return (view as? TextView)?.apply {
-            setTextColor(Color.parseColor("#E5F2F7"))
-            setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15f)
-            setPadding(dp(18), dp(12), dp(18), dp(12))
-        } ?: view
     }
 
     private fun dp(value: Int): Int =
