@@ -414,7 +414,7 @@ class TunnelListFragment : BaseFragment() {
             displayedTunnels = filtered
             activeBinding.tunnels = filtered
             activeBinding.sectionTitle.text = sectionTitle
-            val pendingManagedAccess = if (section == MainActivity.TUNNEL_SECTION_MANAGED_ACCESS) {
+            val pendingManagedAccess = if (section == MainActivity.TUNNEL_SECTION_MANAGED_ACCESS || section == MainActivity.TUNNEL_SECTION_MANAGED_ACCESS_VPN_CLUSTER) {
                 VcsManagedClient.pendingManagedAccessAssignments(requireContext())
             } else {
                 0

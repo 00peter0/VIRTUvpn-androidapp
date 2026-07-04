@@ -350,17 +350,43 @@ object VcsManagedClient {
             val localTunnelName = assignment.optString("localTunnelName").takeIf { it.isNotBlank() } ?: continue
             when (section) {
                 MainActivity.TUNNEL_SECTION_MANAGED_ACCESS -> {
+                    when (managedAccessMode(assignment, bundleName)) {
+                        "vpn_cluster" -> {
+                            assignment.optString("bundleLocalTunnelName").takeIf { it.isNotBlank() }?.let { names.add(it) }
+                            if (localTunnelName == bundleName) names.add(localTunnelName)
+                        }
+                        "s2s_cluster" -> names.add(localTunnelName)
+                    }
+                }
+                MainActivity.TUNNEL_SECTION_MANAGED_ACCESS_VPN_CLUSTER -> if (managedAccessMode(assignment, bundleName) == "vpn_cluster") {
                     assignment.optString("bundleLocalTunnelName").takeIf { it.isNotBlank() }?.let { names.add(it) }
                     if (localTunnelName == bundleName) names.add(localTunnelName)
                 }
+                MainActivity.TUNNEL_SECTION_MANAGED_ACCESS_S2S_CLUSTER -> if (managedAccessMode(assignment, bundleName) == "s2s_cluster") names.add(localTunnelName)
                 MainActivity.TUNNEL_SECTION_VPN_MESH -> if (assignment.optString("kind") == "VPN_ROUTE" && localTunnelName != bundleName) names.add(localTunnelName)
-                MainActivity.TUNNEL_SECTION_AGENT_GATEWAY -> if (assignment.optString("kind") == "AGENT_GATEWAY_PROFILE" && localTunnelName != bundleName) names.add(localTunnelName)
+                MainActivity.TUNNEL_SECTION_AGENT_GATEWAY -> if (assignment.optString("kind") == "AGENT_GATEWAY_PROFILE" && localTunnelName != bundleName && managedAccessMode(assignment, bundleName) != "s2s_cluster") names.add(localTunnelName)
             }
         }
         if (section == MainActivity.TUNNEL_SECTION_VPN_MESH) {
             names.addAll(loadExternalVpnMeshTunnelNames(context))
         }
         return names
+    }
+
+    private fun managedAccessMode(assignment: JSONObject, bundleName: String?): String? {
+        val explicitMode = assignment.optString("managedAccessMode").takeIf { it.isNotBlank() && it != "null" }
+        if (explicitMode != null) return explicitMode
+        val localName = assignment.optString("localTunnelName").takeIf { it.isNotBlank() }
+        val assignmentBundleName = assignment.optString("bundleLocalTunnelName").takeIf { it.isNotBlank() }
+        if (assignmentBundleName != null || (bundleName != null && localName == bundleName)) return "vpn_cluster"
+        val profileType = assignment.optJSONObject("agentGatewayTunnel")
+            ?.optString("profileType")
+            ?.takeIf { it.isNotBlank() }
+        return when (profileType) {
+            "server_to_server_cli" -> "s2s_cluster"
+            "local_pc_cli" -> "standalone_pc"
+            else -> null
+        }
     }
 
     fun rememberExternalVpnMeshTunnels(context: Context, tunnelNames: Collection<String>) {

@@ -71,6 +71,8 @@
     <string name="vcs_home_vpn_mesh">VPN Mesh</string>
     <string name="vcs_home_agent_gateway">Agent Gateway</string>
     <string name="vcs_home_managed_access">Managed Access</string>
+    <string name="vcs_home_managed_access_vpn_cluster">VPN Cluster</string>
+    <string name="vcs_home_managed_access_s2s_cluster">S2S Cluster</string>
     <string name="vcs_home_secure_browser">Secured Browser</string>
     <string name="vcs_home_title">Home</string>
     <string name="vcs_tunnels_title">Tunnels</string>

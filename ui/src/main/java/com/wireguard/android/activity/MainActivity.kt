@@ -94,6 +94,8 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
             TUNNEL_SECTION_VPN_MESH -> getString(R.string.vcs_home_vpn_mesh)
             TUNNEL_SECTION_AGENT_GATEWAY -> getString(R.string.vcs_home_agent_gateway)
             TUNNEL_SECTION_MANAGED_ACCESS -> getString(R.string.vcs_home_managed_access)
+            TUNNEL_SECTION_MANAGED_ACCESS_VPN_CLUSTER -> getString(R.string.vcs_home_managed_access_vpn_cluster)
+            TUNNEL_SECTION_MANAGED_ACCESS_S2S_CLUSTER -> getString(R.string.vcs_home_managed_access_s2s_cluster)
             else -> getString(R.string.vcs_tunnels_title)
         }
     }
@@ -257,5 +259,7 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
         const val TUNNEL_SECTION_VPN_MESH = "vpn_mesh"
         const val TUNNEL_SECTION_AGENT_GATEWAY = "agent_gateway"
         const val TUNNEL_SECTION_MANAGED_ACCESS = "managed_access"
+        const val TUNNEL_SECTION_MANAGED_ACCESS_VPN_CLUSTER = "managed_access_vpn_cluster"
+        const val TUNNEL_SECTION_MANAGED_ACCESS_S2S_CLUSTER = "managed_access_s2s_cluster"
     }
 }

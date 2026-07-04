@@ -82,7 +82,8 @@ class HomeActivity : AppCompatActivity() {
 
         binding.vpnMeshButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_VPN_MESH) }
         binding.secureBrowserButton.setOnClickListener { startActivity(Intent(this, SecureBrowserActivity::class.java)) }
-        binding.managedAccessButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_MANAGED_ACCESS) }
+        binding.managedAccessVpnClusterButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_MANAGED_ACCESS_VPN_CLUSTER) }
+        binding.managedAccessS2sClusterButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_MANAGED_ACCESS_S2S_CLUSTER) }
         binding.enrollButton.setOnClickListener { showEnrollDialog() }
         binding.syncButton.setOnClickListener { syncManagedAccess() }
         binding.checkUpdatesButton.setOnClickListener { checkUpdates() }
@@ -556,7 +557,8 @@ class HomeActivity : AppCompatActivity() {
         val enrolled = VcsManagedClient.hasSession(this)
         listOf(
             binding.vpnMeshButton,
-            binding.managedAccessButton
+            binding.managedAccessVpnClusterButton,
+            binding.managedAccessS2sClusterButton
         ).forEach { setProtectedButtonState(it, signedIn) }
         setProtectedButtonState(binding.secureBrowserButton, true)
         listOf(
