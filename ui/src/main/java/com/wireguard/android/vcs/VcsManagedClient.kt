@@ -373,6 +373,25 @@ object VcsManagedClient {
         return names
     }
 
+    fun displayNameForLocalTunnel(context: Context, localTunnelName: String): String? {
+        if (localTunnelName.isBlank()) return null
+        val assignments = loadAssignments(context)
+        for (i in 0 until assignments.length()) {
+            val assignment = assignments.optJSONObject(i) ?: continue
+            val localName = assignment.optString("localTunnelName")
+            val bundleName = assignment.optString("bundleLocalTunnelName")
+            if (localName != localTunnelName && bundleName != localTunnelName) continue
+            return assignment.optString("displayName").takeIf { it.isNotBlank() && it != localTunnelName }
+                ?: assignment.optJSONObject("agentGatewayTunnel")
+                    ?.optString("tunnelName")
+                    ?.takeIf { it.isNotBlank() && it != localTunnelName }
+                ?: assignment.optJSONObject("vpnRoute")
+                    ?.optString("name")
+                    ?.takeIf { it.isNotBlank() && it != localTunnelName }
+        }
+        return null
+    }
+
     private fun managedAccessMode(assignment: JSONObject, bundleName: String?): String? {
         val explicitMode = assignment.optString("managedAccessMode").takeIf { it.isNotBlank() && it != "null" }
         if (explicitMode != null) return explicitMode

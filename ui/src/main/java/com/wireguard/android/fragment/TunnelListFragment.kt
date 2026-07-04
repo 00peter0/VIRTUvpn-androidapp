@@ -378,6 +378,8 @@ class TunnelListFragment : BaseFragment() {
                 binding.tunnelListItem.setOnLongClickListener(deleteLongClick)
                 binding.tunnelName.setOnLongClickListener(deleteLongClick)
                 binding.chevron.setOnLongClickListener(deleteLongClick)
+                val displayName = VcsManagedClient.displayNameForLocalTunnel(requireContext(), item.name)
+                binding.tunnelName.text = displayName ?: item.name
                 if (actionMode != null)
                     binding.tunnelListItem.setMultiSelected(actionModeListener.checkedItems.contains(position))
                 else
