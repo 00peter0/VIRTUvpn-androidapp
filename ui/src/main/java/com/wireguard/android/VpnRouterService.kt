@@ -41,6 +41,9 @@ class VpnRouterService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.getBooleanExtra(EXTRA_PACKAGE_REPLACED_RESTORE, false) == true) {
+            Log.i(TAG, "VPN router service restore requested after package replace")
+        }
         startMonitor()
         return START_STICKY
     }
@@ -162,6 +165,18 @@ class VpnRouterService : Service() {
         private const val NOTIFICATION_ID = 8608
         private const val RECONCILE_INTERVAL_MS = 2_000L
         private const val MAX_INACTIVE_TICKS = 5
+        private const val EXTRA_PACKAGE_REPLACED_RESTORE = "package_replaced_restore"
+
+        fun startAfterPackageReplace(context: Context) {
+            val appContext = context.applicationContext
+            val intent = Intent(appContext, VpnRouterService::class.java)
+                .putExtra(EXTRA_PACKAGE_REPLACED_RESTORE, true)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                appContext.startForegroundService(intent)
+            } else {
+                appContext.startService(intent)
+            }
+        }
 
         fun ensureForStatus(context: Context, status: VpnRouterManager.Status) {
             val appContext = context.applicationContext

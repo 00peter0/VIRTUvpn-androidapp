@@ -567,18 +567,19 @@ LISTEN 127.0.0.1:8789
 There should be no `while true; ... nc -l ... sleep` proxy loop in current
 builds.
 
-Package-update attestation recovery added in build 820:
+Package-update attestation recovery added in builds 820-821:
 
 - Android package replace kills the app process. Root firewall rules and the
   root `8788` proxy can survive that, but the app-owned `127.0.0.1:8789`
   attestation server dies with the process. Without recovery this creates a
   zombie proxy that accepts hotspot connections but cannot return signed
   attestation responses until the user manually opens VirtuVPN.
-- `ACTION_MY_PACKAGE_REPLACED` is handled by a non-exported receiver. After a
-  short settle delay it reads the real router status from kernel/firewall state,
-  not from a "desired on" preference. It starts `VpnRouterService` only when
-  router rules are already active (`ENABLED`, `DEGRADED`, or `ERROR`), so an app
-  update cannot turn on VPN Router if it was off.
+- `ACTION_MY_PACKAGE_REPLACED` is handled by a non-exported receiver. It starts
+  `VpnRouterService` immediately to minimize the zombie-proxy window after
+  update. The service then reads the real router status from kernel/firewall
+  state, not from a "desired on" preference. If router rules are not already
+  active, the service does not install rules and naturally stops after inactive
+  monitor ticks, so an app update cannot turn on VPN Router if it was off.
 - The service startup path then clears stale process network binding, restarts
   the app-side attestation server, warms status, and lets reconcile restore the
   proxy/rules if needed.
@@ -707,7 +708,8 @@ Before using a new rooted Android device as a production router:
      `router rules incomplete` rebuilds during steady-state browsing.
 6. Verify package-update recovery:
    - install a newer APK while VPN Router is enabled,
-   - confirm `ACTION_MY_PACKAGE_REPLACED` logs a router service restore,
+   - confirm `ACTION_MY_PACKAGE_REPLACED` immediately requests router service
+     restore,
    - confirm the app-owned listener on `127.0.0.1:8789` returns without manually
      opening VirtuVPN,
    - confirm hotspot client attestation recovers and returns signed JSON,
