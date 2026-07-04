@@ -586,6 +586,22 @@ Package-update attestation recovery added in builds 820-821:
 - Manual "open the app once after update" is now a fallback/debug step, not the
   normal production update flow.
 
+Router-state anti-flap hardening added in build 822:
+
+- Attestation `protected` reflects the router's signed availability state, so a
+  transient false-negative in rule verification must not immediately become a
+  browser block. Router rule verification now uses the same 3-strike principle
+  as tunnel health checks: a single missed `iptables`/route/proxy check keeps
+  the last protected state, while sustained misses still transition to
+  `ERROR` and trigger fail-closed recovery.
+- This does not make the router fail-open. The firewall/routing rules remain in
+  the kernel while the transient verify miss is being confirmed. If the rules
+  are genuinely gone, verification fails repeatedly and the router stops
+  signing `protected=true`.
+- The attestation status cache TTL is longer than the worst observed
+  reconcile/health-check burst, so clients should not receive `503 Unavailable`
+  merely because a slow health probe is running.
+
 Router VPN protects the hotspot network path. For safe browsing on the client
 device, download VirtuVPN to that device, pair Secured Browser with the router,
 and browse through VirtuVPN Secured Browser. The client app is the supported
@@ -715,13 +731,20 @@ Before using a new rooted Android device as a production router:
    - confirm hotspot client attestation recovers and returns signed JSON,
    - repeat with VPN Router off and confirm the receiver does not enable router
      mode.
-7. Verify DNS behavior:
+7. Verify attestation anti-flap behavior:
+   - run repeated client attestation probes while the router is under normal
+     health-check/reconcile load,
+   - expected result is sustained `protected:true` with no recurring
+     `protected:false` or `503` bursts,
+   - a real sustained rule failure must still reach `ERROR` after the verify
+     failure threshold and keep clients fail-closed.
+8. Verify DNS behavior:
    - selected router resolver is used,
    - competing DoH/DoT providers are blocked,
    - UDP/443 is blocked so HTTP/3 and unknown DoH-over-QUIC fall back to TCP,
    - selected resolver family is not blocked by the DoH blocklist,
    - no mobile-provider DNS appears in repeated client scans.
-8. Verify IPv6 behavior:
+9. Verify IPv6 behavior:
    - hotspot client IPv6 forwarding is blocked unless full provider IPv6 routing
      has been explicitly implemented,
    - router phone IPv6 output is blocked outside VPN except VPN transport,

@@ -277,6 +277,21 @@ object VpnRouterManager {
         if (installed) {
             val healthy = verifyRouterRules(runningTunnel, tetherInterfaces)
             if (!healthy) {
+                if (recordRouterVerifyFailure(context) < VERIFY_FAILURES_BEFORE_ERROR) {
+                    val availability = degradedAvailability(context, runningTunnel)
+                    return Status(
+                        availability = availability,
+                        activeTunnel = runningTunnel,
+                        tetherInterfaces = tetherInterfaces,
+                        uplinkInterfaces = uplinkInterfaces,
+                        dnsResolvers = dnsResolvers,
+                        detail = if (availability == Availability.DEGRADED) {
+                            degradedDetail(context, runningTunnel)
+                        } else {
+                            "router rule verification missed once; keeping last protected state"
+                        }
+                    )
+                }
                 return Status(
                     availability = Availability.ERROR,
                     activeTunnel = runningTunnel,
@@ -286,6 +301,7 @@ object VpnRouterManager {
                     detail = "router rules incomplete; waiting for reconcile"
                 )
             }
+            clearRouterVerifyFailures(context)
             return Status(
                 availability = degradedAvailability(context, runningTunnel),
                 activeTunnel = runningTunnel,
@@ -726,6 +742,7 @@ object VpnRouterManager {
             .remove(KEY_DEGRADED_DETAIL)
             .remove(KEY_HEALTH_FAILURES)
             .remove(KEY_HEALTH_SUCCESSES)
+            .remove(KEY_VERIFY_FAILURES)
             .putString(KEY_OPERATION_STAGE, OperationStage.IDLE.name)
             .putString(KEY_OPERATION_DETAIL, "")
             .apply()
@@ -861,6 +878,7 @@ object VpnRouterManager {
             .remove(KEY_DEGRADED_DETAIL)
             .remove(KEY_HEALTH_FAILURES)
             .remove(KEY_HEALTH_SUCCESSES)
+            .remove(KEY_VERIFY_FAILURES)
             .putString(KEY_OPERATION_STAGE, OperationStage.IDLE.name)
             .putString(KEY_OPERATION_DETAIL, "")
             .apply()
@@ -874,6 +892,7 @@ object VpnRouterManager {
             .remove(KEY_DEGRADED_DETAIL)
             .remove(KEY_HEALTH_FAILURES)
             .remove(KEY_HEALTH_SUCCESSES)
+            .remove(KEY_VERIFY_FAILURES)
             .apply()
     }
 
@@ -896,6 +915,7 @@ object VpnRouterManager {
             .putString(KEY_DEGRADED_DETAIL, detail)
             .putInt(KEY_HEALTH_FAILURES, HEALTH_FAILURES_BEFORE_DEGRADED)
             .putInt(KEY_HEALTH_SUCCESSES, 0)
+            .remove(KEY_VERIFY_FAILURES)
             .apply()
         return base.copy(
             availability = Availability.DEGRADED,
@@ -930,6 +950,7 @@ object VpnRouterManager {
         prefs.edit()
             .putInt(KEY_HEALTH_SUCCESSES, successes)
             .putInt(KEY_HEALTH_FAILURES, 0)
+            .remove(KEY_VERIFY_FAILURES)
             .apply()
         return successes
     }
@@ -942,6 +963,23 @@ object VpnRouterManager {
             .putInt(KEY_HEALTH_SUCCESSES, 0)
             .apply()
         return failures
+    }
+
+    private fun recordRouterVerifyFailure(context: Context): Int {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val failures = (prefs.getInt(KEY_VERIFY_FAILURES, 0) + 1).coerceAtMost(VERIFY_FAILURES_BEFORE_ERROR)
+        prefs.edit()
+            .putInt(KEY_VERIFY_FAILURES, failures)
+            .apply()
+        return failures
+    }
+
+    private fun clearRouterVerifyFailures(context: Context) {
+        context.applicationContext
+            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .remove(KEY_VERIFY_FAILURES)
+            .apply()
     }
 
     private fun setOperation(context: Context, stage: OperationStage, detail: String? = null) {
@@ -1159,6 +1197,7 @@ object VpnRouterManager {
                 .remove(KEY_DEGRADED_DETAIL)
                 .remove(KEY_HEALTH_FAILURES)
                 .remove(KEY_HEALTH_SUCCESSES)
+                .remove(KEY_VERIFY_FAILURES)
             changed = true
         }
         if (changed) editor.apply()
@@ -1337,11 +1376,13 @@ object VpnRouterManager {
     private const val KEY_DEGRADED_DETAIL = "degraded_detail"
     private const val KEY_HEALTH_FAILURES = "health_failures"
     private const val KEY_HEALTH_SUCCESSES = "health_successes"
+    private const val KEY_VERIFY_FAILURES = "verify_failures"
     private const val KEY_TETHER_OFFLOAD_PREVIOUS = "tether_offload_previous"
     private const val KEY_WIFI_AP_TIMEOUT_PREVIOUS = "wifi_ap_timeout_previous"
     private const val TUNNEL_HEALTH_FAILED_DETAIL = "VPN tunnel has no internet; hotspot clients remain fail-closed"
     private const val HEALTH_FAILURES_BEFORE_DEGRADED = 3
     private const val HEALTH_SUCCESSES_BEFORE_RECOVERY = 2
+    private const val VERIFY_FAILURES_BEFORE_ERROR = 3
     private const val TETHER_OFFLOAD_DISABLED_SETTING = "tether_offload_disabled"
     private const val WIFI_AP_TIMEOUT_SETTING = "wifi_ap_timeout_setting"
     private const val NAT_CHAIN = "VIRTUVPN_ROUTER"

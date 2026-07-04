@@ -438,7 +438,7 @@ object VpnRouterAttestationServer {
     private const val LAUNCHER_LOGO_PATH = "/launcher-logo.png"
     // Kept above the foreground service interval (2 s). Requests must never run
     // root probes; they only read this warmed cache and sign quickly.
-    private const val STATUS_TTL_MS = 10_000L
+    private const val STATUS_TTL_MS = 30_000L
     @Volatile
     private var serverFd: FileDescriptor? = null
     @Volatile
