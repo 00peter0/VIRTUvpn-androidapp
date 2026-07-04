@@ -7,6 +7,8 @@ package com.wireguard.android.util
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.VpnService
 import android.util.Log
 import androidx.core.content.edit
@@ -492,13 +494,14 @@ object VpnRouterManager {
             setOperation(context, OperationStage.CHECKING_HEALTH, "Checking internet through VPN interface $tunnel")
             if (!checkTunnelHealth(tunnel, dnsResolver)) {
                 if (recordTunnelHealthFailure(context) >= HEALTH_FAILURES_BEFORE_DEGRADED) {
-                    throw TunnelHealthException(TUNNEL_HEALTH_FAILED_DETAIL)
+                    throw TunnelHealthException(tunnelHealthFailureDetail(context))
                 }
-                setOperation(context, OperationStage.CHECKING_HEALTH, "VPN tunnel probe missed; keeping router active until failures are sustained")
+                setOperation(context, OperationStage.CHECKING_HEALTH, tunnelHealthTransientDetail(context))
                 return
             }
             recordTunnelHealthSuccess(context)
             clearDegradedTunnel(context)
+            setOperation(context, OperationStage.COMPLETE, "VPN router is protected")
             return
         }
         setOperation(context, OperationStage.LOCKING_HOTSPOT, "Blocking hotspot fallback before changing VPN routes")
@@ -727,7 +730,7 @@ object VpnRouterManager {
             val fallbackAttempted = tryVirtuFallback(context, tunnel)
             val fallbackTunnel = if (fallbackAttempted) readVpnInterfaces().firstOrNull() else null
             if (!fallbackAttempted || fallbackTunnel == null || !checkTunnelHealth(fallbackTunnel, dnsResolver)) {
-                throw TunnelHealthException(TUNNEL_HEALTH_FAILED_DETAIL)
+                throw TunnelHealthException(tunnelHealthFailureDetail(context))
             }
             if (fallbackTunnel != tunnel) {
                 setOperation(context, OperationStage.FALLING_BACK, "Fallback tunnel $fallbackTunnel is healthy; rebuilding router rules")
@@ -935,12 +938,13 @@ object VpnRouterManager {
                 status.copy(availability = Availability.ENABLED, detail = null).also { rememberVirtuFallbackTunnel(context) }
             } else {
                 setOperation(context, OperationStage.CHECKING_HEALTH, "VPN tunnel recovered once; waiting for stable confirmation")
-                status.copy(availability = Availability.DEGRADED, detail = status.detail ?: TUNNEL_HEALTH_FAILED_DETAIL)
+                status.copy(availability = Availability.DEGRADED, detail = status.detail ?: tunnelHealthFailureDetail(context))
             }
         } else {
             recordTunnelHealthFailure(context)
-            setOperation(context, OperationStage.ERROR, status.detail ?: TUNNEL_HEALTH_FAILED_DETAIL)
-            status.copy(availability = Availability.DEGRADED, detail = status.detail ?: TUNNEL_HEALTH_FAILED_DETAIL)
+            val detail = status.detail ?: tunnelHealthFailureDetail(context)
+            setOperation(context, OperationStage.ERROR, detail)
+            status.copy(availability = Availability.DEGRADED, detail = detail)
         }
     }
 
@@ -1232,6 +1236,29 @@ object VpnRouterManager {
             commandSucceeds("ping -I $checkedTunnel -c 1 -W 3 example.com >/dev/null 2>&1")
     }
 
+    // Passive check (no packets sent, no fail-closed bypass): does any non-VPN
+    // uplink have validated internet per Android's own connectivity/captive
+    // probes? Used ONLY to word the failure message (tunnel-down vs
+    // upstream/ISP-down). It never influences the fail-closed decision: with no
+    // healthy tunnel the router stays blocked regardless of this result.
+    private fun uplinkHasInternet(context: Context): Boolean {
+        val cm = context.applicationContext.getSystemService(ConnectivityManager::class.java) ?: return false
+        return runCatching {
+            cm.allNetworks.any { network ->
+                val caps = cm.getNetworkCapabilities(network) ?: return@any false
+                !caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN) &&
+                    caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                    caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            }
+        }.getOrDefault(false)
+    }
+
+    private fun tunnelHealthFailureDetail(context: Context): String =
+        if (uplinkHasInternet(context)) TUNNEL_HEALTH_FAILED_DETAIL else UPSTREAM_INTERNET_FAILED_DETAIL
+
+    private fun tunnelHealthTransientDetail(context: Context): String =
+        if (uplinkHasInternet(context)) TUNNEL_HEALTH_TRANSIENT_DETAIL else UPSTREAM_INTERNET_TRANSIENT_DETAIL
+
     private fun shellQuote(value: String): String {
         return "'" + value.replace("'", "'\"'\"'") + "'"
     }
@@ -1379,7 +1406,10 @@ object VpnRouterManager {
     private const val KEY_VERIFY_FAILURES = "verify_failures"
     private const val KEY_TETHER_OFFLOAD_PREVIOUS = "tether_offload_previous"
     private const val KEY_WIFI_AP_TIMEOUT_PREVIOUS = "wifi_ap_timeout_previous"
-    private const val TUNNEL_HEALTH_FAILED_DETAIL = "VPN tunnel has no internet; hotspot clients remain fail-closed"
+    private const val TUNNEL_HEALTH_FAILED_DETAIL = "Selected VPN tunnel has no internet; hotspot clients remain fail-closed. Try another tunnel on the router."
+    private const val UPSTREAM_INTERNET_FAILED_DETAIL = "Upstream internet unavailable (mobile data / ISP / captive portal); hotspot clients remain fail-closed. Restore the router's internet connection."
+    private const val TUNNEL_HEALTH_TRANSIENT_DETAIL = "VPN tunnel probe missed; keeping router active until failures are sustained"
+    private const val UPSTREAM_INTERNET_TRANSIENT_DETAIL = "Upstream internet probe missed; keeping router active until failures are sustained"
     private const val HEALTH_FAILURES_BEFORE_DEGRADED = 3
     private const val HEALTH_SUCCESSES_BEFORE_RECOVERY = 2
     private const val VERIFY_FAILURES_BEFORE_ERROR = 3

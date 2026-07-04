@@ -123,7 +123,7 @@
     <string name="vcs_vpn_router_title">VPN router</string>
     <string name="vcs_vpn_router_checking">Checking VPN router...</string>
     <string name="vcs_vpn_router_on">On: %1$s routes hotspot traffic via %2$s</string>
-    <string name="vcs_vpn_router_degraded">Fail-closed: selected VPN tunnel has no internet. Hotspot clients are blocked until a healthy tunnel is active.</string>
+    <string name="vcs_vpn_router_degraded">Fail-closed: no protected internet path. Hotspot clients are blocked until the router\'s VPN tunnel and upstream internet are both healthy.</string>
     <string name="vcs_vpn_router_ready">Ready: %1$s can route hotspot traffic via %2$s</string>
     <string name="vcs_vpn_router_waiting_tunnel">Start a VPN tunnel first.</string>
     <string name="vcs_vpn_router_waiting_hotspot">Turn on MOBILE HOTSPOT to detect router interfaces.</string>
@@ -192,7 +192,7 @@
     <string name="vcs_vpn_router_service_title">VPN Router protection active</string>
     <string name="vcs_vpn_router_service_starting">Starting router protection...</string>
     <string name="vcs_vpn_router_service_active_detail">%1$s protects hotspot clients on %2$s</string>
-    <string name="vcs_vpn_router_service_degraded">VPN tunnel has no internet. Hotspot clients remain fail-closed.</string>
+    <string name="vcs_vpn_router_service_degraded">No protected internet path (VPN tunnel or upstream internet down). Hotspot clients remain fail-closed.</string>
     <string name="vcs_secure_browser_title">Secured Browser</string>
     <string name="vcs_secure_browser_hint">https://example.com</string>
     <string name="vcs_secure_browser_url_input_description">Address bar</string>
@@ -212,7 +212,7 @@
     <string name="vcs_secure_browser_blocked_no_gateway">This device is not connected to a Wi-Fi gateway that can be verified as a VPN Router.</string>
     <string name="vcs_secure_browser_blocked_router_unreachable">The paired VPN Router is not reachable from this Wi-Fi. Reconnect to the router hotspot and try again.</string>
     <string name="vcs_secure_browser_blocked_router_unprotected">The paired VPN Router is reachable, but it is not currently reporting protected VPN routing.</string>
-    <string name="vcs_secure_browser_blocked_router_degraded">The paired VPN Router is fail-closed because its selected VPN tunnel has no internet. Switch to a working tunnel on the router.</string>
+    <string name="vcs_secure_browser_blocked_router_degraded">The paired VPN Router is fail-closed: its VPN tunnel or upstream internet is unavailable. Check the router\'s connection.</string>
     <string name="vcs_secure_browser_blocked_router_not_paired">This hotspot is a VPN Router, but it is not one of the paired routers on this device. Pair it from the router QR code.</string>
     <string name="vcs_secure_browser_blocked_bad_signature">The VPN Router signature did not match the saved pair key. Remove paired routers and pair again.</string>
     <string name="vcs_secure_browser_blocked_clock_skew">Verified router found, but the phone clocks differ too much. Check date and time on both devices, then try again.</string>

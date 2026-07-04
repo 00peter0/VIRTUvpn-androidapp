@@ -152,6 +152,24 @@ intermittently drop ICMP even while ordinary traffic works:
 - fail-closed route/firewall rules remain installed during both directions, so
   clients either keep the existing protected path or have no internet.
 
+Router health diagnostics distinguish two user-facing failure classes without
+changing the security decision:
+
+- If Android reports a non-VPN uplink with
+  `NET_CAPABILITY_INTERNET` and `NET_CAPABILITY_VALIDATED`, but the selected
+  VPN interface fails the tunnel health gate, the router reports the selected
+  VPN tunnel as unhealthy and suggests trying another tunnel.
+- If Android does not report a validated non-VPN uplink, the router reports the
+  upstream internet as unavailable (mobile data, ISP, or captive portal). This
+  covers cases where the VPN provider cannot build a tunnel because the router
+  phone itself has no usable upstream internet.
+
+This upstream-vs-tunnel distinction is passive. It uses Android's already-known
+network validation state and does not send active probes over the physical
+uplink. It is used only for status text, notification text, and Secured Browser
+blocked copy. Without a healthy VPN path, hotspot clients remain fail-closed in
+both cases.
+
 If the candidate health check fails, hotspot clients remain protected by
 `20901 -> table 1048 -> unreachable default`. They do not fall back to Android's
 mobile tether route. VirtuVPN then attempts a controlled fallback only when the
@@ -738,13 +756,21 @@ Before using a new rooted Android device as a production router:
      `protected:false` or `503` bursts,
    - a real sustained rule failure must still reach `ERROR` after the verify
      failure threshold and keep clients fail-closed.
-8. Verify DNS behavior:
+8. Verify health diagnostics:
+   - with uplink internet working but the selected VPN tunnel broken, status
+     should identify the selected tunnel as unhealthy,
+   - with router upstream internet unavailable, status should identify upstream
+     internet/mobile/ISP/captive portal as the likely problem,
+   - both states must keep hotspot clients fail-closed and must not change
+     router availability decisions except through the existing tunnel health
+     gate.
+9. Verify DNS behavior:
    - selected router resolver is used,
    - competing DoH/DoT providers are blocked,
    - UDP/443 is blocked so HTTP/3 and unknown DoH-over-QUIC fall back to TCP,
    - selected resolver family is not blocked by the DoH blocklist,
    - no mobile-provider DNS appears in repeated client scans.
-9. Verify IPv6 behavior:
+10. Verify IPv6 behavior:
    - hotspot client IPv6 forwarding is blocked unless full provider IPv6 routing
      has been explicitly implemented,
    - router phone IPv6 output is blocked outside VPN except VPN transport,
