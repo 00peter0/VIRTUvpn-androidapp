@@ -11,6 +11,8 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.net.ConnectivityManager
 import android.os.Build
 import android.os.IBinder
@@ -131,6 +133,8 @@ class VpnRouterService : Service() {
         }
         return builder
             .setSmallIcon(R.mipmap.ic_launcher)
+            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
+            .setColor(Color.rgb(7, 16, 22))
             .setContentTitle(getString(R.string.vcs_vpn_router_service_title))
             .setContentText(text)
             .setContentIntent(pendingIntent)
