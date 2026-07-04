@@ -108,11 +108,11 @@ class QuickTileService : TileService() {
     override fun onCreate() {
         isAdded = true
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            iconOn = Icon.createWithResource(this, R.drawable.ic_tile)
+            iconOn = Icon.createWithResource(this, R.mipmap.ic_launcher)
             iconOff = iconOn
             return
         }
-        val icon = SlashDrawable(resources.getDrawable(R.drawable.ic_tile, Application.get().theme))
+        val icon = SlashDrawable(resources.getDrawable(R.mipmap.ic_launcher, Application.get().theme))
         icon.setAnimationEnabled(false) /* Unfortunately we can't have animations, since Icons are marshaled. */
         icon.setSlashed(false)
         var b = Bitmap.createBitmap(icon.intrinsicWidth, icon.intrinsicHeight, Bitmap.Config.ARGB_8888)
