@@ -11,14 +11,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffXfermode
-import android.graphics.Rect
 import android.net.ConnectivityManager
 import android.os.Build
 import android.os.IBinder
@@ -139,7 +132,6 @@ class VpnRouterService : Service() {
         }
         return builder
             .setSmallIcon(R.drawable.ic_tile)
-            .setLargeIcon(circularLauncherIcon())
             .setColor(Color.rgb(7, 16, 22))
             .setContentTitle(getString(R.string.vcs_vpn_router_service_title))
             .setContentText(text)
@@ -148,22 +140,6 @@ class VpnRouterService : Service() {
             .setShowWhen(false)
             .setCategory(Notification.CATEGORY_SERVICE)
             .build()
-    }
-
-    private fun circularLauncherIcon(): Bitmap? {
-        val source = BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher_foreground) ?: return null
-        val size = minOf(source.width, source.height)
-        if (size <= 0) return null
-        val left = (source.width - size) / 2
-        val top = (source.height - size) / 2
-        val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(output)
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-        canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
-        paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
-        canvas.drawBitmap(source, Rect(left, top, left + size, top + size), Rect(0, 0, size, size), paint)
-        source.recycle()
-        return output
     }
 
     private fun createNotificationChannel() {
