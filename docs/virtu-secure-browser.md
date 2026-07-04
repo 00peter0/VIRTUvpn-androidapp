@@ -384,6 +384,13 @@ authoritative unprotected state. This watch loop does not call public IP or geo
 lookup services. Exit IP/country lookup remains an explicit user action from the
 egress status dialog.
 
+Router builds from 822 onward add anti-flap hysteresis before signing router
+availability changes. A single transient router rule verification miss is not an
+authoritative unprotected state and should not become a visible browser block.
+The router keeps signing the last protected state while the miss is confirmed.
+Sustained rule verification failures still transition to `ERROR`, and Secure
+Browser then fails closed from the signed router attestation.
+
 ## Router Pairing Troubleshooting
 
 If a hotspot client remains blocked after pairing, check the layers in this
@@ -413,6 +420,11 @@ order:
 6. Router state cache: attestation requests must be served from a warm status
    cache. A cold cache can block on root-shell status checks long enough for the
    client timeout to expire.
+7. Router anti-flap state: current router builds use a verification failure
+   threshold and a longer attestation cache TTL. Repeated client probes during
+   normal reconcile/health-check load should not produce recurring
+   `protected:false` or `503` bursts. If they do, inspect router verify failure
+   counters and health-check logs before changing client-side browser behavior.
 
 ## Known Limits
 
