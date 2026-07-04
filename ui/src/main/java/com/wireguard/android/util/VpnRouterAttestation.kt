@@ -14,6 +14,7 @@ import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.IOException
 import java.io.OutputStream
 import java.net.Inet4Address
 import java.net.InetAddress
@@ -21,6 +22,7 @@ import java.net.InetSocketAddress
 import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
+import java.net.SocketTimeoutException
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.security.SecureRandom
@@ -455,7 +457,14 @@ object VpnRouterAttestationServer {
                     }
                     workerPool.execute {
                         try {
-                            handleClient(appContext, client)
+                            runCatching { handleClient(appContext, client) }
+                                .onFailure { error ->
+                                    if (error is SocketTimeoutException || error is IOException) {
+                                        Log.d(TAG, "Router attestation client disconnected", error)
+                                    } else {
+                                        Log.e(TAG, "Router attestation request failed", error)
+                                    }
+                                }
                         } finally {
                             permits.release()
                         }
@@ -518,10 +527,7 @@ object VpnRouterAttestationServer {
                 writeResponse(client.getOutputStream(), 403, "Forbidden")
                 return
             }
-            val request = readRequestLine(client) ?: run {
-                writeResponse(client.getOutputStream(), 413, "Request Too Large")
-                return
-            }
+            val request = readRequestLine(client) ?: return
             val parts = request.split(' ')
             if (parts.size < 2 || parts[0] != "GET") {
                 drainRequestHeaders(client)
@@ -561,11 +567,15 @@ object VpnRouterAttestationServer {
     private fun readRequestLine(socket: Socket): String? {
         val input = socket.getInputStream()
         val bytes = ArrayList<Byte>(128)
-        while (bytes.size <= MAX_REQUEST_LINE) {
-            val value = input.read()
-            if (value == -1) break
-            if (value == '\n'.code) break
-            if (value != '\r'.code) bytes.add(value.toByte())
+        try {
+            while (bytes.size <= MAX_REQUEST_LINE) {
+                val value = input.read()
+                if (value == -1) break
+                if (value == '\n'.code) break
+                if (value != '\r'.code) bytes.add(value.toByte())
+            }
+        } catch (_: SocketTimeoutException) {
+            return null
         }
         if (bytes.size > MAX_REQUEST_LINE) return null
         return bytes.toByteArray().toString(Charsets.US_ASCII)
@@ -576,15 +586,19 @@ object VpnRouterAttestationServer {
         var previous = -1
         var current: Int
         var lineBytes = 0
-        while (lineBytes <= MAX_REQUEST_LINE) {
-            current = input.read()
-            if (current == -1) return
-            lineBytes++
-            if (previous == '\r'.code && current == '\n'.code) {
-                if (lineBytes == 2) return
-                lineBytes = 0
+        try {
+            while (lineBytes <= MAX_REQUEST_LINE) {
+                current = input.read()
+                if (current == -1) return
+                lineBytes++
+                if (previous == '\r'.code && current == '\n'.code) {
+                    if (lineBytes == 2) return
+                    lineBytes = 0
+                }
+                previous = current
             }
-            previous = current
+        } catch (_: SocketTimeoutException) {
+            return
         }
     }
 
