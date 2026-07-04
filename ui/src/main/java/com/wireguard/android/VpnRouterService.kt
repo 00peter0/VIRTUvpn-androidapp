@@ -133,7 +133,7 @@ class VpnRouterService : Service() {
         }
         return builder
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
+            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher_foreground))
             .setColor(Color.rgb(7, 16, 22))
             .setContentTitle(getString(R.string.vcs_vpn_router_service_title))
             .setContentText(text)
