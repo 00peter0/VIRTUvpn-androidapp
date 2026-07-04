@@ -567,6 +567,24 @@ LISTEN 127.0.0.1:8789
 There should be no `while true; ... nc -l ... sleep` proxy loop in current
 builds.
 
+Package-update attestation recovery added in build 820:
+
+- Android package replace kills the app process. Root firewall rules and the
+  root `8788` proxy can survive that, but the app-owned `127.0.0.1:8789`
+  attestation server dies with the process. Without recovery this creates a
+  zombie proxy that accepts hotspot connections but cannot return signed
+  attestation responses until the user manually opens VirtuVPN.
+- `ACTION_MY_PACKAGE_REPLACED` is handled by a non-exported receiver. After a
+  short settle delay it reads the real router status from kernel/firewall state,
+  not from a "desired on" preference. It starts `VpnRouterService` only when
+  router rules are already active (`ENABLED`, `DEGRADED`, or `ERROR`), so an app
+  update cannot turn on VPN Router if it was off.
+- The service startup path then clears stale process network binding, restarts
+  the app-side attestation server, warms status, and lets reconcile restore the
+  proxy/rules if needed.
+- Manual "open the app once after update" is now a fallback/debug step, not the
+  normal production update flow.
+
 Router VPN protects the hotspot network path. For safe browsing on the client
 device, download VirtuVPN to that device, pair Secured Browser with the router,
 and browse through VirtuVPN Secured Browser. The client app is the supported
@@ -687,13 +705,21 @@ Before using a new rooted Android device as a production router:
      the downstream interface,
    - logcat does not show repeated proxy start/stop churn or repeated
      `router rules incomplete` rebuilds during steady-state browsing.
-6. Verify DNS behavior:
+6. Verify package-update recovery:
+   - install a newer APK while VPN Router is enabled,
+   - confirm `ACTION_MY_PACKAGE_REPLACED` logs a router service restore,
+   - confirm the app-owned listener on `127.0.0.1:8789` returns without manually
+     opening VirtuVPN,
+   - confirm hotspot client attestation recovers and returns signed JSON,
+   - repeat with VPN Router off and confirm the receiver does not enable router
+     mode.
+7. Verify DNS behavior:
    - selected router resolver is used,
    - competing DoH/DoT providers are blocked,
    - UDP/443 is blocked so HTTP/3 and unknown DoH-over-QUIC fall back to TCP,
    - selected resolver family is not blocked by the DoH blocklist,
    - no mobile-provider DNS appears in repeated client scans.
-7. Verify IPv6 behavior:
+8. Verify IPv6 behavior:
    - hotspot client IPv6 forwarding is blocked unless full provider IPv6 routing
      has been explicitly implemented,
    - router phone IPv6 output is blocked outside VPN except VPN transport,
