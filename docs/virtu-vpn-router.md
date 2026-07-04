@@ -260,17 +260,21 @@ background tests, or browsing-content serving.
 
 The endpoint is inactive unless router protection is active. The app-owned HTTP
 server listens only on internal localhost port `8789`. Router rules start a
-root-owned hotspot proxy on the current gateway address at public port `8788`
-and forward requests to `127.0.0.1:8789`. This keeps the external URL stable
-(`http://<router-gateway>:8788/router/pair`) while avoiding provider/OEM cases
-where hotspot clients can reach root-owned local listeners but not app-UID
-listeners directly. When router status is `ENABLED`, attestation returns a
-signed `protected=true`. When router rules are still fail-closed but the tunnel
-is `DEGRADED`, attestation returns a signed `protected=false` with the router
-availability/detail. Secure Browser treats that as a verified router that is
-currently unsafe for browsing and keeps the WebView blocked with a
-router-degraded message. This distinction prevents false green status while
-still proving that the client is talking to the paired router.
+root-owned persistent hotspot proxy on the current gateway address at public
+port `8788` and forward requests to `127.0.0.1:8789`. Current builds use
+`toybox nc -L` for the hotspot proxy, not a single-shot `nc -l` loop. The proxy
+must keep one stable listener with backlog and parallel accepted connections;
+there must be no sleep/restart gap between client requests. This keeps the
+external URL stable (`http://<router-gateway>:8788/router/pair`) while avoiding
+provider/OEM cases where hotspot clients can reach root-owned local listeners
+but not app-UID listeners directly. When router status is `ENABLED`,
+attestation returns a signed `protected=true`. When router rules are still
+fail-closed but the tunnel is `DEGRADED`, attestation returns a signed
+`protected=false` with the router availability/detail. Secure Browser treats
+that as a verified router that is currently unsafe for browsing and keeps the
+WebView blocked with a router-degraded message. This distinction prevents false
+green status while still proving that the client is talking to the paired
+router.
 
 The router process must stay network-unbound while router mode is active.
 Secured Browser may call Android's process-wide `bindProcessToNetwork()` on
@@ -279,6 +283,16 @@ protection without a VPN bind. The router foreground service clears any stale
 process network binding before starting or refreshing the pairing/attestation
 server so provider-specific VPN routing cannot make the local HTTP server stop
 answering hotspot clients.
+
+The app-side attestation server lifecycle is intentionally separate from the
+root hotspot proxy lifecycle. The app server binds only `127.0.0.1:8789`; the
+public gateway address belongs to the root proxy. Therefore changes in the
+detected tether gateway host must not force an app-server rebind while the
+loopback listener is already alive. `start()`/`stop()` are serialized by a
+lifecycle lock, and a redundant failed `start()` must not call global `stop()`
+or close a listener created by another successful start attempt. This prevents
+enable-time `EADDRINUSE` bursts from turning into a temporary attestation
+outage.
 
 Router pairing is
 intentionally QR/in-app/manual-paste only. `virtuvpn://router-pair`,
@@ -525,6 +539,34 @@ Pairing incident resolved in builds 744-747:
   parser originally accepted only `virtuvpn://router-pair`. The client now
   accepts both the app URI and the landing URL fragment format.
 
+Attestation stability incident resolved in builds 818-819:
+
+- The previous hotspot proxy used a single-shot `toybox nc -l` inside a
+  `while true` loop. Each accepted connection briefly removed the listener, so
+  concurrent hotspot clients could receive `Connection refused` /
+  `UNREACHABLE`. The proxy now uses persistent `toybox nc -L`.
+- Proxy liveness must be verified against the persistent listener state. A
+  transient proxy blip must not cause unnecessary full firewall rebuilds while
+  router rules are otherwise healthy.
+- The app-side loopback server no longer restarts just because the detected
+  tether host changes; it updates the remembered host while keeping
+  `127.0.0.1:8789` alive.
+- App-side `start()`/`stop()` are serialized so redundant enable/reconcile
+  starts cannot race on `127.0.0.1:8789`. A failed redundant start closes only
+  its own partially opened socket and must not stop an already running server.
+
+Expected steady-state process shape on the router while VPN Router is enabled:
+
+```text
+sh -c toybox nc -4 -s <router-gateway> -p 8788 -L toybox nc -4 127.0.0.1 8789
+toybox nc -4 -s <router-gateway> -p 8788 -L toybox nc -4 127.0.0.1 8789
+LISTEN <router-gateway>:8788
+LISTEN 127.0.0.1:8789
+```
+
+There should be no `while true; ... nc -l ... sleep` proxy loop in current
+builds.
+
 Router VPN protects the hotspot network path. For safe browsing on the client
 device, download VirtuVPN to that device, pair Secured Browser with the router,
 and browse through VirtuVPN Secured Browser. The client app is the supported
@@ -634,13 +676,24 @@ Before using a new rooted Android device as a production router:
      browsing through the router hotspot,
    - the page only provides install/update and pair-key copy actions,
    - the install/update link serves the APK from the router-local endpoint.
-5. Verify DNS behavior:
+5. Verify router attestation proxy behavior:
+   - while router mode is enabled, the root proxy uses `toybox nc -L`, not
+     single-shot `nc -l`,
+   - repeated samples show a stable listener on `<router-gateway>:8788`,
+   - sequential and concurrent client requests to
+     `/virtuvpn-router/attestation` return complete `HTTP 200` JSON bodies,
+   - router-local requests to `<router-gateway>:8788` may be rejected by
+     firewall rules; the supported test path is from a hotspot client through
+     the downstream interface,
+   - logcat does not show repeated proxy start/stop churn or repeated
+     `router rules incomplete` rebuilds during steady-state browsing.
+6. Verify DNS behavior:
    - selected router resolver is used,
    - competing DoH/DoT providers are blocked,
    - UDP/443 is blocked so HTTP/3 and unknown DoH-over-QUIC fall back to TCP,
    - selected resolver family is not blocked by the DoH blocklist,
    - no mobile-provider DNS appears in repeated client scans.
-6. Verify IPv6 behavior:
+7. Verify IPv6 behavior:
    - hotspot client IPv6 forwarding is blocked unless full provider IPv6 routing
      has been explicitly implemented,
    - router phone IPv6 output is blocked outside VPN except VPN transport,

@@ -377,6 +377,13 @@ Implemented:
   VirtuVPN Router attestation uses a local, non-public
   `http://<wifi-gateway>:8788` endpoint. Blocking all cleartext at the platform
   layer would break verified router pairing/browser compatibility.
+- The router-local cleartext endpoint is not a managed API path. It is exposed
+  only while VPN Router is enabled, restricted by router firewall rules to the
+  hotspot downstream interface, and served through a root-owned persistent
+  `toybox nc -L` proxy to the app-owned loopback attestation server. The
+  attestation payload is nonce-bound and HMAC-signed with a per-router pairing
+  secret; cleartext transport here is accepted only because the endpoint is
+  local to the hotspot and the signed payload provides integrity/authenticity.
 - Pin-set expiration is `2028-08-15`; cert-chain rotation must be checked and a
   new app released before that date.
 

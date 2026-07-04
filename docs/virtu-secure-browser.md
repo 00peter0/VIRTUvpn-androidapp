@@ -82,6 +82,15 @@ because it duplicates this router flow. There is no global HMAC secret embedded
 in the APK; a public guest APK must not contain the material needed to forge
 router attestations.
 
+The hotspot-visible endpoint on port `8788` is a root-owned persistent proxy to
+the app-owned loopback server on `127.0.0.1:8789`. Current router builds use
+`toybox nc -L` for the proxy. This is required because a single-shot `nc -l`
+listener creates short gaps between accepted connections; multiple clients,
+pairing-page downloads, and browser attestation checks can otherwise collide and
+produce intermittent `UNREACHABLE` results even when firewall rules are healthy.
+The app-side loopback server is lifecycle-locked so redundant enable/reconcile
+starts cannot close an already running listener.
+
 Attestation proves that the current WiFi gateway knows the paired router secret
 and reports the current VPN Router state. It does not cryptographically prove
 the full internet egress path beyond that gateway; in the intended topology the
@@ -397,7 +406,11 @@ order:
    VirtuVPN or reconciling router state must start the server, and
    `VpnRouterManager` must keep the server lifecycle synchronized with router
    status.
-5. Router state cache: attestation requests must be served from a warm status
+5. Router proxy runtime: the router must show a persistent
+   `toybox nc ... -L ... 127.0.0.1 8789` proxy, not a `while true` single-shot
+   `nc -l` loop. Sequential and parallel client requests should return complete
+   signed JSON responses without listener gaps.
+6. Router state cache: attestation requests must be served from a warm status
    cache. A cold cache can block on root-shell status checks long enough for the
    client timeout to expire.
 
