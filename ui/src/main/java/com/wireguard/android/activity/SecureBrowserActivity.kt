@@ -1583,12 +1583,9 @@ class SecureBrowserActivity : AppCompatActivity() {
                 getString(R.string.vcs_secure_browser_blocked_webview_update)
             )
         }
-        if (bindToVpnNetwork()) {
-            return BrowserProtection(true, vpnProtectionLabel(), source = ProtectionSource.VPN)
-        }
-        unbindBrowserNetwork()
         val routerStatus = runCatching { VpnRouterManager.getStatus(this@SecureBrowserActivity) }.getOrNull()
         if (routerStatus?.availability == VpnRouterManager.Availability.ENABLED) {
+            unbindBrowserNetwork()
             val tunnel = routerStatus.activeTunnel ?: getString(R.string.vcs_vpn_status_no_tunnel)
             return BrowserProtection(
                 true,
@@ -1596,6 +1593,10 @@ class SecureBrowserActivity : AppCompatActivity() {
                 source = ProtectionSource.LOCAL_ROUTER
             )
         }
+        if (bindToVpnNetwork()) {
+            return BrowserProtection(true, vpnProtectionLabel(), source = ProtectionSource.VPN)
+        }
+        unbindBrowserNetwork()
         if (!bindToWifiNetwork()) {
             return BrowserProtection(
                 false,

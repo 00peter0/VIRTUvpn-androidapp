@@ -114,6 +114,13 @@ browser later binds the process to the VPN network. This is expected to be safe,
 but releases must verify that opening Secure Browser while a Go userspace tunnel
 is active does not interrupt handshakes, roaming, or data transfer.
 
+When the same device is running VPN Router, Secure Browser must not bind the
+process to the VPN network. `bindProcessToNetwork` affects the whole app
+process, including the local router pairing/attestation HTTP server. In router
+mode the browser uses `LOCAL_ROUTER` protection instead: router firewall rules
+enforce VPN egress, and the app process stays unbound so hotspot clients can
+reach `http://<router-gateway>:8788/router/pair` and the attestation endpoint.
+
 Provider behavior:
 
 - VirtuVPN/WireGuard: when the app can identify running WgQuick tunnels, the UI

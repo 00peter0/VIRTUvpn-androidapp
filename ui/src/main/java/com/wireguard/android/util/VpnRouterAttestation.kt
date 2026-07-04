@@ -10,19 +10,26 @@ import android.net.Uri
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
+import android.os.Build
+import android.system.Os
+import android.system.OsConstants
+import android.system.StructTimeval
 import android.util.Base64
 import android.util.Log
 import com.wireguard.android.R
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.FileDescriptor
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.io.IOException
+import java.io.InputStream
 import java.io.OutputStream
 import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.NetworkInterface
-import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketTimeoutException
 import java.net.URLDecoder
@@ -35,6 +42,7 @@ import javax.crypto.spec.SecretKeySpec
 
 object VpnRouterAttestation {
     const val PORT = 8788
+    internal const val LOCAL_PORT = 8789
     private const val PATH = "/virtuvpn-router/attestation"
     private const val PAIR_PAGE_PATH = "/router/pair"
     private const val APK_PATH = "/virtuvpn.apk"
@@ -432,9 +440,11 @@ object VpnRouterAttestationServer {
     // root probes; they only read this warmed cache and sign quickly.
     private const val STATUS_TTL_MS = 10_000L
     @Volatile
-    private var serverSocket: ServerSocket? = null
+    private var serverFd: FileDescriptor? = null
     @Volatile
     private var serverThread: Thread? = null
+    @Volatile
+    private var boundHost: String? = null
     private val workerPool = Executors.newFixedThreadPool(8)
     private val permits = Semaphore(8)
     @Volatile
@@ -442,23 +452,33 @@ object VpnRouterAttestationServer {
     @Volatile
     private var cachedAt: Long = 0L
 
-    fun start(context: Context) {
-        if (serverSocket != null) return
+    fun start(context: Context, status: VpnRouterManager.Status? = cachedStatus) {
+        val host = localRouterHost(status) ?: "0.0.0.0"
+        if (serverFd != null && boundHost == host) return
         val appContext = context.applicationContext
         runCatching {
-            val socket = ServerSocket(VpnRouterAttestation.PORT, 16, InetAddress.getByName("0.0.0.0"))
-            serverSocket = socket
+            stop()
+            val fd = Os.socket(OsConstants.AF_INET, OsConstants.SOCK_STREAM, OsConstants.IPPROTO_TCP)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Os.setsockoptInt(fd, OsConstants.SOL_SOCKET, OsConstants.SO_REUSEADDR, 1)
+            }
+            Os.bind(fd, InetAddress.getByName("127.0.0.1"), VpnRouterAttestation.LOCAL_PORT)
+            Os.listen(fd, 16)
+            serverFd = fd
+            boundHost = host
             serverThread = Thread {
-                while (!socket.isClosed) {
-                    val client = runCatching { socket.accept() }.getOrNull() ?: continue
+                while (serverFd === fd) {
+                    val clientFd = runCatching { Os.accept(fd, InetSocketAddress(0)) }.getOrNull() ?: continue
                     if (!permits.tryAcquire()) {
-                        runCatching { writeResponse(client.getOutputStream(), 503, "Busy") }
-                        runCatching { client.close() }
+                        runCatching {
+                            FileOutputStream(clientFd).use { output -> writeResponse(output, 503, "Busy") }
+                        }
+                        closeQuietly(clientFd)
                         continue
                     }
                     workerPool.execute {
                         try {
-                            runCatching { handleClient(appContext, client) }
+                            runCatching { handleClient(appContext, clientFd) }
                                 .onFailure { error ->
                                     if (error is SocketTimeoutException || error is IOException) {
                                         Log.d(TAG, "Router attestation client disconnected", error)
@@ -483,9 +503,11 @@ object VpnRouterAttestationServer {
     }
 
     fun stop() {
-        runCatching { serverSocket?.close() }
-        serverSocket = null
+        val fd = serverFd
+        serverFd = null
+        if (fd != null) closeQuietly(fd)
         serverThread = null
+        boundHost = null
         cachedStatus = null
         cachedAt = 0L
     }
@@ -507,7 +529,11 @@ object VpnRouterAttestationServer {
     }
 
     fun localRouterHost(): String? {
-        val interfaces = cachedStatus?.tetherInterfaces.orEmpty()
+        return localRouterHost(cachedStatus)
+    }
+
+    private fun localRouterHost(status: VpnRouterManager.Status?): String? {
+        val interfaces = status?.tetherInterfaces.orEmpty()
         for (name in interfaces) {
             val address = runCatching {
                 NetworkInterface.getByName(name)
@@ -521,37 +547,42 @@ object VpnRouterAttestationServer {
         return null
     }
 
-    private fun handleClient(context: Context, socket: Socket) {
-        socket.use { client ->
-            client.soTimeout = 1_500
-            if (!VpnRouterAttestation.isAllowedClientAddress(client.inetAddress)) {
-                writeResponse(client.getOutputStream(), 403, "Forbidden")
+    private fun handleClient(context: Context, clientFd: FileDescriptor) {
+        clientFd.useFd { fd ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                Os.setsockoptTimeval(fd, OsConstants.SOL_SOCKET, OsConstants.SO_RCVTIMEO, StructTimeval.fromMillis(1_500))
+            }
+            val remoteAddress = (runCatching { Os.getpeername(fd) }.getOrNull() as? InetSocketAddress)?.address
+            val input = FileInputStream(fd)
+            val output = FileOutputStream(fd)
+            if (remoteAddress == null || !VpnRouterAttestation.isAllowedClientAddress(remoteAddress)) {
+                writeResponse(output, 403, "Forbidden")
                 return
             }
-            val request = readRequestLine(client) ?: return
+            val request = readRequestLine(input) ?: return
             val parts = request.split(' ')
             if (parts.size < 2 || parts[0] != "GET") {
-                drainRequestHeaders(client)
-                writeResponse(client.getOutputStream(), 405, "Method Not Allowed")
+                drainRequestHeaders(input)
+                writeResponse(output, 405, "Method Not Allowed")
                 return
             }
-            drainRequestHeaders(client)
+            drainRequestHeaders(input)
             val target = parts[1]
             val path = target.substringBefore('?')
             if (VpnRouterAttestation.pairPagePathMatches(path)) {
-                writeResponse(client.getOutputStream(), 200, localPairingPage(), "text/html")
+                writeResponse(output, 200, localPairingPage(), "text/html")
                 return
             }
             if (path == LAUNCHER_LOGO_PATH) {
-                writeLauncherLogoResponse(context, client.getOutputStream())
+                writeLauncherLogoResponse(context, output)
                 return
             }
             if (VpnRouterAttestation.apkPathMatches(path)) {
-                writeApkResponse(context, client.getOutputStream())
+                writeApkResponse(context, output)
                 return
             }
             if (!VpnRouterAttestation.pathMatches(path)) {
-                writeResponse(client.getOutputStream(), 404, "Not Found")
+                writeResponse(output, 404, "Not Found")
                 return
             }
             val nonce = target.substringAfter("?", "")
@@ -562,15 +593,14 @@ object VpnRouterAttestationServer {
                 }
             val json = nonce?.let { VpnRouterAttestation.responseJson(context, it) }
             if (json == null) {
-                writeResponse(client.getOutputStream(), 503, "Unavailable")
+                writeResponse(output, 503, "Unavailable")
             } else {
-                writeResponse(client.getOutputStream(), 200, json, "application/json")
+                writeResponse(output, 200, json, "application/json")
             }
         }
     }
 
-    private fun readRequestLine(socket: Socket): String? {
-        val input = socket.getInputStream()
+    private fun readRequestLine(input: InputStream): String? {
         val bytes = ArrayList<Byte>(128)
         try {
             while (bytes.size <= MAX_REQUEST_LINE) {
@@ -586,8 +616,7 @@ object VpnRouterAttestationServer {
         return bytes.toByteArray().toString(Charsets.US_ASCII)
     }
 
-    private fun drainRequestHeaders(socket: Socket) {
-        val input = socket.getInputStream()
+    private fun drainRequestHeaders(input: InputStream) {
         var previous = -1
         var current: Int
         var lineBytes = 0
@@ -605,6 +634,18 @@ object VpnRouterAttestationServer {
         } catch (_: SocketTimeoutException) {
             return
         }
+    }
+
+    private inline fun FileDescriptor.useFd(block: (FileDescriptor) -> Unit) {
+        try {
+            block(this)
+        } finally {
+            closeQuietly(this)
+        }
+    }
+
+    private fun closeQuietly(fd: FileDescriptor) {
+        runCatching { Os.close(fd) }
     }
 
     private fun writeResponse(output: OutputStream, status: Int, body: String, contentType: String = "text/plain") {

@@ -258,13 +258,27 @@ install/update VirtuVPN from the router, copy the Secure Browser pair key, and
 show the pair key for manual paste. It must not perform hidden redirects,
 background tests, or browsing-content serving.
 
-The endpoint is inactive unless router protection is active. When router status
-is `ENABLED`, attestation returns a signed `protected=true`. When router rules
-are still fail-closed but the tunnel is `DEGRADED`, attestation returns a signed
-`protected=false` with the router availability/detail. Secure Browser treats
-that as a verified router that is currently unsafe for browsing and keeps the
-WebView blocked with a router-degraded message. This distinction prevents false
-green status while still proving that the client is talking to the paired router.
+The endpoint is inactive unless router protection is active. The app-owned HTTP
+server listens only on internal localhost port `8789`. Router rules start a
+root-owned hotspot proxy on the current gateway address at public port `8788`
+and forward requests to `127.0.0.1:8789`. This keeps the external URL stable
+(`http://<router-gateway>:8788/router/pair`) while avoiding provider/OEM cases
+where hotspot clients can reach root-owned local listeners but not app-UID
+listeners directly. When router status is `ENABLED`, attestation returns a
+signed `protected=true`. When router rules are still fail-closed but the tunnel
+is `DEGRADED`, attestation returns a signed `protected=false` with the router
+availability/detail. Secure Browser treats that as a verified router that is
+currently unsafe for browsing and keeps the WebView blocked with a
+router-degraded message. This distinction prevents false green status while
+still proving that the client is talking to the paired router.
+
+The router process must stay network-unbound while router mode is active.
+Secured Browser may call Android's process-wide `bindProcessToNetwork()` on
+ordinary client devices, but the router phone itself must use local-router
+protection without a VPN bind. The router foreground service clears any stale
+process network binding before starting or refreshing the pairing/attestation
+server so provider-specific VPN routing cannot make the local HTTP server stop
+answering hotspot clients.
 
 Router pairing is
 intentionally QR/in-app/manual-paste only. `virtuvpn://router-pair`,

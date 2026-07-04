@@ -242,8 +242,8 @@ object VpnRouterManager {
 
     private fun syncAttestationServer(context: Context, status: Status) {
         if (status.routerActive) {
-            VpnRouterAttestationServer.start(context.applicationContext)
             VpnRouterAttestationServer.updateStatus(status)
+            VpnRouterAttestationServer.start(context.applicationContext, status)
         } else {
             VpnRouterAttestationServer.stop()
         }
@@ -458,6 +458,7 @@ object VpnRouterManager {
         val vpnOwnerUid = readVpnOwnerUid()
         val vpnProviderUids = readVpnProviderUids(context)
         val snapshot = VpnRouterRulePlanner.Snapshot(
+            rulesVersion = ROUTER_RULES_VERSION,
             tunnel = tunnel,
             downstreams = downstreams,
             dnsResolvers = dnsResolvers,
@@ -487,6 +488,7 @@ object VpnRouterManager {
         setOperation(context, OperationStage.LOCKING_HOTSPOT, "Blocking hotspot fallback before changing VPN routes")
         setOperation(context, OperationStage.DETECTING_TUNNEL, "Using VPN interface $activeTunnel")
         setOperation(context, OperationStage.APPLYING_FIREWALL, "Installing fail-closed firewall and VPN routes")
+        checkedRun("stop router attestation hotspot proxy", stopAttestationProxyCommand())
         checkedRun("prepare NAT chain", "iptables -t nat -N $NAT_CHAIN 2>/dev/null || true")
         checkedRun("prepare DNS chain", "iptables -t nat -N $DNS_CHAIN 2>/dev/null || true")
         checkedRun("prepare forward chain", "iptables -N $FORWARD_CHAIN 2>/dev/null || true")
@@ -510,9 +512,18 @@ object VpnRouterManager {
                 "while iptables -D INPUT -i $downstream -p tcp --dport ${VpnRouterAttestation.PORT} -j ACCEPT 2>/dev/null; do :; done"
             )
         }
+        checkedRun(
+            "clear phone-to-hotspot local routes",
+            "while ip rule del pref $HOTSPOT_LOCAL_RULE_PRIORITY 2>/dev/null; do :; done; " +
+                "ip route flush table $HOTSPOT_LOCAL_ROUTE_TABLE 2>/dev/null || true"
+        )
         checkedRun("prepare hotspot fallback block route", "ip route replace unreachable default table $HOTSPOT_BLOCK_ROUTE_TABLE")
         checkedRun("prepare hotspot VPN route", "ip route replace default dev $tunnel table $HOTSPOT_VPN_ROUTE_TABLE")
         downstreams.forEach { downstream ->
+            checkedRun(
+                "route phone replies to hotspot clients locally",
+                localHotspotRouteCommand(downstream)
+            )
             checkedRun(
                 "install hotspot fallback block first",
                 ensureRuleCommand(
@@ -597,6 +608,10 @@ object VpnRouterManager {
         checkedRun("allow Android VPN bootstrap IPv6 UDP DNS", "ip6tables -A $IPV6_OUTPUT_CHAIN -p udp --dport 53 -j RETURN || true")
         checkedRun("allow Android VPN bootstrap IPv6 TCP DNS", "ip6tables -A $IPV6_OUTPUT_CHAIN -p tcp --dport 53 -j RETURN || true")
         downstreams.forEach { downstream ->
+            checkedRun(
+                "allow phone egress to hotspot client subnets",
+                allowHotspotClientSubnetEgressCommand(downstream)
+            )
             checkedRun("allow phone egress to hotspot clients", "iptables -A $OUTPUT_CHAIN -o $downstream -j RETURN")
             checkedRun("allow phone IPv6 egress to hotspot clients", "ip6tables -A $IPV6_OUTPUT_CHAIN -o $downstream -j RETURN")
         }
@@ -604,6 +619,10 @@ object VpnRouterManager {
             checkedRun(
                 "allow router attestation from hotspot",
                 "iptables -I INPUT 1 -i $downstream -p tcp --dport ${VpnRouterAttestation.PORT} -j ACCEPT"
+            )
+            checkedRun(
+                "start router attestation hotspot proxy",
+                startAttestationProxyCommand(downstream)
             )
         }
         checkedRun(
@@ -742,11 +761,14 @@ object VpnRouterManager {
         if (!commandSucceeds("iptables -C $OUTPUT_CHAIN -p tcp --dport 53 -j RETURN >/dev/null 2>&1")) return false
         return downstreams.all { downstream ->
             commandSucceeds(
-                "ip rule show | grep -q \"^$HOTSPOT_VPN_RULE_PRIORITY:.*iif $downstream .*lookup $HOTSPOT_VPN_ROUTE_TABLE\" && " +
+                verifyLocalHotspotRouteCommand(downstream) + " && " +
+                    "ip rule show | grep -q \"^$HOTSPOT_VPN_RULE_PRIORITY:.*iif $downstream .*lookup $HOTSPOT_VPN_ROUTE_TABLE\" && " +
                     "ip route show table $HOTSPOT_VPN_ROUTE_TABLE | grep -q \"default dev $tunnel\" && " +
                     "ip rule show | grep -q \"^$HOTSPOT_BLOCK_RULE_PRIORITY:.*iif $downstream .*lookup $HOTSPOT_BLOCK_ROUTE_TABLE\" && " +
                     "ip route show table $HOTSPOT_BLOCK_ROUTE_TABLE | grep -q \"unreachable default\" && " +
                     "iptables -C INPUT -i $downstream -p tcp --dport ${VpnRouterAttestation.PORT} -j ACCEPT >/dev/null 2>&1 && " +
+                    verifyAttestationProxyCommand(downstream) + " && " +
+                    verifyHotspotClientSubnetEgressCommand(downstream) + " && " +
                     "iptables -C $OUTPUT_CHAIN -o $downstream -j RETURN >/dev/null 2>&1 && " +
                     "ip6tables -C $IPV6_OUTPUT_CHAIN -o $downstream -j RETURN >/dev/null 2>&1 && " +
                     "iptables -C $FORWARD_CHAIN -i $downstream -o $tunnel -j ACCEPT >/dev/null 2>&1 && " +
@@ -763,6 +785,61 @@ object VpnRouterManager {
     private fun ensureRuleCommand(priority: Int, inputInterface: String, table: String): String {
         return "ip rule show | grep -q \"^$priority:.*iif $inputInterface .*lookup $table\" || " +
             "ip rule add pref $priority iif $inputInterface lookup $table"
+    }
+
+    private fun localHotspotRouteCommand(downstream: String): String {
+        return "ip -4 route show dev $downstream scope link | awk '{print ${'$'}1}' | grep / | while read cidr; do " +
+            "[ -n \"${'$'}cidr\" ] || continue; " +
+            "ip route replace \"${'$'}cidr\" dev $downstream table $HOTSPOT_LOCAL_ROUTE_TABLE; " +
+            "ip rule del pref $HOTSPOT_LOCAL_RULE_PRIORITY to \"${'$'}cidr\" 2>/dev/null || true; " +
+            "ip rule add pref $HOTSPOT_LOCAL_RULE_PRIORITY to \"${'$'}cidr\" lookup $HOTSPOT_LOCAL_ROUTE_TABLE; " +
+            "done"
+    }
+
+    private fun verifyLocalHotspotRouteCommand(downstream: String): String {
+        return "ip -4 route show dev $downstream scope link | awk '{print ${'$'}1}' | grep / | while read cidr; do " +
+            "[ -n \"${'$'}cidr\" ] || continue; " +
+            "ip rule show | grep -q \"^$HOTSPOT_LOCAL_RULE_PRIORITY:.*to ${'$'}cidr .*lookup $HOTSPOT_LOCAL_ROUTE_TABLE\" && " +
+            "ip route show table $HOTSPOT_LOCAL_ROUTE_TABLE | grep -q \"^${'$'}cidr dev $downstream\" || exit 1; " +
+            "done"
+    }
+
+    private fun allowHotspotClientSubnetEgressCommand(downstream: String): String {
+        return "ip -4 route show dev $downstream scope link | awk '{print ${'$'}1}' | grep / | while read cidr; do " +
+            "[ -n \"${'$'}cidr\" ] || continue; " +
+            "iptables -A $OUTPUT_CHAIN -d \"${'$'}cidr\" -j RETURN; " +
+            "done"
+    }
+
+    private fun verifyHotspotClientSubnetEgressCommand(downstream: String): String {
+        return "ip -4 route show dev $downstream scope link | awk '{print ${'$'}1}' | grep / | while read cidr; do " +
+            "[ -n \"${'$'}cidr\" ] || continue; " +
+            "iptables -C $OUTPUT_CHAIN -d \"${'$'}cidr\" -j RETURN >/dev/null 2>&1 || exit 1; " +
+            "done"
+    }
+
+    private fun startAttestationProxyCommand(downstream: String): String {
+        return "pidfile=$ATTESTATION_PROXY_PIDFILE; " +
+            "host=${'$'}(ip -4 -o addr show dev $downstream scope global | awk '{split(${'$'}4,a,\"/\"); print a[1]; exit}'); " +
+            "[ -n \"${'$'}host\" ] || exit 1; " +
+            "if [ -f \"${'$'}pidfile\" ]; then kill ${'$'}(cat \"${'$'}pidfile\") 2>/dev/null || true; rm -f \"${'$'}pidfile\"; fi; " +
+            "toybox nc -4 -s \"${'$'}host\" -p ${VpnRouterAttestation.PORT} -L toybox nc -4 127.0.0.1 ${VpnRouterAttestation.LOCAL_PORT} >/dev/null 2>&1 & " +
+            "echo ${'$'}! > \"${'$'}pidfile\"; " +
+            "sleep 0.1; kill -0 ${'$'}(cat \"${'$'}pidfile\") 2>/dev/null"
+    }
+
+    private fun verifyAttestationProxyCommand(downstream: String): String {
+        return "pidfile=$ATTESTATION_PROXY_PIDFILE; " +
+            "host=${'$'}(ip -4 -o addr show dev $downstream scope global | awk '{split(${'$'}4,a,\"/\"); print a[1]; exit}'); " +
+            "[ -n \"${'$'}host\" ] || exit 1; " +
+            "[ -f \"${'$'}pidfile\" ] && kill -0 ${'$'}(cat \"${'$'}pidfile\") 2>/dev/null && " +
+            "ss -ltn 2>/dev/null | grep -q \"${'$'}host:${VpnRouterAttestation.PORT}\""
+    }
+
+    private fun stopAttestationProxyCommand(): String {
+        return "pidfile=$ATTESTATION_PROXY_PIDFILE; " +
+            "if [ -f \"${'$'}pidfile\" ]; then kill ${'$'}(cat \"${'$'}pidfile\") 2>/dev/null || true; rm -f \"${'$'}pidfile\"; fi; " +
+            "pkill -f 'toybox nc -4 -s .* -p ${VpnRouterAttestation.PORT} -L toybox nc -4 127.0.0.1 ${VpnRouterAttestation.LOCAL_PORT}' 2>/dev/null || true"
     }
 
     private fun clearLastRuleSignature(context: Context) {
@@ -880,6 +957,8 @@ object VpnRouterManager {
             "remove hotspot VPN routes",
             "while ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY 2>/dev/null; do :; done; " +
                 "while ip rule del pref $HOTSPOT_BLOCK_RULE_PRIORITY 2>/dev/null; do :; done; " +
+                "while ip rule del pref $HOTSPOT_LOCAL_RULE_PRIORITY 2>/dev/null; do :; done; " +
+                "ip route flush table $HOTSPOT_LOCAL_ROUTE_TABLE 2>/dev/null || true; " +
                 "ip route flush table $HOTSPOT_VPN_ROUTE_TABLE 2>/dev/null || true; " +
                 "ip route flush table $HOTSPOT_BLOCK_ROUTE_TABLE 2>/dev/null || true"
         )
@@ -890,6 +969,10 @@ object VpnRouterManager {
                 "for iface in $(ip -o link show | awk -F': ' '{print $2}' | cut -d@ -f1); do " +
                 "while iptables -D INPUT -i \"${'$'}iface\" -p tcp --dport ${VpnRouterAttestation.PORT} -j ACCEPT 2>/dev/null; do :; done; " +
                 "done"
+        )
+        checkedRun(
+            "stop router attestation hotspot proxy",
+            stopAttestationProxyCommand()
         )
         checkedRun(
             "detach NAT chain",
@@ -1246,6 +1329,8 @@ object VpnRouterManager {
     private const val KEY_OPERATION_STAGE = "operation_stage"
     private const val KEY_OPERATION_DETAIL = "operation_detail"
     private const val KEY_LAST_RULE_SIGNATURE = "last_rule_signature"
+    private const val ROUTER_RULES_VERSION = 8
+    private const val ATTESTATION_PROXY_PIDFILE = "/data/local/tmp/virtuvpn-router-attestation-proxy.pid"
     private const val KEY_LAST_VIRTU_TUNNEL = "last_virtu_tunnel"
     private const val KEY_DEGRADED_TUNNEL = "degraded_tunnel"
     private const val KEY_DEGRADED_DETAIL = "degraded_detail"
@@ -1264,8 +1349,10 @@ object VpnRouterManager {
     private const val OUTPUT_CHAIN = "VIRTUVPN_ROUTER_OUT"
     private const val IPV6_FORWARD_CHAIN = "VIRTUVPN_ROUTER6_FWD"
     private const val IPV6_OUTPUT_CHAIN = "VIRTUVPN_ROUTER6_OUT"
+    private const val HOTSPOT_LOCAL_RULE_PRIORITY = 12050
     private const val HOTSPOT_VPN_RULE_PRIORITY = 20900
     private const val HOTSPOT_BLOCK_RULE_PRIORITY = 20901
+    private const val HOTSPOT_LOCAL_ROUTE_TABLE = 1046
     private const val HOTSPOT_VPN_ROUTE_TABLE = 1047
     private const val HOTSPOT_BLOCK_ROUTE_TABLE = 1048
     private const val MAX_DNS_RESOLVERS = 2

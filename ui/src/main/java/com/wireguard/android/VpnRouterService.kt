@@ -11,6 +11,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -30,6 +31,7 @@ class VpnRouterService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var monitorJob: Job? = null
     private var inactiveTicks = 0
+    private var serverStartedUnbound = false
 
     override fun onCreate() {
         super.onCreate()
@@ -68,8 +70,13 @@ class VpnRouterService : Service() {
     }
 
     private suspend fun reconcileOnce(): Boolean {
-        VpnRouterAttestationServer.start(applicationContext)
+        clearProcessNetworkBinding()
+        if (!serverStartedUnbound) {
+            VpnRouterAttestationServer.stop()
+            serverStartedUnbound = true
+        }
         val initial = VpnRouterManager.getStatus(applicationContext)
+        if (initial.routerActive) VpnRouterAttestationServer.start(applicationContext, initial)
         val status = if (initial.needsReconcile || initial.availability == VpnRouterManager.Availability.DEGRADED) {
             VpnRouterManager.reconcile(applicationContext)
         } else {
@@ -78,6 +85,7 @@ class VpnRouterService : Service() {
         if (status.availability == VpnRouterManager.Availability.ENABLED ||
             status.availability == VpnRouterManager.Availability.DEGRADED) {
             VpnRouterAttestationServer.updateStatus(status)
+            VpnRouterAttestationServer.start(applicationContext, status)
             updateNotification(status)
             inactiveTicks = 0
             return true
@@ -85,6 +93,14 @@ class VpnRouterService : Service() {
         VpnRouterAttestationServer.updateStatus(status)
         inactiveTicks = if (status.needsReconcile) 0 else inactiveTicks + 1
         return inactiveTicks < MAX_INACTIVE_TICKS
+    }
+
+    private fun clearProcessNetworkBinding() {
+        runCatching {
+            getSystemService(ConnectivityManager::class.java)?.bindProcessToNetwork(null)
+        }.onFailure {
+            Log.d(TAG, "Unable to clear process network binding for VPN router service", it)
+        }
     }
 
     private fun updateNotification(status: VpnRouterManager.Status) {

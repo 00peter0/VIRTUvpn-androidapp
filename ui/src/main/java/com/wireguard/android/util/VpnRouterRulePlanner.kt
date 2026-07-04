@@ -6,6 +6,7 @@ package com.wireguard.android.util
 
 object VpnRouterRulePlanner {
     data class Snapshot(
+        val rulesVersion: Int,
         val tunnel: String,
         val downstreams: List<String>,
         val dnsResolvers: List<String>,
@@ -15,6 +16,7 @@ object VpnRouterRulePlanner {
     ) {
         fun signature(): String {
             return listOf(
+                "v$rulesVersion",
                 tunnel,
                 downstreams.sorted().joinToString(","),
                 dnsResolvers.joinToString(","),

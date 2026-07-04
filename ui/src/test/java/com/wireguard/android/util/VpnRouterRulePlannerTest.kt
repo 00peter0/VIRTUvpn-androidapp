@@ -11,6 +11,7 @@ import org.junit.Test
 
 class VpnRouterRulePlannerTest {
     private val baseline = VpnRouterRulePlanner.Snapshot(
+        rulesVersion = 7,
         tunnel = "tun0",
         downstreams = listOf("swlan0"),
         dnsResolvers = listOf("9.9.9.9", "149.112.112.112"),
@@ -55,6 +56,12 @@ class VpnRouterRulePlannerTest {
     @Test
     fun tunnelChangeRequiresFullRebuild() {
         val changed = baseline.copy(tunnel = "tun1")
+        assertTrue(VpnRouterRulePlanner.needsFullRebuild(baseline.signature(), changed, true))
+    }
+
+    @Test
+    fun rulesVersionChangeRequiresFullRebuild() {
+        val changed = baseline.copy(rulesVersion = 8)
         assertTrue(VpnRouterRulePlanner.needsFullRebuild(baseline.signature(), changed, true))
     }
 
