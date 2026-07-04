@@ -454,7 +454,10 @@ object VpnRouterAttestationServer {
 
     fun start(context: Context, status: VpnRouterManager.Status? = cachedStatus) {
         val host = localRouterHost(status) ?: "0.0.0.0"
-        if (serverFd != null && boundHost == host) return
+        if (serverFd != null) {
+            boundHost = host
+            return
+        }
         val appContext = context.applicationContext
         runCatching {
             stop()

@@ -823,7 +823,7 @@ object VpnRouterManager {
             "host=${'$'}(ip -4 -o addr show dev $downstream scope global | awk '{split(${'$'}4,a,\"/\"); print a[1]; exit}'); " +
             "[ -n \"${'$'}host\" ] || exit 1; " +
             stopAttestationProxyCommand() + "; " +
-            "sh -c 'while true; do toybox nc -4 -s \"${'$'}1\" -p ${VpnRouterAttestation.PORT} -l toybox nc -4 127.0.0.1 ${VpnRouterAttestation.LOCAL_PORT}; sleep 0.1; done' virtuvpn-router-proxy \"${'$'}host\" >/dev/null 2>&1 & " +
+            "sh -c 'toybox nc -4 -s \"${'$'}1\" -p ${VpnRouterAttestation.PORT} -L toybox nc -4 127.0.0.1 ${VpnRouterAttestation.LOCAL_PORT}' virtuvpn-router-proxy \"${'$'}host\" >/dev/null 2>&1 & " +
             "echo ${'$'}! > \"${'$'}pidfile\"; " +
             "sleep 0.1; kill -0 ${'$'}(cat \"${'$'}pidfile\") 2>/dev/null"
     }
@@ -840,7 +840,7 @@ object VpnRouterManager {
         return "pidfile=$ATTESTATION_PROXY_PIDFILE; " +
             "if [ -f \"${'$'}pidfile\" ]; then kill ${'$'}(cat \"${'$'}pidfile\") 2>/dev/null || true; rm -f \"${'$'}pidfile\"; fi; " +
             "pkill -f 'virtuvpn-router-proxy' 2>/dev/null || true; " +
-            "pkill -f 'toybox nc -4 -s .* -p ${VpnRouterAttestation.PORT} -l toybox nc -4 127.0.0.1 ${VpnRouterAttestation.LOCAL_PORT}' 2>/dev/null || true"
+            "pkill -f 'toybox nc -4 -s .* -p ${VpnRouterAttestation.PORT} -[lL] toybox nc -4 127.0.0.1 ${VpnRouterAttestation.LOCAL_PORT}' 2>/dev/null || true"
     }
 
     private fun clearLastRuleSignature(context: Context) {

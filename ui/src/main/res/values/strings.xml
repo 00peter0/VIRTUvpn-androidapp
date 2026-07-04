@@ -117,7 +117,7 @@
     <string name="vcs_kill_switch_off_router_active">Phone kill switch is off. Hotspot clients are protected by VPN router rules.</string>
     <string name="vcs_kill_switch_unprotected">Not protected: open Android VPN settings, select VirtuVPN, turn on Always-on VPN, then enable Block connections without VPN.</string>
     <string name="vcs_kill_switch_browser_hint">For web browsing, use VirtuVPN Secured Browser as an extra privacy layer. It verifies VPN or VPN Router protection before loading pages.</string>
-    <string name="vcs_hotspot_vpn_bypass_warning">MOBILE HOTSPOT WARNING: connected devices are not protected by this Android VPN. Install a tunnel on each connected device.</string>
+    <string name="vcs_hotspot_vpn_bypass_warning">MOBILE HOTSPOT WARNING: connected devices are not protected by this Android VPN. Install a tunnel on each connected device or turn on VPN router.</string>
     <string name="vcs_hotspot_vpn_router_active">Router protection active: hotspot clients route through the VPN tunnel.</string>
     <string name="vcs_open_vpn_settings">Open VPN settings</string>
     <string name="vcs_vpn_router_title">VPN router</string>
