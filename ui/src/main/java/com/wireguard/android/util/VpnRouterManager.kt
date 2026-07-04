@@ -822,8 +822,8 @@ object VpnRouterManager {
         return "pidfile=$ATTESTATION_PROXY_PIDFILE; " +
             "host=${'$'}(ip -4 -o addr show dev $downstream scope global | awk '{split(${'$'}4,a,\"/\"); print a[1]; exit}'); " +
             "[ -n \"${'$'}host\" ] || exit 1; " +
-            "if [ -f \"${'$'}pidfile\" ]; then kill ${'$'}(cat \"${'$'}pidfile\") 2>/dev/null || true; rm -f \"${'$'}pidfile\"; fi; " +
-            "toybox nc -4 -s \"${'$'}host\" -p ${VpnRouterAttestation.PORT} -L toybox nc -4 127.0.0.1 ${VpnRouterAttestation.LOCAL_PORT} >/dev/null 2>&1 & " +
+            stopAttestationProxyCommand() + "; " +
+            "sh -c 'while true; do toybox nc -4 -s \"${'$'}1\" -p ${VpnRouterAttestation.PORT} -l toybox nc -4 127.0.0.1 ${VpnRouterAttestation.LOCAL_PORT}; sleep 0.1; done' virtuvpn-router-proxy \"${'$'}host\" >/dev/null 2>&1 & " +
             "echo ${'$'}! > \"${'$'}pidfile\"; " +
             "sleep 0.1; kill -0 ${'$'}(cat \"${'$'}pidfile\") 2>/dev/null"
     }
@@ -839,7 +839,8 @@ object VpnRouterManager {
     private fun stopAttestationProxyCommand(): String {
         return "pidfile=$ATTESTATION_PROXY_PIDFILE; " +
             "if [ -f \"${'$'}pidfile\" ]; then kill ${'$'}(cat \"${'$'}pidfile\") 2>/dev/null || true; rm -f \"${'$'}pidfile\"; fi; " +
-            "pkill -f 'toybox nc -4 -s .* -p ${VpnRouterAttestation.PORT} -L toybox nc -4 127.0.0.1 ${VpnRouterAttestation.LOCAL_PORT}' 2>/dev/null || true"
+            "pkill -f 'virtuvpn-router-proxy' 2>/dev/null || true; " +
+            "pkill -f 'toybox nc -4 -s .* -p ${VpnRouterAttestation.PORT} -l toybox nc -4 127.0.0.1 ${VpnRouterAttestation.LOCAL_PORT}' 2>/dev/null || true"
     }
 
     private fun clearLastRuleSignature(context: Context) {
@@ -1329,7 +1330,7 @@ object VpnRouterManager {
     private const val KEY_OPERATION_STAGE = "operation_stage"
     private const val KEY_OPERATION_DETAIL = "operation_detail"
     private const val KEY_LAST_RULE_SIGNATURE = "last_rule_signature"
-    private const val ROUTER_RULES_VERSION = 8
+    private const val ROUTER_RULES_VERSION = 9
     private const val ATTESTATION_PROXY_PIDFILE = "/data/local/tmp/virtuvpn-router-attestation-proxy.pid"
     private const val KEY_LAST_VIRTU_TUNNEL = "last_virtu_tunnel"
     private const val KEY_DEGRADED_TUNNEL = "degraded_tunnel"
