@@ -445,6 +445,7 @@ object VpnRouterAttestationServer {
     private var serverThread: Thread? = null
     @Volatile
     private var boundHost: String? = null
+    private val lifecycleLock = Any()
     private val workerPool = Executors.newFixedThreadPool(8)
     private val permits = Semaphore(8)
     @Volatile
@@ -454,65 +455,77 @@ object VpnRouterAttestationServer {
 
     fun start(context: Context, status: VpnRouterManager.Status? = cachedStatus) {
         val host = localRouterHost(status) ?: "0.0.0.0"
-        if (serverFd != null) {
-            boundHost = host
-            return
-        }
-        val appContext = context.applicationContext
-        runCatching {
-            stop()
-            val fd = Os.socket(OsConstants.AF_INET, OsConstants.SOCK_STREAM, OsConstants.IPPROTO_TCP)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                Os.setsockoptInt(fd, OsConstants.SOL_SOCKET, OsConstants.SO_REUSEADDR, 1)
+        synchronized(lifecycleLock) {
+            if (serverFd != null) {
+                boundHost = host
+                return
             }
-            Os.bind(fd, InetAddress.getByName("127.0.0.1"), VpnRouterAttestation.LOCAL_PORT)
-            Os.listen(fd, 16)
-            serverFd = fd
-            boundHost = host
-            serverThread = Thread {
-                while (serverFd === fd) {
-                    val clientFd = runCatching { Os.accept(fd, InetSocketAddress(0)) }.getOrNull() ?: continue
-                    if (!permits.tryAcquire()) {
-                        runCatching {
-                            FileOutputStream(clientFd).use { output -> writeResponse(output, 503, "Busy") }
-                        }
-                        closeQuietly(clientFd)
-                        continue
-                    }
-                    workerPool.execute {
-                        try {
-                            runCatching { handleClient(appContext, clientFd) }
-                                .onFailure { error ->
-                                    if (error is SocketTimeoutException || error is IOException) {
-                                        Log.d(TAG, "Router attestation client disconnected", error)
-                                    } else {
-                                        Log.e(TAG, "Router attestation request failed", error)
-                                    }
-                                }
-                        } finally {
-                            permits.release()
-                        }
-                    }
+            val appContext = context.applicationContext
+            var openedFd: FileDescriptor? = null
+            runCatching {
+                val fd = Os.socket(OsConstants.AF_INET, OsConstants.SOCK_STREAM, OsConstants.IPPROTO_TCP)
+                openedFd = fd
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    Os.setsockoptInt(fd, OsConstants.SOL_SOCKET, OsConstants.SO_REUSEADDR, 1)
                 }
-            }.apply {
-                name = "VirtuVPN-Router-Attestation"
-                isDaemon = true
-                start()
+                Os.bind(fd, InetAddress.getByName("127.0.0.1"), VpnRouterAttestation.LOCAL_PORT)
+                Os.listen(fd, 16)
+                serverFd = fd
+                boundHost = host
+                serverThread = Thread {
+                    while (serverFd === fd) {
+                        val clientFd = runCatching { Os.accept(fd, InetSocketAddress(0)) }.getOrNull() ?: continue
+                        if (!permits.tryAcquire()) {
+                            runCatching {
+                                FileOutputStream(clientFd).use { output -> writeResponse(output, 503, "Busy") }
+                            }
+                            closeQuietly(clientFd)
+                            continue
+                        }
+                        workerPool.execute {
+                            try {
+                                runCatching { handleClient(appContext, clientFd) }
+                                    .onFailure { error ->
+                                        if (error is SocketTimeoutException || error is IOException) {
+                                            Log.d(TAG, "Router attestation client disconnected", error)
+                                        } else {
+                                            Log.e(TAG, "Router attestation request failed", error)
+                                        }
+                                    }
+                            } finally {
+                                permits.release()
+                            }
+                        }
+                    }
+                }.apply {
+                    name = "VirtuVPN-Router-Attestation"
+                    isDaemon = true
+                    start()
+                }
+            }.onFailure {
+                Log.d(TAG, "Unable to start router attestation server", it)
+                openedFd?.let { fd ->
+                    if (serverFd === fd) serverFd = null
+                    closeQuietly(fd)
+                }
+                if (serverFd == null) {
+                    serverThread = null
+                    boundHost = null
+                }
             }
-        }.onFailure {
-            Log.d(TAG, "Unable to start router attestation server", it)
-            stop()
         }
     }
 
     fun stop() {
-        val fd = serverFd
-        serverFd = null
-        if (fd != null) closeQuietly(fd)
-        serverThread = null
-        boundHost = null
-        cachedStatus = null
-        cachedAt = 0L
+        synchronized(lifecycleLock) {
+            val fd = serverFd
+            serverFd = null
+            if (fd != null) closeQuietly(fd)
+            serverThread = null
+            boundHost = null
+            cachedStatus = null
+            cachedAt = 0L
+        }
     }
 
     /**
