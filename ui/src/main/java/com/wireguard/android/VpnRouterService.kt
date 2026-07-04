@@ -132,7 +132,7 @@ class VpnRouterService : Service() {
         }
         return builder
             .setSmallIcon(R.drawable.ic_stat_virtu)
-            .setColor(Color.BLACK)
+            .setColor(Color.rgb(94, 219, 194))
             .setContentTitle(getString(R.string.vcs_vpn_router_service_title))
             .setContentText(text)
             .setContentIntent(pendingIntent)
