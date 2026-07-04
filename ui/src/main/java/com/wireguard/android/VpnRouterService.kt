@@ -131,7 +131,7 @@ class VpnRouterService : Service() {
             Notification.Builder(this)
         }
         return builder
-            .setSmallIcon(R.drawable.ic_tile)
+            .setSmallIcon(R.mipmap.ic_launcher)
             .setColor(Color.rgb(7, 16, 22))
             .setContentTitle(getString(R.string.vcs_vpn_router_service_title))
             .setContentText(text)
