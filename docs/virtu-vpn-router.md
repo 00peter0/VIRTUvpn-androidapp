@@ -805,8 +805,9 @@ outside the VPN while router mode is enabled.
 
 Before using a new rooted Android device as a production router:
 
-Root/OEM hardening that is outside the app build must also be completed per
-device. See `docs/virtu-vpn-router-root-hardening.md`.
+Android/OEM hardening that is outside the app build must also be completed per
+device. For the current Android 14 Samsung router profile, see
+`docs/virtu-vpn-router-android14-customization.md`.
 
 1. Unlock/root and verify root shell can run `iptables`, `ip6tables`, `ip rule`,
    `settings`, and `ndc tether dns`.
