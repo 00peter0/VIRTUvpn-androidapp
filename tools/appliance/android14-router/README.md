@@ -89,6 +89,39 @@ back faster after reboot:
 - If provider ownership is unknown or ambiguous, VirtuVPN records nothing and
   the router still remains fail-closed.
 
+## Phase 1 Debloat
+
+For a dedicated router, remove consumer apps that have no router function and
+may register boot receivers, push receivers, media/background work, or ad
+attribution. Disable them for user 0 instead of deleting system partitions:
+
+```sh
+adb shell su -c 'pm disable-user --user 0 com.facebook.katana'
+adb shell su -c 'pm disable-user --user 0 com.facebook.appmanager'
+adb shell su -c 'pm disable-user --user 0 com.facebook.services'
+adb shell su -c 'pm disable-user --user 0 com.facebook.system'
+adb shell su -c 'pm disable-user --user 0 com.google.android.apps.photos'
+adb shell su -c 'pm disable-user --user 0 com.google.android.apps.youtube.music'
+adb shell su -c 'pm disable-user --user 0 com.google.android.videos'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.tips'
+```
+
+After disabling, reboot and run the acceptance checks again. On the A52 router
+rig this phase left only the router-relevant third-party apps enabled:
+
+- `com.virtuvpn.android`
+- `com.surfshark.vpnclient.android`
+- `com.nordvpn.android`
+- `com.topjohnwu.magisk`
+- `ch.profital.android`
+
+`ch.profital.android` is a Samsung Store-installed retail/marketing app
+(`versionName=48.22.2`) with internet, ad attribution, push messaging,
+WorkManager, and `BOOT_COMPLETED`. It is not used by VirtuVPN, Magisk, Nord,
+Surfshark, tethering, or SIM provisioning in the observed router state. Leave it
+enabled during phase 1 only because it was not part of the initial safe-disable
+set; it is a phase 2 removal candidate after one more reboot/restore test.
+
 ## Acceptance
 
 After install, reboot the router and verify:
