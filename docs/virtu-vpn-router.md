@@ -637,6 +637,18 @@ Router lifecycle hardening added in build 825:
   the foreground service. The grace applies only to transient detection misses,
   not to user-requested shutdown.
 
+Tunnel-interface transient handling added in build 826:
+
+- If router rules are installed but the VPN interface temporarily disappears
+  during provider renegotiation, `detect()` no longer signs `protected=false`
+  by default. It reuses the last active tether snapshot and verifies the
+  fail-closed invariant that still matters without an active tunnel: hotspot
+  policy rule to the unreachable table plus IPv4/IPv6 reject chains.
+- The tunnel-specific `FORWARD -o <tun>` allow rule is checked only when a
+  tunnel interface exists. When the tunnel is absent, clients have no internet,
+  but traffic still cannot fall back to the physical uplink while the
+  unreachable/reject rules hold.
+
 Router-state anti-flap hardening added in build 822:
 
 - Attestation `protected` reflects the router's signed availability state, so a

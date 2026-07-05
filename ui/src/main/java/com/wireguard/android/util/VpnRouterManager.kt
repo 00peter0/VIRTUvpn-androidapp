@@ -272,12 +272,17 @@ object VpnRouterManager {
         val runningTunnel = readVpnInterfaces().firstOrNull()
         val allUpInterfaces = readUpInterfaces()
         if (runningTunnel == null) {
-            val dnsResolvers = resolveDnsResolvers(context, null)
+            val lastActive = lastActiveRouterSnapshot(context)
+            val dnsResolvers = resolveDnsResolvers(context, null).ifEmpty { lastActive.dnsResolvers }
+            val securityProtected = installed && routerSecurityInvariantHolds(null, lastActive.tetherInterfaces)
             return Status(
                 availability = if (installed) Availability.ERROR else Availability.WAITING_FOR_TUNNEL,
-                uplinkInterfaces = readUplinkInterfaces(allUpInterfaces, null, emptyList()),
+                activeTunnel = lastActive.tunnel,
+                tetherInterfaces = lastActive.tetherInterfaces,
+                uplinkInterfaces = readUplinkInterfaces(allUpInterfaces, null, lastActive.tetherInterfaces),
                 dnsResolvers = dnsResolvers,
-                detail = if (installed) "router rules installed; no active VPN interface detected" else null
+                detail = if (installed) "router rules installed; no active VPN interface detected" else null,
+                securityProtected = securityProtected
             )
         }
         val tetherInterfaces = readTetherInterfaces(runningTunnel, allUpInterfaces)
@@ -763,7 +768,7 @@ object VpnRouterManager {
             .apply()
     }
 
-    private fun routerSecurityInvariantHolds(tunnel: String, downstreams: List<String>): Boolean {
+    private fun routerSecurityInvariantHolds(tunnel: String?, downstreams: List<String>): Boolean {
         if (downstreams.isEmpty()) return false
         if (!commandSucceeds("iptables -S $FORWARD_CHAIN >/dev/null 2>&1")) return false
         if (!commandSucceeds("iptables -S $OUTPUT_CHAIN >/dev/null 2>&1")) return false
@@ -777,13 +782,13 @@ object VpnRouterManager {
         if (!commandSucceeds("ip6tables -C $IPV6_OUTPUT_CHAIN -j REJECT >/dev/null 2>&1")) return false
         if (!commandSucceeds("ip6tables -C $IPV6_FORWARD_CHAIN -j REJECT >/dev/null 2>&1")) return false
         return downstreams.all { downstream ->
-            commandSucceeds(
+            val coreRulesHold = commandSucceeds(
                 "ip rule show | grep -q \"^$HOTSPOT_BLOCK_RULE_PRIORITY:.*iif $downstream .*lookup $HOTSPOT_BLOCK_ROUTE_TABLE\" && " +
                     "ip route show table $HOTSPOT_BLOCK_ROUTE_TABLE | grep -q \"unreachable default\" && " +
                     "iptables -C $FORWARD_CHAIN -i $downstream -j REJECT >/dev/null 2>&1 && " +
-                    "ip6tables -C $IPV6_FORWARD_CHAIN -i $downstream -j REJECT >/dev/null 2>&1 && " +
-                    "iptables -C $FORWARD_CHAIN -i $downstream -o $tunnel -j ACCEPT >/dev/null 2>&1"
+                    "ip6tables -C $IPV6_FORWARD_CHAIN -i $downstream -j REJECT >/dev/null 2>&1"
             )
+            coreRulesHold && (tunnel == null || commandSucceeds("iptables -C $FORWARD_CHAIN -i $downstream -o $tunnel -j ACCEPT >/dev/null 2>&1"))
         }
     }
 
@@ -940,30 +945,44 @@ object VpnRouterManager {
             .apply()
     }
 
-    private fun transientActiveStatusForRootMiss(context: Context, error: Throwable): Status? {
+    private data class LastActiveRouterSnapshot(
+        val tunnel: String?,
+        val tetherInterfaces: List<String>,
+        val dnsResolvers: List<String>
+    )
+
+    private fun lastActiveRouterSnapshot(context: Context): LastActiveRouterSnapshot {
         val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val tunnel = prefs.getString(KEY_LAST_ACTIVE_ROUTER_TUNNEL, null)?.takeIf { it.isNotBlank() } ?: return null
+        return LastActiveRouterSnapshot(
+            tunnel = prefs.getString(KEY_LAST_ACTIVE_ROUTER_TUNNEL, null)?.takeIf { it.isNotBlank() },
+            tetherInterfaces = prefs.getString(KEY_LAST_ACTIVE_ROUTER_TETHERS, null)
+                ?.split(',')
+                ?.map { it.trim() }
+                ?.filter { it.isNotBlank() }
+                .orEmpty(),
+            dnsResolvers = prefs.getString(KEY_LAST_ACTIVE_ROUTER_DNS, null)
+                ?.split(',')
+                ?.map { it.trim() }
+                ?.filter { it.isNotBlank() }
+                .orEmpty()
+        )
+    }
+
+    private fun transientActiveStatusForRootMiss(context: Context, error: Throwable): Status? {
+        val snapshot = lastActiveRouterSnapshot(context)
+        val tunnel = snapshot.tunnel ?: return null
+        val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val failures = (prefs.getInt(KEY_ROOT_CHECK_FAILURES, 0) + 1).coerceAtMost(ROOT_CHECK_FAILURES_BEFORE_UNSUPPORTED)
         prefs.edit()
             .putInt(KEY_ROOT_CHECK_FAILURES, failures)
             .apply()
         if (failures >= ROOT_CHECK_FAILURES_BEFORE_UNSUPPORTED) return null
-        val tetherInterfaces = prefs.getString(KEY_LAST_ACTIVE_ROUTER_TETHERS, null)
-            ?.split(',')
-            ?.map { it.trim() }
-            ?.filter { it.isNotBlank() }
-            .orEmpty()
-        val dnsResolvers = prefs.getString(KEY_LAST_ACTIVE_ROUTER_DNS, null)
-            ?.split(',')
-            ?.map { it.trim() }
-            ?.filter { it.isNotBlank() }
-            .orEmpty()
         Log.w(TAG, "VPN router root check missed; keeping last active attestation state (${failures}/$ROOT_CHECK_FAILURES_BEFORE_UNSUPPORTED)", error)
         return Status(
             availability = Availability.DEGRADED,
             activeTunnel = tunnel,
-            tetherInterfaces = tetherInterfaces,
-            dnsResolvers = dnsResolvers,
+            tetherInterfaces = snapshot.tetherInterfaces,
+            dnsResolvers = snapshot.dnsResolvers,
             detail = "Router root check missed; keeping fail-closed protection while verification recovers",
             securityProtected = true
         )

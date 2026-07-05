@@ -401,6 +401,12 @@ still stops them immediately. For the browser this means a single router
 verification hiccup should remain invisible, while sustained unverifiable router
 state still fails closed after the existing grace windows.
 
+Router build 826 also treats a temporarily missing VPN interface as a quality
+loss, not automatically as an unsafe router. If the router still proves the
+hotspot unreachable/reject fail-closed rules, Secured Browser may remain
+allowed while pages simply have no internet until the provider recreates the
+tunnel interface.
+
 Router builds from 822 onward add anti-flap hysteresis before signing router
 availability changes. A single transient router rule verification miss is not an
 authoritative unprotected state and should not become a visible browser block.
