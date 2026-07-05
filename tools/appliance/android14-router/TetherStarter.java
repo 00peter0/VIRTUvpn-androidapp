@@ -5,6 +5,7 @@
 
 import android.content.Context;
 import android.net.TetheringManager;
+import android.os.Looper;
 
 import java.lang.reflect.Method;
 import java.util.concurrent.CountDownLatch;
@@ -19,9 +20,23 @@ public final class TetherStarter {
     }
 
     public static void main(String[] args) throws Exception {
+        try {
+            run(args);
+        } catch (Throwable throwable) {
+            System.out.println("TETHERING_EXCEPTION:" + throwable.getClass().getName() + ":" + throwable.getMessage());
+            throwable.printStackTrace(System.out);
+            System.exit(10);
+        }
+    }
+
+    private static void run(String[] args) throws Exception {
         if (args.length == 0 || !"start".equals(args[0])) {
             System.out.println("USAGE: TetherStarter start");
             System.exit(2);
+        }
+
+        if (Looper.myLooper() == null) {
+            Looper.prepare();
         }
 
         final Context context = systemContext();

@@ -31,10 +31,14 @@ mkdir -p /tmp/virtu-tether-dex
 "$ANDROID_HOME/build-tools/36.0.0/d8" \
   --min-api 30 \
   --output /tmp/virtu-tether-dex \
-  /tmp/virtu-tether-classes/TetherStarter.class
+  $(find /tmp/virtu-tether-classes -type f -name '*.class' | sort)
 
 cp /tmp/virtu-tether-dex/classes.dex /tmp/virtu-tether.dex
 ```
+
+Do not dex only `TetherStarter.class`: the helper also contains generated
+inner classes for the executor and tethering callback. A dex missing those
+classes fails at runtime with `NoClassDefFoundError`.
 
 ## Install On Router
 
@@ -59,3 +63,6 @@ After install, reboot the router and verify:
 - With an APK that contains `VpnRouterManager.restoreRouterIfDesired()`,
   `VpnRouterService` returns and attestation listeners `8788/8789` become
   available.
+- `ip rule show` has one active `20900` and one active `20901` for the active
+  tether interface, with no duplicated active rules after router off/on or
+  reboot restore.
