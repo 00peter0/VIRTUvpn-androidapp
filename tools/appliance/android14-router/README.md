@@ -269,6 +269,62 @@ Surfshark provider, hotspot `swlan0`, VPN `tun1`, route `20900` to table
 and attestation listeners `8788/8789`. Enabled third-party apps remained
 limited to VirtuVPN, Surfshark, NordVPN, and Magisk.
 
+## Phase 2F Debloat
+
+After phase 2E has survived reboot/restore testing, disable remaining Google
+assistant/consumer services and Samsung consumer UI/media services that are not
+required for router operation. Keep Play Store, Camera/QR, and Messages enabled
+for provider update fallback, QR workflows, and SIM/OTP/operator SMS.
+
+```sh
+adb shell su -c 'pm disable-user --user 0 com.google.android.googlequicksearchbox'
+adb shell su -c 'pm disable-user --user 0 com.google.android.apps.tachyon'
+adb shell su -c 'pm disable-user --user 0 com.google.android.apps.turbo'
+adb shell su -c 'pm disable-user --user 0 com.google.android.as'
+adb shell su -c 'pm disable-user --user 0 com.google.android.as.oss'
+adb shell su -c 'pm disable-user --user 0 com.google.android.projection.gearhead'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.easyMover'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.easyMover.Agent'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.gallery3d'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.spage'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.smartmirroring'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.smartcapture'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.aodservice'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.stickercenter'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.app.soundalive'
+```
+
+- `com.google.android.googlequicksearchbox`: Google app / Search / Assistant.
+- `com.google.android.apps.tachyon`: Google Meet / Duo.
+- `com.google.android.apps.turbo`: Android Device Health Services suggestions.
+- `com.google.android.as` and `com.google.android.as.oss`: Android System
+  Intelligence.
+- `com.google.android.projection.gearhead`: Android Auto.
+- `com.sec.android.easyMover` and `com.sec.android.easyMover.Agent`: Samsung
+  Smart Switch.
+- `com.sec.android.gallery3d`: Samsung Gallery.
+- `com.samsung.android.app.spage`: Samsung Daily / Bixby page.
+- `com.samsung.android.smartmirroring`: Samsung Smart View / screen mirroring.
+- `com.samsung.android.app.smartcapture`: Samsung Smart Capture UI.
+- `com.samsung.android.app.aodservice`: Samsung Always On Display.
+- `com.samsung.android.stickercenter`: Samsung Sticker Center.
+- `com.sec.android.app.soundalive`: Samsung SoundAlive effects.
+
+Do not disable these packages in this phase:
+
+- `com.android.vending`: Play Store, kept for VPN provider update fallback.
+- `com.sec.android.app.camera`: Camera / QR, kept for QR workflows.
+- `com.google.android.apps.messaging`: Messages / SMS / RCS, kept for SIM,
+  OTP, and operator messages.
+
+On the A52 router rig, phase 2F passed the initial runtime watch and reboot
+acceptance. The first post-boot sample already had Surfshark, hotspot `swlan0`,
+VPN `tun1`, router rules `20900/20901`, table `1047` via `tun1`, table `1048`
+`unreachable default`, and listener `8788`; after the normal stabilization
+window listener `8789` was also available. Play Store, Camera/QR, and Messages
+remained enabled. Enabled third-party apps remained limited to VirtuVPN,
+Surfshark, NordVPN, and Magisk.
+
 ## Acceptance
 
 After install, reboot the router and verify:
