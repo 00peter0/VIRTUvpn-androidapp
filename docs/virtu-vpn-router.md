@@ -623,6 +623,20 @@ Attestation protected-bit model from build 824 onward:
   security failures: browser availability no longer depends on curl/ISP jitter,
   while real firewall/routing failures still fail closed.
 
+Router lifecycle hardening added in build 825:
+
+- A single root-shell/detect hiccup must not tear down the attestation plane.
+  If `detect()` cannot read router chains but the previous signed state was
+  active, the router keeps the last active fail-closed status for a short
+  3-strike confirmation window and logs the miss as a transient root check.
+- Non-active status reported by reconcile no longer immediately calls
+  `stopService()`. `VpnRouterService` already has an inactive-tick grace window
+  and is responsible for stopping itself if the router really stays inactive.
+- Explicit router off remains immediate: `disable()` still removes rules,
+  clears latched router state, stops the app-side attestation server, and stops
+  the foreground service. The grace applies only to transient detection misses,
+  not to user-requested shutdown.
+
 Router-state anti-flap hardening added in build 822:
 
 - Attestation `protected` reflects the router's signed availability state, so a

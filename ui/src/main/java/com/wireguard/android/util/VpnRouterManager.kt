@@ -229,7 +229,11 @@ object VpnRouterManager {
         try {
             removeRules()
             clearRouterState(appContext)
-            detect(appContext).also { syncAttestationServer(appContext, it) }
+            detect(appContext).also {
+                VpnRouterAttestationServer.stop()
+                VpnRouterService.stopNow(appContext)
+                syncAttestationServer(appContext, it)
+            }
         } catch (e: Throwable) {
             Log.e(TAG, "Unable to disable VPN router", e)
             setOperation(appContext, OperationStage.ERROR, e.message ?: e.javaClass.simpleName)
@@ -245,16 +249,19 @@ object VpnRouterManager {
 
     private fun syncAttestationServer(context: Context, status: Status) {
         if (status.routerActive) {
+            rememberRouterActiveStatus(context, status)
             VpnRouterAttestationServer.updateStatus(status)
             VpnRouterAttestationServer.start(context.applicationContext, status)
         } else {
-            VpnRouterAttestationServer.stop()
+            VpnRouterAttestationServer.updateStatus(status)
         }
         VpnRouterService.ensureForStatus(context.applicationContext, status)
     }
 
     private suspend fun detect(context: Context): Status {
         val installed = runCatching { isRuleChainInstalled() }.getOrElse { e ->
+            val transient = transientActiveStatusForRootMiss(context, e)
+            if (transient != null) return transient
             return Status(
                 availability = Availability.UNSUPPORTED,
                 detail = e.message ?: "root required"
@@ -906,6 +913,10 @@ object VpnRouterManager {
             .edit()
             .remove(KEY_LAST_RULE_SIGNATURE)
             .remove(KEY_LAST_VIRTU_TUNNEL)
+            .remove(KEY_LAST_ACTIVE_ROUTER_TUNNEL)
+            .remove(KEY_LAST_ACTIVE_ROUTER_TETHERS)
+            .remove(KEY_LAST_ACTIVE_ROUTER_DNS)
+            .remove(KEY_ROOT_CHECK_FAILURES)
             .remove(KEY_DEGRADED_TUNNEL)
             .remove(KEY_DEGRADED_DETAIL)
             .remove(KEY_HEALTH_FAILURES)
@@ -914,6 +925,48 @@ object VpnRouterManager {
             .putString(KEY_OPERATION_STAGE, OperationStage.IDLE.name)
             .putString(KEY_OPERATION_DETAIL, "")
             .apply()
+    }
+
+    private fun rememberRouterActiveStatus(context: Context, status: Status) {
+        if (!status.routerActive) return
+        val activeTunnel = status.activeTunnel ?: return
+        context.applicationContext
+            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_LAST_ACTIVE_ROUTER_TUNNEL, activeTunnel)
+            .putString(KEY_LAST_ACTIVE_ROUTER_TETHERS, status.tetherInterfaces.joinToString(","))
+            .putString(KEY_LAST_ACTIVE_ROUTER_DNS, status.dnsResolvers.joinToString(","))
+            .putInt(KEY_ROOT_CHECK_FAILURES, 0)
+            .apply()
+    }
+
+    private fun transientActiveStatusForRootMiss(context: Context, error: Throwable): Status? {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val tunnel = prefs.getString(KEY_LAST_ACTIVE_ROUTER_TUNNEL, null)?.takeIf { it.isNotBlank() } ?: return null
+        val failures = (prefs.getInt(KEY_ROOT_CHECK_FAILURES, 0) + 1).coerceAtMost(ROOT_CHECK_FAILURES_BEFORE_UNSUPPORTED)
+        prefs.edit()
+            .putInt(KEY_ROOT_CHECK_FAILURES, failures)
+            .apply()
+        if (failures >= ROOT_CHECK_FAILURES_BEFORE_UNSUPPORTED) return null
+        val tetherInterfaces = prefs.getString(KEY_LAST_ACTIVE_ROUTER_TETHERS, null)
+            ?.split(',')
+            ?.map { it.trim() }
+            ?.filter { it.isNotBlank() }
+            .orEmpty()
+        val dnsResolvers = prefs.getString(KEY_LAST_ACTIVE_ROUTER_DNS, null)
+            ?.split(',')
+            ?.map { it.trim() }
+            ?.filter { it.isNotBlank() }
+            .orEmpty()
+        Log.w(TAG, "VPN router root check missed; keeping last active attestation state (${failures}/$ROOT_CHECK_FAILURES_BEFORE_UNSUPPORTED)", error)
+        return Status(
+            availability = Availability.DEGRADED,
+            activeTunnel = tunnel,
+            tetherInterfaces = tetherInterfaces,
+            dnsResolvers = dnsResolvers,
+            detail = "Router root check missed; keeping fail-closed protection while verification recovers",
+            securityProtected = true
+        )
     }
 
     private fun clearDegradedTunnel(context: Context) {
@@ -925,6 +978,7 @@ object VpnRouterManager {
             .remove(KEY_HEALTH_FAILURES)
             .remove(KEY_HEALTH_SUCCESSES)
             .remove(KEY_VERIFY_FAILURES)
+            .remove(KEY_ROOT_CHECK_FAILURES)
             .apply()
     }
 
@@ -1434,6 +1488,10 @@ object VpnRouterManager {
     private const val KEY_HEALTH_FAILURES = "health_failures"
     private const val KEY_HEALTH_SUCCESSES = "health_successes"
     private const val KEY_VERIFY_FAILURES = "verify_failures"
+    private const val KEY_ROOT_CHECK_FAILURES = "root_check_failures"
+    private const val KEY_LAST_ACTIVE_ROUTER_TUNNEL = "last_active_router_tunnel"
+    private const val KEY_LAST_ACTIVE_ROUTER_TETHERS = "last_active_router_tethers"
+    private const val KEY_LAST_ACTIVE_ROUTER_DNS = "last_active_router_dns"
     private const val KEY_TETHER_OFFLOAD_PREVIOUS = "tether_offload_previous"
     private const val KEY_WIFI_AP_TIMEOUT_PREVIOUS = "wifi_ap_timeout_previous"
     private const val TUNNEL_HEALTH_FAILED_DETAIL = "Selected VPN tunnel has no internet; hotspot clients remain fail-closed. Try another tunnel on the router."
@@ -1443,6 +1501,7 @@ object VpnRouterManager {
     private const val HEALTH_FAILURES_BEFORE_DEGRADED = 3
     private const val HEALTH_SUCCESSES_BEFORE_RECOVERY = 2
     private const val VERIFY_FAILURES_BEFORE_ERROR = 3
+    private const val ROOT_CHECK_FAILURES_BEFORE_UNSUPPORTED = 3
     private const val TETHER_OFFLOAD_DISABLED_SETTING = "tether_offload_disabled"
     private const val WIFI_AP_TIMEOUT_SETTING = "wifi_ap_timeout_setting"
     private const val NAT_CHAIN = "VIRTUVPN_ROUTER"

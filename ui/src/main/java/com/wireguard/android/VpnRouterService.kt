@@ -65,6 +65,7 @@ class VpnRouterService : Service() {
                     true
                 }
                 if (!keepRunning) {
+                    VpnRouterAttestationServer.stop()
                     stopSelf()
                     return@launch
                 }
@@ -187,9 +188,11 @@ class VpnRouterService : Service() {
                 } else {
                     appContext.startService(intent)
                 }
-            } else {
-                appContext.stopService(intent)
             }
+        }
+
+        fun stopNow(context: Context) {
+            context.applicationContext.stopService(Intent(context.applicationContext, VpnRouterService::class.java))
         }
     }
 }

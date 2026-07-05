@@ -394,6 +394,13 @@ signs `protected=false`, when the paired router cannot be verified after the
 transient grace window, or when Android reports loss of the bound router WiFi
 network.
 
+Router build 825 keeps the attestation plane alive through short root/detect
+hiccups. A transient router status read miss no longer immediately stops the
+foreground router service or app-side attestation server; explicit router off
+still stops them immediately. For the browser this means a single router
+verification hiccup should remain invisible, while sustained unverifiable router
+state still fails closed after the existing grace windows.
+
 Router builds from 822 onward add anti-flap hysteresis before signing router
 availability changes. A single transient router rule verification miss is not an
 authoritative unprotected state and should not become a visible browser block.
