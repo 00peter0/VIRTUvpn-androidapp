@@ -389,13 +389,56 @@ Validation:
 Phase 6 status:
 
 - Root watchdog installed: pass.
-- Watchdog starts through Magisk boot path: configured.
+- Watchdog starts through Magisk boot path: pass.
 - Watchdog running now: pass.
 - Critical setting self-heal: pass.
 - UI lock replacement strategy: pass.
-- Follow-up: after next physical reboot, confirm the watchdog process starts
-  automatically and re-applies the same state before marking the device
-  sale-ready.
+- Reboot validation: pass for OS/root hardening, incomplete for automatic router
+  runtime restore.
+
+Reboot validation captured on 2026-07-05:
+
+- Android returned after reboot:
+  - `sys.boot_completed=1`
+  - Android `14`, SDK `34`
+  - verified boot state `orange`
+- Watchdog restarted automatically from Magisk `service.d`:
+  - process observed as
+    `busybox sh /data/adb/service.d/virtu-router-watchdog.sh`
+  - PID file contained the running watchdog PID
+- Required OS state after reboot:
+  - `settings get secure wifi_ap_timeout_setting` -> `0`
+  - `settings get global tether_offload_disabled` -> `1`
+  - `settings get global mobile_data` -> `1`
+  - `settings get global airplane_mode_on` -> `0`
+- VirtuVPN remained in Doze whitelist:
+  - `user,com.virtuvpn.android,10306`
+- Required appops remained `allow`.
+- Magisk policy remained:
+  - `uid=10306|policy=2|until=0|logging=1|notification=1`
+
+Boot-time watchdog note:
+
+- The watchdog can log warning lines during the first seconds of boot because
+  Android settings/appops services are not fully ready yet.
+- This is acceptable only if later checks show the final required values above.
+  Treat persistent warnings with wrong final values as a failed Phase 6
+  validation.
+
+Runtime restore gap found during reboot validation:
+
+- After a cold reboot, the OS/root hardening persisted, but the router runtime
+  did not automatically return by itself:
+  - no `VpnRouterService` instance observed
+  - no `swlan0` hotspot interface observed
+  - no `tun0` VPN interface observed
+  - no `8788` / `8789` attestation listeners observed
+- This means Phase 6 currently protects Android settings and root policy, but
+  does not by itself make a powered-off/rebooted router appliance ready for
+  clients.
+- Before sale-ready status, add or validate a boot restore path that starts the
+  VirtuVPN router runtime only when the router had previously been enabled, and
+  keeps fail-closed behavior if VPN/provider restore fails.
 
 ## Current Router Phase 4 Capture
 
