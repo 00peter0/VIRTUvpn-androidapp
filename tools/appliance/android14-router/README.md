@@ -51,6 +51,44 @@ adb shell su -c 'chmod 0755 /data/adb/service.d/virtu-router-watchdog.sh'
 adb shell su -c 'chmod 0644 /data/adb/virtu-tether.dex'
 ```
 
+## New Router Commissioning
+
+Use this checklist for every Android 14 router device. Do not skip the reboot
+acceptance test; the router must prove that fail-closed protection comes back
+without human interaction.
+
+1. Install and verify Magisk/root.
+2. Install the current `vcsinstall` VirtuVPN APK.
+3. Build `virtu-tether.dex` with all generated `TetherStarter*.class` files.
+4. Install `virtu-router-watchdog.sh` into `/data/adb/service.d/`.
+5. Install `virtu-tether.dex` into `/data/adb/`.
+6. Start the desired upstream VPN provider and enable VPN Router in VirtuVPN.
+7. Verify the router status is `On: <tun> routes hotspot traffic via <tether>`.
+8. Reboot the phone.
+9. Verify the acceptance checks below.
+
+## Provider Restore
+
+Fail-closed protection does not depend on Android always-on VPN. The watchdog
+pre-blocks hotspot traffic before tethering starts, so clients cannot fall back
+to mobile data while the upstream VPN is still restoring.
+
+Optional provider restore is used only to help third-party VPN providers come
+back faster after reboot:
+
+- Virtu/WgQuick tunnels do not use Android `always_on_vpn_app`; they are
+  restored by VirtuVPN's own WgQuick boot restore path.
+- If VirtuVPN can unambiguously resolve a single third-party VPN provider
+  package while enabling router mode, it records that package in
+  `secure/virtu_router_always_on_pkg`.
+- The watchdog mirrors `secure/virtu_router_always_on_pkg` into
+  `secure/always_on_vpn_app` during boot.
+- The watchdog never enables always-on VPN lockdown. Lockdown can prevent a
+  third-party provider from bootstrapping its own tunnel and is not required for
+  router leak protection.
+- If provider ownership is unknown or ambiguous, VirtuVPN records nothing and
+  the router still remains fail-closed.
+
 ## Acceptance
 
 After install, reboot the router and verify:
@@ -66,3 +104,7 @@ After install, reboot the router and verify:
 - `ip rule show` has one active `20900` and one active `20901` for the active
   tether interface, with no duplicated active rules after router off/on or
   reboot restore.
+- If third-party provider restore is used, `settings get secure
+  virtu_router_always_on_pkg` and `settings get secure always_on_vpn_app` match
+  the provider package, and `settings get secure always_on_vpn_lockdown` remains
+  `0` or `null`.
