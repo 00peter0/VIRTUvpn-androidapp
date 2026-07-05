@@ -500,6 +500,21 @@ Phase 7 status:
 - Sale-ready automatic reboot recovery: blocked until this phase is completed
   or the appliance profile explicitly documents manual post-reboot activation.
 
+Implementation packaging update:
+
+- Appliance root-side sources are versioned under
+  `tools/appliance/android14-router/`.
+- The watchdog must not hardcode the VirtuVPN UID. It resolves the package UID
+  on each device before enforcing Magisk policy.
+- The watchdog must not hardcode only one tether interface. It reads
+  `last_active_router_tethers` from VirtuVPN router prefs and only falls back to
+  common Android/Samsung names (`swlan0`, `ap0`, `wlan1`, `softap0`) when no
+  recorded router state exists yet.
+- The tether helper source is `TetherStarter.java`; the generated dex installed
+  on devices is `/data/adb/virtu-tether.dex`.
+- The boot restore app latch is written only after router mode is actually
+  active, not when the user merely taps enable.
+
 ## Current Router Phase 4 Capture
 
 Captured on: 2026-07-05 after Phase 6 watchdog installation on router serial
@@ -915,6 +930,9 @@ Required discovery:
   ROM.
 - Whether `BootShutdownReceiver` should start `VpnRouterService` directly after
   tunnel/hotspot restore.
+- Whether the target device uses the same tether interface as the previous
+  router. Do not assume `swlan0`; read the app's last active router interfaces
+  or validate the OEM interface name first.
 
 Required behavior if implemented:
 
@@ -933,6 +951,8 @@ Exit criteria:
   and fail-closed rules return without opening the app manually.
 - Failed provider restore leaves the router offline/fail-closed.
 - Explicit router OFF remains respected.
+- The installed watchdog and tether helper match the checked-in
+  `tools/appliance/android14-router/` sources.
 
 ### Phase 8 - Sale/Deployment Acceptance
 

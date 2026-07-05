@@ -41,8 +41,8 @@ class VpnRouterService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.getBooleanExtra(EXTRA_PACKAGE_REPLACED_RESTORE, false) == true) {
-            Log.i(TAG, "VPN router service restore requested after package replace")
+        if (intent?.getBooleanExtra(EXTRA_RESTORE_REQUEST, false) == true) {
+            Log.i(TAG, "VPN router service restore requested")
         }
         startMonitor()
         return START_STICKY
@@ -82,7 +82,14 @@ class VpnRouterService : Service() {
         }
         val initial = VpnRouterManager.getStatus(applicationContext)
         if (initial.routerActive) VpnRouterAttestationServer.start(applicationContext, initial)
-        val status = if (initial.needsReconcile || initial.availability == VpnRouterManager.Availability.DEGRADED) {
+        // After a reboot the rules are gone (routerActive=false) but the user's
+        // intent persists. Re-assert protection fail-closed instead of letting the
+        // service idle out. restoreRouterIfDesired reconciles when already active.
+        val desiredActive = VpnRouterManager.isRouterDesiredActive(applicationContext)
+        val status = if (desiredActive && !initial.routerActive) {
+            VpnRouterManager.restoreRouterIfDesired(applicationContext)
+            VpnRouterManager.getStatus(applicationContext)
+        } else if (initial.needsReconcile || initial.availability == VpnRouterManager.Availability.DEGRADED) {
             VpnRouterManager.reconcile(applicationContext)
         } else {
             initial
@@ -96,6 +103,12 @@ class VpnRouterService : Service() {
             return true
         }
         VpnRouterAttestationServer.updateStatus(status)
+        // While the router is desired-active, keep the monitor alive even though it
+        // is not yet installed — it is waiting for the tunnel/hotspot to return.
+        if (desiredActive) {
+            inactiveTicks = 0
+            return true
+        }
         inactiveTicks = if (status.needsReconcile) 0 else inactiveTicks + 1
         return inactiveTicks < MAX_INACTIVE_TICKS
     }
@@ -166,12 +179,12 @@ class VpnRouterService : Service() {
         private const val NOTIFICATION_ID = 8608
         private const val RECONCILE_INTERVAL_MS = 2_000L
         private const val MAX_INACTIVE_TICKS = 5
-        private const val EXTRA_PACKAGE_REPLACED_RESTORE = "package_replaced_restore"
+        private const val EXTRA_RESTORE_REQUEST = "restore_request"
 
-        fun startAfterPackageReplace(context: Context) {
+        fun startForRestore(context: Context) {
             val appContext = context.applicationContext
             val intent = Intent(appContext, VpnRouterService::class.java)
-                .putExtra(EXTRA_PACKAGE_REPLACED_RESTORE, true)
+                .putExtra(EXTRA_RESTORE_REQUEST, true)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 appContext.startForegroundService(intent)
             } else {
@@ -182,7 +195,10 @@ class VpnRouterService : Service() {
         fun ensureForStatus(context: Context, status: VpnRouterManager.Status) {
             val appContext = context.applicationContext
             val intent = Intent(appContext, VpnRouterService::class.java)
-            if (status.routerActive) {
+            // Start when the router is active OR when the user wants it active but it
+            // has not been restored yet (e.g. right after a reboot). The service loop
+            // drives restoreRouterIfDesired and only stops on explicit disable.
+            if (status.routerActive || VpnRouterManager.isRouterDesiredActive(appContext)) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     appContext.startForegroundService(intent)
                 } else {

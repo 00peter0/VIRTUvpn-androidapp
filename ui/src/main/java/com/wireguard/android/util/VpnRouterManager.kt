@@ -260,6 +260,51 @@ object VpnRouterManager {
         }
     }
 
+    fun isRouterDesiredActive(context: Context): Boolean =
+        context.applicationContext
+            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(KEY_ROUTER_DESIRED_ACTIVE, false)
+
+    private fun setRouterDesiredActive(context: Context, desired: Boolean) {
+        context.applicationContext
+            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_ROUTER_DESIRED_ACTIVE, desired)
+            .apply()
+    }
+
+    /**
+     * Re-assert router protection after a reboot or process restart when the
+     * user previously enabled it. Returns true while the router is (or should
+     * remain) desired-active so the caller keeps its monitor alive. Fail-closed
+     * is preserved end to end: enable() installs the block layer before opening
+     * any path, and a not-yet-satisfiable restore leaves existing rules intact.
+     */
+    suspend fun restoreRouterIfDesired(context: Context): Boolean = withContext(Dispatchers.IO) {
+        val appContext = context.applicationContext
+        if (!isRouterDesiredActive(appContext)) return@withContext false
+        val status = detect(appContext)
+        when (status.availability) {
+            Availability.ENABLED, Availability.DEGRADED -> {
+                // Already protected (or protected-but-degraded); normal reconcile owns it.
+                reconcile(appContext)
+            }
+            Availability.READY, Availability.ERROR -> {
+                // Tunnel and hotspot are present but rules are not installed yet
+                // (typical post-boot state). Re-enable now.
+                Log.i(TAG, "Restoring desired VPN router protection after restart")
+                enable(appContext)
+            }
+            else -> {
+                // WAITING_FOR_TUNNEL / WAITING_FOR_HOTSPOT / UNSUPPORTED: nothing to
+                // install against yet. Keep waiting; the boot helper is bringing the
+                // tunnel and hotspot up in parallel.
+                syncAttestationServer(appContext, status)
+            }
+        }
+        true
+    }
+
     private fun syncAttestationServer(context: Context, status: Status) {
         if (status.routerActive) {
             rememberRouterActiveStatus(context, status)
@@ -945,6 +990,7 @@ object VpnRouterManager {
             .edit()
             .remove(KEY_LAST_RULE_SIGNATURE)
             .remove(KEY_LAST_VIRTU_TUNNEL)
+            .putBoolean(KEY_ROUTER_DESIRED_ACTIVE, false)
             .remove(KEY_LAST_ACTIVE_ROUTER_TUNNEL)
             .remove(KEY_LAST_ACTIVE_ROUTER_TETHERS)
             .remove(KEY_LAST_ACTIVE_ROUTER_DNS)
@@ -968,6 +1014,7 @@ object VpnRouterManager {
             .putString(KEY_LAST_ACTIVE_ROUTER_TUNNEL, activeTunnel)
             .putString(KEY_LAST_ACTIVE_ROUTER_TETHERS, status.tetherInterfaces.joinToString(","))
             .putString(KEY_LAST_ACTIVE_ROUTER_DNS, status.dnsResolvers.joinToString(","))
+            .putBoolean(KEY_ROUTER_DESIRED_ACTIVE, true)
             .putInt(KEY_ROOT_CHECK_FAILURES, 0)
             .apply()
     }
@@ -1535,6 +1582,7 @@ object VpnRouterManager {
     private const val KEY_HEALTH_SUCCESSES = "health_successes"
     private const val KEY_VERIFY_FAILURES = "verify_failures"
     private const val KEY_ROOT_CHECK_FAILURES = "root_check_failures"
+    private const val KEY_ROUTER_DESIRED_ACTIVE = "router_desired_active"
     private const val KEY_LAST_ACTIVE_ROUTER_TUNNEL = "last_active_router_tunnel"
     private const val KEY_LAST_ACTIVE_ROUTER_TETHERS = "last_active_router_tethers"
     private const val KEY_LAST_ACTIVE_ROUTER_DNS = "last_active_router_dns"

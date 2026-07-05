@@ -14,7 +14,7 @@ class PackageReplacedReceiver : BroadcastReceiver() {
         if (intent.action != Intent.ACTION_MY_PACKAGE_REPLACED) return
         runCatching {
             Log.i(TAG, "Starting VPN router service after package replace")
-            VpnRouterService.startAfterPackageReplace(context.applicationContext)
+            VpnRouterService.startForRestore(context.applicationContext)
         }.onFailure {
             Log.d(TAG, "VPN router service restore failed after package replace", it)
         }
