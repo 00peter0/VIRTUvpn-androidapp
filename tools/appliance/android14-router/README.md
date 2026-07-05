@@ -229,13 +229,45 @@ adb shell su -c 'pm disable-user --user 0 com.samsung.android.scpm'
   component. The appliance configuration is controlled by VirtuVPN and the
   Magisk watchdog, not Samsung cloud policy.
 
-On the A52 router rig, phase 2D passed the initial runtime watch after
-disabling: the four packages were disabled and no longer running; Surfshark,
-VirtuVPN, NordVPN, and Magisk stayed running; hotspot `swlan0`, VPN `tun1`,
-router rules `20900/20901`, table `1047` via `tun1`, table `1048`
-`unreachable default`, and attestation listeners `8788/8789` remained stable
-for the 120 second watch window. Reboot acceptance is still required before
-treating phase 2D as fully accepted for production routers.
+On the A52 router rig, phase 2D passed the initial runtime watch and reboot
+acceptance. The first early post-boot sample already had the fail-closed
+`20901` rule before Samsung tether fallback `21000`; after the normal
+stabilization window the full router state was restored: Surfshark provider,
+hotspot `swlan0`, VPN `tun1`, route `20900` to table `1047`, table `1047`
+default via `tun1`, table `1048` `unreachable default`, and attestation
+listeners `8788/8789`.
+
+## Phase 2E Debloat
+
+After phase 2D has survived reboot/restore testing, disable Samsung
+customization, beacon, and nearby multi-connectivity packages that are not
+required for router operation. These are still reversible user-0 disables:
+
+```sh
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.rubin.app'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.beaconmanager'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.mcfserver'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.mcfds'
+```
+
+- `com.samsung.android.rubin.app`: Samsung Customization Service. The
+  appliance does not use Samsung personalization or recommendation services.
+- `com.samsung.android.beaconmanager`: Samsung beacon / nearby detection
+  service. The appliance does not use Bluetooth beacon or nearby pairing flows.
+- `com.samsung.android.mcfserver`: Samsung Multi Connectivity Framework server.
+  The appliance does not use Samsung multi-device continuity or nearby device
+  discovery.
+- `com.samsung.android.mcfds`: Samsung MCF discovery service. The appliance
+  does not use Samsung nearby multi-connectivity discovery.
+
+On the A52 router rig, phase 2E passed the initial runtime watch and reboot
+acceptance. The first early post-boot sample already had the fail-closed
+`20901` hotspot-to-unreachable rule before Samsung tether fallback `21000`;
+after the normal stabilization window the full router state was restored:
+Surfshark provider, hotspot `swlan0`, VPN `tun1`, route `20900` to table
+`1047`, table `1047` default via `tun1`, table `1048` `unreachable default`,
+and attestation listeners `8788/8789`. Enabled third-party apps remained
+limited to VirtuVPN, Surfshark, NordVPN, and Magisk.
 
 ## Acceptance
 
