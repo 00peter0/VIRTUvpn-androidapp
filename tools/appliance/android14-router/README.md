@@ -104,6 +104,7 @@ adb shell su -c 'pm disable-user --user 0 com.google.android.apps.photos'
 adb shell su -c 'pm disable-user --user 0 com.google.android.apps.youtube.music'
 adb shell su -c 'pm disable-user --user 0 com.google.android.videos'
 adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.tips'
+adb shell su -c 'pm disable-user --user 0 ch.profital.android'
 ```
 
 After disabling, reboot and run the acceptance checks again. On the A52 router
@@ -113,14 +114,13 @@ rig this phase left only the router-relevant third-party apps enabled:
 - `com.surfshark.vpnclient.android`
 - `com.nordvpn.android`
 - `com.topjohnwu.magisk`
-- `ch.profital.android`
 
 `ch.profital.android` is a Samsung Store-installed retail/marketing app
 (`versionName=48.22.2`) with internet, ad attribution, push messaging,
 WorkManager, and `BOOT_COMPLETED`. It is not used by VirtuVPN, Magisk, Nord,
-Surfshark, tethering, or SIM provisioning in the observed router state. Leave it
-enabled during phase 1 only because it was not part of the initial safe-disable
-set; it is a phase 2 removal candidate after one more reboot/restore test.
+Surfshark, tethering, or SIM provisioning in the observed router state. It was
+disabled after verifying Sunrise SIM registration, LTE data, Surfshark, hotspot
+routing, fail-closed rules, and attestation remained healthy.
 
 ## Acceptance
 
