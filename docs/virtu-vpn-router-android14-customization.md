@@ -68,6 +68,123 @@ Known-good Android 14/Samsung state from the audited router:
   - IPv4/IPv6 reject chains
   - DNS DNAT for hotspot clients
 
+## Current Router Phase 0 Capture
+
+Captured on: 2026-07-05.
+
+Connection path:
+
+- Control host: `vcs-prod-edge-01`.
+- Android host: `vcs-llm@10.76.1.2`.
+- ADB path on Android host: `/opt/homebrew/bin/adb`.
+- Router serial: `RZ8T61J44CA`.
+
+Device identity:
+
+- Model: `SM-A525F`.
+- Device: `a52q`.
+- Manufacturer: `samsung`.
+- Android: `14`.
+- SDK: `34`.
+- Build: `UP1A.231005.007.A525FXXSCFYF1`.
+- Verified boot state: `orange` because the device is unlocked/rooted.
+
+VirtuVPN app:
+
+- Package: `com.virtuvpn.android`.
+- Version code: `828`.
+- Version name: `1.0.20260704.302-vcsinstall`.
+- UID: `10306`.
+- Installed/enabled: yes.
+- Installer package: `null`, expected for direct router APK installation.
+
+Root:
+
+- `su -c id` returns `uid=0(root) gid=0(root)`.
+- SELinux context reported by root shell: `u:r:magisk:s0`.
+- Magisk database exists at `/data/adb/magisk.db`.
+- Full Magisk policy query was not available with the current on-device shell
+  tools; Phase 2 must still verify permanent VirtuVPN root policy from Magisk UI
+  or a working SQLite/Magisk query path.
+
+Hotspot and network:
+
+- Hotspot interface: `swlan0`.
+- Hotspot gateway: `192.168.115.186/24`.
+- WiFi client subnet: `192.168.115.0/24`.
+- Active VPN interface: `tun0`.
+- Active VPN address: `10.5.0.2/16`.
+- Active mobile interfaces observed: `rmnet_data0`, `rmnet_data2`.
+- `settings get secure wifi_ap_timeout_setting` -> `0`.
+- `settings get global tether_offload_disabled` -> `1`.
+- `settings get global mobile_data` -> `1`.
+- `settings get global airplane_mode_on` -> `0`.
+
+Router runtime:
+
+- `VpnRouterService` is running as foreground service.
+- `isForeground=true`.
+- `startRequested=true`.
+- `startCommandResult=1`.
+- Router process observed as `com.virtuvpn.android/u0a306`.
+- Attestation listeners are active:
+  - `192.168.115.186:8788`
+  - `127.0.0.1:8789`
+
+Android power/app policy:
+
+- VirtuVPN is present in Doze user whitelist.
+- `am get-standby-bucket com.virtuvpn.android` -> `5`.
+- Required appops observed as allowed:
+  - `SYSTEM_ALERT_WINDOW`
+  - `ACTIVATE_VPN`
+  - `RUN_IN_BACKGROUND`
+  - `REQUEST_INSTALL_PACKAGES`
+  - `RUN_ANY_IN_BACKGROUND`
+  - `START_FOREGROUND`
+  - `ESTABLISH_VPN_SERVICE`
+
+Provider packages observed:
+
+- `com.nordvpn.android` -> UID `10309`.
+- `com.surfshark.vpnclient.android` -> UID `10310`.
+- `com.virtuvpn.android` -> UID `10306`.
+- Android VPN system packages also present:
+  - `com.android.vpndialogs` -> UID `10137`
+  - `com.knox.vpn.proxyhandler` -> UID `1002`
+
+Router fail-closed state:
+
+- Hotspot routing rules are present:
+  - `20900: from all iif swlan0 lookup 1047`
+  - `20901: from all iif swlan0 lookup 1048`
+- Table `1048` contains `unreachable default`.
+- IPv4 router chains are present:
+  - `VIRTUVPN_ROUTER_FWD`
+  - `VIRTUVPN_ROUTER_OUT`
+  - `VIRTUVPN_ROUTER_DNS`
+- IPv6 router chains are present:
+  - `VIRTUVPN_ROUTER6_FWD`
+  - `VIRTUVPN_ROUTER6_OUT`
+- DNS DNAT currently points hotspot client DNS to Quad9:
+  - UDP/TCP `53` -> `9.9.9.9`.
+- Phone OUTPUT lockdown allows loopback, `tun0`, WireGuard transport mark,
+  selected provider/system UIDs, local hotspot subnet, and then rejects
+  physical uplinks `rmnet_data0` and `rmnet_data2`.
+
+Phase 0 status:
+
+- Device identity captured: pass.
+- Root available: pass.
+- VirtuVPN installed and running: pass.
+- Hotspot active: pass.
+- VPN tunnel active: pass.
+- Router fail-closed invariant present: pass.
+- Follow-up for Phase 2: verify Magisk policy details through reliable
+  SQLite/Magisk tooling or Magisk UI.
+- Follow-up for Phase 5: validate UID allowlist after every provider install,
+  update, or removal.
+
 ## Implementation Phases
 
 ### Phase 0 - Device Baseline Capture
