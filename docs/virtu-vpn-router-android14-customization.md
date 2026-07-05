@@ -185,6 +185,49 @@ Phase 0 status:
 - Follow-up for Phase 5: validate UID allowlist after every provider install,
   update, or removal.
 
+## Current Router Phase 1 Capture
+
+Captured on: 2026-07-05 after applying the Android 14 background policy to
+router serial `RZ8T61J44CA`.
+
+Actions applied:
+
+- Re-added VirtuVPN to Android Doze whitelist:
+  - `cmd deviceidle whitelist +com.virtuvpn.android`
+- Re-applied required appops as `allow`:
+  - `RUN_IN_BACKGROUND`
+  - `RUN_ANY_IN_BACKGROUND`
+  - `START_FOREGROUND`
+  - `ACTIVATE_VPN`
+  - `ESTABLISH_VPN_SERVICE`
+  - `SYSTEM_ALERT_WINDOW`
+  - `REQUEST_INSTALL_PACKAGES`
+- Re-applied standby bucket target:
+  - `am set-standby-bucket com.virtuvpn.android active`
+
+Observed result:
+
+- Doze whitelist still contains:
+  - `user,com.virtuvpn.android,10306`
+- App standby bucket reports:
+  - `5`
+- Required appops report `allow`.
+- `VpnRouterService` remained active:
+  - `isForeground=true`
+  - `startRequested=true`
+  - `startCommandResult=1`
+
+Phase 1 status:
+
+- Android Doze policy: pass.
+- Appops policy: pass.
+- Foreground router service after applying policy: pass.
+- Manual Samsung checks still required on the physical device:
+  - VirtuVPN is not in Sleeping apps.
+  - VirtuVPN is not in Deep sleeping apps.
+  - Approved provider apps are not in Sleeping/Deep sleeping apps.
+  - Device Care/Battery does not classify VirtuVPN as restricted.
+
 ## Implementation Phases
 
 ### Phase 0 - Device Baseline Capture
