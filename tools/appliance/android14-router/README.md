@@ -325,6 +325,55 @@ window listener `8789` was also available. Play Store, Camera/QR, and Messages
 remained enabled. Enabled third-party apps remained limited to VirtuVPN,
 Surfshark, NordVPN, and Magisk.
 
+## Phase 2G Debloat
+
+After phase 2F has survived reboot/restore testing, disable remaining Samsung
+account, diagnostics, edge UI, transfer, push, and accessibility/audio
+packages that are not required for router operation. Keep Play Store,
+Camera/QR, Messages, Wi-Fi Guider, Samsung Settings Helper, Samsung SDM config,
+and KMX enabled in this phase.
+
+```sh
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.mapsagent'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.inputshare'
+adb shell su -c 'pm disable-user --user 0 com.sec.hearingadjust'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.samsungpass'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.samsungpassautofill'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.appsedge'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.taskedge'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.clipboardedge'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.cocktailbarservice'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.easysetup'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.daemonapp'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.diagmonagent'
+adb shell su -c 'pm disable-user --user 0 com.sec.spp.push'
+adb shell su -c 'pm disable-user --user 0 com.osp.app.signin'
+```
+
+- `com.samsung.android.mapsagent`: Samsung map/location helper.
+- `com.samsung.android.inputshare`: Samsung keyboard/mouse sharing.
+- `com.sec.hearingadjust`: Samsung hearing/audio adjustment.
+- `com.samsung.android.samsungpass` and
+  `com.samsung.android.samsungpassautofill`: Samsung Pass and autofill.
+- `com.samsung.android.app.appsedge`, `taskedge`, `clipboardedge`, and
+  `cocktailbarservice`: Samsung Edge panel UI services.
+- `com.samsung.android.easysetup`: Samsung easy setup / device discovery.
+- `com.sec.android.daemonapp`: Samsung weather/daemon app.
+- `com.sec.android.diagmonagent`: Samsung diagnostic monitor agent.
+- `com.sec.spp.push`: Samsung push service.
+- `com.osp.app.signin`: Samsung account sign-in.
+
+On the A52 router rig, phase 2G passed the initial runtime watch and reboot
+acceptance. `com.sec.android.diagmonagent` may continue running briefly after
+`pm disable-user` because it is a system process, but after reboot
+stabilization it was no longer running. The first post-boot sample already had
+Surfshark, hotspot `swlan0`, VPN `tun1`, router rules `20900/20901`, table
+`1047` via `tun1`, table `1048` `unreachable default`, and listener `8788`;
+after the normal stabilization window listener `8789` was also available. Play
+Store, Camera/QR, Messages, Wi-Fi Guider, Samsung Settings Helper, Samsung SDM
+config, and KMX remained enabled. Enabled third-party apps remained limited to
+VirtuVPN, Surfshark, NordVPN, and Magisk.
+
 ## Acceptance
 
 After install, reboot the router and verify:
