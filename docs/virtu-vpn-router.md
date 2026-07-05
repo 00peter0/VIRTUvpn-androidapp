@@ -659,6 +659,21 @@ Tunnel-interface rebuild guard added in build 827:
   attestation synchronized, and waits for the provider to recreate the tunnel
   interface.
 
+Router rebuild hardening added in build 828:
+
+- All router `iptables`/`ip6tables` operations run with `-w 5` through a shell
+  wrapper. This prevents netd/tether rule rewrites from causing transient
+  xtables lock failures during link changes.
+- A healthy hotspot attestation proxy is no longer stopped during a router rule
+  rebuild. It is restarted only when verification says the proxy is not healthy
+  for the current downstream interface.
+- Fail-closed ordering is make-before-break where possible: hotspot forwarding
+  deny rules are inserted immediately after forward-chain flush, the previous
+  OUTPUT fail-closed chain remains active until just before the new egress set
+  is written, and the `INPUT` allow for attestation is refreshed only at the end.
+  This keeps browser pairing/attestation reachable while preserving uplink
+  leak protection.
+
 Router-state anti-flap hardening added in build 822:
 
 - Attestation `protected` reflects the router's signed availability state, so a

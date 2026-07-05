@@ -538,7 +538,14 @@ object VpnRouterManager {
         setOperation(context, OperationStage.LOCKING_HOTSPOT, "Blocking hotspot fallback before changing VPN routes")
         setOperation(context, OperationStage.DETECTING_TUNNEL, "Using VPN interface $activeTunnel")
         setOperation(context, OperationStage.APPLYING_FIREWALL, "Installing fail-closed firewall and VPN routes")
-        checkedRun("stop router attestation hotspot proxy", stopAttestationProxyCommand())
+        // Keep a healthy attestation proxy serving across the rebuild so paired
+        // browsers never see the attestation endpoint disappear.
+        val attestationProxyHealthy = downstreams.isNotEmpty() && downstreams.all { downstream ->
+            commandSucceeds(verifyAttestationProxyCommand(downstream))
+        }
+        if (!attestationProxyHealthy) {
+            checkedRun("stop router attestation hotspot proxy", stopAttestationProxyCommand())
+        }
         checkedRun("prepare NAT chain", "iptables -t nat -N $NAT_CHAIN 2>/dev/null || true")
         checkedRun("prepare DNS chain", "iptables -t nat -N $DNS_CHAIN 2>/dev/null || true")
         checkedRun("prepare forward chain", "iptables -N $FORWARD_CHAIN 2>/dev/null || true")
@@ -549,17 +556,15 @@ object VpnRouterManager {
         checkedRun("clear DNS chain", "iptables -t nat -F $DNS_CHAIN")
         checkedRun("clear forward chain", "iptables -F $FORWARD_CHAIN")
         checkedRun("remove legacy access chain", "iptables -F VIRTUVPN_ROUTER_ACCESS 2>/dev/null || true; iptables -X VIRTUVPN_ROUTER_ACCESS 2>/dev/null || true")
-        checkedRun("clear output chain", "iptables -F $OUTPUT_CHAIN")
         checkedRun("clear IPv6 forward chain", "ip6tables -F $IPV6_FORWARD_CHAIN")
-        checkedRun("clear IPv6 output chain", "ip6tables -F $IPV6_OUTPUT_CHAIN")
-        checkedRun(
-            "clear attestation input guard",
-            "while iptables -D INPUT -p tcp --dport ${VpnRouterAttestation.PORT} -j REJECT 2>/dev/null; do :; done"
-        )
         downstreams.forEach { downstream ->
             checkedRun(
-                "clear attestation input allow",
-                "while iptables -D INPUT -i $downstream -p tcp --dport ${VpnRouterAttestation.PORT} -j ACCEPT 2>/dev/null; do :; done"
+                "deny hotspot forwarding before enabling router",
+                "iptables -A $FORWARD_CHAIN -i $downstream -j REJECT"
+            )
+            checkedRun(
+                "deny hotspot IPv6 forwarding before enabling router",
+                "ip6tables -A $IPV6_FORWARD_CHAIN -i $downstream -j REJECT"
             )
         }
         checkedRun(
@@ -585,14 +590,6 @@ object VpnRouterManager {
             checkedRun(
                 "remove hotspot VPN route while firewall is rebuilding",
                 "ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY iif $downstream 2>/dev/null || true"
-            )
-            checkedRun(
-                "deny hotspot forwarding before enabling router",
-                "iptables -A $FORWARD_CHAIN -i $downstream -j REJECT"
-            )
-            checkedRun(
-                "deny hotspot IPv6 forwarding before enabling router",
-                "ip6tables -A $IPV6_FORWARD_CHAIN -i $downstream -j REJECT"
             )
         }
         checkedRun(
@@ -635,6 +632,10 @@ object VpnRouterManager {
         setOperation(context, OperationStage.APPLYING_DNS, "Applying router DNS for hotspot clients")
         overrideTetherDnsForwarders(dnsResolvers)
         checkedRun("masquerade VPN egress", "iptables -t nat -A $NAT_CHAIN -o $tunnel -j MASQUERADE")
+        // The previous fail-closed egress rules stay in force until this point;
+        // flushing just before the rewrite keeps the unguarded window minimal.
+        checkedRun("clear output chain", "iptables -F $OUTPUT_CHAIN")
+        checkedRun("clear IPv6 output chain", "ip6tables -F $IPV6_OUTPUT_CHAIN")
         checkedRun("allow phone loopback egress", "iptables -A $OUTPUT_CHAIN -o lo -j RETURN")
         checkedRun("allow phone VPN egress", "iptables -A $OUTPUT_CHAIN -o $tunnel -j RETURN")
         checkedRun("allow WireGuard fwmark transport", "iptables -A $OUTPUT_CHAIN -m mark --mark 0x20000 -j RETURN || true")
@@ -665,15 +666,27 @@ object VpnRouterManager {
             checkedRun("allow phone egress to hotspot clients", "iptables -A $OUTPUT_CHAIN -o $downstream -j RETURN")
             checkedRun("allow phone IPv6 egress to hotspot clients", "ip6tables -A $IPV6_OUTPUT_CHAIN -o $downstream -j RETURN")
         }
+        checkedRun(
+            "clear attestation input guard",
+            "while iptables -D INPUT -p tcp --dport ${VpnRouterAttestation.PORT} -j REJECT 2>/dev/null; do :; done"
+        )
+        downstreams.forEach { downstream ->
+            checkedRun(
+                "clear attestation input allow",
+                "while iptables -D INPUT -i $downstream -p tcp --dport ${VpnRouterAttestation.PORT} -j ACCEPT 2>/dev/null; do :; done"
+            )
+        }
         downstreams.asReversed().forEach { downstream ->
             checkedRun(
                 "allow router attestation from hotspot",
                 "iptables -I INPUT 1 -i $downstream -p tcp --dport ${VpnRouterAttestation.PORT} -j ACCEPT"
             )
-            checkedRun(
-                "start router attestation hotspot proxy",
-                startAttestationProxyCommand(downstream)
-            )
+            if (!attestationProxyHealthy) {
+                checkedRun(
+                    "start router attestation hotspot proxy",
+                    startAttestationProxyCommand(downstream)
+                )
+            }
         }
         checkedRun(
             "block router attestation outside hotspot",
@@ -854,7 +867,7 @@ object VpnRouterManager {
     }
 
     private fun commandSucceeds(command: String): Boolean {
-        return Application.getRootShell().run(null, command) == 0
+        return Application.getRootShell().run(null, XTABLES_LOCK_WAIT_PREAMBLE + command) == 0
     }
 
     private fun ensureRuleCommand(priority: Int, inputInterface: String, table: String): String {
@@ -1249,7 +1262,7 @@ object VpnRouterManager {
     }
 
     private fun checkedRun(label: String, command: String) {
-        val exit = Application.getRootShell().run(null, command)
+        val exit = Application.getRootShell().run(null, XTABLES_LOCK_WAIT_PREAMBLE + command)
         if (exit != 0) throw IllegalStateException("$label failed with exit code $exit")
     }
 
@@ -1534,6 +1547,12 @@ object VpnRouterManager {
     private const val HEALTH_FAILURES_BEFORE_DEGRADED = 3
     private const val HEALTH_SUCCESSES_BEFORE_RECOVERY = 2
     private const val VERIFY_FAILURES_BEFORE_ERROR = 3
+
+    // netd rewrites tether rules on link changes; without the xtables lock wait
+    // a concurrent iptables invocation fails with exit code 4 mid-rebuild.
+    private const val XTABLES_LOCK_WAIT_PREAMBLE =
+        "iptables() { command iptables -w 5 \"${'$'}@\"; }; " +
+            "ip6tables() { command ip6tables -w 5 \"${'$'}@\"; }; "
     private const val ROOT_CHECK_FAILURES_BEFORE_UNSUPPORTED = 3
     private const val TETHER_OFFLOAD_DISABLED_SETTING = "tether_offload_disabled"
     private const val WIFI_AP_TIMEOUT_SETTING = "wifi_ap_timeout_setting"
