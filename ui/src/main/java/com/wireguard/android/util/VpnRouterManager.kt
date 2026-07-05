@@ -66,7 +66,8 @@ object VpnRouterManager {
         val uplinkInterfaces: List<Uplink> = emptyList(),
         val dnsResolvers: List<String> = emptyList(),
         val detail: String? = null,
-        val securityProtected: Boolean = false
+        val securityProtected: Boolean = false,
+        val tunnelInterfaceMissing: Boolean = false
     ) {
         val canEnable: Boolean
             get() = availability == Availability.READY
@@ -127,6 +128,13 @@ object VpnRouterManager {
         if (status.availability != Availability.ENABLED && status.availability != Availability.ERROR) {
             syncAttestationServer(appContext, status)
             return@withLock status
+        }
+        if (status.tunnelInterfaceMissing) {
+            // The VPN interface is gone (provider renegotiation or blip). There is
+            // nothing to install rules against, and a rebuild attempt would tear
+            // down live fail-closed rules only to fail at the routing step. Keep
+            // the installed rules untouched and wait for the interface to return.
+            return@withLock status.also { syncAttestationServer(appContext, it) }
         }
         disableHotspotAutoShutdown(appContext)
         val tunnelName = status.activeTunnel ?: return@withLock status.also { syncAttestationServer(appContext, it) }
@@ -192,6 +200,11 @@ object VpnRouterManager {
         if (!status.canEnable && !status.canDisable) {
             syncAttestationServer(appContext, status)
             return@withLock status
+        }
+        if (status.tunnelInterfaceMissing) {
+            // The VPN interface is gone; installing against it would tear down
+            // live fail-closed rules. Keep them untouched until it returns.
+            return@withLock status.also { syncAttestationServer(appContext, it) }
         }
         val tunnelName = status.activeTunnel ?: return@withLock status.copy(availability = Availability.WAITING_FOR_TUNNEL)
             .also { syncAttestationServer(appContext, it) }
@@ -282,7 +295,8 @@ object VpnRouterManager {
                 uplinkInterfaces = readUplinkInterfaces(allUpInterfaces, null, lastActive.tetherInterfaces),
                 dnsResolvers = dnsResolvers,
                 detail = if (installed) "router rules installed; no active VPN interface detected" else null,
-                securityProtected = securityProtected
+                securityProtected = securityProtected,
+                tunnelInterfaceMissing = true
             )
         }
         val tetherInterfaces = readTetherInterfaces(runningTunnel, allUpInterfaces)

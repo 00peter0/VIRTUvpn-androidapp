@@ -649,6 +649,16 @@ Tunnel-interface transient handling added in build 826:
   but traffic still cannot fall back to the physical uplink while the
   unreachable/reject rules hold.
 
+Tunnel-interface rebuild guard added in build 827:
+
+- When the VPN interface is temporarily missing while router rules are still
+  installed, reconcile/enable does not attempt a full rule rebuild. Rebuilding
+  against a missing tunnel would tear down live fail-closed rules and then fail
+  at the routing step.
+- The router instead keeps the installed fail-closed rules untouched, keeps
+  attestation synchronized, and waits for the provider to recreate the tunnel
+  interface.
+
 Router-state anti-flap hardening added in build 822:
 
 - Attestation `protected` reflects the router's signed availability state, so a

@@ -407,6 +407,11 @@ hotspot unreachable/reject fail-closed rules, Secured Browser may remain
 allowed while pages simply have no internet until the provider recreates the
 tunnel interface.
 
+Router build 827 adds the matching router-side rebuild guard: when the VPN
+interface is missing but fail-closed rules are still installed, reconcile does
+not tear those rules down for a doomed rebuild. The browser should therefore see
+the router remain verified instead of flapping during provider renegotiation.
+
 Router builds from 822 onward add anti-flap hysteresis before signing router
 availability changes. A single transient router rule verification miss is not an
 authoritative unprotected state and should not become a visible browser block.
