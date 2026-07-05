@@ -279,6 +279,97 @@ Phase 2 status:
 - Root audit visibility: pass.
 - Router service after policy change: pass.
 
+## Current Router Phase 3 Capture
+
+Captured on: 2026-07-05 after applying Samsung hotspot/tethering customization
+and router-hostile Settings UI locks to router serial `RZ8T61J44CA`.
+
+Actions applied:
+
+- Keep Samsung hotspot idle timeout disabled:
+  - `settings put secure wifi_ap_timeout_setting 0`
+- Keep Android tether offload disabled:
+  - `settings put global tether_offload_disabled 1`
+- Keep mobile data enabled for router uplink:
+  - `settings put global mobile_data 1`
+- Keep airplane mode disabled:
+  - `settings put global airplane_mode_on 0`
+- Collapse and lock notification/quick-settings expansion:
+  - `cmd statusbar collapse`
+  - `cmd statusbar send-disable-flag statusbar-expansion`
+
+Settings UI locks applied with root `pm disable`:
+
+- `com.android.settings/.Settings$SecTetherSettingsActivity`
+- `com.android.settings/.Settings$WifiTetherSettingsActivity`
+- `com.android.settings/.Settings$WifiApSettingsActivity`
+- `com.android.settings/.Settings$WifiApEditSettingsActivity`
+- `com.android.settings/.Settings$WifiApAutoHotspotSettingsActivity`
+- `com.android.settings/.Settings$WifiApClientsManageMobileHotspotActivity`
+- `com.android.settings/.Settings$WifiApFamilySharingSettingsActivity`
+- `com.android.settings/.Settings$WifiApInvitationListActivity`
+- `com.android.settings/.Settings$WifiApOtpSettingsActivity`
+- `com.android.settings/.Settings$AutoHotspotConnectionActivity`
+- `com.android.settings/.Settings$WifiSettingsActivity`
+- `com.android.settings/.Settings$ConfigureWifiSettingsActivity`
+- `com.android.settings/.Settings$IntelligentWifiSettingsActivity`
+- `com.android.settings/.Settings$WifiSwitchToMobileDataActivity`
+- `com.android.settings/.wifi.RequestToggleWiFiActivity`
+- `com.android.settings/.wifi.mobileap.WifiApSettings`
+- `com.android.settings/.network.TetherProvisioningActivity`
+- `com.android.settings/.network.TetherProvisioningCarrierDialogActivity`
+- `com.android.settings/.Settings$MobileNetworkActivity`
+- `com.android.settings/.Settings$MobileNetworkListActivity`
+- `com.android.settings/.Settings$DataUsageSummaryActivity`
+- `com.android.settings/.Settings$MobileDataUsageListActivity`
+- `com.android.settings/.Settings$DataSaverSummaryActivity`
+
+Observed result:
+
+- `settings get secure wifi_ap_timeout_setting` -> `0`.
+- `settings get global tether_offload_disabled` -> `1`.
+- `settings get global mobile_data` -> `1`.
+- `settings get global airplane_mode_on` -> `0`.
+- Disabled component list contains the WiFi, hotspot, tethering, mobile network,
+  and data-usage Settings activities listed above.
+- `VpnRouterService` remained active:
+  - `isForeground=true`
+  - `startRequested=true`
+  - `startCommandResult=1`
+- Attestation listeners remained active:
+  - `192.168.115.186:8788`
+  - `127.0.0.1:8789`
+- Hotspot interface remained active:
+  - `swlan0`
+  - `192.168.115.186/24`
+
+Important boundary:
+
+- This is a rooted appliance UI lock, not a formal Android Device Owner policy.
+  The device currently reports no Device Owner. Root `pm disable` and
+  `cmd statusbar` are effective on this Android 14 Samsung build, but OS updates
+  or Settings package updates may reset component state. Phase 6 root watchdog
+  must re-assert these settings periodically and after boot/package changes.
+- Full policy-grade locking for future fleets should use Device Owner/Knox
+  provisioning if available before the device is sold.
+
+Rollback commands for service work:
+
+- Re-enable quick settings:
+  - `cmd statusbar send-disable-flag none`
+- Re-enable a disabled Settings component:
+  - `su -c 'pm enable <component>'`
+
+Phase 3 status:
+
+- Hotspot timeout disabled: pass.
+- Tether offload disabled: pass.
+- Quick-settings expansion lock: applied.
+- Router-hostile Settings activity lock: applied.
+- Router service after UI lock: pass.
+- Follow-up for Phase 6: build a root watchdog that re-applies this phase after
+  reboot, app update, Settings package update, or manual tampering.
+
 ## Implementation Phases
 
 ### Phase 0 - Device Baseline Capture
