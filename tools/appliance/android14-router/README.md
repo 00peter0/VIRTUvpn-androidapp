@@ -122,6 +122,28 @@ Surfshark, tethering, or SIM provisioning in the observed router state. It was
 disabled after verifying Sunrise SIM registration, LTE data, Surfshark, hotspot
 routing, fail-closed rules, and attestation remained healthy.
 
+## Phase 2A Debloat
+
+After phase 1 has survived reboot/restore testing, disable low-risk Samsung
+assistant/consumer services. These are still disabled, not removed, and should
+be watched for several days before considering a deeper image-level cleanup:
+
+```sh
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.smartsuggestions'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.game.gos'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.routines'
+```
+
+- `com.samsung.android.smartsuggestions`: Samsung smart/context suggestions;
+  no router function.
+- `com.samsung.android.game.gos`: Samsung Game Optimizing Service; no router
+  function.
+- `com.samsung.android.app.routines`: Samsung Modes and Routines; not needed
+  because router automation is handled by VirtuVPN plus the Magisk watchdog.
+
+On the A52 router rig, phase 2A survived reboot and left Surfshark, hotspot,
+fail-closed routes, and attestation healthy.
+
 ## Acceptance
 
 After install, reboot the router and verify:
