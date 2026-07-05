@@ -228,6 +228,57 @@ Phase 1 status:
   - Approved provider apps are not in Sleeping/Deep sleeping apps.
   - Device Care/Battery does not classify VirtuVPN as restricted.
 
+## Current Router Phase 2 Capture
+
+Captured on: 2026-07-05 after applying Magisk/root policy to router serial
+`RZ8T61J44CA`.
+
+Discovery:
+
+- Magisk binary: `/product/bin/magisk`.
+- Magisk version: `30.7`, version code `30700`.
+- Magisk database: `/data/adb/magisk.db`.
+- VirtuVPN UID: `10306`.
+- Required root tools are available from the root shell:
+  - `/system/bin/iptables`
+  - `/system/bin/ip6tables`
+  - `/system/bin/ip`
+  - `/system/bin/settings`
+  - `/system/bin/ndc`
+  - `/system/bin/ss`
+  - `/system/bin/toybox`
+
+Actions applied:
+
+- Set VirtuVPN Magisk policy to permanent allow:
+  - `policy=2`
+  - `until=0`
+- Re-enabled Magisk audit visibility for VirtuVPN:
+  - `logging=1`
+  - `notification=1`
+
+Observed result:
+
+- `magisk --sqlite` reports:
+  - `uid=10306|policy=2|until=0|logging=1|notification=1`
+- `su -c id` returns:
+  - `uid=0(root) gid=0(root) groups=0(root) context=u:r:magisk:s0`
+- Root smoke check can read router chains.
+- Attestation listeners remained active:
+  - `192.168.115.186:8788`
+  - `127.0.0.1:8789`
+- `VpnRouterService` remained active:
+  - `isForeground=true`
+  - `startRequested=true`
+  - `startCommandResult=1`
+
+Phase 2 status:
+
+- Permanent VirtuVPN root access: pass.
+- Root tooling required by router mode: pass.
+- Root audit visibility: pass.
+- Router service after policy change: pass.
+
 ## Implementation Phases
 
 ### Phase 0 - Device Baseline Capture
