@@ -674,6 +674,38 @@ Router rebuild hardening added in build 828:
   This keeps browser pairing/attestation reachable while preserving uplink
   leak protection.
 
+Hardware validation after build 828:
+
+- Simulated `tun0` blip test: 60/60 hotspot-client attestation samples returned
+  `protected=true`. There were no empty responses, no `protected=false`, and no
+  `503` responses during the down/recovery cycle.
+- During the blip and rebuild, attestation remained reachable and reported
+  `protected=true` with `tunnelOnline=false`; after recovery it returned to
+  `availability=ENABLED`.
+- Secured Browser stayed verified throughout the test. No router-degraded,
+  unreachable, or invalid-response browser blocks were logged during the
+  simulated provider renegotiation.
+- Router logs showed no reconcile failure and no xtables exit-code 4. The
+  rebuild completed on the first attempt with the attestation proxy still
+  serving.
+- The routing backstop stayed present throughout: hotspot policy rule to the
+  unreachable table plus unreachable default route remained intact, so there
+  was no uplink leak window.
+
+Stability status after builds 824-828:
+
+- Tunnel without internet: no browser block; router signs `protected=true` and
+  reports tunnel quality separately.
+- ISP/uplink outage: no browser block caused by tunnel-quality noise; UI should
+  diagnose upstream vs tunnel failure separately.
+- Root-shell/detect hiccup: no permanent attestation plane shutdown.
+- App package update: router service restores automatically after package
+  replace.
+- VPN interface renegotiation/blip: no browser block and no rule rebuild against
+  a missing tunnel interface.
+- Leak posture is unchanged: security still relies on fail-closed firewall,
+  policy routing, unreachable fallback, and IPv6 reject rules.
+
 Router-state anti-flap hardening added in build 822:
 
 - Attestation `protected` reflects the router's signed availability state, so a

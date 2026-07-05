@@ -412,6 +412,14 @@ interface is missing but fail-closed rules are still installed, reconcile does
 not tear those rules down for a doomed rebuild. The browser should therefore see
 the router remain verified instead of flapping during provider renegotiation.
 
+Router build 828 was hardware-validated with a simulated `tun0` provider blip.
+The hotspot client received continuous signed attestation (`protected=true`;
+`tunnelOnline=false` while the tunnel was down, then `ENABLED` after recovery)
+and Secured Browser logged no block, no unreachable state, and no degraded
+router failure during the full down/recovery cycle. This is the expected
+production model: browser protection follows the signed fail-closed invariant,
+not transient tunnel quality.
+
 Router builds from 822 onward add anti-flap hysteresis before signing router
 availability changes. A single transient router rule verification miss is not an
 authoritative unprotected state and should not become a visible browser block.
