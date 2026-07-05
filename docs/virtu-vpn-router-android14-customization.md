@@ -397,6 +397,93 @@ Phase 6 status:
   automatically and re-applies the same state before marking the device
   sale-ready.
 
+## Current Router Phase 4 Capture
+
+Captured on: 2026-07-05 after Phase 6 watchdog installation on router serial
+`RZ8T61J44CA`.
+
+Runtime service:
+
+- `VpnRouterService` is running.
+- `isForeground=true`.
+- `startRequested=true`.
+- `startCommandResult=1`.
+
+Interfaces and listeners:
+
+- Hotspot interface:
+  - `swlan0`
+  - `192.168.115.186/24`
+- VPN interface:
+  - `tun0`
+  - `10.5.0.2/16`
+- Attestation listeners:
+  - `192.168.115.186:8788`
+  - `127.0.0.1:8789`
+
+Routing invariant:
+
+- Hotspot VPN route:
+  - `20900: from all iif swlan0 lookup 1047`
+  - table `1047`: `default dev tun0 scope link`
+- Hotspot fail-closed route:
+  - `20901: from all iif swlan0 lookup 1048`
+  - table `1048`: `unreachable default`
+- Android tether fallback remains lower priority:
+  - `21000: from all iif swlan0 lookup rmnet_data0`
+
+Firewall invariant:
+
+- `VIRTUVPN_ROUTER_FWD` exists.
+- `VIRTUVPN_ROUTER_OUT` exists.
+- `VIRTUVPN_ROUTER6_FWD` exists.
+- `VIRTUVPN_ROUTER6_OUT` exists.
+- `VIRTUVPN_ROUTER_DNS` exists.
+- Hotspot client forwarding allows `swlan0 -> tun0` and rejects downstream
+  fallback.
+- Router phone output allows loopback, `tun0`, WireGuard mark, selected
+  provider/system UIDs, local hotspot subnet, then rejects physical uplinks
+  `rmnet_data0` and `rmnet_data2`.
+- IPv6 client forwarding is rejected.
+- DNS DNAT sends hotspot TCP/UDP `53` to `9.9.9.9`.
+
+Watchdog:
+
+- Exactly one watchdog process is running:
+  - `sh /data/adb/service.d/virtu-router-watchdog.sh`
+- Critical settings remain:
+  - `secure/wifi_ap_timeout_setting=0`
+  - `global/tether_offload_disabled=1`
+  - `global/mobile_data=1`
+  - `global/airplane_mode_on=0`
+
+Attestation validation:
+
+- Router-local app-side test against `127.0.0.1:8789` returned `HTTP 200`.
+- Hotspot client test from client serial `RFCX703NXYP` to
+  `192.168.115.186:8788` returned `HTTP 200`.
+- Signed attestation fields:
+  - `kind=vpn-router-attestation`
+  - `version=2`
+  - `protected=true`
+  - `availability=ENABLED`
+  - `tunnelOnline=true`
+  - `tunnel=tun0`
+- Note: attestation nonce must match the app's nonce policy
+  (`^[A-Za-z0-9_-]{24,96}$`). Short manual test nonces correctly return
+  `503 Unavailable` because no signed response is generated.
+
+Phase 4 status:
+
+- Foreground router service: pass.
+- Hotspot listener: pass.
+- App-side listener: pass.
+- Routing fail-closed invariant: pass.
+- Firewall fail-closed invariant: pass.
+- DNS DNAT invariant: pass.
+- Client attestation: pass.
+- Watchdog does not interfere with router runtime: pass.
+
 ## Implementation Phases
 
 ### Phase 0 - Device Baseline Capture
