@@ -805,6 +805,9 @@ outside the VPN while router mode is enabled.
 
 Before using a new rooted Android device as a production router:
 
+Root/OEM hardening that is outside the app build must also be completed per
+device. See `docs/virtu-vpn-router-root-hardening.md`.
+
 1. Unlock/root and verify root shell can run `iptables`, `ip6tables`, `ip rule`,
    `settings`, and `ndc tether dns`.
 2. Enable mobile hotspot and record:
