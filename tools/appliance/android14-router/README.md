@@ -144,6 +144,34 @@ adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.routines'
 On the A52 router rig, phase 2A survived reboot and left Surfshark, hotspot,
 fail-closed routes, and attestation healthy.
 
+## Phase 2B Debloat
+
+After phase 2A has survived reboot/restore testing, disable Samsung background
+security/smart service packages that are not part of the router data path. Keep
+this as a reversible user-0 disable until the device has passed several days of
+router operation:
+
+```sh
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.sm.devicesecurity'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.scs'
+```
+
+- `com.samsung.android.sm.devicesecurity`: Samsung Device Security scanner.
+  The dedicated router is protected by VirtuVPN fail-closed rules, Magisk root
+  policy, and controlled appliance configuration; this scanner has no observed
+  router function.
+- `com.samsung.android.scs`: Samsung Core Services / smart suggestions support
+  package. It has no observed dependency for VirtuVPN, Magisk, Surfshark,
+  NordVPN, tethering, SIM registration, fail-closed routing, or attestation on
+  the A52 router rig.
+
+On the A52 router rig, phase 2B survived reboot and left only the expected
+router-relevant third-party apps enabled: VirtuVPN, Surfshark, NordVPN, and
+Magisk. Post-reboot validation showed Surfshark restored as the provider,
+hotspot `swlan0` was up, VPN `tun1` was up, router rules `20900/20901` were
+present before Samsung tether fallback `21000`, table `1048` contained
+`unreachable default`, and attestation listeners `8788/8789` were available.
+
 ## Acceptance
 
 After install, reboot the router and verify:
