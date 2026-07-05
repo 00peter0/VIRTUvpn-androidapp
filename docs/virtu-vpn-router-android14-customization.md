@@ -440,6 +440,66 @@ Runtime restore gap found during reboot validation:
   VirtuVPN router runtime only when the router had previously been enabled, and
   keeps fail-closed behavior if VPN/provider restore fails.
 
+## Current Router Phase 7 Discovery
+
+Captured on: 2026-07-05 after Phase 6 reboot validation on router serial
+`RZ8T61J44CA`.
+
+Problem:
+
+- The Android 14 OS/root hardening survives reboot.
+- The VirtuVPN router runtime does not automatically return after a clean
+  reboot:
+  - no hotspot interface
+  - no VPN tunnel interface
+  - no router foreground service
+  - no attestation listeners
+- This is not a leak condition because router rules are not active and no
+  hotspot clients are being served. It is an availability/appliance-readiness
+  gap.
+
+Existing app behavior:
+
+- The app already declares `RECEIVE_BOOT_COMPLETED`.
+- `BootShutdownReceiver` handles `BOOT_COMPLETED`, but the current path is
+  oriented around WireGuard tunnel restore:
+  - it requires VCS account sign-in before restoring state,
+  - it calls `TunnelManager.restoreState(false)`,
+  - it does not explicitly restore router appliance runtime.
+- `Application.startVpnRouterServiceIfNeeded()` can bootstrap
+  `VpnRouterService`, but it only runs after the app process is already started.
+  A boot broadcast alone does not make this path sufficient for router restore.
+- `VpnRouterService` can keep/reconcile active router state when the app is
+  already running, but after cold reboot there is no hotspot/tunnel state to
+  reconcile unless restore starts those dependencies first.
+
+Android 14/Samsung shell discovery:
+
+- `cmd wifi start-softap ...` exists on this device.
+- Android's own help text says this command starts SoftAP but does not activate
+  internet tethering.
+- `cmd connectivity help` does not expose a generic tethering start command on
+  this build.
+
+Decision:
+
+- Do not put blind hotspot start commands into the root watchdog.
+- Do not claim reboot-auto-router is sale-ready yet.
+- Add boot runtime restore only through a tested path that:
+  1. restores the selected VPN/provider tunnel if configured,
+  2. restores hotspot/tethering through a verified Android/Samsung mechanism,
+  3. starts `VpnRouterService`,
+  4. verifies fail-closed router invariant before serving clients,
+  5. leaves the device fail-closed/offline if any dependency fails.
+
+Phase 7 status:
+
+- Boot restore gap identified: pass.
+- Safe hotspot/tethering autostart mechanism: not yet proven.
+- App boot receiver router integration: pending.
+- Sale-ready automatic reboot recovery: blocked until this phase is completed
+  or the appliance profile explicitly documents manual post-reboot activation.
+
 ## Current Router Phase 4 Capture
 
 Captured on: 2026-07-05 after Phase 6 watchdog installation on router serial
@@ -809,33 +869,72 @@ Exit criteria:
 ### Phase 6 - Root Watchdog Design
 
 Purpose: add an appliance-grade safety net outside the normal Android app
-process. This is future hardening and should be implemented after the current
-Android 14 baseline is stable.
+process. On the audited Android 14 Samsung router this is implemented through a
+Magisk `service.d` watchdog.
 
 Watchdog responsibilities:
 
-- Check VirtuVPN process exists.
-- Check `VpnRouterService` foreground service exists when router is expected ON.
-- Check `<gateway>:8788` and `127.0.0.1:8789` listeners.
-- Check hotspot interface exists.
-- Check `20901` unreachable fallback and table `1048` exist.
-- If app process dies while rules remain active, restart VirtuVPN/router
-  service.
-- If router rules disappear unexpectedly, install an emergency fail-closed block
-  or disable hotspot until VirtuVPN restores normal rules.
+- Re-assert router-critical Android settings:
+  - hotspot timeout disabled,
+  - tether offload disabled,
+  - mobile data enabled,
+  - airplane mode disabled.
+- Re-assert VirtuVPN Doze whitelist and appops.
+- Re-assert VirtuVPN Magisk root policy with logging/notification enabled.
+- Leave Settings UI available; enforce required state instead of hiding
+  controls.
 
 Important rule:
 
 - Do not use the watchdog to turn router mode on from a clean OFF state unless
   this specific sold appliance profile explicitly says router must always be on.
+- Do not use the watchdog to blindly start SoftAP unless the device's tethering
+  path has been validated end-to-end. Android `cmd wifi start-softap` alone does
+  not guarantee internet tethering on this Samsung Android 14 build.
 
-Exit criteria for future implementation:
+Exit criteria:
 
-- Watchdog survives app process death.
+- Watchdog starts after reboot through Magisk `service.d`.
+- Required settings/appops/Magisk policy return to the required values after
+  reboot and after manual tampering.
 - Watchdog does not fight explicit user/router OFF.
 - Watchdog does not weaken fail-closed firewall posture.
 
-### Phase 7 - Sale/Deployment Acceptance
+### Phase 7 - Boot Runtime Restore
+
+Purpose: decide whether this appliance profile must automatically return to
+router service after a clean reboot, and implement it only through verified
+Android/app paths.
+
+Required discovery:
+
+- Whether the selected VPN provider can restore its tunnel headlessly.
+- Whether Android/Samsung can restore hotspot plus tethering headlessly on this
+  exact model/ROM.
+- Whether restoring tunnel first or hotspot first is more reliable for this
+  ROM.
+- Whether `BootShutdownReceiver` should start `VpnRouterService` directly after
+  tunnel/hotspot restore.
+
+Required behavior if implemented:
+
+- Start only if the router was previously enabled or the appliance profile is
+  explicitly configured as always-on.
+- Restore VPN/provider tunnel.
+- Restore hotspot/tethering.
+- Start `VpnRouterService`.
+- Verify signed attestation from a hotspot client.
+- If any step fails, do not fall back to mobile uplink; leave clients offline
+  or leave hotspot off.
+
+Exit criteria:
+
+- Reboot test shows hotspot, VPN tunnel, router service, attestation listeners,
+  and fail-closed rules return without opening the app manually.
+- Failed provider restore leaves the router offline/fail-closed.
+- Explicit router OFF remains respected.
+
+### Phase 8 - Sale/Deployment Acceptance
 
 A router device is ready for sale/deployment only when it passes all checks
 below on the actual device being sold.
