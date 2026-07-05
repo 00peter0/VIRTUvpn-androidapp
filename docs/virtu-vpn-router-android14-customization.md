@@ -484,6 +484,85 @@ Phase 4 status:
 - Client attestation: pass.
 - Watchdog does not interfere with router runtime: pass.
 
+## Current Router Phase 5 Capture
+
+Captured on: 2026-07-05 on router serial `RZ8T61J44CA`.
+
+Current OUTPUT UID allowlist in both IPv4 and IPv6 router phone lockdown chains:
+
+- `10309`
+- `10196`
+- `10306`
+- `10310`
+- `1000`
+- `1051`
+- `1052`
+- `1073`
+
+Mapped packages/processes:
+
+- `10306`:
+  - `com.virtuvpn.android`
+  - required for VirtuVPN router service and in-app provider flow
+- `10309`:
+  - `com.nordvpn.android`
+  - installed provider bootstrap / active provider candidate
+- `10310`:
+  - `com.surfshark.vpnclient.android`
+  - installed provider bootstrap / active provider candidate
+- `10196`:
+  - `com.samsung.android.fast`
+  - Samsung Secure Wi-Fi/Fast package
+  - declares `android.permission.BIND_VPN_SERVICE` through
+    `.vpn.logic.CharonVpnService`
+  - keep for now because it is a Samsung VPN-capable system app; remove only
+    after provider-switch tests prove it is not needed on this ROM
+- `1000`:
+  - Android/Samsung system UID
+  - required by Android VPN/connectivity orchestration on this build
+- `1051`:
+  - documented in app code as DNS resolver bootstrap UID on Android builds that
+    use `AID_DNS`
+- `1052`:
+  - documented in app code as tether/system DNS helper UID on Samsung builds
+- `1073`:
+  - `com.google.android.networkstack`
+  - `com.google.android.networkstack.tethering`
+  - `com.google.android.cellbroadcastservice`
+  - required for NetworkStack/Tethering validation and bootstrap plumbing
+
+Implementation alignment:
+
+- App code intentionally writes:
+  - active VPN provider UID
+  - installed VPN provider bootstrap UIDs
+  - Android VPN bootstrap system UIDs `1000`, `1051`, `1052`, `1073`
+- The current allowlist therefore matches the app model. It is broader than a
+  single-active-provider allowlist by design, because router mode must be able
+  to switch providers and create a new tunnel while the router phone OUTPUT
+  chain is fail-closed.
+
+Phase 5 decision:
+
+- Do not remove any UID in this pass.
+- Treat `10196` as a review item, not a removal item, because it maps to a
+  Samsung VPN-capable system package.
+- Revisit only after testing all intended provider switches:
+  - VirtuVPN tunnel
+  - NordVPN
+  - Surfshark
+  - any future provider intended for sale
+
+Phase 5 status:
+
+- UID mapping completed: pass.
+- NordVPN UID present: pass.
+- Surfshark UID present: pass.
+- VirtuVPN UID present: pass.
+- Android NetworkStack/Tethering UID present: pass.
+- Bootstrap/system UID rationale documented: pass.
+- Cleanup action: none now; retest required before any narrowing.
+
 ## Implementation Phases
 
 ### Phase 0 - Device Baseline Capture
