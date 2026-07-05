@@ -172,6 +172,40 @@ hotspot `swlan0` was up, VPN `tun1` was up, router rules `20900/20901` were
 present before Samsung tether fallback `21000`, table `1048` contained
 `unreachable default`, and attestation listeners `8788/8789` were available.
 
+## Phase 2C Debloat
+
+After phase 2B has survived reboot/restore testing, disable remaining Samsung
+and Google consumer/service packages that are not required for router
+operation. These are still reversible user-0 disables:
+
+```sh
+adb shell su -c 'pm disable-user --user 0 com.google.android.adservices.api'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.game.gametools'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.app.samsungapps'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.mdx'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.mobileservice'
+```
+
+- `com.google.android.adservices.api`: Google ad services API; no router
+  function.
+- `com.samsung.android.game.gametools`: Samsung Game Tools; no router
+  function.
+- `com.sec.android.app.samsungapps`: Galaxy Store. App distribution for the
+  appliance is handled by the VirtuVPN distribution paths, not by Galaxy Store.
+- `com.samsung.android.mdx`: Samsung multi-device experience; no router
+  function.
+- `com.samsung.android.mobileservice`: Samsung account/mobile services; no
+  observed dependency for SIM, tethering, VPN provider restore, fail-closed
+  routing, or attestation on the A52 router rig.
+
+On the A52 router rig, phase 2C survived reboot. The first early post-boot
+sample already had the fail-closed `20901` hotspot-to-unreachable rule before
+Samsung tether fallback `21000`; after the normal stabilization window the full
+router state was restored: Surfshark provider, hotspot `swlan0`, VPN `tun1`,
+route `20900` to table `1047`, table `1047` default via `tun1`, table `1048`
+`unreachable default`, and attestation listeners `8788/8789`. Enabled
+third-party apps remained limited to VirtuVPN, Surfshark, NordVPN, and Magisk.
+
 ## Acceptance
 
 After install, reboot the router and verify:
