@@ -216,7 +216,10 @@ object VpnRouterManager {
             installRules(appContext, tunnelName, tetherInterfaces)
             setOperation(appContext, OperationStage.COMPLETE, "VPN router is protected")
             val enabled = detect(appContext)
-            if (enabled.availability == Availability.ENABLED) rememberVirtuFallbackTunnel(appContext)
+            if (enabled.availability == Availability.ENABLED) {
+                rememberVirtuFallbackTunnel(appContext)
+                updateAlwaysOnProvider(appContext)
+            }
             syncAttestationServer(appContext, enabled)
             enabled
         } catch (e: TunnelHealthException) {
@@ -241,6 +244,7 @@ object VpnRouterManager {
         val prior = runCatching { detect(appContext) }.getOrNull()
         try {
             removeRules()
+            clearAlwaysOnProviderIfOwned(appContext)
             clearRouterState(appContext)
             detect(appContext).also {
                 VpnRouterAttestationServer.stop()
@@ -994,6 +998,7 @@ object VpnRouterManager {
             .remove(KEY_LAST_RULE_SIGNATURE)
             .remove(KEY_LAST_VIRTU_TUNNEL)
             .putBoolean(KEY_ROUTER_DESIRED_ACTIVE, false)
+            .remove(KEY_TUNNEL_RESTORE_MODE)
             .remove(KEY_LAST_ACTIVE_ROUTER_TUNNEL)
             .remove(KEY_LAST_ACTIVE_ROUTER_TETHERS)
             .remove(KEY_LAST_ACTIVE_ROUTER_DNS)
@@ -1020,6 +1025,72 @@ object VpnRouterManager {
             .putBoolean(KEY_ROUTER_DESIRED_ACTIVE, true)
             .putInt(KEY_ROOT_CHECK_FAILURES, 0)
             .apply()
+    }
+
+    /**
+     * Optional boot hardening: help a third-party VPN provider reconnect faster
+     * after a reboot by recording it as the Android always-on VPN target for the
+     * boot watchdog to re-assert. This never affects fail-closed security (the
+     * root pre-block already guarantees no leak without a tunnel); it only speeds
+     * up tunnel restore. Deliberately scoped:
+     *  - Our own WgQuick tunnel is skipped — always-on is an Android VpnService
+     *    mechanism and would target GoBackend, not the root router.
+     *  - Only a single, unambiguously-resolved third-party owner is recorded.
+     *  - Lockdown is never enabled (a failed provider must not brick the uplink).
+     */
+    private fun updateAlwaysOnProvider(context: Context) {
+        val appContext = context.applicationContext
+        val prefs = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val ownerUid = readVpnOwnerUid()
+        val packages = ownerUid
+            ?.let { runCatching { appContext.packageManager.getPackagesForUid(it) }.getOrNull() }
+            ?.toList()
+            .orEmpty()
+        when {
+            packages.size == 1 && packages[0] == appContext.packageName -> {
+                // Our own tunnel: rely on the app's WgQuick boot restore instead.
+                clearAlwaysOnProviderIfOwned(appContext)
+                prefs.edit().putString(KEY_TUNNEL_RESTORE_MODE, "app").apply()
+            }
+            packages.size == 1 -> {
+                val provider = packages[0]
+                val ok = runCatching {
+                    Application.getRootShell().run(
+                        null,
+                        "settings put secure $ALWAYS_ON_INTENT_SETTING ${shellQuote(provider)}"
+                    ) == 0
+                }.getOrDefault(false)
+                if (ok) {
+                    prefs.edit()
+                        .putString(KEY_TUNNEL_RESTORE_MODE, "provider")
+                        .putBoolean(KEY_ALWAYS_ON_OWNED, true)
+                        .apply()
+                    Log.i(TAG, "Recorded VPN router always-on provider $provider for boot restore")
+                } else {
+                    clearAlwaysOnProviderIfOwned(appContext)
+                    Log.w(TAG, "Unable to record always-on provider $provider")
+                }
+            }
+            else -> {
+                // Unknown or ambiguous owner: never touch always-on.
+                clearAlwaysOnProviderIfOwned(appContext)
+                prefs.edit().remove(KEY_TUNNEL_RESTORE_MODE).apply()
+            }
+        }
+    }
+
+    private fun clearAlwaysOnProviderIfOwned(context: Context) {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (!prefs.getBoolean(KEY_ALWAYS_ON_OWNED, false)) return
+        runCatching {
+            // Clear both our recorded intent and the Android always-on slot we set;
+            // only reached when Virtu owns the setting, so no user choice is lost.
+            Application.getRootShell().run(
+                null,
+                "settings delete secure $ALWAYS_ON_INTENT_SETTING; settings delete secure always_on_vpn_app"
+            )
+        }.onFailure { Log.w(TAG, "Unable to clear always-on provider setting", it) }
+        prefs.edit().putBoolean(KEY_ALWAYS_ON_OWNED, false).apply()
     }
 
     private data class LastActiveRouterSnapshot(
@@ -1586,6 +1657,10 @@ object VpnRouterManager {
     private const val KEY_VERIFY_FAILURES = "verify_failures"
     private const val KEY_ROOT_CHECK_FAILURES = "root_check_failures"
     private const val KEY_ROUTER_DESIRED_ACTIVE = "router_desired_active"
+    private const val KEY_ALWAYS_ON_OWNED = "always_on_owned"
+    private const val KEY_TUNNEL_RESTORE_MODE = "tunnel_restore_mode"
+    // Secure setting the boot watchdog reads to re-assert Android always-on VPN.
+    private const val ALWAYS_ON_INTENT_SETTING = "virtu_router_always_on_pkg"
     private const val KEY_LAST_ACTIVE_ROUTER_TUNNEL = "last_active_router_tunnel"
     private const val KEY_LAST_ACTIVE_ROUTER_TETHERS = "last_active_router_tethers"
     private const val KEY_LAST_ACTIVE_ROUTER_DNS = "last_active_router_dns"
