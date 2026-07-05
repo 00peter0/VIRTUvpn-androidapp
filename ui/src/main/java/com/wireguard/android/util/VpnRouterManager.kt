@@ -260,10 +260,13 @@ object VpnRouterManager {
         }
     }
 
-    fun isRouterDesiredActive(context: Context): Boolean =
-        context.applicationContext
-            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getBoolean(KEY_ROUTER_DESIRED_ACTIVE, false)
+    fun isRouterDesiredActive(context: Context): Boolean {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (prefs.contains(KEY_ROUTER_DESIRED_ACTIVE)) {
+            return prefs.getBoolean(KEY_ROUTER_DESIRED_ACTIVE, false)
+        }
+        return !prefs.getString(KEY_LAST_ACTIVE_ROUTER_TUNNEL, null).isNullOrBlank()
+    }
 
     private fun setRouterDesiredActive(context: Context, desired: Boolean) {
         context.applicationContext
