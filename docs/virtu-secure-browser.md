@@ -384,6 +384,16 @@ authoritative unprotected state. This watch loop does not call public IP or geo
 lookup services. Exit IP/country lookup remains an explicit user action from the
 egress status dialog.
 
+
+From router build 824 onward, Secured Browser treats router attestation
+`protected` as the fail-closed security invariant only. A verified router may
+return `protected=true` and signed `tunnelOnline=false`; in that case the browser
+remains allowed because traffic cannot leak to the uplink, but the egress label
+shows that tunnel internet is offline. The browser blocks only when the router
+signs `protected=false`, when the paired router cannot be verified after the
+transient grace window, or when Android reports loss of the bound router WiFi
+network.
+
 Router builds from 822 onward add anti-flap hysteresis before signing router
 availability changes. A single transient router rule verification miss is not an
 authoritative unprotected state and should not become a visible browser block.

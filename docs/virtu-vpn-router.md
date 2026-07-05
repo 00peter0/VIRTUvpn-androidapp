@@ -604,6 +604,25 @@ Package-update attestation recovery added in builds 820-821:
 - Manual "open the app once after update" is now a fallback/debug step, not the
   normal production update flow.
 
+
+Attestation protected-bit model from build 824 onward:
+
+- `protected` means only the security invariant: router fail-closed firewall,
+  reject rules, and unreachable hotspot fallback are installed well enough to
+  prevent client traffic from leaking to the physical uplink.
+- `protected` does not mean the selected VPN tunnel currently has working
+  internet. Tunnel quality is reported separately as signed `tunnelOnline`
+  metadata.
+- A degraded tunnel or upstream outage therefore signs `protected=true` when
+  fail-closed rules still hold. Clients may have no internet, but they are still
+  protected from uplink leakage.
+- `protected=false` is reserved for actual security-invariant failure, such as
+  missing reject/unreachable rules or missing router chains. Secured Browser
+  must block on that state.
+- This is stricter and less noisy than treating tunnel-health failures as
+  security failures: browser availability no longer depends on curl/ISP jitter,
+  while real firewall/routing failures still fail closed.
+
 Router-state anti-flap hardening added in build 822:
 
 - Attestation `protected` reflects the router's signed availability state, so a

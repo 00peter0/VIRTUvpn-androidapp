@@ -65,7 +65,8 @@ object VpnRouterManager {
         val tetherInterfaces: List<String> = emptyList(),
         val uplinkInterfaces: List<Uplink> = emptyList(),
         val dnsResolvers: List<String> = emptyList(),
-        val detail: String? = null
+        val detail: String? = null,
+        val securityProtected: Boolean = false
     ) {
         val canEnable: Boolean
             get() = availability == Availability.READY
@@ -277,6 +278,7 @@ object VpnRouterManager {
         val dnsResolvers = resolveDnsResolvers(context, runningTunnel)
         val hotspotActive = HotspotDetector.isWifiHotspotActive(context) || tetherInterfaces.isNotEmpty()
         if (installed) {
+            val securityProtected = routerSecurityInvariantHolds(runningTunnel, tetherInterfaces)
             val healthy = verifyRouterRules(runningTunnel, tetherInterfaces)
             if (!healthy) {
                 if (recordRouterVerifyFailure(context) < VERIFY_FAILURES_BEFORE_ERROR) {
@@ -291,7 +293,8 @@ object VpnRouterManager {
                             degradedDetail(context, runningTunnel)
                         } else {
                             "router rule verification missed once; keeping last protected state"
-                        }
+                        },
+                        securityProtected = securityProtected
                     )
                 }
                 return Status(
@@ -300,7 +303,8 @@ object VpnRouterManager {
                     tetherInterfaces = tetherInterfaces,
                     uplinkInterfaces = uplinkInterfaces,
                     dnsResolvers = dnsResolvers,
-                    detail = "router rules incomplete; waiting for reconcile"
+                    detail = "router rules incomplete; waiting for reconcile",
+                    securityProtected = securityProtected
                 )
             }
             clearRouterVerifyFailures(context)
@@ -310,7 +314,8 @@ object VpnRouterManager {
                 tetherInterfaces = tetherInterfaces,
                 uplinkInterfaces = uplinkInterfaces,
                 dnsResolvers = dnsResolvers,
-                detail = degradedDetail(context, runningTunnel)
+                detail = degradedDetail(context, runningTunnel),
+                securityProtected = securityProtected
             )
         }
         if (!hotspotActive) {
@@ -751,6 +756,30 @@ object VpnRouterManager {
             .apply()
     }
 
+    private fun routerSecurityInvariantHolds(tunnel: String, downstreams: List<String>): Boolean {
+        if (downstreams.isEmpty()) return false
+        if (!commandSucceeds("iptables -S $FORWARD_CHAIN >/dev/null 2>&1")) return false
+        if (!commandSucceeds("iptables -S $OUTPUT_CHAIN >/dev/null 2>&1")) return false
+        if (!commandSucceeds("ip6tables -S $IPV6_FORWARD_CHAIN >/dev/null 2>&1")) return false
+        if (!commandSucceeds("ip6tables -S $IPV6_OUTPUT_CHAIN >/dev/null 2>&1")) return false
+        if (!commandSucceeds("iptables -C FORWARD -j $FORWARD_CHAIN >/dev/null 2>&1")) return false
+        if (!commandSucceeds("iptables -C OUTPUT -j $OUTPUT_CHAIN >/dev/null 2>&1")) return false
+        if (!commandSucceeds("ip6tables -C FORWARD -j $IPV6_FORWARD_CHAIN >/dev/null 2>&1")) return false
+        if (!commandSucceeds("ip6tables -C OUTPUT -j $IPV6_OUTPUT_CHAIN >/dev/null 2>&1")) return false
+        if (!commandSucceeds("iptables -C $OUTPUT_CHAIN -j REJECT >/dev/null 2>&1")) return false
+        if (!commandSucceeds("ip6tables -C $IPV6_OUTPUT_CHAIN -j REJECT >/dev/null 2>&1")) return false
+        if (!commandSucceeds("ip6tables -C $IPV6_FORWARD_CHAIN -j REJECT >/dev/null 2>&1")) return false
+        return downstreams.all { downstream ->
+            commandSucceeds(
+                "ip rule show | grep -q \"^$HOTSPOT_BLOCK_RULE_PRIORITY:.*iif $downstream .*lookup $HOTSPOT_BLOCK_ROUTE_TABLE\" && " +
+                    "ip route show table $HOTSPOT_BLOCK_ROUTE_TABLE | grep -q \"unreachable default\" && " +
+                    "iptables -C $FORWARD_CHAIN -i $downstream -j REJECT >/dev/null 2>&1 && " +
+                    "ip6tables -C $IPV6_FORWARD_CHAIN -i $downstream -j REJECT >/dev/null 2>&1 && " +
+                    "iptables -C $FORWARD_CHAIN -i $downstream -o $tunnel -j ACCEPT >/dev/null 2>&1"
+            )
+        }
+    }
+
     private fun verifyRouterRules(
         tunnel: String,
         downstreams: List<String>,
@@ -923,7 +952,8 @@ object VpnRouterManager {
         return base.copy(
             availability = Availability.DEGRADED,
             activeTunnel = base.activeTunnel ?: tunnel,
-            detail = detail
+            detail = detail,
+            securityProtected = base.securityProtected
         )
     }
 

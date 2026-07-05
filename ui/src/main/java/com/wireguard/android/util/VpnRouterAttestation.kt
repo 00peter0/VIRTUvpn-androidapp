@@ -59,7 +59,8 @@ object VpnRouterAttestation {
 
     data class Result(
         val routerId: String,
-        val tunnel: String? = null
+        val tunnel: String? = null,
+        val tunnelOnline: Boolean? = null
     )
 
     data class Pairing(
@@ -126,7 +127,10 @@ object VpnRouterAttestation {
         val verifiedTunnel = tunnel?.takeIf {
             constantTimeEquals(json.optString("tunnelSignature"), sign(tunnelPayload(routerId, nonce, timestamp, it), pairing.secret))
         }
-        return Verification(Result(routerId, verifiedTunnel))
+        val tunnelOnline = json.optString("tunnelOnline").takeIf { it.isNotBlank() }?.toBooleanStrictOrNull()?.takeIf { value ->
+            constantTimeEquals(json.optString("tunnelOnlineSignature"), sign(tunnelOnlinePayload(routerId, nonce, timestamp, value), pairing.secret))
+        }
+        return Verification(Result(routerId, verifiedTunnel, tunnelOnline))
     }
 
     fun responseJson(context: Context, nonce: String): String? {
@@ -135,32 +139,22 @@ object VpnRouterAttestation {
         val timestamp = System.currentTimeMillis()
         val routerId = routerId(context.applicationContext)
         val secret = routerSecret(context.applicationContext)
-        if (status.availability != VpnRouterManager.Availability.ENABLED) {
-            val payload = payload(routerId, nonce, timestamp, protected = false)
-            return JSONObject()
-                .put("app", "VirtuVPN")
-                .put("kind", "vpn-router-attestation")
-                .put("version", 1)
-                .put("alg", ALG)
-                .put("routerId", routerId)
-                .put("nonce", nonce)
-                .put("timestamp", timestamp)
-                .put("protected", false)
-                .put("availability", status.availability.name)
-                .put("detail", status.detail ?: "")
-                .put("signature", sign(payload, secret))
-                .toString()
-        }
-        val payload = payload(routerId, nonce, timestamp, protected = true)
+        val protected = status.securityProtected
+        val tunnelOnline = status.availability == VpnRouterManager.Availability.ENABLED
+        val payload = payload(routerId, nonce, timestamp, protected)
         val json = JSONObject()
             .put("app", "VirtuVPN")
             .put("kind", "vpn-router-attestation")
-            .put("version", 1)
+            .put("version", 2)
             .put("alg", ALG)
             .put("routerId", routerId)
             .put("nonce", nonce)
             .put("timestamp", timestamp)
-            .put("protected", true)
+            .put("protected", protected)
+            .put("availability", status.availability.name)
+            .put("detail", status.detail ?: "")
+            .put("tunnelOnline", tunnelOnline)
+            .put("tunnelOnlineSignature", sign(tunnelOnlinePayload(routerId, nonce, timestamp, tunnelOnline), secret))
             .put("signature", sign(payload, secret))
         // Optional, separately-signed metadata for a richer client status.
         // Older clients ignore it; the security gate above stays unchanged.
@@ -409,6 +403,9 @@ object VpnRouterAttestation {
 
     private fun tunnelPayload(routerId: String, nonce: String, timestamp: Long, tunnel: String): String =
         listOf("tunnel", routerId, nonce, timestamp.toString(), tunnel).joinToString("|")
+
+    private fun tunnelOnlinePayload(routerId: String, nonce: String, timestamp: Long, tunnelOnline: Boolean): String =
+        listOf("tunnel-online", routerId, nonce, timestamp.toString(), tunnelOnline.toString()).joinToString("|")
 
     private fun sign(payload: String, secret: String): String {
         val mac = Mac.getInstance("HmacSHA256")

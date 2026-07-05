@@ -233,6 +233,8 @@
     <string name="vcs_secure_browser_egress_router">Protected via VPN Router: %1$s</string>
     <string name="vcs_secure_browser_egress_router_attested">Protected via verified VPN Router</string>
     <string name="vcs_secure_browser_egress_router_attested_via">Protected via verified VPN Router: %1$s</string>
+    <string name="vcs_secure_browser_egress_router_attested_offline">Protected by VPN Router fail-closed rules. Tunnel internet is offline.</string>
+    <string name="vcs_secure_browser_egress_router_attested_via_offline">Protected by VPN Router fail-closed rules: %1$s tunnel offline.</string>
     <string name="vcs_secure_browser_pair_router">Pair with VPN Router</string>
     <string name="vcs_secure_browser_pair_router_description">Pair Secured Browser with a VPN Router by scanning its QR code</string>
     <string name="vcs_secure_browser_camera_permission_required">Camera permission is required to scan the VPN Router QR code.</string>

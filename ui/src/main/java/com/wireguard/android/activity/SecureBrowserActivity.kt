@@ -1584,12 +1584,17 @@ class SecureBrowserActivity : AppCompatActivity() {
             )
         }
         val routerStatus = runCatching { VpnRouterManager.getStatus(this@SecureBrowserActivity) }.getOrNull()
-        if (routerStatus?.availability == VpnRouterManager.Availability.ENABLED) {
+        if (routerStatus?.securityProtected == true) {
             unbindBrowserNetwork()
             val tunnel = routerStatus.activeTunnel ?: getString(R.string.vcs_vpn_status_no_tunnel)
+            val label = if (routerStatus.availability == VpnRouterManager.Availability.ENABLED) {
+                getString(R.string.vcs_secure_browser_egress_router, tunnel)
+            } else {
+                getString(R.string.vcs_secure_browser_egress_router_attested_via_offline, tunnel)
+            }
             return BrowserProtection(
                 true,
-                getString(R.string.vcs_secure_browser_egress_router, tunnel),
+                label,
                 source = ProtectionSource.LOCAL_ROUTER
             )
         }
@@ -1607,9 +1612,15 @@ class SecureBrowserActivity : AppCompatActivity() {
         val attestation = runCatching { VpnRouterAttestation.verifyFromCurrentGatewayDetailed(this@SecureBrowserActivity) }.getOrNull()
         if (attestation?.result != null) {
             Log.i(TAG, "Verified VPN Router attestation: ${attestation.result.routerId.take(8)}")
-            val attestedLabel = attestation.result.tunnel
-                ?.let { getString(R.string.vcs_secure_browser_egress_router_attested_via, it) }
-                ?: getString(R.string.vcs_secure_browser_egress_router_attested)
+            val attestedLabel = if (attestation.result.tunnelOnline == false) {
+                attestation.result.tunnel
+                    ?.let { getString(R.string.vcs_secure_browser_egress_router_attested_via_offline, it) }
+                    ?: getString(R.string.vcs_secure_browser_egress_router_attested_offline)
+            } else {
+                attestation.result.tunnel
+                    ?.let { getString(R.string.vcs_secure_browser_egress_router_attested_via, it) }
+                    ?: getString(R.string.vcs_secure_browser_egress_router_attested)
+            }
             return BrowserProtection(
                 true,
                 attestedLabel,
