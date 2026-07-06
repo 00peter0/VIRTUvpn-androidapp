@@ -613,6 +613,35 @@ Play services and Samsung IMS. Additional outbound activity was observed from
 `com.samsung.android.server.wifi.mobilewips`; treat those as candidates for a
 later phase, not as part of phase 2K.
 
+## Phase 2L Debloat - Game Launcher and Wi-Fi MobileWIPS
+
+After phase 2K survives reboot/root acceptance, disable the next two observed
+background packages. Keep this phase separate because MobileWIPS touches Wi-Fi
+state and must be accepted with a reboot and a Wi-Fi connectivity check:
+
+```sh
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.game.gamehome'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.server.wifi.mobilewips'
+```
+
+- `com.samsung.android.game.gamehome`: Samsung Game Launcher / Game Home. It
+  has no router function and was observed as an unnecessary background package
+  after phase 2K.
+- `com.samsung.android.server.wifi.mobilewips`: Samsung Wi-Fi MobileWIPS /
+  wireless intrusion prevention helper. It was observed with outbound HTTP
+  sockets after phase 2K and has Wi-Fi control permissions such as
+  `CHANGE_WIFI_STATE`, `ACCESS_WIFI_STATE`, `LOCAL_MAC_ADDRESS`, and
+  `INTERNET`. Because it is Wi-Fi-adjacent, do not batch it with other risky
+  changes; disable it only in this phase and require reboot acceptance.
+
+On the A52 router rig, phase 2L passed reboot acceptance. After reboot:
+`sys.boot_completed=1`, `persist.sys.emergency_reset=0`, `su -c id` returned
+root, both phase 2L packages were disabled, neither process was running, and no
+`gamehome` or `mobilewips` sockets were present. Wi-Fi remained enabled and
+connected to the commissioning network (`VIRUS guest`) with DHCP address
+`192.168.101.79`, supplicant state `COMPLETED`, and `isUsable=true`. The
+enabled package count was `356`.
+
 ## Acceptance
 
 After install, reboot the router and verify:
