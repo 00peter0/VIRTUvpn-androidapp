@@ -88,6 +88,7 @@ Browser.
 Files:
 
 - provider: `ui/src/main/java/com/wireguard/android/widget/SecuredBrowserWidgetProvider.kt`
+- search activity: `ui/src/main/java/com/wireguard/android/activity/SecureBrowserWidgetSearchActivity.kt`
 - provider XML: `ui/src/main/res/xml/widget_secured_browser_quick.xml`
 - live layout: `ui/src/main/res/layout/widget_secured_browser_quick.xml`
 - preview image / logo: `@drawable/shortcut_secured_browser`
@@ -101,8 +102,11 @@ Provider configuration:
 
 Runtime behavior:
 
-- Root card, inline search pill, and search action button all open
-  `SecureBrowserActivity`.
+- Root card, inline search pill, and search action button open the internal
+  widget search activity.
+- The search activity accepts a query and launches `SecureBrowserActivity` with
+  `EXTRA_INITIAL_URL=https://www.google.com/search?q=...`. Web content is still
+  loaded only by Secured Browser, never by widget code.
 - The widget does not decide whether browsing is protected. The browser remains
   fail-closed and performs its own VPN/router attestation checks after launch.
 
@@ -113,9 +117,10 @@ Implementation rules:
 2. Keep the widget visually close to a full-width search engine field: no
    separate logo block, one inline search field, and one inline action button on
    the right.
-3. If future browser widgets add real URL/search input, route the request
-   through `SecureBrowserActivity` so the existing browser gate still owns
-   navigation.
+3. Android `RemoteViews` widgets do not provide a reliable editable text field
+   inside the launcher widget itself. Use the internal search activity for text
+   input, then route the confirmed query through `SecureBrowserActivity` so the
+   existing browser gate still owns navigation.
 
 ## Launcher Preview And Branding Rules
 

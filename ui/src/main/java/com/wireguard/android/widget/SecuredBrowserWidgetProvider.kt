@@ -7,7 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
 import com.wireguard.android.R
-import com.wireguard.android.activity.SecureBrowserActivity
+import com.wireguard.android.activity.SecureBrowserWidgetSearchActivity
 
 class SecuredBrowserWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
@@ -18,7 +18,7 @@ class SecuredBrowserWidgetProvider : AppWidgetProvider() {
             val launchIntent = PendingIntent.getActivity(
                 context,
                 appWidgetId,
-                Intent(context, SecureBrowserActivity::class.java)
+                Intent(context, SecureBrowserWidgetSearchActivity::class.java)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )

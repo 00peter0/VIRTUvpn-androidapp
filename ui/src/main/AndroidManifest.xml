@@ -90,6 +90,13 @@
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
+            android:name=".activity.SecureBrowserWidgetSearchActivity"
+            android:exported="false"
+            android:label="@string/vcs_widget_secured_browser_search_title"
+            android:theme="@style/NoBackgroundTheme"
+            android:windowSoftInputMode="adjustResize|stateVisible" />
+
+        <activity
             android:name=".activity.VpnRouterActivity"
             android:exported="false"
             android:label="@string/vcs_vpn_router_page_title"
