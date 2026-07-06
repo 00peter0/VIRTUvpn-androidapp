@@ -216,6 +216,15 @@ Known protected Samsung components to keep enabled:
   function, but `pm disable-user --user 0` does not persist across reboot on
   this build. Keep them enabled in the standard commissioning flow unless a
   stronger image-level masking path is tested separately.
+- Samsung consumer/UI/media packages from phase 2T that re-enable after reboot
+  on the A52 Android 14 build: `com.samsung.android.dynamiclock`,
+  `com.samsung.android.forest`, `com.samsung.android.provider.filterprovider`,
+  `com.samsung.android.providers.trash`,
+  `com.samsung.android.smartcallprovider`,
+  `com.samsung.android.smartswitchassistant`, `com.sec.android.app.ve.vebgm`,
+  `com.sec.android.app.vepreload`, `com.sec.android.autodoodle.service`, and
+  `com.snap.camerakit.plugin.v1`. They are not router-critical by function, but
+  `pm disable-user --user 0` does not persist across reboot on this build.
 
 ## Phase 1 Debloat
 
@@ -1103,6 +1112,32 @@ adb shell su -c 'pm disable-user --user 0 com.samsung.android.service.stplatform
 
 All seven packages reported `disabled-user` before reboot. After reboot, all
 seven returned enabled. The router remained healthy: `sys.boot_completed=1`,
+`persist.sys.emergency_reset=0`, root was available, Wi-Fi stayed connected and
+usable on the commissioning network, Sunrise LTE voice/data registration
+remained `IN_SERVICE`, and mobile data remained connected. The enabled package
+count stayed `279`. Do not include these packages in the normal
+PackageManager-only debloat flow.
+
+### Phase 2T Attempt - Samsung Consumer, UI, and Media Leftovers
+
+This phase was tested because these packages are consumer UI/media helpers and
+not part of SIM, hotspot, Wi-Fi, NetworkStack, WebView, or router-app flows:
+
+```sh
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.dynamiclock'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.forest'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.provider.filterprovider'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.providers.trash'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.smartcallprovider'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.smartswitchassistant'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.app.ve.vebgm'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.app.vepreload'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.autodoodle.service'
+adb shell su -c 'pm disable-user --user 0 com.snap.camerakit.plugin.v1'
+```
+
+All ten packages reported `disabled-user` before reboot. After reboot, all ten
+returned enabled. The router remained healthy: `sys.boot_completed=1`,
 `persist.sys.emergency_reset=0`, root was available, Wi-Fi stayed connected and
 usable on the commissioning network, Sunrise LTE voice/data registration
 remained `IN_SERVICE`, and mobile data remained connected. The enabled package
