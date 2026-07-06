@@ -90,13 +90,6 @@
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
-            android:name=".activity.SecureBrowserWidgetSearchActivity"
-            android:exported="false"
-            android:label="@string/vcs_widget_secured_browser_search_title"
-            android:theme="@style/NoBackgroundTheme"
-            android:windowSoftInputMode="adjustResize|stateVisible" />
-
-        <activity
             android:name=".activity.VpnRouterActivity"
             android:exported="false"
             android:label="@string/vcs_vpn_router_page_title"
@@ -207,18 +200,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
-        </receiver>
-
-        <receiver
-            android:name=".widget.SecuredBrowserWidgetProvider"
-            android:exported="false"
-            android:label="@string/vcs_widget_secured_browser_title">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_secured_browser_quick" />
         </receiver>
 
         <receiver

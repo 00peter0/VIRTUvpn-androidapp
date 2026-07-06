@@ -80,48 +80,6 @@ Implementation rules:
    fail-closed protection is enforced by routing/firewall state, not by the
    number of visible neighbor entries.
 
-### Secured Browser Widget
-
-Purpose: provide a 4x1 search-style launcher entry into VirtuVPN Secured
-Browser.
-
-Files:
-
-- provider: `ui/src/main/java/com/wireguard/android/widget/SecuredBrowserWidgetProvider.kt`
-- search activity: `ui/src/main/java/com/wireguard/android/activity/SecureBrowserWidgetSearchActivity.kt`
-- provider XML: `ui/src/main/res/xml/widget_secured_browser_quick.xml`
-- live layout: `ui/src/main/res/layout/widget_secured_browser_quick.xml`
-- preview image / logo: `@drawable/shortcut_secured_browser`
-
-Provider configuration:
-
-- `@layout/widget_secured_browser_quick` is the live `initialLayout`.
-- `@layout/widget_secured_browser_quick` is `android:previewLayout`.
-- `@drawable/shortcut_secured_browser` is the fallback `android:previewImage`.
-- target size is `4x1`.
-
-Runtime behavior:
-
-- Root card, inline search pill, and search action button open the internal
-  widget search activity.
-- The search activity accepts a query and launches `SecureBrowserActivity` with
-  `EXTRA_INITIAL_URL=https://www.google.com/search?q=...`. Web content is still
-  loaded only by Secured Browser, never by widget code.
-- The widget does not decide whether browsing is protected. The browser remains
-  fail-closed and performs its own VPN/router attestation checks after launch.
-
-Implementation rules:
-
-1. Keep the widget as a launcher entry, not as a bypass around browser
-   protection.
-2. Keep the widget visually close to a full-width search engine field: no
-   separate logo block, one inline search field, and one inline action button on
-   the right.
-3. Android `RemoteViews` widgets do not provide a reliable editable text field
-   inside the launcher widget itself. Use the internal search activity for text
-   input, then route the confirmed query through `SecureBrowserActivity` so the
-   existing browser gate still owns navigation.
-
 ## Launcher Preview And Branding Rules
 
 On Android 12+ launchers, including Samsung One UI, `previewLayout` is the most

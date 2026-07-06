@@ -78,13 +78,6 @@
     <string name="vcs_shortcut_secured_browser_long">Open VirtuVPN Secured Browser</string>
     <string name="vcs_shortcut_vpn_router_short">VPN Router</string>
     <string name="vcs_shortcut_vpn_router_long">Open VirtuVPN Router</string>
-    <string name="vcs_widget_secured_browser_title">Virtu Secured Browser</string>
-    <string name="vcs_widget_secured_browser_quick_subtitle">Private web access</string>
-    <string name="vcs_widget_secured_browser_search_hint">Search securely</string>
-    <string name="vcs_widget_secured_browser_search_submit">Search with Secured Browser</string>
-    <string name="vcs_widget_secured_browser_search_title">Secured Browser search</string>
-    <string name="vcs_widget_secured_browser_search_subtitle">Search opens through VirtuVPN Secured Browser.</string>
-    <string name="vcs_widget_secured_browser_quick_description">Quickly open VirtuVPN Secured Browser.</string>
     <string name="vcs_widget_vpn_router_title">Virtu VPN Router</string>
     <string name="vcs_widget_vpn_router_description">Shows the VPN Router protected path.</string>
     <string name="vcs_widget_vpn_router_vpn">VPN</string>
