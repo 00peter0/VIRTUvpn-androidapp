@@ -519,6 +519,47 @@ reported by `dumpsys window extension`, Microsoft / Spotify / LinkedIn /
 Netflix / Axel Springer were not enabled, and the enabled package count was
 `377`.
 
+## Phase 2J Debloat - Visible Google and Samsung Consumer Apps
+
+After phase 2I survives reboot/root acceptance, disable remaining visible
+Google and Samsung consumer apps that are not needed by the dedicated router.
+Keep Play Store, Messages, Google Play services, Google Services Framework,
+Android System WebView, SDK Sandbox, and Camera enabled.
+
+```sh
+adb shell su -c 'pm disable-user --user 0 com.google.android.gm'
+adb shell su -c 'pm disable-user --user 0 com.google.android.apps.maps'
+adb shell su -c 'pm disable-user --user 0 com.android.chrome'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.arzone'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.aremojieditor'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.aremoji'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.ardrawing'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.app.fm'
+```
+
+- `com.google.android.gm`: Gmail.
+- `com.google.android.apps.maps`: Google Maps.
+- `com.android.chrome`: Chrome browser app. Do not disable
+  `com.google.android.webview`; WebView is required by app/browser flows.
+- `com.samsung.android.arzone`, `aremojieditor`, `aremoji`, and `ardrawing`:
+  Samsung AR Zone / AR Emoji consumer features.
+- `com.sec.android.app.fm`: Samsung FM Radio.
+
+Do not confuse these with similarly named system components:
+
+- `com.google.android.gms` and `com.google.android.gms.location.history` are
+  Google Play services components, not Gmail.
+- `com.samsung.android.fmm` is Find My Mobile, not FM Radio.
+- `com.sec.android.app.chromecustomizations` is a Chrome customization package;
+  leave it enabled unless separately tested.
+
+On the A52 router rig, phase 2J passed reboot acceptance. After reboot:
+`sys.boot_completed=1`, `persist.sys.emergency_reset=0`, `su -c id` returned
+root, `com.google.android.sdksandbox` remained enabled, no `SafeModeReason` was
+reported by `dumpsys window extension`, Play Store / Messages / GMS / GSF /
+WebView / SDK Sandbox / Camera remained enabled, the phase 2J packages were not
+enabled, and the enabled package count was `369`.
+
 ## Acceptance
 
 After install, reboot the router and verify:
