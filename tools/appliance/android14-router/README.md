@@ -642,6 +642,52 @@ connected to the commissioning network (`VIRUS guest`) with DHCP address
 `192.168.101.79`, supplicant state `COMPLETED`, and `isUsable=true`. The
 enabled package count was `356`.
 
+## Phase 2M Debloat - Personal Apps and Wearables
+
+After phase 2L survives reboot/root/Wi-Fi acceptance, disable remaining
+personal productivity, wearable, health, utility, and consumer campaign apps
+that are not part of the dedicated router flow:
+
+```sh
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.contacts'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.widgetapp.easymodecontactswidget'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.app.shealth'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.notes'
+adb shell su -c 'pm disable-user --user 0 com.android.role.notes.enabled'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.watchmanager'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.watchmanagerstub'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.voc'
+adb shell su -c 'pm disable-user --user 0 com.samsung.sree'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.app.popupcalculator'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.app.voicenote'
+adb shell su -c 'pm disable-user --user 0 com.microsoft.skydrive'
+```
+
+- `com.samsung.android.app.contacts`: Samsung Contacts app UI. Do not disable
+  `com.samsung.android.providers.contacts` in this phase; that is a system
+  provider and should only be touched after a separate test.
+- `com.sec.android.widgetapp.easymodecontactswidget`: Samsung Easy Mode
+  contacts widget.
+- `com.sec.android.app.shealth`: Samsung Health.
+- `com.samsung.android.app.notes` and `com.android.role.notes.enabled`:
+  Samsung Notes and notes role helper.
+- `com.samsung.android.app.watchmanager` and
+  `com.samsung.android.app.watchmanagerstub`: Samsung Wearable / Watch Manager.
+- `com.samsung.android.voc`: Samsung Members / support community app.
+- `com.samsung.sree`: Samsung Global Goals.
+- `com.sec.android.app.popupcalculator`: Samsung Calculator.
+- `com.sec.android.app.voicenote`: Samsung Voice Recorder.
+- `com.microsoft.skydrive`: Microsoft OneDrive. This may already be disabled
+  by phase 2I; keep it listed here because it is the observed Drive package on
+  the A52 image.
+
+On the A52 router rig, phase 2M passed reboot acceptance. After reboot:
+`sys.boot_completed=1`, `persist.sys.emergency_reset=0`, `su -c id` returned
+root, all phase 2M packages were disabled, no `SafeModeReason` was reported,
+and Wi-Fi remained enabled and connected to the commissioning network
+(`VIRUS guest`) with DHCP address `192.168.101.79`, supplicant state
+`COMPLETED`, and `isUsable=true`. The enabled package count was `345`.
+
 ## Acceptance
 
 After install, reboot the router and verify:
