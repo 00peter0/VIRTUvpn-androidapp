@@ -89,6 +89,90 @@ back faster after reboot:
 - If provider ownership is unknown or ambiguous, VirtuVPN records nothing and
   the router still remains fail-closed.
 
+## Router-Critical Packages To Keep Enabled
+
+Before proposing or applying any later debloat phase, filter out packages that
+belong to SIM, mobile data, IMS, hotspot, tethering, Wi-Fi, network stack, VPN
+dialogs, package install/update, or WebView flows. These packages are part of
+the router appliance baseline and must stay enabled unless a separate,
+device-specific test proves otherwise.
+
+SIM, mobile data, telephony, IMS, and carrier stack:
+
+- `com.android.phone`
+- `com.sec.phone`
+- `com.android.server.telecom`
+- `com.android.providers.telephony`
+- `com.android.mms.service`
+- `com.android.carrierconfig`
+- `com.android.carrierdefaultapp`
+- `com.android.ons`
+- `com.android.simappdialog`
+- `com.android.stk`
+- `com.android.stk2`
+- `com.samsung.android.app.telephonyui`
+- `com.samsung.android.app.telephonyui.esimclient`
+- `com.samsung.advp.imssettings`
+- `com.sec.imsservice`
+- `com.samsung.ims.smk`
+- `com.sec.epdg`
+- `com.sec.unifiedwfc`
+- `com.sec.modem.settings`
+- `com.sec.vsim.ericssonnsds.webapp`
+- `com.sec.app.RilErrorNotifier`
+- `com.sec.android.RilServiceModeApp`
+
+Hotspot, tethering, Wi-Fi, captive portal, and network stack:
+
+- `com.google.android.networkstack`
+- `com.google.android.networkstack.tethering`
+- `com.google.android.networkstack.tethering.overlay`
+- `com.samsung.android.networkstack`
+- `com.samsung.android.networkstack.tethering.overlay`
+- `com.android.wifi.dialog`
+- `com.android.wifi.resources`
+- `com.samsung.android.wifi.resources`
+- `com.samsung.android.wifi.softap.resources`
+- `com.samsung.android.wifi.softapqc.resources`
+- `com.samsung.android.wifi.softapwpathree.resources`
+- `com.samsung.android.wifi.p2paware.resources`
+- `com.samsung.android.wifi.ai`
+- `com.samsung.android.net.wifi.wifiguider`
+- `com.samsung.android.wcmurlsnetworkstack`
+- `com.samsung.android.ConnectivityOverlay`
+- `com.samsung.android.ConnectivityUxOverlay`
+- `com.google.android.connectivity.resources`
+- `com.google.android.captiveportallogin`
+- `com.android.hotspot2.osulogin`
+- `com.sec.mhs.smarttethering`
+- `com.sec.android.app.wlantest`
+
+Router app support, install/update, WebView, VPN dialogs, and operational apps
+to keep when installed:
+
+- `com.virtuvpn.android`
+- `com.topjohnwu.magisk`
+- `com.nordvpn.android`
+- `com.surfshark.vpnclient.android`
+- `com.android.vpndialogs`
+- `com.google.android.webview`
+- `com.google.android.packageinstaller`
+- `com.google.android.permissioncontroller`
+- `com.android.providers.downloads`
+- `com.android.providers.downloads.ui`
+- `com.google.android.documentsui`
+- `com.android.externalstorage`
+- `com.android.vending`
+- `com.sec.android.app.camera`
+- `com.google.android.apps.messaging`
+
+Known protected/kept Samsung components:
+
+- `com.samsung.klmsagent`: Knox License Management Service Agent. It is not
+  used by the router flow, but Samsung protects it on the A52 Android 14 build
+  and `pm disable-user` fails. Keep it enabled unless a separate image-level
+  hardening path is tested.
+
 ## Phase 1 Debloat
 
 For a dedicated router, remove consumer apps that have no router function and
