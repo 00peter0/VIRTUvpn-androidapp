@@ -9,14 +9,49 @@
                 android:color="#2ED8E8" />
         </shape>
     </item>
+
+    <item
+        android:left="18dp"
+        android:top="18dp"
+        android:bottom="18dp"
+        android:width="96dp"
+        android:height="96dp"
+        android:gravity="start|top">
+        <bitmap
+            android:gravity="fill"
+            android:src="@mipmap/ic_launcher_foreground" />
+    </item>
+
+    <item
+        android:left="128dp"
+        android:right="18dp"
+        android:top="26dp"
+        android:bottom="82dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="8dp" />
+            <solid android:color="#17394A" />
+        </shape>
+    </item>
+
+    <item
+        android:left="128dp"
+        android:right="82dp"
+        android:top="64dp"
+        android:bottom="56dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="6dp" />
+            <solid android:color="#29546A" />
+        </shape>
+    </item>
+
     <item
         android:left="18dp"
         android:right="18dp"
-        android:top="18dp"
+        android:top="126dp"
         android:bottom="18dp">
         <shape android:shape="rectangle">
             <corners android:radius="12dp" />
-            <solid android:color="#102333" />
+            <solid android:color="#0F2D3C" />
             <stroke
                 android:width="1dp"
                 android:color="#234A5C" />
