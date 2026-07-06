@@ -18,9 +18,7 @@
             android:id="@+id/widget_router_mark"
             android:layout_width="92dp"
             android:layout_height="92dp"
-            android:background="@drawable/vpn_router_logo_circle_background"
             android:contentDescription="@string/vcs_widget_vpn_router_title"
-            android:padding="4dp"
             android:scaleType="fitCenter"
             android:src="@drawable/widget_vpn_router_mark" />
 
