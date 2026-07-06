@@ -374,10 +374,10 @@ Store, Camera/QR, Messages, Wi-Fi Guider, Samsung Settings Helper, Samsung SDM
 config, and KMX remained enabled. Enabled third-party apps remained limited to
 VirtuVPN, Surfshark, NordVPN, and Magisk.
 
-## Phase 2H Failed Experiment - Google SDK Sandbox Is Boot-Critical
+## Phase 2H Google Debloat - Keep SDK Sandbox Enabled
 
-Do not treat the last Google package-disable attempt as accepted. After
-disabling the Google non-router package set, the A52 router entered Android
+Do not disable `com.google.android.sdksandbox`. The first Google
+package-disable attempt included SDK Sandbox and the A52 router entered Android
 Recovery / RescueParty instead of completing a normal boot. The recovery screen
 reported that the phone could not start normally and offered only `Try again`,
 `Erase app data`, `Power off`, and `View rescue log`.
@@ -411,10 +411,50 @@ router from the documented commissioning flow before using it again.
 Rules for future Google debloat work:
 
 - Never disable `com.google.android.sdksandbox`.
-- Do not mark the Google debloat batch as accepted.
-- Keep the last known-good accepted state at phase 2G.
-- If testing other Google packages, keep SDK Sandbox enabled and test in small
-  groups with reboot acceptance after each group.
+- Keep SDK Sandbox enabled before reboot acceptance.
+
+With SDK Sandbox kept enabled, the following Google packages were disabled and
+the A52 completed a normal reboot with Magisk root still working:
+
+```sh
+adb shell su -c 'pm disable-user --user 0 com.google.android.federatedcompute'
+adb shell su -c 'pm disable-user --user 0 com.google.android.ondevicepersonalization.services'
+adb shell su -c 'pm disable-user --user 0 com.google.mainline.adservices'
+adb shell su -c 'pm disable-user --user 0 com.google.mainline.telemetry'
+adb shell su -c 'pm disable-user --user 0 com.google.android.feedback'
+adb shell su -c 'pm disable-user --user 0 com.google.android.apps.restore'
+adb shell su -c 'pm disable-user --user 0 com.google.android.printservice.recommendation'
+adb shell su -c 'pm disable-user --user 0 com.google.android.tts'
+adb shell su -c 'pm disable-user --user 0 com.google.ar.core'
+adb shell su -c 'pm disable-user --user 0 com.google.audio.hearing.visualization.accessibility.scribe'
+adb shell su -c 'pm disable-user --user 0 com.google.android.healthconnect.controller'
+adb shell su -c 'pm disable-user --user 0 com.google.android.health.connect.backuprestore'
+adb shell su -c 'pm disable-user --user 0 com.google.android.partnersetup'
+adb shell su -c 'pm disable-user --user 0 com.google.android.onetimeinitializer'
+adb shell su -c 'pm disable-user --user 0 com.google.android.setupwizard'
+```
+
+Do not disable these Google packages:
+
+- `com.google.android.sdksandbox`: boot-critical SDK Sandbox package.
+- `com.android.vending`: Play Store, kept for VPN provider update fallback.
+- `com.google.android.apps.messaging`: Messages / SMS / RCS, kept for SIM,
+  OTP, and operator messages.
+- `com.google.android.gms` and `com.google.android.gsf`: Google core services.
+- `com.google.android.webview`: required for WebView-based app/browser flows.
+- `com.google.android.configupdater`, `com.google.android.networkstack`,
+  `com.google.android.networkstack.tethering`,
+  `com.google.android.captiveportallogin`,
+  `com.google.android.permissioncontroller`, and
+  `com.google.android.packageinstaller`: kept for system networking,
+  permissions, install/update, and captive-portal flows.
+
+The Google-without-SDK-Sandbox test passed boot/package acceptance: after reboot
+`sys.boot_completed=1`, `su -c id` returned root, SDK Sandbox remained enabled,
+and the listed Google packages remained disabled. Because RescueParty reset the
+router appliance app state before this retest, full router acceptance for phase
+2H must be repeated after VirtuVPN, VPN providers, and router configuration are
+reinstalled.
 
 ## Acceptance
 
