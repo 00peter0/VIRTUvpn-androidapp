@@ -270,6 +270,7 @@
     <string name="vcs_secure_browser_egress_checking">Checking protected route...</string>
     <string name="vcs_secure_browser_egress_checking_short">VPN Checking</string>
     <string name="vcs_secure_browser_egress_protected_short">VPN Protected</string>
+    <string name="vcs_secure_browser_egress_router_protected_short">Protected by Router</string>
     <string name="vcs_secure_browser_egress_required_short">VPN Required</string>
     <string name="vcs_secure_browser_sessions_keep_on">Sessions On</string>
     <string name="vcs_secure_browser_sessions_keep_off">Sessions Off</string>

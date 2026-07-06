@@ -1853,13 +1853,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         currentProtectionLabel = protection.label
         currentEgressSummary = null
         egressLookupJob?.cancel()
-        egressStatusButton.text = getString(
-            if (protection.allowed) {
-                R.string.vcs_secure_browser_egress_protected_short
-            } else {
-                R.string.vcs_secure_browser_egress_required_short
-            }
-        )
+        egressStatusButton.text = getString(protection.shortStatusStringRes())
         egressStatusButton.contentDescription = protection.label
         egressStatusButton.setTextColor(getColor(if (protection.allowed) android.R.color.holo_green_light else android.R.color.holo_red_light))
         if (protection.allowed) {
@@ -1918,6 +1912,16 @@ class SecureBrowserActivity : AppCompatActivity() {
             }
         }
         updateNavigationButtons()
+    }
+
+    private fun BrowserProtection.shortStatusStringRes(): Int {
+        if (!allowed) return R.string.vcs_secure_browser_egress_required_short
+        return when (source) {
+            ProtectionSource.VPN -> R.string.vcs_secure_browser_egress_protected_short
+            ProtectionSource.LOCAL_ROUTER,
+            ProtectionSource.ATTESTED_ROUTER -> R.string.vcs_secure_browser_egress_router_protected_short
+            ProtectionSource.NONE -> R.string.vcs_secure_browser_egress_required_short
+        }
     }
 
     private fun showEgressStatusDialog() {
