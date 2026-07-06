@@ -408,6 +408,34 @@ VirtuVPN, NordVPN, and Surfshark were no longer installed/visible, router secure
 settings were `null`, and router rules were no longer active. Rebuild the
 router from the documented commissioning flow before using it again.
 
+Samsung may keep showing a large `Safe mode` watermark after RescueParty even
+when Android is otherwise booted normally. Do not rely only on
+`persist.sys.safemode` / `ro.boot.safe_mode`: on the A52 this watermark was
+caused by Samsung WindowManager state:
+
+```text
+SafeModeReason={ persist.sys.emergency_reset[1] }
+```
+
+The recovery fix is to clear the Samsung emergency-reset property and reboot:
+
+```sh
+adb shell su -c 'setprop persist.sys.emergency_reset 0'
+adb reboot
+```
+
+Acceptance for this fix:
+
+```sh
+adb shell getprop persist.sys.emergency_reset
+adb shell dumpsys window extension | grep -i SafeModeReason
+adb shell su -c id
+```
+
+Expected result: `persist.sys.emergency_reset` is `0`, `SafeModeReason` is not
+reported, the `Safe mode` watermark is gone from the launcher screenshot, and
+Magisk root still works.
+
 Rules for future Google debloat work:
 
 - Never disable `com.google.android.sdksandbox`.
