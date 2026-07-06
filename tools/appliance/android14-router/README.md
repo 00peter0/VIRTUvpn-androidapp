@@ -207,6 +207,15 @@ Known protected Samsung components to keep enabled:
   standalone `pm disable-user --user 0` test disabled them before reboot, but
   every package returned enabled after reboot. Keep them enabled in the normal
   commissioning flow; deeper removal belongs to an image-level Knox experiment.
+- Samsung nearby/media/multi-device packages that also re-enable after reboot
+  on the A52 Android 14 build: `com.samsung.android.allshare.service.mediashare`,
+  `com.samsung.android.aware.service`, `com.samsung.android.mdecservice`,
+  `com.samsung.android.mdx.kit`, `com.samsung.android.mdx.quickboard`,
+  `com.samsung.android.service.peoplestripe`, and
+  `com.samsung.android.service.stplatform`. They are not router-critical by
+  function, but `pm disable-user --user 0` does not persist across reboot on
+  this build. Keep them enabled in the standard commissioning flow unless a
+  stronger image-level masking path is tested separately.
 
 ## Phase 1 Debloat
 
@@ -1075,6 +1084,30 @@ seven returned enabled. The router remained healthy: `sys.boot_completed=1`,
 usable on the commissioning network, Sunrise LTE voice/data registration
 remained `IN_SERVICE`, and mobile data remained connected. The enabled package
 count stayed `279`. Do not keep retrying this as a standard debloat phase.
+
+### Phase 2S Attempt - Samsung Nearby, Media Sharing, and Multi-Device Helpers
+
+This phase was tested because these packages are consumer nearby/media/
+multi-device helpers rather than SIM, hotspot, Wi-Fi, NetworkStack, WebView, or
+router-app components:
+
+```sh
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.allshare.service.mediashare'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.aware.service'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.mdecservice'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.mdx.kit'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.mdx.quickboard'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.service.peoplestripe'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.service.stplatform'
+```
+
+All seven packages reported `disabled-user` before reboot. After reboot, all
+seven returned enabled. The router remained healthy: `sys.boot_completed=1`,
+`persist.sys.emergency_reset=0`, root was available, Wi-Fi stayed connected and
+usable on the commissioning network, Sunrise LTE voice/data registration
+remained `IN_SERVICE`, and mobile data remained connected. The enabled package
+count stayed `279`. Do not include these packages in the normal
+PackageManager-only debloat flow.
 
 ## Acceptance
 
