@@ -137,6 +137,15 @@ masking it with another badge layer. This keeps the widget visually consistent
 with the launcher icon while avoiding the raw-square look that Samsung Launcher
 makes very visible in compact widget previews.
 
+Widget action controls must use state-list drawables with a visible pressed
+state. The primary action uses `@drawable/secured_browser_widget_button`, which
+delegates to the raised 3D primary button layers. Secondary actions use
+`@drawable/widget_button_secondary`. Do not reuse these drawables for passive
+status pills, tunnel badges, counters, warnings, or search fields; those should
+keep `@drawable/secure_browser_url_bar_background` so users can tell which
+parts of the widget are interactive. This is especially important on Samsung
+Launcher, where home-screen widgets otherwise provide weak touch feedback.
+
 ## Release Checklist
 
 Use this checklist whenever widget code, widget XML, layout, preview, strings,
