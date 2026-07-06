@@ -120,6 +120,15 @@ For the current router widget artwork, the source asset came from
 the cropped standalone router mark in
 `ui/src/main/res/drawable-nodpi/widget_vpn_router_mark.png`.
 
+The live VPN Router widget must render the router mark directly on the widget
+card, without an extra circular badge behind it and without a visible square
+bitmap background. The PNG should keep only the illuminated router mark on
+transparent alpha. If the source logo contains a generated dark card or square
+backdrop, remove/key out that backdrop in the committed widget asset instead of
+masking it with another badge layer. This keeps the widget visually consistent
+with the launcher icon while avoiding the raw-square look that Samsung Launcher
+makes very visible in compact widget previews.
+
 ## Release Checklist
 
 Use this checklist whenever widget code, widget XML, layout, preview, strings,
@@ -141,4 +150,3 @@ or artwork changes:
    that the visible status catches up after the service finishes.
 7. Verify that the Secured Browser widget opens `SecureBrowserActivity` and that
    browser protection still gates the first navigation.
-
