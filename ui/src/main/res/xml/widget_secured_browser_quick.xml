@@ -4,6 +4,7 @@
     android:initialLayout="@layout/widget_secured_browser_quick"
     android:minWidth="320dp"
     android:minHeight="72dp"
+    android:previewLayout="@layout/widget_secured_browser_quick"
     android:previewImage="@drawable/shortcut_secured_browser"
     android:resizeMode="horizontal"
     android:targetCellWidth="4"

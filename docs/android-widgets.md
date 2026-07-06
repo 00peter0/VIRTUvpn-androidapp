@@ -87,6 +87,7 @@ Files:
 Provider configuration:
 
 - `@layout/widget_secured_browser_quick` is the live `initialLayout`.
+- `@layout/widget_secured_browser_quick` is `android:previewLayout`.
 - `@drawable/shortcut_secured_browser` is the fallback `android:previewImage`.
 - target size is `4x1`.
 
