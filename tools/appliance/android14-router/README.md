@@ -112,6 +112,7 @@ SIM, mobile data, telephony, IMS, and carrier stack:
 - `com.android.stk2`
 - `com.samsung.android.app.telephonyui`
 - `com.samsung.android.app.telephonyui.esimclient`
+- `com.samsung.android.incallui`
 - `com.samsung.advp.imssettings`
 - `com.sec.imsservice`
 - `com.samsung.ims.smk`
@@ -181,6 +182,13 @@ Known protected Samsung components to keep enabled:
   disable with `SecurityException: Cannot disable a protected package`. Keep it
   enabled in the normal commissioning flow. Treat removal or masking as a
   separate image-level experiment only, never as a standard debloat phase.
+- `com.samsung.android.themecenter`: Samsung Theme Center. Android rejects
+  reversible disable with `SecurityException: Cannot disable a protected
+  package`.
+- `com.samsung.android.themestore`: Samsung Theme Store. `pm disable-user`
+  initially reports success on the A52, but the package returns enabled after
+  reboot. Keep it enabled in the standard flow unless a separate image-level
+  hardening path is tested.
 
 ## Phase 1 Debloat
 
@@ -874,29 +882,41 @@ The following packages remained enabled after phase 2O and are candidates for
 later reversible `pm disable-user --user 0` phases. Do not disable them in one
 large batch. Apply one phase, reboot, and run acceptance before continuing.
 
-### Planned Phase 2P - Remaining Samsung Consumer, Media, and Input Helpers
+## Phase 2P Debloat - Remaining Samsung Consumer, Media, and Input Helpers
 
-Apply only after phase 2O passes reboot acceptance:
+After phase 2O survives reboot acceptance, disable remaining Samsung consumer,
+media, and input-helper packages that are not part of the router flow:
 
-```text
-com.samsung.android.app.dofviewer
-com.samsung.android.app.dressroom
-com.samsung.android.cameraxservice
-com.samsung.android.intellivoiceservice
-com.samsung.android.sdk.handwriting
-com.samsung.android.sdk.ocr
-com.samsung.android.singletake.service
-com.samsung.android.smartface
-com.samsung.android.smartface.overlay
-com.samsung.android.sume.nn.service
-com.samsung.android.svoiceime
-com.samsung.android.themecenter
-com.samsung.android.themestore
-com.samsung.android.video
-com.samsung.android.visualars
-com.samsung.android.vtcamerasettings
-com.samsung.faceservice
+```sh
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.dofviewer'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.dressroom'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.cameraxservice'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.intellivoiceservice'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.sdk.handwriting'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.sdk.ocr'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.singletake.service'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.smartface'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.smartface.overlay'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.sume.nn.service'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.svoiceime'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.video'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.visualars'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.vtcamerasettings'
+adb shell su -c 'pm disable-user --user 0 com.samsung.faceservice'
 ```
+
+Do not include Theme Center or Theme Store in this phase. Theme Center is a
+protected package and Theme Store re-enabled itself after reboot on the A52.
+
+On the A52 router rig, phase 2P passed reboot acceptance. After reboot:
+`sys.boot_completed=1`, `persist.sys.emergency_reset=0`, `su -c id` returned
+root, all phase 2P packages above were disabled, no `SafeModeReason` was
+reported, and Wi-Fi remained enabled and connected to the commissioning network
+(`VIRUS guest`) with DHCP address `192.168.101.79`, supplicant state
+`COMPLETED`, and `isUsable=true`. The enabled package count was `294`.
+Post-reboot sockets were limited to expected kept components such as Samsung
+IMS/InCallUI, Google Play services, Play Store, Messages, DNS via `netd`, and
+DHCP via NetworkStack.
 
 ### Planned Phase 2Q - Factory, Diagnostics, Test, and Developer Helpers
 
