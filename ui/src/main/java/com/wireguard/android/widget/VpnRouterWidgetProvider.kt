@@ -110,10 +110,14 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
                 runCatching { VpnRouterManager.getStatus(context.applicationContext) }.getOrNull()
             }
         }
-        val protected = status?.securityProtected == true
+        val fallback = if (status == null) readKernelRouterSnapshot() else null
+        val protected = status?.securityProtected == true || fallback?.protected == true
         val degraded = status?.availability == VpnRouterManager.Availability.DEGRADED
-        val tunnelOnline = if (protected && !degraded) status.activeTunnel != null else false
+        val activeTunnel = status?.activeTunnel ?: fallback?.activeTunnel
+        val tetherInterfaces = status?.tetherInterfaces ?: fallback?.tetherInterfaces.orEmpty()
+        val tunnelOnline = if (protected && !degraded) activeTunnel != null else false
         val statusText = when {
+            status == null && protected -> context.getString(R.string.vcs_widget_vpn_router_protected)
             status == null -> context.getString(R.string.vcs_widget_vpn_router_open_to_check)
             protected -> context.getString(R.string.vcs_widget_vpn_router_protected)
             status.availability == VpnRouterManager.Availability.WAITING_FOR_TUNNEL -> context.getString(R.string.vcs_widget_vpn_router_waiting_tunnel)
@@ -122,8 +126,8 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
             else -> context.getString(R.string.vcs_widget_vpn_router_disabled)
         }
         val detailText = when {
-            status?.securityProtected == true && status.activeTunnel != null ->
-                context.getString(R.string.vcs_widget_vpn_router_tunnel, status.activeTunnel)
+            protected && activeTunnel != null ->
+                context.getString(R.string.vcs_widget_vpn_router_tunnel, activeTunnel)
             status?.detail != null -> status.detail
             else -> context.getString(R.string.vcs_widget_vpn_router_tap_detail)
         }
@@ -134,11 +138,11 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
             else -> context.getString(R.string.vcs_widget_vpn_router_check)
         }
         val dnsText = context.getString(R.string.vcs_widget_vpn_router_dns, dnsLabel(context))
-        val clientCount = hotspotClientCount(status?.tetherInterfaces.orEmpty())
+        val clientCount = hotspotClientCount(tetherInterfaces)
         val clientCountText = clientCount?.let {
             context.getString(R.string.vcs_widget_vpn_router_clients_count, it)
         } ?: context.getString(R.string.vcs_widget_vpn_router_clients_unknown)
-        val clientsText = status?.tetherInterfaces?.takeIf { it.isNotEmpty() }?.joinToString(", ") {
+        val clientsText = tetherInterfaces.takeIf { it.isNotEmpty() }?.joinToString(", ") {
             context.getString(R.string.vcs_widget_vpn_router_hotspot_iface, it)
         } ?: context.getString(R.string.vcs_widget_vpn_router_hotspot_off)
         val checkedText = context.getString(
@@ -290,6 +294,41 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
     private fun isClientMac(value: String): Boolean =
         value != "00:00:00:00:00:00" && MAC_ADDRESS.matches(value)
 
+    private fun readKernelRouterSnapshot(): KernelRouterSnapshot? {
+        val output = mutableListOf<String>()
+        val exit = runCatching {
+            Application.getRootShell().run(
+                output,
+                "ip rule show 2>/dev/null; echo __VIRTU_ADDR__; ip -4 -o addr show 2>/dev/null"
+            )
+        }.getOrDefault(-1)
+        if (exit != 0) return null
+        val marker = output.indexOf("__VIRTU_ADDR__")
+        if (marker < 0) return null
+        val rules = output.take(marker)
+        val addresses = output.drop(marker + 1)
+        val tetherInterfaces = rules
+            .mapNotNull { RULE_TETHER.find(it)?.groupValues?.getOrNull(1) }
+            .filter { iface -> rules.any { it.contains("iif $iface lookup 1048") } }
+            .distinct()
+        if (tetherInterfaces.isEmpty()) return null
+        val activeTunnel = addresses
+            .mapNotNull { ADDR_IFACE.find(it)?.groupValues?.getOrNull(1) }
+            .firstOrNull { it.startsWith("tun") || it.startsWith("wg") }
+        val protected = activeTunnel != null &&
+            tetherInterfaces.any { iface ->
+                rules.any { it.contains("iif $iface lookup 1047") } &&
+                    rules.any { it.contains("iif $iface lookup 1048") }
+            }
+        return KernelRouterSnapshot(protected, activeTunnel, tetherInterfaces)
+    }
+
+    private data class KernelRouterSnapshot(
+        val protected: Boolean,
+        val activeTunnel: String?,
+        val tetherInterfaces: List<String>
+    )
+
     companion object {
         private const val ACTION_STATUS = "com.virtuvpn.android.widget.VPN_ROUTER_STATUS"
         private const val ACTION_TOGGLE = "com.virtuvpn.android.widget.VPN_ROUTER_TOGGLE"
@@ -305,5 +344,7 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
         private val YELLOW = Color.parseColor("#FBBF24")
         private val RED = Color.parseColor("#F87171")
         private val MAC_ADDRESS = Regex("(?i)^[0-9a-f]{2}(:[0-9a-f]{2}){5}$")
+        private val RULE_TETHER = Regex("\\biif\\s+([^\\s]+)\\s+lookup\\s+1047\\b")
+        private val ADDR_IFACE = Regex("^\\d+:\\s+([^\\s]+)\\s+")
     }
 }

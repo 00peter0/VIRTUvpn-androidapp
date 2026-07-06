@@ -53,9 +53,14 @@ Runtime behavior:
   builds expose neighbor state inconsistently to the app process. The count is
   based on unique client MAC addresses on the current tether interfaces, so IPv4
   ARP and IPv6 neighbor entries for the same device are not double-counted.
-- Status rendering uses `VpnRouterManager.getStatus()` with a short timeout; if
-  status cannot be read, the widget shows `Open to check` instead of blocking
-  launcher rendering.
+- Status rendering uses `VpnRouterManager.getStatus()` with a short timeout. If
+  that app-level status read times out, the widget takes a root shell kernel
+  snapshot of `ip rule` and active tunnel interfaces. When the snapshot shows
+  the router fail-closed invariant (`tether -> table 1047` before
+  `tether -> table 1048`, with an active `tun*`/`wg*` interface), the widget can
+  still show `Protected` and the live client count instead of a stale red
+  fallback. If neither app status nor kernel snapshot is available, it shows
+  `Open to check`.
 - Enabling from the widget records router intent through
   `VpnRouterManager.requestRouterActive()` and starts `VpnRouterService`. The
   foreground service performs heavy rule install/reconcile outside the Android
