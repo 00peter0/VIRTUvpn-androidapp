@@ -17,7 +17,7 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         when (intent.action) {
-            ACTION_REFRESH -> updateAllWidgets(context)
+            ACTION_STATUS -> updateAllWidgets(context)
             ACTION_TOGGLE -> {
                 val pendingResult = goAsync()
                 Thread {
@@ -65,8 +65,8 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
         )
         val refreshIntent = PendingIntent.getBroadcast(
             context,
-            appWidgetId + REQUEST_REFRESH_OFFSET,
-            Intent(context, VpnRouterWidgetProvider::class.java).setAction(ACTION_REFRESH),
+            appWidgetId + REQUEST_STATUS_OFFSET,
+            Intent(context, VpnRouterWidgetProvider::class.java).setAction(ACTION_STATUS),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val toggleIntent = PendingIntent.getBroadcast(
@@ -77,7 +77,7 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
         )
         views.setOnClickPendingIntent(R.id.widget_root, launchIntent)
         views.setOnClickPendingIntent(R.id.widget_router_logo, launchIntent)
-        views.setOnClickPendingIntent(R.id.widget_refresh_button, refreshIntent)
+        views.setOnClickPendingIntent(R.id.widget_status, refreshIntent)
         views.setOnClickPendingIntent(R.id.widget_toggle_button, toggleIntent)
     }
 
@@ -104,7 +104,7 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
         val toggleText = when {
             status?.canDisable == true -> context.getString(R.string.vcs_widget_vpn_router_disable)
             status?.canEnable == true -> context.getString(R.string.vcs_widget_vpn_router_enable)
-            else -> context.getString(R.string.vcs_widget_vpn_router_refresh)
+            else -> context.getString(R.string.vcs_widget_vpn_router_open)
         }
         views.setTextViewText(R.id.widget_status, statusText)
         views.setTextViewText(R.id.widget_detail, detailText)
@@ -112,9 +112,9 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
-        private const val ACTION_REFRESH = "com.virtuvpn.android.widget.VPN_ROUTER_REFRESH"
+        private const val ACTION_STATUS = "com.virtuvpn.android.widget.VPN_ROUTER_STATUS"
         private const val ACTION_TOGGLE = "com.virtuvpn.android.widget.VPN_ROUTER_TOGGLE"
-        private const val REQUEST_REFRESH_OFFSET = 10_000
+        private const val REQUEST_STATUS_OFFSET = 10_000
         private const val REQUEST_TOGGLE_OFFSET = 20_000
     }
 }
