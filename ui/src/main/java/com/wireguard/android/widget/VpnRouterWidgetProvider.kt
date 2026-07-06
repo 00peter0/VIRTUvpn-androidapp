@@ -12,6 +12,10 @@ import com.wireguard.android.R
 import com.wireguard.android.activity.SecureBrowserActivity
 import com.wireguard.android.activity.VpnRouterActivity
 import com.wireguard.android.util.VpnRouterManager
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -105,9 +109,12 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
                 runCatching { VpnRouterManager.getStatus(context.applicationContext) }.getOrNull()
             }
         }
+        val protected = status?.securityProtected == true
+        val degraded = status?.availability == VpnRouterManager.Availability.DEGRADED
+        val tunnelOnline = if (protected && !degraded) status.activeTunnel != null else false
         val statusText = when {
             status == null -> context.getString(R.string.vcs_widget_vpn_router_open_to_check)
-            status.securityProtected -> context.getString(R.string.vcs_widget_vpn_router_enabled)
+            protected -> context.getString(R.string.vcs_widget_vpn_router_protected)
             status.availability == VpnRouterManager.Availability.WAITING_FOR_TUNNEL -> context.getString(R.string.vcs_widget_vpn_router_waiting_tunnel)
             status.availability == VpnRouterManager.Availability.WAITING_FOR_HOTSPOT -> context.getString(R.string.vcs_widget_vpn_router_waiting_hotspot)
             status.availability == VpnRouterManager.Availability.READY -> context.getString(R.string.vcs_widget_vpn_router_ready)
@@ -126,26 +133,61 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
             else -> context.getString(R.string.vcs_widget_vpn_router_check)
         }
         val dnsText = context.getString(R.string.vcs_widget_vpn_router_dns, dnsLabel(context))
+        val clientCount = hotspotClientCount(status?.tetherInterfaces.orEmpty())
+        val clientCountText = clientCount?.let {
+            context.getString(R.string.vcs_widget_vpn_router_clients_count, it)
+        } ?: context.getString(R.string.vcs_widget_vpn_router_clients_unknown)
         val clientsText = status?.tetherInterfaces?.takeIf { it.isNotEmpty() }?.joinToString(", ") {
             context.getString(R.string.vcs_widget_vpn_router_hotspot_iface, it)
         } ?: context.getString(R.string.vcs_widget_vpn_router_hotspot_off)
+        val checkedText = context.getString(
+            R.string.vcs_widget_vpn_router_checked,
+            SimpleDateFormat("HH:mm", Locale.US).format(Date())
+        )
+        val tunnelBadgeText = when {
+            tunnelOnline -> context.getString(R.string.vcs_widget_vpn_router_tunnel_online)
+            protected && degraded -> context.getString(R.string.vcs_widget_vpn_router_tunnel_offline)
+            status?.availability == VpnRouterManager.Availability.WAITING_FOR_TUNNEL -> context.getString(R.string.vcs_widget_vpn_router_waiting_tunnel)
+            else -> context.getString(R.string.vcs_widget_vpn_router_tunnel_unknown)
+        }
+        val warningText = when {
+            protected && degraded -> context.getString(R.string.vcs_widget_vpn_router_warning_tunnel_offline)
+            protected -> context.getString(R.string.vcs_widget_vpn_router_warning_protected)
+            status?.availability == VpnRouterManager.Availability.WAITING_FOR_TUNNEL -> context.getString(R.string.vcs_widget_vpn_router_warning_waiting_vpn)
+            status?.availability == VpnRouterManager.Availability.WAITING_FOR_HOTSPOT -> context.getString(R.string.vcs_widget_vpn_router_warning_hotspot_off)
+            else -> context.getString(R.string.vcs_widget_vpn_router_warning_default)
+        }
         val statusColor = when {
-            status?.securityProtected == true -> GREEN
+            protected -> GREEN
             status?.availability == VpnRouterManager.Availability.READY -> TEAL
             status?.availability == VpnRouterManager.Availability.WAITING_FOR_TUNNEL -> YELLOW
             status?.availability == VpnRouterManager.Availability.WAITING_FOR_HOTSPOT -> YELLOW
             else -> RED
         }
+        val vpnSegmentColor = when {
+            tunnelOnline -> GREEN
+            protected && degraded -> YELLOW
+            status?.availability == VpnRouterManager.Availability.WAITING_FOR_TUNNEL -> YELLOW
+            protected -> GREEN
+            else -> RED
+        }
+        val protectedSegmentColor = if (protected) GREEN else statusColor
         views.setTextViewText(R.id.widget_status, statusText)
         views.setTextViewText(R.id.widget_detail, detailText)
+        views.setTextViewText(R.id.widget_checked, checkedText)
+        views.setTextViewText(R.id.widget_tunnel_badge, tunnelBadgeText)
+        views.setTextViewText(R.id.widget_clients_count, clientCountText)
         views.setTextViewText(R.id.widget_primary_button, toggleText)
         views.setTextViewText(R.id.widget_dns, dnsText)
         views.setTextViewText(R.id.widget_clients, clientsText)
+        views.setTextViewText(R.id.widget_warning, warningText)
         views.setTextColor(R.id.widget_status, statusColor)
-        views.setTextColor(R.id.widget_path_vpn, statusColor)
-        views.setTextColor(R.id.widget_path_router, statusColor)
-        views.setTextColor(R.id.widget_path_hotspot, statusColor)
-        views.setTextColor(R.id.widget_path_clients, statusColor)
+        views.setTextColor(R.id.widget_tunnel_badge, vpnSegmentColor)
+        views.setTextColor(R.id.widget_path_vpn, vpnSegmentColor)
+        views.setTextColor(R.id.widget_path_router, protectedSegmentColor)
+        views.setTextColor(R.id.widget_path_hotspot, protectedSegmentColor)
+        views.setTextColor(R.id.widget_path_clients, protectedSegmentColor)
+        views.setTextColor(R.id.widget_warning, if (protected && degraded) YELLOW else if (protected) GREEN else statusColor)
         return status
     }
 
@@ -183,6 +225,22 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
             VpnRouterManager.DnsMode.QUAD9 -> context.getString(R.string.vcs_widget_vpn_router_dns_quad9)
             VpnRouterManager.DnsMode.FAMILY -> context.getString(R.string.vcs_widget_vpn_router_dns_family)
         }
+
+    private fun hotspotClientCount(tetherInterfaces: List<String>): Int? {
+        if (tetherInterfaces.isEmpty()) return null
+        return runCatching {
+            val tethers = tetherInterfaces.toSet()
+            File("/proc/net/arp").readLines()
+                .drop(1)
+                .map { it.trim().split(Regex("\\s+")) }
+                .count { columns ->
+                    columns.size >= 6 &&
+                        columns[2] != "0x0" &&
+                        columns[3] != "00:00:00:00:00:00" &&
+                        columns[5] in tethers
+                }
+        }.getOrNull()
+    }
 
     companion object {
         private const val ACTION_STATUS = "com.virtuvpn.android.widget.VPN_ROUTER_STATUS"

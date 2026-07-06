@@ -32,7 +32,7 @@ Provider configuration:
 - `@layout/widget_vpn_router_path` is the live `initialLayout`.
 - `@layout/widget_vpn_router_path` is `android:previewLayout`.
 - `@drawable/widget_vpn_router_preview` is the fallback `android:previewImage`.
-- target size is `4x2`.
+- target size is `4x3`.
 
 Runtime behavior:
 
@@ -41,6 +41,13 @@ Runtime behavior:
 - Router logo and status pill send the status refresh broadcast.
 - `Pair` opens the VPN Router client page in `VpnRouterActivity`.
 - `Browser` opens `SecureBrowserActivity`.
+- The main status is the security invariant (`Protected`, `Ready`,
+  `Start VPN`, `Hotspot off`, or `Disabled`), not a raw internet-speed signal.
+- The tunnel badge is a quality signal. `Tunnel offline` can be shown while the
+  router is still `Protected`; that means clients remain fail-closed and cannot
+  leak to the phone uplink.
+- The widget shows the active tunnel/provider, DNS mode, hotspot interfaces,
+  last checked time, and a best-effort hotspot client count from `/proc/net/arp`.
 - Status rendering uses `VpnRouterManager.getStatus()` with a short timeout; if
   status cannot be read, the widget shows `Open to check` instead of blocking
   launcher rendering.
