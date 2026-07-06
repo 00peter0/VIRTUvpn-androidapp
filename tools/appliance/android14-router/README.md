@@ -970,13 +970,25 @@ voice and data registration were `IN_SERVICE`, data connection state was
 connected, and the operator remained `Sunrise`. The enabled package count was
 `282`.
 
-### Planned Phase 2Q-C - IMS Logger
+## Phase 2Q-C Debloat - IMS Logger
 
 `com.sec.imslogger` is IMS-adjacent and requested telephony/network/log
 permissions such as `READ_PRIVILEGED_PHONE_STATE`, `MODIFY_PHONE_STATE`,
 `CHANGE_NETWORK_STATE`, `READ_LOGS`, and `RECEIVE_BOOT_COMPLETED`. Keep it out
-of 2Q-A and test only as a separate phase, or leave it enabled if SIM/IMS
-stability is more important than reducing diagnostic surface.
+of 2Q-A and test only as a separate phase:
+
+```sh
+adb shell su -c 'pm disable-user --user 0 com.sec.imslogger'
+```
+
+On the A52 router rig, phase 2Q-C passed reboot acceptance. After reboot:
+`sys.boot_completed=1`, `persist.sys.emergency_reset=0`, `su -c id` returned
+root, `com.sec.imslogger` was disabled, no `SafeModeReason` was reported, Wi-Fi
+remained enabled and connected to the commissioning network (`VIRUS guest`)
+with DHCP address `192.168.101.79`, supplicant state `COMPLETED`, and
+`isUsable=true`. Telephony remained registered on Sunrise LTE: voice and data
+registration were `IN_SERVICE`, data connection state was connected, and the
+operator remained `Sunrise`. The enabled package count was `281`.
 
 ### Planned Phase 2R - Knox and Enterprise Optional Components
 
