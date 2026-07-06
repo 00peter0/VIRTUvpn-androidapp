@@ -691,6 +691,50 @@ and Wi-Fi remained enabled and connected to the commissioning network
 phase and passed a second reboot acceptance with root, emergency reset, and
 Wi-Fi still healthy. The enabled package count after Google Drive was `344`.
 
+## Phase 2N Debloat - Bixby, Vision, Kids, Secure Folder, and Media Editors
+
+After phase 2M survives reboot/root/Wi-Fi acceptance, disable remaining
+assistant, vision, child mode, secure-folder, wallet, story, and media-editing
+packages that are not part of the dedicated router flow:
+
+```sh
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.bixby.agent'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.bixby.wakeup'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.settings.bixby'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.bixbyvision.framework'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.visionintelligence'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.aircommandmanager'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.kidsinstaller'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.parentalcare'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.coldwalletservice'
+adb shell su -c 'pm disable-user --user 0 com.samsung.knox.securefolder'
+adb shell su -c 'pm disable-user --user 0 com.samsung.storyservice'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.photoremasterservice'
+adb shell su -c 'pm disable-user --user 0 com.samsung.app.newtrim'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.mimage.avatarstickers'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.mimage.photoretouching'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.camera.sticker.facearavatar.preload'
+```
+
+- Bixby agent, wakeup, Settings integration, Bixby Vision, and Samsung Vision
+  Intelligence are assistant/vision features with no router role.
+- Air Command, Kids Installer, Parental Care, Samsung cold wallet, Secure
+  Folder, and Samsung Story Service are consumer or account-bound features not
+  used by the appliance.
+- Photo Remaster, Video Trimmer, avatar stickers, photo retouching, and camera
+  sticker preload are media-editing packages. Keep the Camera app itself
+  enabled for QR workflows unless separately tested.
+
+On the A52 router rig, phase 2N passed reboot acceptance. After reboot:
+`sys.boot_completed=1`, `persist.sys.emergency_reset=0`, `su -c id` returned
+root, all phase 2N packages were disabled, no `SafeModeReason` was reported,
+and Wi-Fi remained enabled and connected to the commissioning network
+(`VIRUS guest`) with DHCP address `192.168.101.79`, supplicant state
+`COMPLETED`, and `isUsable=true`. The enabled package count was `328`.
+Post-reboot sockets were limited to expected kept components such as Samsung
+IMS, Google Play services, Play Store, Messages, DNS via `netd`, and DHCP via
+NetworkStack.
+
 ## Acceptance
 
 After install, reboot the router and verify:
