@@ -374,7 +374,7 @@ Store, Camera/QR, Messages, Wi-Fi Guider, Samsung Settings Helper, Samsung SDM
 config, and KMX remained enabled. Enabled third-party apps remained limited to
 VirtuVPN, Surfshark, NordVPN, and Magisk.
 
-## Phase 2H Investigation - Google Package Disable Crash
+## Phase 2H Failed Experiment - Google SDK Sandbox Is Boot-Critical
 
 Do not treat the last Google package-disable attempt as accepted. After
 disabling the Google non-router package set, the A52 router entered Android
@@ -382,19 +382,39 @@ Recovery / RescueParty instead of completing a normal boot. The recovery screen
 reported that the phone could not start normally and offered only `Try again`,
 `Erase app data`, `Power off`, and `View rescue log`.
 
-The likely suspect is `com.google.android.sdksandbox`, because the captured
-crash text referenced Android `PackageManagerService` and an SDK sandbox package
-constraint. This is not yet confirmed. The failure must be investigated from
-rescue logs and by controlled re-enable/disable testing before any Google
-package from that batch is added to the accepted debloat phases.
+The rescue log confirmed the boot-critical failure:
 
-Until the root cause is confirmed:
+```text
+FATAL EXCEPTION IN SYSTEM PROCESS: main
+java.lang.RuntimeException: There should exactly one sdk sandbox package; found 0; matches=[]
+at com.android.server.pm.PackageManagerService.getRequiredSdkSandboxPackageName(...)
+```
 
-- Do not disable `com.google.android.sdksandbox` on production routers.
+This confirms that `com.google.android.sdksandbox` is boot-critical on the A52
+Android 14 build. Disabling it can prevent `system_server` from starting during
+normal boot. Safe mode may still boot with the package disabled, but normal boot
+must have exactly one enabled SDK sandbox package.
+
+The device was recovered without flashing by entering Safe mode, authorizing
+ADB, and running:
+
+```sh
+adb shell pm enable --user 0 com.google.android.sdksandbox
+```
+
+`Erase app data` / RescueParty recovery allowed the phone to boot and Magisk
+root was still present afterward, but it reset the router appliance state:
+VirtuVPN, NordVPN, and Surfshark were no longer installed/visible, router secure
+settings were `null`, and router rules were no longer active. Rebuild the
+router from the documented commissioning flow before using it again.
+
+Rules for future Google debloat work:
+
+- Never disable `com.google.android.sdksandbox`.
 - Do not mark the Google debloat batch as accepted.
 - Keep the last known-good accepted state at phase 2G.
-- If the device is recovered by `Erase app data`, rebuild router state from the
-  documented commissioning flow and retest from phase 2G forward.
+- If testing other Google packages, keep SDK Sandbox enabled and test in small
+  groups with reboot acceptance after each group.
 
 ## Acceptance
 
