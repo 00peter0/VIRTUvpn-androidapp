@@ -23,6 +23,7 @@ class SecuredBrowserWidgetProvider : AppWidgetProvider() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             views.setOnClickPendingIntent(R.id.widget_root, launchIntent)
+            views.setOnClickPendingIntent(R.id.widget_search_box, launchIntent)
             views.setOnClickPendingIntent(R.id.widget_button, launchIntent)
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }

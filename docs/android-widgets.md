@@ -101,7 +101,8 @@ Provider configuration:
 
 Runtime behavior:
 
-- Root card and `+` button both open `SecureBrowserActivity`.
+- Root card, inline search pill, and search action button all open
+  `SecureBrowserActivity`.
 - The widget does not decide whether browsing is protected. The browser remains
   fail-closed and performs its own VPN/router attestation checks after launch.
 
@@ -109,8 +110,12 @@ Implementation rules:
 
 1. Keep the widget as a launcher entry, not as a bypass around browser
    protection.
-2. If future browser widgets add URL/search input, route the request through
-   `SecureBrowserActivity` so the existing browser gate still owns navigation.
+2. Keep the widget visually close to a full-width search engine field: no
+   separate logo block, one inline search field, and one inline action button on
+   the right.
+3. If future browser widgets add real URL/search input, route the request
+   through `SecureBrowserActivity` so the existing browser gate still owns
+   navigation.
 
 ## Launcher Preview And Branding Rules
 
