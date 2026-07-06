@@ -5,8 +5,10 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.widget.RemoteViews
 import com.wireguard.android.R
+import com.wireguard.android.activity.SecureBrowserActivity
 import com.wireguard.android.activity.VpnRouterActivity
 import com.wireguard.android.util.VpnRouterManager
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +20,13 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
         super.onReceive(context, intent)
         when (intent.action) {
             ACTION_STATUS -> updateAllWidgets(context)
+            ACTION_BROWSER -> {
+                context.startActivity(
+                    Intent(context, SecureBrowserActivity::class.java)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                )
+            }
+            ACTION_CLIENT_PAGE -> openClientPage(context)
             ACTION_TOGGLE -> {
                 val pendingResult = goAsync()
                 Thread {
@@ -79,6 +88,8 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
         views.setOnClickPendingIntent(R.id.widget_router_logo, launchIntent)
         views.setOnClickPendingIntent(R.id.widget_status, refreshIntent)
         views.setOnClickPendingIntent(R.id.widget_toggle_button, toggleIntent)
+        views.setOnClickPendingIntent(R.id.widget_client_button, clientPageIntent(context, appWidgetId))
+        views.setOnClickPendingIntent(R.id.widget_browser_button, browserIntent(context, appWidgetId))
     }
 
     private fun updateStatus(context: Context, views: RemoteViews) {
@@ -89,11 +100,11 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
         }
         val statusText = when {
             status == null -> context.getString(R.string.vcs_widget_vpn_router_open_to_check)
-            status.securityProtected -> context.getString(R.string.vcs_widget_vpn_router_protected)
+            status.securityProtected -> context.getString(R.string.vcs_widget_vpn_router_enabled)
             status.availability == VpnRouterManager.Availability.WAITING_FOR_TUNNEL -> context.getString(R.string.vcs_widget_vpn_router_waiting_tunnel)
             status.availability == VpnRouterManager.Availability.WAITING_FOR_HOTSPOT -> context.getString(R.string.vcs_widget_vpn_router_waiting_hotspot)
             status.availability == VpnRouterManager.Availability.READY -> context.getString(R.string.vcs_widget_vpn_router_ready)
-            else -> context.getString(R.string.vcs_widget_vpn_router_blocked)
+            else -> context.getString(R.string.vcs_widget_vpn_router_disabled)
         }
         val detailText = when {
             status?.securityProtected == true && status.activeTunnel != null ->
@@ -106,15 +117,72 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
             status?.canEnable == true -> context.getString(R.string.vcs_widget_vpn_router_enable)
             else -> context.getString(R.string.vcs_widget_vpn_router_open)
         }
+        val dnsText = context.getString(R.string.vcs_widget_vpn_router_dns, dnsLabel(context))
+        val clientsText = status?.tetherInterfaces?.takeIf { it.isNotEmpty() }?.joinToString(", ") {
+            context.getString(R.string.vcs_widget_vpn_router_hotspot_iface, it)
+        } ?: context.getString(R.string.vcs_widget_vpn_router_hotspot_off)
+        val statusColor = when {
+            status?.securityProtected == true -> GREEN
+            status?.availability == VpnRouterManager.Availability.READY -> TEAL
+            status?.availability == VpnRouterManager.Availability.WAITING_FOR_TUNNEL -> YELLOW
+            status?.availability == VpnRouterManager.Availability.WAITING_FOR_HOTSPOT -> YELLOW
+            else -> RED
+        }
         views.setTextViewText(R.id.widget_status, statusText)
         views.setTextViewText(R.id.widget_detail, detailText)
         views.setTextViewText(R.id.widget_toggle_button, toggleText)
+        views.setTextViewText(R.id.widget_dns, dnsText)
+        views.setTextViewText(R.id.widget_clients, clientsText)
+        views.setTextColor(R.id.widget_status, statusColor)
+        views.setTextColor(R.id.widget_path_vpn, statusColor)
+        views.setTextColor(R.id.widget_path_router, statusColor)
+        views.setTextColor(R.id.widget_path_hotspot, statusColor)
+        views.setTextColor(R.id.widget_path_clients, statusColor)
     }
+
+    private fun clientPageIntent(context: Context, appWidgetId: Int): PendingIntent =
+        PendingIntent.getBroadcast(
+            context,
+            appWidgetId + REQUEST_CLIENT_OFFSET,
+            Intent(context, VpnRouterWidgetProvider::class.java).setAction(ACTION_CLIENT_PAGE),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+    private fun browserIntent(context: Context, appWidgetId: Int): PendingIntent =
+        PendingIntent.getBroadcast(
+            context,
+            appWidgetId + REQUEST_BROWSER_OFFSET,
+            Intent(context, VpnRouterWidgetProvider::class.java).setAction(ACTION_BROWSER),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+    private fun openClientPage(context: Context) {
+        context.startActivity(
+            Intent(context, VpnRouterActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        )
+    }
+
+    private fun dnsLabel(context: Context): String =
+        when (VpnRouterManager.getDnsMode(context.applicationContext)) {
+            VpnRouterManager.DnsMode.COPY_TUNNEL -> context.getString(R.string.vcs_widget_vpn_router_dns_tunnel)
+            VpnRouterManager.DnsMode.CLOUDFLARE -> context.getString(R.string.vcs_widget_vpn_router_dns_cloudflare)
+            VpnRouterManager.DnsMode.QUAD9 -> context.getString(R.string.vcs_widget_vpn_router_dns_quad9)
+            VpnRouterManager.DnsMode.FAMILY -> context.getString(R.string.vcs_widget_vpn_router_dns_family)
+        }
 
     companion object {
         private const val ACTION_STATUS = "com.virtuvpn.android.widget.VPN_ROUTER_STATUS"
         private const val ACTION_TOGGLE = "com.virtuvpn.android.widget.VPN_ROUTER_TOGGLE"
+        private const val ACTION_CLIENT_PAGE = "com.virtuvpn.android.widget.VPN_ROUTER_CLIENT_PAGE"
+        private const val ACTION_BROWSER = "com.virtuvpn.android.widget.VPN_ROUTER_BROWSER"
         private const val REQUEST_STATUS_OFFSET = 10_000
         private const val REQUEST_TOGGLE_OFFSET = 20_000
+        private const val REQUEST_CLIENT_OFFSET = 30_000
+        private const val REQUEST_BROWSER_OFFSET = 40_000
+        private val GREEN = Color.parseColor("#76F2A1")
+        private val TEAL = Color.parseColor("#49E3F0")
+        private val YELLOW = Color.parseColor("#FBBF24")
+        private val RED = Color.parseColor("#F87171")
     }
 }
