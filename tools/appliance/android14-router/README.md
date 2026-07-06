@@ -189,6 +189,15 @@ Known protected Samsung components to keep enabled:
   initially reports success on the A52, but the package returns enabled after
   reboot. Keep it enabled in the standard flow unless a separate image-level
   hardening path is tested.
+- `com.samsung.android.knox.analytics.uploader`: Knox analytics uploader.
+  `pm disable-user` initially reports success on the A52, but the package
+  returns enabled after reboot. Keep it enabled in the standard flow.
+- `com.samsung.android.knox.mpos`: Knox MPOS agent. `pm disable-user` initially
+  reports success on the A52, but the package returns enabled after reboot.
+  Keep it enabled in the standard flow.
+- `com.samsung.android.knox.pushmanager`: Knox Push Manager. `pm disable-user`
+  initially reports success on the A52, but the package returns enabled after
+  reboot. Keep it enabled in the standard flow.
 
 ## Phase 1 Debloat
 
@@ -1000,13 +1009,10 @@ commissioning.
 ```text
 com.samsung.android.appseparation
 com.samsung.android.container
-com.samsung.android.knox.analytics.uploader
 com.samsung.android.knox.app.networkfilter
 com.samsung.android.knox.attestation
 com.samsung.android.knox.containercore
 com.samsung.android.knox.kpecore
-com.samsung.android.knox.mpos
-com.samsung.android.knox.pushmanager
 com.samsung.android.mdm
 com.sec.enterprise.knox.cloudmdm.smdms
 com.sec.enterprise.mdm.services.simpin
