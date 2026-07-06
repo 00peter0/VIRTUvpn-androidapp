@@ -74,6 +74,10 @@
     <string name="vcs_home_managed_access_vpn_cluster">VPN Cluster</string>
     <string name="vcs_home_managed_access_s2s_cluster">S2S Cluster</string>
     <string name="vcs_home_secure_browser">Secured Browser</string>
+    <string name="vcs_shortcut_secured_browser_short">Secured Browser</string>
+    <string name="vcs_shortcut_secured_browser_long">Open VirtuVPN Secured Browser</string>
+    <string name="vcs_shortcut_vpn_router_short">VPN Router</string>
+    <string name="vcs_shortcut_vpn_router_long">Open VirtuVPN Router</string>
     <string name="vcs_home_title">Home</string>
     <string name="vcs_tunnels_title">Tunnels</string>
     <string name="vcs_home_account">Sign in VCS</string>

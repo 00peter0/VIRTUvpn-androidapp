@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/shortcut_secured_browser"
+        android:shortcutDisabledMessage="@string/vcs_shortcut_secured_browser_long"
+        android:shortcutId="secured_browser"
+        android:shortcutLongLabel="@string/vcs_shortcut_secured_browser_long"
+        android:shortcutShortLabel="@string/vcs_shortcut_secured_browser_short">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetClass="com.wireguard.android.activity.SecureBrowserActivity"
+            android:targetPackage="com.virtuvpn.android" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/shortcut_vpn_router"
+        android:shortcutDisabledMessage="@string/vcs_shortcut_vpn_router_long"
+        android:shortcutId="vpn_router"
+        android:shortcutLongLabel="@string/vcs_shortcut_vpn_router_long"
+        android:shortcutShortLabel="@string/vcs_shortcut_vpn_router_short">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetClass="com.wireguard.android.activity.VpnRouterActivity"
+            android:targetPackage="com.virtuvpn.android" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+</shortcuts>
