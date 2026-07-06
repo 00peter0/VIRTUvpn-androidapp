@@ -948,17 +948,27 @@ IMS, Google Play services, Play Store, Messages, DNS via `netd`, DHCP via
 NetworkStack, and a transient `system_server` connection to the commissioning
 gateway.
 
-### Planned Phase 2Q-B - High-Risk Factory Hardware Control
+## Phase 2Q-B Debloat - High-Risk Factory Hardware Control
 
 These packages requested stronger factory/hardware control permissions such as
 `REBOOT`, `MODIFY_PHONE_STATE`, `WRITE_APN_SETTINGS`, `CHANGE_WIFI_STATE`,
-`WRITE_SECURE_SETTINGS`, `HARDWARE_TEST`, or `MASTER_CLEAR`. Apply only as a
-separate phase if 2Q-A remains stable:
+`WRITE_SECURE_SETTINGS`, `HARDWARE_TEST`, or `MASTER_CLEAR`, so apply them only
+as their own phase after 2Q-A is stable:
 
-```text
-com.sec.android.app.factorykeystring
-com.sec.facatfunction
+```sh
+adb shell su -c 'pm disable-user --user 0 com.sec.android.app.factorykeystring'
+adb shell su -c 'pm disable-user --user 0 com.sec.facatfunction'
 ```
+
+On the A52 router rig, phase 2Q-B passed reboot acceptance. After reboot:
+`sys.boot_completed=1`, `persist.sys.emergency_reset=0`, `su -c id` returned
+root, both phase 2Q-B packages were disabled, no `SafeModeReason` was reported,
+Wi-Fi remained enabled and connected to the commissioning network
+(`VIRUS guest`) with DHCP address `192.168.101.79`, supplicant state
+`COMPLETED`, and `isUsable=true`. Telephony remained registered on Sunrise LTE:
+voice and data registration were `IN_SERVICE`, data connection state was
+connected, and the operator remained `Sunrise`. The enabled package count was
+`282`.
 
 ### Planned Phase 2Q-C - IMS Logger
 
