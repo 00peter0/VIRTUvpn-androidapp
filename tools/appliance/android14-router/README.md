@@ -208,19 +208,16 @@ third-party apps remained limited to VirtuVPN, Surfshark, NordVPN, and Magisk.
 
 ## Phase 2D Debloat
 
-After phase 2C has survived reboot/restore testing, disable Samsung Knox
-license, diagnostics, cloud, and policy update packages that are not needed by
-the dedicated router data path. These are still reversible user-0 disables:
+After phase 2C has survived reboot/restore testing, disable Samsung
+diagnostics, cloud, and policy update packages that are not needed by the
+dedicated router data path. These are still reversible user-0 disables:
 
 ```sh
-adb shell su -c 'pm disable-user --user 0 com.samsung.klmsagent'
 adb shell su -c 'pm disable-user --user 0 com.samsung.android.dqagent'
 adb shell su -c 'pm disable-user --user 0 com.samsung.android.scloud'
 adb shell su -c 'pm disable-user --user 0 com.samsung.android.scpm'
 ```
 
-- `com.samsung.klmsagent`: Knox License Manager agent. The appliance does not
-  use Samsung Knox licensing for router operation.
 - `com.samsung.android.dqagent`: Samsung diagnostics / quality agent. It has
   no router function.
 - `com.samsung.android.scloud`: Samsung Cloud. The appliance does not use
@@ -228,6 +225,15 @@ adb shell su -c 'pm disable-user --user 0 com.samsung.android.scpm'
 - `com.samsung.android.scpm`: Samsung Cloud Platform Manager / policy update
   component. The appliance configuration is controlled by VirtuVPN and the
   Magisk watchdog, not Samsung cloud policy.
+
+Keep `com.samsung.klmsagent` enabled. It is Samsung KLMS Agent / Knox License
+Management Service, installed as `/system/priv-app/KLMSAgent/KLMSAgent.apk`.
+The appliance does not use Knox licensing, but on the A52 Android 14 build
+Samsung protects this package and `pm disable-user` returns `Failed to change
+state of package`. Treat it as a known enabled Knox system component unless
+runtime logs show that it interferes with router hotspot, VPN, or fail-closed
+rules. Do not force-remove or hard-mask it during the standard router
+commissioning flow.
 
 On the A52 router rig, phase 2D passed the initial runtime watch and reboot
 acceptance. The first early post-boot sample already had the fail-closed
