@@ -172,6 +172,15 @@ Known protected/kept Samsung components:
   used by the router flow, but Samsung protects it on the A52 Android 14 build
   and `pm disable-user` fails. Keep it enabled unless a separate image-level
   hardening path is tested.
+- `com.samsung.android.kgclient`: Samsung KnoxGuard. It is a privileged system
+  app with boot, SIM/service-state, connectivity, Firebase push, Device Admin,
+  Knox restriction, phone/SIM restriction, APN, secure-settings, reboot, and
+  network-policy permissions. It was observed making outbound HTTPS connections
+  after phase 2O. The A52 has no device/profile owner (`cmd device_policy
+  list-owners` returns `no owners`), but Android still rejects reversible
+  disable with `SecurityException: Cannot disable a protected package`. Keep it
+  enabled in the normal commissioning flow. Treat removal or masking as a
+  separate image-level experiment only, never as a standard debloat phase.
 
 ## Phase 1 Debloat
 
@@ -855,8 +864,9 @@ and Wi-Fi remained enabled and connected to the commissioning network
 (`VIRUS guest`) with DHCP address `192.168.101.79`, supplicant state
 `COMPLETED`, and `isUsable=true`. The enabled package count was `309`.
 Post-reboot sockets were limited to expected kept components plus a newly
-observed Samsung `kgclient` connection; treat `com.samsung.android.kgclient` as
-a separate candidate for discovery, not as part of phase 2O.
+observed Samsung `kgclient` connection. Discovery showed
+`com.samsung.android.kgclient` is KnoxGuard and protected from reversible
+`pm disable-user`; keep it enabled in the standard flow.
 
 ## Planned Debloat Candidates
 
