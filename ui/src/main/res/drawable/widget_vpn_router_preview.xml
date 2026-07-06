@@ -19,7 +19,7 @@
         android:gravity="start|top">
         <bitmap
             android:gravity="fill"
-            android:src="@mipmap/ic_launcher_foreground" />
+            android:src="@drawable/widget_vpn_router_mark" />
     </item>
 
     <item
