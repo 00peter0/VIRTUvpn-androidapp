@@ -1144,6 +1144,63 @@ remained `IN_SERVICE`, and mobile data remained connected. The enabled package
 count stayed `279`. Do not include these packages in the normal
 PackageManager-only debloat flow.
 
+### Storage Cleanup - Remove Non-Router User Apps
+
+This cleanup removes large consumer/user apps from `/data/app`. It is different
+from `pm disable-user`: for apps installed in `/data/app`, user-0 removal
+frees APK storage and survived reboot on the A52 router rig. Do not include
+router-critical apps, package installer, Play Store, WebView, Messages, Magisk,
+VirtuVPN, or active VPN providers in this cleanup.
+
+```sh
+adb shell su -c 'pm uninstall -k --user 0 com.sec.android.app.shealth'
+adb shell su -c 'pm uninstall -k --user 0 com.samsung.android.app.notes'
+adb shell su -c 'pm uninstall -k --user 0 com.sec.android.app.sbrowser'
+adb shell su -c 'pm uninstall -k --user 0 com.microsoft.office.officehubrow'
+adb shell su -c 'pm uninstall -k --user 0 com.samsung.android.oneconnect'
+adb shell su -c 'pm uninstall -k --user 0 com.microsoft.office.outlook'
+adb shell su -c 'pm uninstall -k --user 0 com.google.android.apps.photos'
+adb shell su -c 'pm uninstall -k --user 0 com.linkedin.android'
+adb shell su -c 'pm uninstall -k --user 0 com.google.android.apps.tachyon'
+adb shell su -c 'pm uninstall -k --user 0 com.spotify.music'
+adb shell su -c 'pm uninstall -k --user 0 com.samsung.sree'
+adb shell su -c 'pm uninstall -k --user 0 com.google.android.apps.youtube.music'
+adb shell su -c 'pm uninstall -k --user 0 com.samsung.android.voc'
+adb shell su -c 'pm uninstall -k --user 0 com.sec.android.easyMover'
+adb shell su -c 'pm uninstall -k --user 0 com.google.android.apps.docs'
+adb shell su -c 'pm uninstall -k --user 0 com.google.android.videos'
+```
+
+On the A52 router rig, all sixteen packages appeared as `uninstalled_user0`
+before reboot and remained `uninstalled_user0` after reboot. The router remained
+healthy: `sys.boot_completed=1`, `persist.sys.emergency_reset=0`, root was
+available, Wi-Fi stayed connected and usable on the commissioning network,
+Sunrise LTE voice/data registration remained `IN_SERVICE`, and mobile data
+remained connected. `/data` usage dropped from about `7.3G` to `4.6G`
+(roughly `2.7G` freed). The enabled package count stayed `279` because most of
+these apps had already been disabled or were not enabled in the router baseline.
+
+Restore commands if a device-specific test needs one of these apps back:
+
+```sh
+adb shell su -c 'cmd package install-existing --user 0 com.sec.android.app.shealth'
+adb shell su -c 'cmd package install-existing --user 0 com.samsung.android.app.notes'
+adb shell su -c 'cmd package install-existing --user 0 com.sec.android.app.sbrowser'
+adb shell su -c 'cmd package install-existing --user 0 com.microsoft.office.officehubrow'
+adb shell su -c 'cmd package install-existing --user 0 com.samsung.android.oneconnect'
+adb shell su -c 'cmd package install-existing --user 0 com.microsoft.office.outlook'
+adb shell su -c 'cmd package install-existing --user 0 com.google.android.apps.photos'
+adb shell su -c 'cmd package install-existing --user 0 com.linkedin.android'
+adb shell su -c 'cmd package install-existing --user 0 com.google.android.apps.tachyon'
+adb shell su -c 'cmd package install-existing --user 0 com.spotify.music'
+adb shell su -c 'cmd package install-existing --user 0 com.samsung.sree'
+adb shell su -c 'cmd package install-existing --user 0 com.google.android.apps.youtube.music'
+adb shell su -c 'cmd package install-existing --user 0 com.samsung.android.voc'
+adb shell su -c 'cmd package install-existing --user 0 com.sec.android.easyMover'
+adb shell su -c 'cmd package install-existing --user 0 com.google.android.apps.docs'
+adb shell su -c 'cmd package install-existing --user 0 com.google.android.videos'
+```
+
 ## Acceptance
 
 After install, reboot the router and verify:
