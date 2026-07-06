@@ -192,6 +192,11 @@ Known protected Samsung components to keep enabled:
 - `com.samsung.android.knox.pushmanager`: Knox Push Manager. `pm disable-user`
   initially reports success on the A52, but the package returns enabled after
   reboot. Keep it enabled in the standard flow.
+- `com.sec.enterprise.mdm.services.simpin`: Enterprise SIM PIN service. It is
+  not used for normal consumer SIM registration, but it is SIM-adjacent and can
+  enforce enterprise SIM PIN/SIM-change policy. Keep it enabled in the standard
+  router baseline unless a separate SIM-specific test plan proves it can be
+  removed safely on the target carrier/device.
 
 ## Phase 1 Debloat
 
@@ -1025,6 +1030,15 @@ adb shell su -c 'cmd package install-existing --user 0 com.samsung.android.knox.
 adb shell su -c 'cmd package install-existing --user 0 com.samsung.android.knox.mpos'
 ```
 
+`com.sec.enterprise.knox.cloudmdm.smdms` was tested as a standalone disable
+candidate because it is a cloud MDM administration agent and the router has no
+Samsung device/profile owner. On the A52 router rig, `pm disable-user --user 0`
+reported success before reboot, but the package returned enabled after reboot.
+SIM/LTE, root, Wi-Fi, and the emergency reset flag remained healthy. Keep this
+package out of the normal reversible-disable flow for now; treat any stronger
+removal as a separate Knox/enterprise experiment, not part of standard router
+commissioning.
+
 ```text
 com.samsung.android.appseparation
 com.samsung.android.container
@@ -1033,8 +1047,6 @@ com.samsung.android.knox.attestation
 com.samsung.android.knox.containercore
 com.samsung.android.knox.kpecore
 com.samsung.android.mdm
-com.sec.enterprise.knox.cloudmdm.smdms
-com.sec.enterprise.mdm.services.simpin
 ```
 
 ## Acceptance
