@@ -47,7 +47,12 @@ Runtime behavior:
   router is still `Protected`; that means clients remain fail-closed and cannot
   leak to the phone uplink.
 - The widget shows the active tunnel/provider, DNS mode, hotspot interfaces,
-  last checked time, and a best-effort hotspot client count from `/proc/net/arp`.
+  last checked time, and a best-effort hotspot client count. Client counting
+  first tries direct `/proc/net/arp` access and then falls back to the app root
+  shell (`cat /proc/net/arp` plus `ip neigh show`) because some Samsung/Android
+  builds expose neighbor state inconsistently to the app process. The count is
+  based on unique client MAC addresses on the current tether interfaces, so IPv4
+  ARP and IPv6 neighbor entries for the same device are not double-counted.
 - Status rendering uses `VpnRouterManager.getStatus()` with a short timeout; if
   status cannot be read, the widget shows `Open to check` instead of blocking
   launcher rendering.
@@ -71,6 +76,9 @@ Implementation rules:
    activities because they are explicit user navigation actions.
 4. If a stale Samsung click handler appears after changing action wiring, change
    the affected view id and bump `wireguardVersionCode`.
+5. Client count is informational only. Do not use it as a router security gate;
+   fail-closed protection is enforced by routing/firewall state, not by the
+   number of visible neighbor entries.
 
 ### Secured Browser Widget
 
