@@ -819,39 +819,50 @@ Post-reboot sockets were limited to expected kept components such as Samsung
 IMS, Google Play services, Play Store, Messages, DNS via `netd`, and DHCP via
 NetworkStack.
 
+## Phase 2O Debloat - Low-Risk UI, Print, Dictionary, Wallpaper, Sound, Tag
+
+After phase 2N survives reboot/root/Wi-Fi acceptance, disable low-risk UI,
+print, dictionary, wallpaper, sound, and tag packages that are not part of SIM,
+hotspot, Wi-Fi, tethering, IMS, NetworkStack, WebView, install/update, or router
+app flows:
+
+```sh
+adb shell su -c 'pm disable-user --user 0 com.android.apps.tag'
+adb shell su -c 'pm disable-user --user 0 com.android.bips'
+adb shell su -c 'pm disable-user --user 0 com.android.bluetoothmidiservice'
+adb shell su -c 'pm disable-user --user 0 com.android.dreams.basic'
+adb shell su -c 'pm disable-user --user 0 com.android.dreams.phototable'
+adb shell su -c 'pm disable-user --user 0 com.android.egg'
+adb shell su -c 'pm disable-user --user 0 com.android.printspooler'
+adb shell su -c 'pm disable-user --user 0 com.android.providers.userdictionary'
+adb shell su -c 'pm disable-user --user 0 com.diotek.sec.lookup.dictionary'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.soundpicker'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.secsoundpicker'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.setting.multisound'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.audiomirroring'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.service.tagservice'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.wallpaper.res'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.widget.pictureframe'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.app.magnifier'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.easyonehand'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.widgetapp.webmanual'
+```
+
+On the A52 router rig, phase 2O passed reboot acceptance. After reboot:
+`sys.boot_completed=1`, `persist.sys.emergency_reset=0`, `su -c id` returned
+root, all phase 2O packages were disabled, no `SafeModeReason` was reported,
+and Wi-Fi remained enabled and connected to the commissioning network
+(`VIRUS guest`) with DHCP address `192.168.101.79`, supplicant state
+`COMPLETED`, and `isUsable=true`. The enabled package count was `309`.
+Post-reboot sockets were limited to expected kept components plus a newly
+observed Samsung `kgclient` connection; treat `com.samsung.android.kgclient` as
+a separate candidate for discovery, not as part of phase 2O.
+
 ## Planned Debloat Candidates
 
-The following packages remained enabled after phase 2N and are candidates for
+The following packages remained enabled after phase 2O and are candidates for
 later reversible `pm disable-user --user 0` phases. Do not disable them in one
 large batch. Apply one phase, reboot, and run acceptance before continuing.
-
-### Planned Phase 2O - Low-Risk UI, Print, Dictionary, Wallpaper, Sound, Tag
-
-These are the next recommended candidates. They are not part of SIM, hotspot,
-Wi-Fi, tethering, IMS, NetworkStack, WebView, install/update, or router app
-flows:
-
-```text
-com.android.apps.tag
-com.android.bips
-com.android.bluetoothmidiservice
-com.android.dreams.basic
-com.android.dreams.phototable
-com.android.egg
-com.android.printspooler
-com.android.providers.userdictionary
-com.diotek.sec.lookup.dictionary
-com.samsung.android.app.soundpicker
-com.samsung.android.secsoundpicker
-com.samsung.android.setting.multisound
-com.samsung.android.audiomirroring
-com.samsung.android.service.tagservice
-com.samsung.android.wallpaper.res
-com.samsung.android.widget.pictureframe
-com.sec.android.app.magnifier
-com.sec.android.easyonehand
-com.sec.android.widgetapp.webmanual
-```
 
 ### Planned Phase 2P - Remaining Samsung Consumer, Media, and Input Helpers
 
