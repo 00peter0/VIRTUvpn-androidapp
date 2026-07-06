@@ -918,27 +918,55 @@ Post-reboot sockets were limited to expected kept components such as Samsung
 IMS/InCallUI, Google Play services, Play Store, Messages, DNS via `netd`, and
 DHCP via NetworkStack.
 
-### Planned Phase 2Q - Factory, Diagnostics, Test, and Developer Helpers
+## Phase 2Q-A Debloat - Factory, Diagnostics, Test, and Developer Helpers
 
-Apply only after phase 2P passes reboot acceptance. These are not required by
-the router flow, but several are privileged factory/test packages, so keep this
-as its own phase:
+After phase 2P survives reboot acceptance, disable lower-risk factory,
+diagnostics, tracing, and test helper packages. These are not required by the
+router flow:
+
+```sh
+adb shell su -c 'pm disable-user --user 0 com.android.traceur'
+adb shell su -c 'pm disable-user --user 0 com.samsung.gpuwatchapp'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.CcInfo'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.app.DataCreate'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.app.hwmoduletest'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.app.servicemodeapp'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.iaft'
+adb shell su -c 'pm disable-user --user 0 com.sec.automation'
+adb shell su -c 'pm disable-user --user 0 com.sec.factory.camera'
+adb shell su -c 'pm disable-user --user 0 com.sec.factory.cameralyzer'
+```
+
+On the A52 router rig, phase 2Q-A passed reboot acceptance. After reboot:
+`sys.boot_completed=1`, `persist.sys.emergency_reset=0`, `su -c id` returned
+root, all phase 2Q-A packages were disabled, no `SafeModeReason` was reported,
+and Wi-Fi remained enabled and connected to the commissioning network
+(`VIRUS guest`) with DHCP address `192.168.101.79`, supplicant state
+`COMPLETED`, and `isUsable=true`. The enabled package count was `284`.
+Post-reboot sockets were limited to expected kept components such as Samsung
+IMS, Google Play services, Play Store, Messages, DNS via `netd`, DHCP via
+NetworkStack, and a transient `system_server` connection to the commissioning
+gateway.
+
+### Planned Phase 2Q-B - High-Risk Factory Hardware Control
+
+These packages requested stronger factory/hardware control permissions such as
+`REBOOT`, `MODIFY_PHONE_STATE`, `WRITE_APN_SETTINGS`, `CHANGE_WIFI_STATE`,
+`WRITE_SECURE_SETTINGS`, `HARDWARE_TEST`, or `MASTER_CLEAR`. Apply only as a
+separate phase if 2Q-A remains stable:
 
 ```text
-com.android.traceur
-com.samsung.gpuwatchapp
-com.sec.android.CcInfo
-com.sec.android.app.DataCreate
 com.sec.android.app.factorykeystring
-com.sec.android.app.hwmoduletest
-com.sec.android.app.servicemodeapp
-com.sec.android.iaft
-com.sec.automation
 com.sec.facatfunction
-com.sec.factory.camera
-com.sec.factory.cameralyzer
-com.sec.imslogger
 ```
+
+### Planned Phase 2Q-C - IMS Logger
+
+`com.sec.imslogger` is IMS-adjacent and requested telephony/network/log
+permissions such as `READ_PRIVILEGED_PHONE_STATE`, `MODIFY_PHONE_STATE`,
+`CHANGE_NETWORK_STATE`, `READ_LOGS`, and `RECEIVE_BOOT_COMPLETED`. Keep it out
+of 2Q-A and test only as a separate phase, or leave it enabled if SIM/IMS
+stability is more important than reducing diagnostic surface.
 
 ### Planned Phase 2R - Knox and Enterprise Optional Components
 
