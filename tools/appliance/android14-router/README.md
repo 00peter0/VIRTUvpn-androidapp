@@ -560,6 +560,59 @@ reported by `dumpsys window extension`, Play Store / Messages / GMS / GSF /
 WebView / SDK Sandbox / Camera remained enabled, the phase 2J packages were not
 enabled, and the enabled package count was `369`.
 
+## Phase 2K Debloat - Active Samsung Consumer and Remote Services
+
+After phase 2J survives reboot/root acceptance, disable Samsung and partner
+services that were observed running or holding outbound sockets but are not part
+of the dedicated router flow:
+
+```sh
+adb shell su -c 'pm disable-user --user 0 com.aura.oobe.samsung.gl'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.app.sbrowser'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.oneconnect'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.sharelive'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.spay'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.ipsgeofence'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.calendar'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.app.reminder'
+adb shell su -c 'pm disable-user --user 0 com.sec.android.app.clockpackage'
+adb shell su -c 'pm disable-user --user 0 com.wssyncmldm'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.fmm'
+```
+
+- `com.aura.oobe.samsung.gl`: partner/OOBE preload. It was observed with an
+  active HTTPS connection to `3.165.190.90:443`.
+- `com.sec.android.app.sbrowser`: Samsung Internet browser. The appliance uses
+  VirtuVPN Secured Browser / WebView instead.
+- `com.samsung.android.oneconnect`: SmartThings / connected devices.
+- `com.samsung.android.app.sharelive`: Samsung sharing/live collaboration.
+- `com.samsung.android.spay`: Samsung Pay app. `spayfw` may remain enabled
+  separately until tested.
+- `com.samsung.android.ipsgeofence`: Samsung geofence/location helper.
+- `com.samsung.android.calendar` and `com.samsung.android.app.reminder`:
+  consumer calendar/reminder apps. Do not disable
+  `com.android.providers.calendar` without a separate test.
+- `com.sec.android.app.clockpackage`: Samsung Clock app. Disable only after
+  router boot/root acceptance is stable; system time itself is not provided by
+  this app.
+- `com.wssyncmldm`: Samsung software update / device management sync client.
+- `com.samsung.android.fmm`: Samsung Find My Mobile / SmartThings Find. It has
+  boot, Samsung account, external locate/ring/update, SIM-state, push, and
+  offline-finding receivers. It is not part of the router data path and was
+  successfully disabled after a repeated `pm disable-user` attempt.
+
+On the A52 router rig, phase 2K passed reboot acceptance. After reboot:
+`sys.boot_completed=1`, `persist.sys.emergency_reset=0`, `su -c id` returned
+root, `com.google.android.sdksandbox` remained enabled, no `SafeModeReason` was
+reported by `dumpsys window extension`, all phase 2K packages were disabled,
+and the enabled package count was `358`.
+
+Post-reboot network observation: the expected remaining sockets were Google
+Play services and Samsung IMS. Additional outbound activity was observed from
+`com.samsung.android.game.gamehome` and
+`com.samsung.android.server.wifi.mobilewips`; treat those as candidates for a
+later phase, not as part of phase 2K.
+
 ## Acceptance
 
 After install, reboot the router and verify:
