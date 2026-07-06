@@ -215,6 +215,18 @@
         </receiver>
 
         <receiver
+            android:name=".widget.VpnRouterWidgetProvider"
+            android:exported="false"
+            android:label="@string/vcs_widget_vpn_router_title">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_vpn_router_path" />
+        </receiver>
+
+        <receiver
             android:name=".model.TunnelManager$IntentReceiver"
             android:exported="true"
             android:permission="${applicationId}.permission.CONTROL_TUNNELS">
