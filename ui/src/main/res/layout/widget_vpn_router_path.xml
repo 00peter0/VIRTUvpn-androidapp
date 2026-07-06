@@ -106,7 +106,7 @@
 
     <TextView
         android:id="@+id/widget_status"
-        android:layout_width="92dp"
+        android:layout_width="82dp"
         android:layout_height="48dp"
         android:layout_marginStart="8dp"
         android:background="@drawable/secured_browser_widget_button"
@@ -118,4 +118,38 @@
         android:textColor="#FFFFFF"
         android:textSize="12sp"
         android:textStyle="bold" />
+
+    <LinearLayout
+        android:layout_width="52dp"
+        android:layout_height="match_parent"
+        android:layout_marginStart="6dp"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/widget_refresh_button"
+            android:layout_width="50dp"
+            android:layout_height="26dp"
+            android:background="@drawable/secure_browser_url_bar_background"
+            android:gravity="center"
+            android:maxLines="1"
+            android:text="@string/vcs_widget_vpn_router_refresh"
+            android:textColor="#D7E8EE"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_toggle_button"
+            android:layout_width="50dp"
+            android:layout_height="26dp"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/secured_browser_widget_button"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:text="@string/vcs_widget_vpn_router_refresh"
+            android:textColor="#FFFFFF"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 </LinearLayout>

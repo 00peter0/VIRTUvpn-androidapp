@@ -93,6 +93,9 @@
     <string name="vcs_widget_vpn_router_waiting_tunnel">Start VPN</string>
     <string name="vcs_widget_vpn_router_waiting_hotspot">Hotspot off</string>
     <string name="vcs_widget_vpn_router_open_to_check">Open to check</string>
+    <string name="vcs_widget_vpn_router_refresh">Refresh</string>
+    <string name="vcs_widget_vpn_router_enable">Enable</string>
+    <string name="vcs_widget_vpn_router_disable">Disable</string>
     <string name="vcs_widget_vpn_router_tunnel">Tunnel: %1$s</string>
     <string name="vcs_widget_vpn_router_tap_detail">Tap to open router status.</string>
     <string name="vcs_home_title">Home</string>
