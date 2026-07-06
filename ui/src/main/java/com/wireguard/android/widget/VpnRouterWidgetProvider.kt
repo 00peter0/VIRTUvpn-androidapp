@@ -92,7 +92,7 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         views.setOnClickPendingIntent(R.id.widget_root, toggleIntent)
-        views.setOnClickPendingIntent(R.id.widget_router_logo, refreshIntent)
+        views.setOnClickPendingIntent(R.id.widget_router_mark, refreshIntent)
         views.setOnClickPendingIntent(R.id.widget_status, refreshIntent)
         views.setOnClickPendingIntent(R.id.widget_primary_button, toggleIntent)
         views.setOnClickPendingIntent(R.id.widget_client_button, clientPageIntent(context, appWidgetId))
