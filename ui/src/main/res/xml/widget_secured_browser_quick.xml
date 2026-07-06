@@ -2,11 +2,11 @@
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/vcs_widget_secured_browser_quick_description"
     android:initialLayout="@layout/widget_secured_browser_quick"
-    android:minWidth="180dp"
+    android:minWidth="320dp"
     android:minHeight="72dp"
     android:previewImage="@drawable/shortcut_secured_browser"
     android:resizeMode="horizontal"
-    android:targetCellWidth="2"
+    android:targetCellWidth="4"
     android:targetCellHeight="1"
     android:updatePeriodMillis="0"
     android:widgetCategory="home_screen" />

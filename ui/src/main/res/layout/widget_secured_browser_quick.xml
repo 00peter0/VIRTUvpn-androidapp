@@ -6,41 +6,41 @@
     android:background="@drawable/secured_browser_widget_background"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:padding="12dp">
+    android:padding="10dp">
 
     <ImageView
         android:id="@+id/widget_logo"
-        android:layout_width="50dp"
-        android:layout_height="50dp"
+        android:layout_width="54dp"
+        android:layout_height="54dp"
         android:adjustViewBounds="true"
         android:contentDescription="@string/vcs_home_secure_browser"
         android:scaleType="centerInside"
         android:src="@drawable/shortcut_secured_browser" />
 
-    <LinearLayout
+    <TextView
+        android:id="@+id/widget_search_box"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="10dp"
+        android:layout_height="50dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="10dp"
         android:layout_weight="1"
-        android:orientation="vertical">
+        android:background="@drawable/secure_browser_url_bar_background"
+        android:ellipsize="end"
+        android:gravity="center_vertical"
+        android:maxLines="1"
+        android:paddingHorizontal="16dp"
+        android:text="@string/vcs_widget_secured_browser_search_hint"
+        android:textColor="#D7E8EE"
+        android:textSize="15sp" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="@string/vcs_widget_secured_browser_title"
-            android:textColor="#FFFFFF"
-            android:textSize="15sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="@string/vcs_widget_secured_browser_quick_subtitle"
-            android:textColor="#AFCBD4"
-            android:textSize="12sp" />
-    </LinearLayout>
+    <TextView
+        android:id="@+id/widget_button"
+        android:layout_width="54dp"
+        android:layout_height="54dp"
+        android:background="@drawable/secured_browser_widget_button"
+        android:gravity="center"
+        android:text="+"
+        android:textColor="#FFFFFF"
+        android:textSize="30sp"
+        android:textStyle="bold" />
 </LinearLayout>
