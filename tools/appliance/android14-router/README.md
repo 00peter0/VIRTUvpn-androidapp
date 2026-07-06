@@ -1034,10 +1034,18 @@ adb shell su -c 'cmd package install-existing --user 0 com.samsung.android.knox.
 candidate because it is a cloud MDM administration agent and the router has no
 Samsung device/profile owner. On the A52 router rig, `pm disable-user --user 0`
 reported success before reboot, but the package returned enabled after reboot.
-SIM/LTE, root, Wi-Fi, and the emergency reset flag remained healthy. Keep this
-package out of the normal reversible-disable flow for now; treat any stronger
-removal as a separate Knox/enterprise experiment, not part of standard router
-commissioning.
+A stronger reversible user-0 removal was also tested:
+
+```sh
+adb shell su -c 'pm uninstall -k --user 0 com.sec.enterprise.knox.cloudmdm.smdms'
+```
+
+That command reported success and the package temporarily appeared as
+`uninstalled_user0`, but after reboot it returned enabled again. SIM/LTE, root,
+Wi-Fi, and the emergency reset flag remained healthy. Treat this package as
+Samsung/Knox reactivated on this build and keep it out of standard router
+commissioning. Removing or masking it below PackageManager level is an
+image-level Knox experiment, not a normal debloat phase.
 
 ```text
 com.samsung.android.appseparation
