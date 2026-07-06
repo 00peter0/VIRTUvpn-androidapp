@@ -614,6 +614,10 @@ class HomeActivity : AppCompatActivity() {
         }
         dialogBinding.cancelButton.setOnClickListener { dialog.dismiss() }
         dialogBinding.signInButton.setOnClickListener { submit() }
+        dialogBinding.registerButton.setOnClickListener {
+            dialog.dismiss()
+            openSection("/register")
+        }
         dialogBinding.passwordInput.setOnEditorActionListener { _, _, _ ->
             submit()
             true
@@ -628,7 +632,9 @@ class HomeActivity : AppCompatActivity() {
     private fun setSignInDialogBusy(dialogBinding: VcsSignInDialogBinding, busy: Boolean) {
         dialogBinding.signInButton.isEnabled = !busy
         dialogBinding.cancelButton.isEnabled = !busy
+        dialogBinding.registerButton.isEnabled = !busy
         dialogBinding.signInButton.alpha = if (busy) 0.62f else 1f
+        dialogBinding.registerButton.alpha = if (busy) 0.62f else 1f
         dialogBinding.signInButton.setText(if (busy) R.string.vcs_sign_in_running else R.string.vcs_sign_in)
     }
 
