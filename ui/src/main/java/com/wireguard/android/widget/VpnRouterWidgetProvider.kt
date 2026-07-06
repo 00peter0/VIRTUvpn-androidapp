@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.util.Log
 import android.widget.RemoteViews
 import com.wireguard.android.R
 import com.wireguard.android.activity.SecureBrowserActivity
@@ -30,19 +31,32 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
             ACTION_TOGGLE -> {
                 val pendingResult = goAsync()
                 Thread {
-                    try {
-                        runBlocking(Dispatchers.IO) {
-                            val status = runCatching { VpnRouterManager.getStatus(context.applicationContext) }.getOrNull()
-                            when {
-                                status?.canDisable == true -> runCatching { VpnRouterManager.disable(context.applicationContext) }
-                                status?.canEnable == true -> runCatching { VpnRouterManager.enable(context.applicationContext) }
-                                else -> Unit
+                    pendingResult.finish()
+                    runBlocking(Dispatchers.IO) {
+                        val status = runCatching { VpnRouterManager.getStatus(context.applicationContext) }.getOrNull()
+                        Log.i(TAG, "Widget toggle requested: ${status?.availability ?: "unknown"}")
+                        when {
+                            status?.canDisable == true -> runCatching { VpnRouterManager.disable(context.applicationContext) }
+                                .onFailure { Log.w(TAG, "Unable to disable router from widget", it) }
+                            status?.canEnable == true -> runCatching {
+                                VpnRouterManager.requestRouterActive(context.applicationContext)
+                            }.onFailure {
+                                Log.w(TAG, "Unable to request router enable from widget", it)
                             }
+                            status?.availability == VpnRouterManager.Availability.WAITING_FOR_HOTSPOT &&
+                                status.activeTunnel != null -> runCatching {
+                                    VpnRouterManager.requestRouterActive(context.applicationContext)
+                                }.onFailure {
+                                    Log.w(TAG, "Unable to request router restore from widget", it)
+                                }
+                            else -> Log.i(TAG, "Widget toggle ignored; router is not toggleable")
                         }
-                        updateAllWidgets(context)
-                    } finally {
-                        pendingResult.finish()
                     }
+                    updateAllWidgets(context)
+                    Thread.sleep(3_000L)
+                    updateAllWidgets(context)
+                    Thread.sleep(7_000L)
+                    updateAllWidgets(context)
                 }.start()
             }
         }
@@ -51,8 +65,8 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         appWidgetIds.forEach { appWidgetId ->
             val views = RemoteViews(context.packageName, R.layout.widget_vpn_router_path)
+            val status = updateStatus(context, views)
             bindClicks(context, views, appWidgetId)
-            updateStatus(context, views)
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
     }
@@ -65,13 +79,6 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
     }
 
     private fun bindClicks(context: Context, views: RemoteViews, appWidgetId: Int) {
-        val launchIntent = PendingIntent.getActivity(
-            context,
-            appWidgetId,
-            Intent(context, VpnRouterActivity::class.java)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
         val refreshIntent = PendingIntent.getBroadcast(
             context,
             appWidgetId + REQUEST_STATUS_OFFSET,
@@ -84,17 +91,17 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
             Intent(context, VpnRouterWidgetProvider::class.java).setAction(ACTION_TOGGLE),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        views.setOnClickPendingIntent(R.id.widget_root, launchIntent)
-        views.setOnClickPendingIntent(R.id.widget_router_logo, launchIntent)
+        views.setOnClickPendingIntent(R.id.widget_root, toggleIntent)
+        views.setOnClickPendingIntent(R.id.widget_router_logo, refreshIntent)
         views.setOnClickPendingIntent(R.id.widget_status, refreshIntent)
-        views.setOnClickPendingIntent(R.id.widget_toggle_button, toggleIntent)
+        views.setOnClickPendingIntent(R.id.widget_primary_button, toggleIntent)
         views.setOnClickPendingIntent(R.id.widget_client_button, clientPageIntent(context, appWidgetId))
         views.setOnClickPendingIntent(R.id.widget_browser_button, browserIntent(context, appWidgetId))
     }
 
-    private fun updateStatus(context: Context, views: RemoteViews) {
+    private fun updateStatus(context: Context, views: RemoteViews): VpnRouterManager.Status? {
         val status = runBlocking(Dispatchers.IO) {
-            withTimeoutOrNull(1_500L) {
+            withTimeoutOrNull(6_000L) {
                 runCatching { VpnRouterManager.getStatus(context.applicationContext) }.getOrNull()
             }
         }
@@ -114,8 +121,9 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
         }
         val toggleText = when {
             status?.canDisable == true -> context.getString(R.string.vcs_widget_vpn_router_disable)
-            status?.canEnable == true -> context.getString(R.string.vcs_widget_vpn_router_enable)
-            else -> context.getString(R.string.vcs_widget_vpn_router_open)
+            status?.canEnable == true || status.canRequestHotspotRestore() -> context.getString(R.string.vcs_widget_vpn_router_enable)
+            status == null -> context.getString(R.string.vcs_widget_vpn_router_check)
+            else -> context.getString(R.string.vcs_widget_vpn_router_check)
         }
         val dnsText = context.getString(R.string.vcs_widget_vpn_router_dns, dnsLabel(context))
         val clientsText = status?.tetherInterfaces?.takeIf { it.isNotEmpty() }?.joinToString(", ") {
@@ -130,7 +138,7 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
         }
         views.setTextViewText(R.id.widget_status, statusText)
         views.setTextViewText(R.id.widget_detail, detailText)
-        views.setTextViewText(R.id.widget_toggle_button, toggleText)
+        views.setTextViewText(R.id.widget_primary_button, toggleText)
         views.setTextViewText(R.id.widget_dns, dnsText)
         views.setTextViewText(R.id.widget_clients, clientsText)
         views.setTextColor(R.id.widget_status, statusColor)
@@ -138,6 +146,7 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
         views.setTextColor(R.id.widget_path_router, statusColor)
         views.setTextColor(R.id.widget_path_hotspot, statusColor)
         views.setTextColor(R.id.widget_path_clients, statusColor)
+        return status
     }
 
     private fun clientPageIntent(context: Context, appWidgetId: Int): PendingIntent =
@@ -163,6 +172,10 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
         )
     }
 
+    private fun VpnRouterManager.Status?.canRequestHotspotRestore(): Boolean =
+        this?.availability == VpnRouterManager.Availability.WAITING_FOR_HOTSPOT &&
+            activeTunnel != null
+
     private fun dnsLabel(context: Context): String =
         when (VpnRouterManager.getDnsMode(context.applicationContext)) {
             VpnRouterManager.DnsMode.COPY_TUNNEL -> context.getString(R.string.vcs_widget_vpn_router_dns_tunnel)
@@ -176,6 +189,7 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
         private const val ACTION_TOGGLE = "com.virtuvpn.android.widget.VPN_ROUTER_TOGGLE"
         private const val ACTION_CLIENT_PAGE = "com.virtuvpn.android.widget.VPN_ROUTER_CLIENT_PAGE"
         private const val ACTION_BROWSER = "com.virtuvpn.android.widget.VPN_ROUTER_BROWSER"
+        private const val TAG = "VpnRouterWidget"
         private const val REQUEST_STATUS_OFFSET = 10_000
         private const val REQUEST_TOGGLE_OFFSET = 20_000
         private const val REQUEST_CLIENT_OFFSET = 30_000

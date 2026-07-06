@@ -272,6 +272,15 @@ object VpnRouterManager {
         return !prefs.getString(KEY_LAST_ACTIVE_ROUTER_TUNNEL, null).isNullOrBlank()
     }
 
+    suspend fun requestRouterActive(context: Context): Status = withContext(Dispatchers.IO) {
+        val appContext = context.applicationContext
+        setRouterDesiredActive(appContext, true)
+        val status = detect(appContext)
+        syncAttestationServer(appContext, status)
+        VpnRouterService.startForRestore(appContext)
+        status
+    }
+
     private fun setRouterDesiredActive(context: Context, desired: Boolean) {
         context.applicationContext
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)

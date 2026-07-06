@@ -47,6 +47,19 @@ shape and branding as the live widget. `previewImage` is only a fallback for
 launchers that do not support layout previews, and it may be scaled or cached
 differently by OEM launchers.
 
+The primary router card action must be a static `VPN_ROUTER_TOGGLE` broadcast.
+Do not dynamically switch the main button between activity, status, and toggle
+pending intents: Samsung launcher can keep stale child click handlers across
+widget refreshes/package updates. The root card and primary button both dispatch
+the toggle broadcast, while the status/logo area refreshes and the Pair/Browser
+buttons keep their dedicated actions.
+
+The widget receiver must not run full router enable synchronously. Enabling from
+the widget records `router_desired_active` and starts `VpnRouterService`; the
+foreground service performs the heavy rule install/reconcile outside the Android
+broadcast timeout. The widget schedules short delayed refreshes after the toggle
+request so the UI catches up when the service finishes.
+
 When changing widget branding:
 
 1. Update the live layout and preview path together.

@@ -97,6 +97,7 @@
     <string name="vcs_widget_vpn_router_waiting_hotspot">Hotspot off</string>
     <string name="vcs_widget_vpn_router_open_to_check">Open to check</string>
     <string name="vcs_widget_vpn_router_open">Open</string>
+    <string name="vcs_widget_vpn_router_check">Check</string>
     <string name="vcs_widget_vpn_router_enable">Enable</string>
     <string name="vcs_widget_vpn_router_disable">Disable</string>
     <string name="vcs_widget_vpn_router_client_page">Pair</string>
