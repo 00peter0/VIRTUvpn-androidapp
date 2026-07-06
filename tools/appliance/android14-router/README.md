@@ -819,6 +819,108 @@ Post-reboot sockets were limited to expected kept components such as Samsung
 IMS, Google Play services, Play Store, Messages, DNS via `netd`, and DHCP via
 NetworkStack.
 
+## Planned Debloat Candidates
+
+The following packages remained enabled after phase 2N and are candidates for
+later reversible `pm disable-user --user 0` phases. Do not disable them in one
+large batch. Apply one phase, reboot, and run acceptance before continuing.
+
+### Planned Phase 2O - Low-Risk UI, Print, Dictionary, Wallpaper, Sound, Tag
+
+These are the next recommended candidates. They are not part of SIM, hotspot,
+Wi-Fi, tethering, IMS, NetworkStack, WebView, install/update, or router app
+flows:
+
+```text
+com.android.apps.tag
+com.android.bips
+com.android.bluetoothmidiservice
+com.android.dreams.basic
+com.android.dreams.phototable
+com.android.egg
+com.android.printspooler
+com.android.providers.userdictionary
+com.diotek.sec.lookup.dictionary
+com.samsung.android.app.soundpicker
+com.samsung.android.secsoundpicker
+com.samsung.android.setting.multisound
+com.samsung.android.audiomirroring
+com.samsung.android.service.tagservice
+com.samsung.android.wallpaper.res
+com.samsung.android.widget.pictureframe
+com.sec.android.app.magnifier
+com.sec.android.easyonehand
+com.sec.android.widgetapp.webmanual
+```
+
+### Planned Phase 2P - Remaining Samsung Consumer, Media, and Input Helpers
+
+Apply only after phase 2O passes reboot acceptance:
+
+```text
+com.samsung.android.app.dofviewer
+com.samsung.android.app.dressroom
+com.samsung.android.cameraxservice
+com.samsung.android.intellivoiceservice
+com.samsung.android.sdk.handwriting
+com.samsung.android.sdk.ocr
+com.samsung.android.singletake.service
+com.samsung.android.smartface
+com.samsung.android.smartface.overlay
+com.samsung.android.sume.nn.service
+com.samsung.android.svoiceime
+com.samsung.android.themecenter
+com.samsung.android.themestore
+com.samsung.android.video
+com.samsung.android.visualars
+com.samsung.android.vtcamerasettings
+com.samsung.faceservice
+```
+
+### Planned Phase 2Q - Factory, Diagnostics, Test, and Developer Helpers
+
+Apply only after phase 2P passes reboot acceptance. These are not required by
+the router flow, but several are privileged factory/test packages, so keep this
+as its own phase:
+
+```text
+com.android.traceur
+com.samsung.gpuwatchapp
+com.sec.android.CcInfo
+com.sec.android.app.DataCreate
+com.sec.android.app.factorykeystring
+com.sec.android.app.hwmoduletest
+com.sec.android.app.servicemodeapp
+com.sec.android.iaft
+com.sec.automation
+com.sec.facatfunction
+com.sec.factory.camera
+com.sec.factory.cameralyzer
+com.sec.imslogger
+```
+
+### Planned Phase 2R - Knox and Enterprise Optional Components
+
+Apply last and only as small sub-batches if phases 2O-2Q are stable. Samsung
+Knox packages can have hidden framework dependencies and some packages may be
+protected like `com.samsung.klmsagent`; do not force-remove them during normal
+commissioning.
+
+```text
+com.samsung.android.appseparation
+com.samsung.android.container
+com.samsung.android.knox.analytics.uploader
+com.samsung.android.knox.app.networkfilter
+com.samsung.android.knox.attestation
+com.samsung.android.knox.containercore
+com.samsung.android.knox.kpecore
+com.samsung.android.knox.mpos
+com.samsung.android.knox.pushmanager
+com.samsung.android.mdm
+com.sec.enterprise.knox.cloudmdm.smdms
+com.sec.enterprise.mdm.services.simpin
+```
+
 ## Acceptance
 
 After install, reboot the router and verify:
