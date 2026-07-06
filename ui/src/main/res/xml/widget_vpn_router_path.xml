@@ -4,6 +4,7 @@
     android:initialLayout="@layout/widget_vpn_router_path"
     android:minWidth="320dp"
     android:minHeight="144dp"
+    android:previewLayout="@layout/widget_vpn_router_path"
     android:previewImage="@drawable/widget_vpn_router_preview"
     android:resizeMode="horizontal|vertical"
     android:targetCellWidth="4"
