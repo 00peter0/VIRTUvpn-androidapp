@@ -189,12 +189,6 @@ Known protected Samsung components to keep enabled:
   initially reports success on the A52, but the package returns enabled after
   reboot. Keep it enabled in the standard flow unless a separate image-level
   hardening path is tested.
-- `com.samsung.android.knox.analytics.uploader`: Knox analytics uploader.
-  `pm disable-user` initially reports success on the A52, but the package
-  returns enabled after reboot. Keep it enabled in the standard flow.
-- `com.samsung.android.knox.mpos`: Knox MPOS agent. `pm disable-user` initially
-  reports success on the A52, but the package returns enabled after reboot.
-  Keep it enabled in the standard flow.
 - `com.samsung.android.knox.pushmanager`: Knox Push Manager. `pm disable-user`
   initially reports success on the A52, but the package returns enabled after
   reboot. Keep it enabled in the standard flow.
@@ -1005,6 +999,31 @@ Apply last and only as small sub-batches if phases 2O-2Q are stable. Samsung
 Knox packages can have hidden framework dependencies and some packages may be
 protected like `com.samsung.klmsagent`; do not force-remove them during normal
 commissioning.
+
+`com.samsung.android.knox.analytics.uploader` and
+`com.samsung.android.knox.mpos` are special cases: `pm disable-user` initially
+reported success but both packages returned enabled after reboot. A reversible
+user-0 package removal did hold:
+
+```sh
+adb shell su -c 'pm uninstall -k --user 0 com.samsung.android.knox.analytics.uploader'
+adb shell su -c 'pm uninstall -k --user 0 com.samsung.android.knox.mpos'
+```
+
+On the A52 router rig, this passed reboot acceptance. After reboot:
+`sys.boot_completed=1`, `persist.sys.emergency_reset=0`, `su -c id` returned
+root, both packages were absent from the enabled package list and visible only
+via `pm list packages -u`, no `SafeModeReason` was reported, Wi-Fi remained
+enabled and connected to the commissioning network (`VIRUS guest`) with DHCP
+address `192.168.101.79`, supplicant state `COMPLETED`, and `isUsable=true`.
+Telephony remained registered on Sunrise LTE: voice and data registration were
+`IN_SERVICE`, data connection state was connected, and the operator remained
+`Sunrise`. The enabled package count was `279`. Restore command if needed:
+
+```sh
+adb shell su -c 'cmd package install-existing --user 0 com.samsung.android.knox.analytics.uploader'
+adb shell su -c 'cmd package install-existing --user 0 com.samsung.android.knox.mpos'
+```
 
 ```text
 com.samsung.android.appseparation
