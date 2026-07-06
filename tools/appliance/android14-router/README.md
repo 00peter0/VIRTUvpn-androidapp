@@ -197,6 +197,16 @@ Known protected Samsung components to keep enabled:
   enforce enterprise SIM PIN/SIM-change policy. Keep it enabled in the standard
   router baseline unless a separate SIM-specific test plan proves it can be
   removed safely on the target carrier/device.
+- Knox/enterprise core packages that re-enable after reboot on the A52 Android
+  14 build: `com.samsung.android.appseparation`,
+  `com.samsung.android.container`,
+  `com.samsung.android.knox.app.networkfilter`,
+  `com.samsung.android.knox.attestation`,
+  `com.samsung.android.knox.containercore`,
+  `com.samsung.android.knox.kpecore`, and `com.samsung.android.mdm`. A
+  standalone `pm disable-user --user 0` test disabled them before reboot, but
+  every package returned enabled after reboot. Keep them enabled in the normal
+  commissioning flow; deeper removal belongs to an image-level Knox experiment.
 
 ## Phase 1 Debloat
 
@@ -1047,15 +1057,24 @@ Samsung/Knox reactivated on this build and keep it out of standard router
 commissioning. Removing or masking it below PackageManager level is an
 image-level Knox experiment, not a normal debloat phase.
 
-```text
-com.samsung.android.appseparation
-com.samsung.android.container
-com.samsung.android.knox.app.networkfilter
-com.samsung.android.knox.attestation
-com.samsung.android.knox.containercore
-com.samsung.android.knox.kpecore
-com.samsung.android.mdm
+The remaining Knox/enterprise core batch was tested as one rebooted phase:
+
+```sh
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.appseparation'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.container'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.knox.app.networkfilter'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.knox.attestation'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.knox.containercore'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.knox.kpecore'
+adb shell su -c 'pm disable-user --user 0 com.samsung.android.mdm'
 ```
+
+All seven packages reported `disabled-user` before reboot. After reboot, all
+seven returned enabled. The router remained healthy: `sys.boot_completed=1`,
+`persist.sys.emergency_reset=0`, root was available, Wi-Fi stayed connected and
+usable on the commissioning network, Sunrise LTE voice/data registration
+remained `IN_SERVICE`, and mobile data remained connected. The enabled package
+count stayed `279`. Do not keep retrying this as a standard debloat phase.
 
 ## Acceptance
 
