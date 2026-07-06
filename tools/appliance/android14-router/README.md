@@ -490,6 +490,35 @@ router appliance app state before this retest, full router acceptance for phase
 2H must be repeated after VirtuVPN, VPN providers, and router configuration are
 reinstalled.
 
+## Phase 2I Debloat - Microsoft and Partner Consumer Apps
+
+After phase 2H survives boot/root acceptance, disable remaining Microsoft and
+partner consumer packages that are not part of the router data path. These are
+user-0 disables only:
+
+```sh
+adb shell su -c 'pm disable-user --user 0 com.microsoft.office.outlook'
+adb shell su -c 'pm disable-user --user 0 com.microsoft.office.officehubrow'
+adb shell su -c 'pm disable-user --user 0 com.microsoft.skydrive'
+adb shell su -c 'pm disable-user --user 0 com.microsoft.appmanager'
+adb shell su -c 'pm disable-user --user 0 com.spotify.music'
+adb shell su -c 'pm disable-user --user 0 com.linkedin.android'
+adb shell su -c 'pm disable-user --user 0 com.netflix.partner.activation'
+adb shell su -c 'pm disable-user --user 0 de.axelspringer.yana.zeropage'
+```
+
+- Microsoft Outlook, Office, OneDrive, and Link-to-Windows AppManager are not
+  used by the appliance.
+- Spotify, LinkedIn, Netflix partner activation, and Axel Springer zero page
+  are consumer / partner preload apps with no router role.
+
+On the A52 router rig, phase 2I passed reboot acceptance. After reboot:
+`sys.boot_completed=1`, `persist.sys.emergency_reset=0`, `su -c id` returned
+root, `com.google.android.sdksandbox` remained enabled, no `SafeModeReason` was
+reported by `dumpsys window extension`, Microsoft / Spotify / LinkedIn /
+Netflix / Axel Springer were not enabled, and the enabled package count was
+`377`.
+
 ## Acceptance
 
 After install, reboot the router and verify:
