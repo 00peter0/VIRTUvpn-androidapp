@@ -33,49 +33,8 @@ The widget is a control/status surface, not a separate security boundary. Router
 security is still enforced by the root routing and firewall rules described in
 this document.
 
-The VPN Router widget uses:
-
-- `@layout/widget_vpn_router_path` as the live `initialLayout`,
-- `@layout/widget_vpn_router_path` as `android:previewLayout`,
-- `@drawable/widget_vpn_router_preview` as the fallback `android:previewImage`,
-- `@drawable/widget_vpn_router_mark` as the router artwork inside both the live
-  widget and preview.
-
-This is intentional. On Android 12+ launchers, including Samsung One UI,
-`previewLayout` is the reliable way to make the widget picker render the same
-shape and branding as the live widget. `previewImage` is only a fallback for
-launchers that do not support layout previews, and it may be scaled or cached
-differently by OEM launchers.
-
-The primary router card action must be a static `VPN_ROUTER_TOGGLE` broadcast.
-Do not dynamically switch the main button between activity, status, and toggle
-pending intents: Samsung launcher can keep stale child click handlers across
-widget refreshes/package updates. The root card and primary button both dispatch
-the toggle broadcast, while the status/logo area refreshes and the Pair/Browser
-buttons keep their dedicated actions.
-
-The widget receiver must not run full router enable synchronously. Enabling from
-the widget records `router_desired_active` and starts `VpnRouterService`; the
-foreground service performs the heavy rule install/reconcile outside the Android
-broadcast timeout. The widget schedules short delayed refreshes after the toggle
-request so the UI catches up when the service finishes.
-
-When changing widget branding:
-
-1. Update the live layout and preview path together.
-2. Keep `previewLayout` pointed at the live widget layout unless the preview
-   must intentionally differ.
-3. Keep `previewImage` as a fallback, but do not rely on it as the primary
-   Samsung/Android 12+ picker rendering path.
-4. Bump `wireguardVersionCode`; Samsung launcher can keep old widget resources
-   cached after `adb install -r`.
-5. After installing a new build on a router, force-stop/restart Samsung launcher
-   or reboot the device if the widget picker still shows an old preview.
-
-For the current router widget artwork, the source asset came from
-`router-widget.png` on the `vcs-llm` workstation. The committed Android asset is
-the cropped standalone router mark in
-`ui/src/main/res/drawable-nodpi/widget_vpn_router_mark.png`.
+Widget implementation, launcher caching rules, branding assets, and release
+checks are documented in [Android Widgets](android-widgets.md).
 
 ## Multi-Uplink Model
 
