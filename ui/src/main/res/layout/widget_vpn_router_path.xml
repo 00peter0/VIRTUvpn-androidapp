@@ -6,27 +6,26 @@
     android:background="@drawable/secured_browser_widget_background"
     android:gravity="center_vertical"
     android:orientation="vertical"
-    android:padding="10dp">
+    android:padding="8dp">
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="72dp"
+        android:layout_height="96dp"
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
         <ImageView
             android:id="@+id/widget_router_logo"
-            android:layout_width="72dp"
-            android:layout_height="72dp"
-            android:adjustViewBounds="true"
+            android:layout_width="96dp"
+            android:layout_height="96dp"
             android:contentDescription="@string/vcs_widget_vpn_router_title"
             android:scaleType="fitCenter"
-            android:src="@drawable/virtu_vpn_router_logo" />
+            android:src="@mipmap/ic_launcher_foreground" />
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_marginStart="8dp"
+            android:layout_marginStart="6dp"
             android:layout_weight="1"
             android:gravity="center_vertical"
             android:orientation="vertical">
@@ -56,7 +55,7 @@
 
         <TextView
             android:id="@+id/widget_status"
-            android:layout_width="92dp"
+            android:layout_width="86dp"
             android:layout_height="48dp"
             android:background="@drawable/secure_browser_url_bar_background"
             android:ellipsize="end"
@@ -71,7 +70,7 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="34dp"
+        android:layout_height="30dp"
         android:layout_marginTop="4dp"
         android:gravity="center_vertical"
         android:orientation="horizontal">
@@ -79,7 +78,7 @@
         <TextView
             android:id="@+id/widget_path_vpn"
             android:layout_width="0dp"
-                android:layout_height="32dp"
+            android:layout_height="28dp"
             android:layout_weight="1"
             android:gravity="center"
             android:maxLines="1"
@@ -90,7 +89,7 @@
 
         <TextView
             android:layout_width="18dp"
-                android:layout_height="32dp"
+            android:layout_height="28dp"
             android:gravity="center"
             android:text=">"
             android:textColor="#79D9E8"
@@ -100,7 +99,7 @@
         <TextView
             android:id="@+id/widget_path_router"
             android:layout_width="0dp"
-            android:layout_height="32dp"
+            android:layout_height="28dp"
             android:layout_weight="1"
             android:gravity="center"
             android:maxLines="1"
@@ -111,7 +110,7 @@
 
         <TextView
             android:layout_width="18dp"
-                android:layout_height="32dp"
+            android:layout_height="28dp"
             android:gravity="center"
             android:text=">"
             android:textColor="#79D9E8"
@@ -121,7 +120,7 @@
         <TextView
             android:id="@+id/widget_path_hotspot"
             android:layout_width="0dp"
-            android:layout_height="32dp"
+            android:layout_height="28dp"
             android:layout_weight="1"
             android:gravity="center"
             android:maxLines="1"
@@ -132,7 +131,7 @@
 
         <TextView
             android:layout_width="18dp"
-            android:layout_height="32dp"
+            android:layout_height="28dp"
             android:gravity="center"
             android:text=">"
             android:textColor="#79D9E8"
@@ -142,7 +141,7 @@
         <TextView
             android:id="@+id/widget_path_clients"
             android:layout_width="0dp"
-            android:layout_height="32dp"
+            android:layout_height="28dp"
             android:layout_weight="1"
             android:gravity="center"
             android:maxLines="1"
@@ -154,15 +153,15 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="38dp"
-        android:layout_marginTop="8dp"
+        android:layout_height="36dp"
+        android:layout_marginTop="6dp"
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
         <TextView
             android:id="@+id/widget_toggle_button"
             android:layout_width="0dp"
-            android:layout_height="36dp"
+            android:layout_height="34dp"
             android:layout_weight="1"
             android:background="@drawable/secured_browser_widget_button"
             android:ellipsize="end"
@@ -177,7 +176,7 @@
         <TextView
             android:id="@+id/widget_client_button"
             android:layout_width="0dp"
-            android:layout_height="36dp"
+            android:layout_height="34dp"
             android:layout_marginStart="6dp"
             android:layout_weight="1"
             android:background="@drawable/secure_browser_url_bar_background"
@@ -193,7 +192,7 @@
         <TextView
             android:id="@+id/widget_browser_button"
             android:layout_width="0dp"
-            android:layout_height="36dp"
+            android:layout_height="34dp"
             android:layout_marginStart="6dp"
             android:layout_weight="1"
             android:background="@drawable/secure_browser_url_bar_background"
@@ -209,15 +208,15 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="22dp"
-        android:layout_marginTop="6dp"
+        android:layout_height="20dp"
+        android:layout_marginTop="4dp"
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
         <TextView
             android:id="@+id/widget_dns"
             android:layout_width="0dp"
-            android:layout_height="22dp"
+            android:layout_height="20dp"
             android:layout_weight="1"
             android:ellipsize="end"
             android:gravity="center_vertical"
@@ -229,7 +228,7 @@
         <TextView
             android:id="@+id/widget_clients"
             android:layout_width="0dp"
-            android:layout_height="22dp"
+            android:layout_height="20dp"
             android:layout_weight="1"
             android:ellipsize="end"
             android:gravity="center_vertical|end"
