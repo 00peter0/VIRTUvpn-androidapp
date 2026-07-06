@@ -8,6 +8,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.util.Log
 import android.widget.RemoteViews
+import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.activity.SecureBrowserActivity
 import com.wireguard.android.activity.VpnRouterActivity
@@ -228,19 +229,66 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
 
     private fun hotspotClientCount(tetherInterfaces: List<String>): Int? {
         if (tetherInterfaces.isEmpty()) return null
-        return runCatching {
-            val tethers = tetherInterfaces.toSet()
-            File("/proc/net/arp").readLines()
-                .drop(1)
-                .map { it.trim().split(Regex("\\s+")) }
-                .count { columns ->
-                    columns.size >= 6 &&
-                        columns[2] != "0x0" &&
-                        columns[3] != "00:00:00:00:00:00" &&
-                        columns[5] in tethers
-                }
-        }.getOrNull()
+        val direct = runCatching { clientMacsFromArp(File("/proc/net/arp").readLines(), tetherInterfaces).size }.getOrDefault(0)
+        if (direct > 0) return direct
+        val rootOutput = mutableListOf<String>()
+        val rootExit = runCatching {
+            Application.getRootShell().run(
+                rootOutput,
+                "cat /proc/net/arp 2>/dev/null; echo __VIRTU_NEIGH__; ip neigh show 2>/dev/null"
+            )
+        }.getOrDefault(-1)
+        if (rootExit != 0) return direct
+        val marker = rootOutput.indexOf("__VIRTU_NEIGH__")
+        val arpLines = if (marker >= 0) rootOutput.take(marker) else rootOutput
+        val neighLines = if (marker >= 0) rootOutput.drop(marker + 1) else emptyList()
+        val clients = clientMacsFromArp(arpLines, tetherInterfaces).toMutableSet()
+        clients += clientMacsFromNeighbors(neighLines, tetherInterfaces)
+        return clients.size
     }
+
+    private fun clientMacsFromArp(lines: List<String>, tetherInterfaces: List<String>): Set<String> {
+        val tethers = tetherInterfaces.toSet()
+        return lines
+            .dropWhile { it.startsWith("IP address") }
+            .map { it.trim().split(Regex("\\s+")) }
+            .mapNotNull { columns ->
+                columns.takeIf {
+                    it.size >= 6 &&
+                        it[2] != "0x0" &&
+                        isClientMac(it[3]) &&
+                        it[5] in tethers
+                }?.get(3)?.lowercase(Locale.US)
+            }
+            .toSet()
+    }
+
+    private fun clientMacsFromNeighbors(lines: List<String>, tetherInterfaces: List<String>): Set<String> {
+        val tethers = tetherInterfaces.toSet()
+        val clients = mutableSetOf<String>()
+        lines.forEach { line ->
+            val parts = line.trim().split(Regex("\\s+"))
+            val devIndex = parts.indexOf("dev")
+            val lladdrIndex = parts.indexOf("lladdr")
+            val state = parts.lastOrNull()?.uppercase(Locale.US)
+            if (
+                devIndex >= 0 &&
+                lladdrIndex >= 0 &&
+                devIndex + 1 < parts.size &&
+                lladdrIndex + 1 < parts.size &&
+                parts[devIndex + 1] in tethers &&
+                state != "FAILED" &&
+                state != "INCOMPLETE" &&
+                isClientMac(parts[lladdrIndex + 1])
+            ) {
+                clients += parts[lladdrIndex + 1].lowercase(Locale.US)
+            }
+        }
+        return clients
+    }
+
+    private fun isClientMac(value: String): Boolean =
+        value != "00:00:00:00:00:00" && MAC_ADDRESS.matches(value)
 
     companion object {
         private const val ACTION_STATUS = "com.virtuvpn.android.widget.VPN_ROUTER_STATUS"
@@ -256,5 +304,6 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
         private val TEAL = Color.parseColor("#49E3F0")
         private val YELLOW = Color.parseColor("#FBBF24")
         private val RED = Color.parseColor("#F87171")
+        private val MAC_ADDRESS = Regex("(?i)^[0-9a-f]{2}(:[0-9a-f]{2}){5}$")
     }
 }
