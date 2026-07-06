@@ -166,7 +166,7 @@ to keep when installed:
 - `com.sec.android.app.camera`
 - `com.google.android.apps.messaging`
 
-Known protected/kept Samsung components:
+Known protected Samsung components to keep enabled:
 
 - `com.samsung.klmsagent`: Knox License Management Service Agent. It is not
   used by the router flow, but Samsung protects it on the A52 Android 14 build
