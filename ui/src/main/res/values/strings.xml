@@ -78,6 +78,13 @@
     <string name="vcs_shortcut_secured_browser_long">Open VirtuVPN Secured Browser</string>
     <string name="vcs_shortcut_vpn_router_short">VPN Router</string>
     <string name="vcs_shortcut_vpn_router_long">Open VirtuVPN Router</string>
+    <string name="vcs_widget_secured_browser_title">Virtu Secured Browser</string>
+    <string name="vcs_widget_secured_browser_quick_subtitle">Private web access</string>
+    <string name="vcs_widget_secured_browser_status">Protected</string>
+    <string name="vcs_widget_secured_browser_detail">Open to verify VPN protection</string>
+    <string name="vcs_widget_secured_browser_open">Open Browser</string>
+    <string name="vcs_widget_secured_browser_quick_description">Quickly open VirtuVPN Secured Browser.</string>
+    <string name="vcs_widget_secured_browser_status_description">Open VirtuVPN Secured Browser with a privacy status card.</string>
     <string name="vcs_home_title">Home</string>
     <string name="vcs_tunnels_title">Tunnels</string>
     <string name="vcs_home_account">Sign in VCS</string>

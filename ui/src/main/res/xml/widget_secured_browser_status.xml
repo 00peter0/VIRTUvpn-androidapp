@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/vcs_widget_secured_browser_status_description"
+    android:initialLayout="@layout/widget_secured_browser_status"
+    android:minWidth="180dp"
+    android:minHeight="180dp"
+    android:previewImage="@drawable/shortcut_secured_browser"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="2"
+    android:targetCellHeight="3"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen" />
