@@ -500,14 +500,23 @@ object VpnRouterManager {
     }
 
     private fun readUpInterfaces(): List<String> {
+        return tryReadUpInterfaces()?.interfaces.orEmpty()
+    }
+
+    private data class InterfaceReadResult(
+        val interfaces: List<String>
+    )
+
+    private fun tryReadUpInterfaces(): InterfaceReadResult? {
         val output = mutableListOf<String>()
         val exit = Application.getRootShell().run(output, "ip -o link show up 2>/dev/null || ip -o link show 2>/dev/null")
-        if (exit != 0) return emptyList()
-        return output.asSequence()
+        if (exit != 0) return null
+        val interfaces = output.asSequence()
             .filter { line -> hasUsableLinkState(line) }
             .mapNotNull { line -> line.substringAfter(": ", "").substringBefore(":").substringBefore("@").trim() }
             .distinct()
             .toList()
+        return InterfaceReadResult(interfaces)
     }
 
     private fun isRuleChainInstalled(): Boolean {
@@ -1278,16 +1287,18 @@ object VpnRouterManager {
     }
 
     private fun removeRules(context: Context) {
-        val liveTethers = runCatching {
+        val interfaceRead = runCatching { tryReadUpInterfaces() }.getOrNull()
+        val liveTethers = interfaceRead?.let { read ->
             readTetherInterfaces(
                 activeTunnel = "",
-                upInterfaces = readUpInterfaces()
+                upInterfaces = read.interfaces
             )
-        }.getOrDefault(emptyList())
+        }.orEmpty()
         if (liveTethers.isNotEmpty()) {
             assertHotspotBackstop(liveTethers)
         }
-        val blockCleanup = if (liveTethers.isEmpty()) {
+        val hotspotConfirmedDown = interfaceRead != null && interfaceRead.interfaces.isNotEmpty() && liveTethers.isEmpty()
+        val blockCleanup = if (hotspotConfirmedDown) {
             "while ip rule del pref $HOTSPOT_BLOCK_RULE_PRIORITY 2>/dev/null; do :; done; " +
                 "ip route flush table $HOTSPOT_BLOCK_ROUTE_TABLE 2>/dev/null || true; "
         } else {
