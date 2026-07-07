@@ -1760,14 +1760,12 @@ class SecureBrowserActivity : AppCompatActivity() {
                             routerAttestationWatchFailures = 0
                             return@withLock true
                         }
-                        // Only block immediately on authoritative negatives (router
-                        // signed protected=false, bad/absent pairing). Network-ish
-                        // blips (unreachable, malformed/transient response, missing
-                        // gateway, clock skew) are tolerated for a few cycles so a
-                        // single hiccup does not flap the browser. Genuine network
-                        // loss is handled by the onLost NetworkCallback.
+                        // Only block immediately on authentication/trust failures.
+                        // Router-degraded means the router is still fail-closed but
+                        // its VPN tunnel/upstream is briefly unhealthy, so treat it
+                        // like a transient quality blip. Genuine network loss is
+                        // handled by the onLost NetworkCallback.
                         when (verification?.failureReason) {
-                            VpnRouterAttestation.FailureReason.ROUTER_DEGRADED,
                             VpnRouterAttestation.FailureReason.BAD_SIGNATURE,
                             VpnRouterAttestation.FailureReason.ROUTER_NOT_PAIRED,
                             VpnRouterAttestation.FailureReason.EXPIRED_PAIRING -> false
