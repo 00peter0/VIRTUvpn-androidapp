@@ -81,7 +81,18 @@ class VpnRouterService : Service() {
             serverStartedUnbound = true
         }
         val initial = VpnRouterManager.getStatus(applicationContext)
-        if (initial.routerActive) VpnRouterAttestationServer.start(applicationContext, initial)
+        if (initial.routerActive) {
+            // Warm the attestation cache from this cheap status read *before* the
+            // expensive, throw-prone reconcile below. getStatus()/reconcile() run
+            // root probes that can hang or throw; if they do, reconcileOnce() bails
+            // before reaching the updateStatus() calls further down, the cache ages
+            // past STATUS_TTL_MS, and every attestation request starts returning 503
+            // "Unavailable", blocking the Secured Browser even though the router
+            // firewall is perfectly healthy. Refreshing here on the fresh `initial`
+            // keeps attestation serving 200 across a stuck reconcile cycle.
+            VpnRouterAttestationServer.updateStatus(initial)
+            VpnRouterAttestationServer.start(applicationContext, initial)
+        }
         // After a reboot the rules are gone (routerActive=false) but the user's
         // intent persists. Re-assert protection fail-closed instead of letting the
         // service idle out. restoreRouterIfDesired reconciles when already active.
