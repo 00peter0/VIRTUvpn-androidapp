@@ -142,7 +142,10 @@ object VpnRouterManager {
         try {
             installRules(appContext, tunnelName, status.tetherInterfaces, allowFastPath = true)
             val repaired = detect(appContext)
-            if (repaired.availability == Availability.ENABLED) rememberVirtuFallbackTunnel(appContext)
+            if (repaired.availability == Availability.ENABLED) {
+                rememberVirtuFallbackTunnel(appContext)
+                updateAlwaysOnProvider(appContext)
+            }
             syncAttestationServer(appContext, repaired)
             repaired
         } catch (e: TunnelHealthException) {
