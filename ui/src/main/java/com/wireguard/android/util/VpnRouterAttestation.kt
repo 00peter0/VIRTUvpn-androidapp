@@ -450,8 +450,8 @@ object VpnRouterAttestationServer {
     @Volatile
     private var cachedAt: Long = 0L
 
-    fun start(context: Context, status: VpnRouterManager.Status? = cachedStatus) {
-        status?.let { updateStatus(it) }
+    fun start(context: Context, status: VpnRouterManager.Status) {
+        updateStatus(status)
         val host = localRouterHost(status) ?: "0.0.0.0"
         synchronized(lifecycleLock) {
             if (serverFd != null) {
