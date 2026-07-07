@@ -136,6 +136,20 @@ Current route priority model:
 and `20901` at the start of reconcile, because that opens a switch window where
 Android's `21000` route can carry hotspot traffic over mobile data.
 
+`20901` is a physical-hotspot invariant, not only an app-intent rule. While a
+tether/downstream interface such as `swlan0` is up, VirtuVPN must assert
+`20901 -> table 1048 -> unreachable default` even if `router_desired_active` is
+false, stale, or temporarily inconsistent. Samsung/Android owns the physical
+hotspot lifecycle independently from the VirtuVPN app latch; therefore an
+operator disable, app restart, package update, or preference mismatch must never
+leave a live AP with only Android's lower-priority `21000` tether fallback.
+
+Disable/remove flows follow the same invariant. They may remove the `20900` VPN
+route and router-specific NAT/DNS/FORWARD chains, but they must not remove the
+`20901` unreachable backstop while the AP interface remains up. If the hotspot
+cannot be stopped or is still active, clients stay fail-closed with no internet
+instead of falling through to mobile data.
+
 The modal is not only cosmetic. It is the operator-facing audit trail for the
 active transition. If the flow fails, the router should remain blocked and show
 the error instead of silently leaving clients on a direct uplink.
@@ -234,10 +248,12 @@ healthy, reconcile exits without flushing iptables chains, rewriting DNS
 forwarders, or replacing policy routes. A full rebuild is allowed only when the
 signature changes or the health check fails.
 
-The hotspot fallback block rule is kept in place during rebuilds. Reconcile only
-adds priority `20901` when it is missing instead of deleting and re-adding it,
-so clients do not get a transient direct-uplink window during ordinary rule
-refreshes.
+The hotspot fallback block rule is kept in place during rebuilds and while a
+hotspot interface is physically up. Reconcile/detect assert priority `20901`
+whenever they see a tether interface, and rule removal leaves the backstop in
+place unless no tether interface is up. This prevents the P0 state "AP up,
+`router_desired_active=false`, Samsung `21000` open" from becoming a direct
+mobile-data leak path.
 
 The UI may show router protection as active only when the health check also sees
 the policy routes, fallback unreachable route, IPv4/IPv6 hooks, and fail-closed
