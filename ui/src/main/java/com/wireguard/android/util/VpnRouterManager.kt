@@ -182,7 +182,7 @@ object VpnRouterManager {
     suspend fun prepareKernelBackend(context: Context) = withContext(Dispatchers.IO) {
         routerMutex.withLock {
             val appContext = context.applicationContext
-            runCatching { removeRules() }
+            runCatching { removeRules(appContext) }
                 .onFailure { Log.w(TAG, "Unable to clear router rules before backend switch", it) }
             clearLastRuleSignature(appContext)
             UserKnobs.setEnableKernelModule(true)
@@ -243,7 +243,7 @@ object VpnRouterManager {
         val appContext = context.applicationContext
         val prior = runCatching { detect(appContext) }.getOrNull()
         try {
-            removeRules()
+            removeRules(appContext)
             clearAlwaysOnProviderIfOwned(appContext)
             clearRouterState(appContext)
             detect(appContext).also {
@@ -345,22 +345,25 @@ object VpnRouterManager {
 
         val runningTunnel = readVpnInterfaces().firstOrNull()
         val allUpInterfaces = readUpInterfaces()
+        val presentTetherInterfaces = readTetherInterfaces(runningTunnel ?: "", allUpInterfaces)
+        assertHotspotBackstop(presentTetherInterfaces)
         if (runningTunnel == null) {
             val lastActive = lastActiveRouterSnapshot(context)
             val dnsResolvers = resolveDnsResolvers(context, null).ifEmpty { lastActive.dnsResolvers }
-            val securityProtected = installed && routerSecurityInvariantHolds(null, lastActive.tetherInterfaces)
+            val statusTethers = presentTetherInterfaces.ifEmpty { lastActive.tetherInterfaces }
+            val securityProtected = installed && routerSecurityInvariantHolds(null, statusTethers)
             return Status(
                 availability = if (installed) Availability.ERROR else Availability.WAITING_FOR_TUNNEL,
                 activeTunnel = lastActive.tunnel,
-                tetherInterfaces = lastActive.tetherInterfaces,
-                uplinkInterfaces = readUplinkInterfaces(allUpInterfaces, null, lastActive.tetherInterfaces),
+                tetherInterfaces = statusTethers,
+                uplinkInterfaces = readUplinkInterfaces(allUpInterfaces, null, statusTethers),
                 dnsResolvers = dnsResolvers,
                 detail = if (installed) "router rules installed; no active VPN interface detected" else null,
                 securityProtected = securityProtected,
                 tunnelInterfaceMissing = true
             )
         }
-        val tetherInterfaces = readTetherInterfaces(runningTunnel, allUpInterfaces)
+        val tetherInterfaces = presentTetherInterfaces
         val uplinkInterfaces = readUplinkInterfaces(allUpInterfaces, runningTunnel, tetherInterfaces)
         val dnsResolvers = resolveDnsResolvers(context, runningTunnel)
         val hotspotActive = HotspotDetector.isWifiHotspotActive(context) || tetherInterfaces.isNotEmpty()
@@ -1255,16 +1258,52 @@ object VpnRouterManager {
             .apply()
     }
 
-    private fun removeRules() {
+    private fun assertHotspotBackstop(tetherInterfaces: List<String>) {
+        val downstreams = tetherInterfaces.mapNotNull { name ->
+            runCatching { checkedInterfaceName(name) }.getOrNull()
+        }
+        if (downstreams.isEmpty()) return
+        val commands = buildString {
+            append("ip route replace unreachable default table $HOTSPOT_BLOCK_ROUTE_TABLE; ")
+            downstreams.forEach { downstream ->
+                append(ensureRuleCommand(HOTSPOT_BLOCK_RULE_PRIORITY, downstream, HOTSPOT_BLOCK_ROUTE_TABLE.toString()))
+                append("; ")
+            }
+        }
+        runCatching {
+            checkedRun("assert hotspot fail-closed backstop", commands)
+        }.onFailure { e ->
+            Log.w(TAG, "Unable to assert hotspot fail-closed backstop", e)
+        }
+    }
+
+    private fun removeRules(context: Context) {
+        val liveTethers = runCatching {
+            readTetherInterfaces(
+                activeTunnel = "",
+                upInterfaces = readUpInterfaces()
+            )
+        }.getOrDefault(emptyList())
+        if (liveTethers.isNotEmpty()) {
+            assertHotspotBackstop(liveTethers)
+        }
+        val blockCleanup = if (liveTethers.isEmpty()) {
+            "while ip rule del pref $HOTSPOT_BLOCK_RULE_PRIORITY 2>/dev/null; do :; done; " +
+                "ip route flush table $HOTSPOT_BLOCK_ROUTE_TABLE 2>/dev/null || true; "
+        } else {
+            ""
+        }
         checkedRun(
             "remove hotspot VPN routes",
             "while ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY 2>/dev/null; do :; done; " +
-                "while ip rule del pref $HOTSPOT_BLOCK_RULE_PRIORITY 2>/dev/null; do :; done; " +
                 "while ip rule del pref $HOTSPOT_LOCAL_RULE_PRIORITY 2>/dev/null; do :; done; " +
                 "ip route flush table $HOTSPOT_LOCAL_ROUTE_TABLE 2>/dev/null || true; " +
                 "ip route flush table $HOTSPOT_VPN_ROUTE_TABLE 2>/dev/null || true; " +
-                "ip route flush table $HOTSPOT_BLOCK_ROUTE_TABLE 2>/dev/null || true"
+                blockCleanup
         )
+        if (liveTethers.isNotEmpty()) {
+            assertHotspotBackstop(liveTethers)
+        }
         checkedRun("flush route cache", "ip route flush cache 2>/dev/null || true")
         checkedRun(
             "remove attestation input guard",
