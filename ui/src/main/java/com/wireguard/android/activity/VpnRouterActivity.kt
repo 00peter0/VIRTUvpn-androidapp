@@ -33,6 +33,7 @@ class VpnRouterActivity : AppCompatActivity() {
     private lateinit var routerGuestAccessStatus: TextView
     private lateinit var routerGuestDownload: TextView
     private lateinit var routerGuestQr: ImageView
+    private lateinit var routerModeSelector: TextView
     private lateinit var routerDnsSelector: TextView
     private var routerMonitorJob: Job? = null
     private var operationDialog: AlertDialog? = null
@@ -52,7 +53,9 @@ class VpnRouterActivity : AppCompatActivity() {
         routerGuestAccessStatus = findViewById(R.id.router_guest_access_status)
         routerGuestDownload = findViewById(R.id.router_guest_download)
         routerGuestQr = findViewById(R.id.router_guest_qr)
+        routerModeSelector = findViewById(R.id.router_mode_selector)
         routerDnsSelector = findViewById(R.id.router_dns_selector)
+        routerModeSelector.setOnClickListener { showCompatibilityModeSelector() }
         routerDnsSelector.setOnClickListener { showDnsModeSelector() }
         refreshStatus(showProgress = false)
     }
@@ -120,8 +123,9 @@ class VpnRouterActivity : AppCompatActivity() {
                             availability = VpnRouterManager.Availability.ERROR,
                             detail = e.message ?: e.javaClass.simpleName
                         )
-                    }
+                }
                 renderRouterStatus(router)
+                renderCompatibilityMode()
                 renderDnsMode()
 
                 routerProtectionStatus.setText(
@@ -206,6 +210,33 @@ class VpnRouterActivity : AppCompatActivity() {
         routerDnsSelector.text = labelForDnsMode(VpnRouterManager.getDnsMode(this))
     }
 
+    private fun renderCompatibilityMode() {
+        routerModeSelector.text = labelForCompatibilityMode(VpnRouterManager.getCompatibilityMode(this))
+    }
+
+    private fun showCompatibilityModeSelector() {
+        val modes = listOf(
+            VpnRouterManager.CompatibilityMode.STRICT,
+            VpnRouterManager.CompatibilityMode.NESTED
+        )
+        val current = VpnRouterManager.getCompatibilityMode(this)
+        VcsDialogs.showChoice(
+            context = this,
+            title = getString(R.string.vcs_vpn_router_mode),
+            items = modes.map { labelForCompatibilityMode(it) },
+            selectedIndex = modes.indexOf(current).takeIf { it >= 0 }
+        ) { which ->
+            val mode = modes[which]
+            if (mode == current) return@showChoice
+            VpnRouterManager.setCompatibilityMode(this, mode)
+            renderCompatibilityMode()
+            lifecycleScope.launch {
+                val router = VpnRouterManager.reconcile(this@VpnRouterActivity)
+                renderRouterStatus(router)
+            }
+        }
+    }
+
     private fun showDnsModeSelector() {
         val modes = listOf(
             VpnRouterManager.DnsMode.COPY_TUNNEL,
@@ -238,6 +269,14 @@ class VpnRouterActivity : AppCompatActivity() {
                 VpnRouterManager.DnsMode.CLOUDFLARE -> R.string.vcs_vpn_router_dns_cloudflare
                 VpnRouterManager.DnsMode.QUAD9 -> R.string.vcs_vpn_router_dns_quad9
                 VpnRouterManager.DnsMode.FAMILY -> R.string.vcs_vpn_router_dns_family
+            }
+        )
+
+    private fun labelForCompatibilityMode(mode: VpnRouterManager.CompatibilityMode): String =
+        getString(
+            when (mode) {
+                VpnRouterManager.CompatibilityMode.STRICT -> R.string.vcs_vpn_router_mode_strict
+                VpnRouterManager.CompatibilityMode.NESTED -> R.string.vcs_vpn_router_mode_nested
             }
         )
 

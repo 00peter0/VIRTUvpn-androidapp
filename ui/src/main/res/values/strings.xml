@@ -218,6 +218,10 @@
     <string name="vcs_vpn_router_guest_pair_secure_browser">Scan this QR from the client VirtuVPN app to pair Secured Browser with this VPN Router. Safe browsing through router hotspot clients should use Secured Browser.</string>
     <string name="vcs_vpn_router_guest_qr">VirtuVPN router pairing QR code</string>
     <string name="vcs_vpn_router_guest_access_detail">The QR opens a VirtuVPN page with install/update and pair-key actions. Guest and enrolled clients use the same flow. For safe hotspot browsing, open pages in VirtuVPN Secured Browser.</string>
+    <string name="vcs_vpn_router_mode">Router mode</string>
+    <string name="vcs_vpn_router_mode_strict">Strict mode</string>
+    <string name="vcs_vpn_router_mode_nested">Nested mode</string>
+    <string name="vcs_vpn_router_mode_detail">Strict blocks UDP/443 QUIC for stronger DNS policy. Nested allows client VPN tunnels through the router VPN; DNS filtering can be bypassed, but mobile fallback remains blocked.</string>
     <string name="vcs_vpn_router_dns">Router DNS</string>
     <string name="vcs_vpn_router_dns_copy_tunnel">Copy DNS from tunnel — recommended for VPN provider compatibility</string>
     <string name="vcs_vpn_router_dns_cloudflare">Fast — 1.1.1.1, low-latency general resolver with no content filtering</string>

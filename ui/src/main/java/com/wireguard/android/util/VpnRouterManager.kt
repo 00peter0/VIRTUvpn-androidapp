@@ -49,6 +49,16 @@ object VpnRouterManager {
         }
     }
 
+    enum class CompatibilityMode(val preferenceValue: String) {
+        STRICT("strict"),
+        NESTED("nested");
+
+        companion object {
+            fun fromPreference(value: String?): CompatibilityMode =
+                values().firstOrNull { it.preferenceValue == value } ?: STRICT
+        }
+    }
+
     enum class Availability {
         ENABLED,
         DEGRADED,
@@ -177,6 +187,22 @@ object VpnRouterManager {
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_DNS_MODE, mode.preferenceValue)
+            .apply()
+    }
+
+    fun getCompatibilityMode(context: Context): CompatibilityMode {
+        return CompatibilityMode.fromPreference(
+            context.applicationContext
+                .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getString(KEY_COMPATIBILITY_MODE, CompatibilityMode.STRICT.preferenceValue)
+        )
+    }
+
+    fun setCompatibilityMode(context: Context, mode: CompatibilityMode) {
+        context.applicationContext
+            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_COMPATIBILITY_MODE, mode.preferenceValue)
             .apply()
     }
 
@@ -580,6 +606,7 @@ object VpnRouterManager {
             .getOrElse { DnsMode.QUAD9.resolvers }
             .ifEmpty { DnsMode.QUAD9.resolvers }
         val dnsResolver = dnsResolvers.first()
+        val compatibilityMode = getCompatibilityMode(context)
         val vpnOwnerUid = readVpnOwnerUid()
         val vpnProviderUids = readVpnProviderUids(context)
         val snapshot = VpnRouterRulePlanner.Snapshot(
@@ -587,6 +614,7 @@ object VpnRouterManager {
             tunnel = tunnel,
             downstreams = downstreams,
             dnsResolvers = dnsResolvers,
+            compatibilityMode = compatibilityMode.preferenceValue,
             uplinks = uplinks,
             vpnOwnerUid = vpnOwnerUid,
             vpnProviderUids = vpnProviderUids
@@ -801,10 +829,12 @@ object VpnRouterManager {
                 "block hotspot DNS over QUIC",
                 "iptables -A $FORWARD_CHAIN -i $downstream -p udp --dport 853 -j REJECT --reject-with icmp-port-unreachable"
             )
-            checkedRun(
-                "block hotspot QUIC",
-                "iptables -A $FORWARD_CHAIN -i $downstream -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable"
-            )
+            if (compatibilityMode == CompatibilityMode.STRICT) {
+                checkedRun(
+                    "block hotspot QUIC",
+                    "iptables -A $FORWARD_CHAIN -i $downstream -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable"
+                )
+            }
             encryptedDnsBlocklist(dnsResolvers).forEach { resolver ->
                 checkedRun(
                     "block hotspot DoH TCP $resolver",
@@ -1706,6 +1736,7 @@ object VpnRouterManager {
     private const val TAG = "VirtuVPN/Router"
     private const val PREFS = "virtuvpn_router"
     private const val KEY_DNS_MODE = "dns_mode"
+    private const val KEY_COMPATIBILITY_MODE = "compatibility_mode"
     private const val KEY_OPERATION_STAGE = "operation_stage"
     private const val KEY_OPERATION_DETAIL = "operation_detail"
     private const val KEY_LAST_RULE_SIGNATURE = "last_rule_signature"

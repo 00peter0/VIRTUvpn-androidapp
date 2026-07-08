@@ -443,10 +443,20 @@ This means the active tunnel/provider supplied Quad9 (`9.9.9.9`,
 clients. The Quad9 fallback is used only when `copy_tunnel` cannot read any
 usable IPv4 DNS resolver from the tunnel config or Android DNS state.
 
-The router also blocks DoT, DoQ, UDP/443 QUIC, and common DoH resolver endpoints
-so automatic and opportunistic encrypted DNS is pushed back to plaintext DNS on
-port 53, where router DNAT applies the selected resolver. Blocking UDP/443
-disables HTTP/3 for hotspot clients, but normal HTTPS falls back to TCP.
+The router has two hotspot compatibility modes:
+
+- **Strict mode** is the default. It blocks DoT, DoQ, UDP/443 QUIC, and common
+  DoH resolver endpoints so automatic and opportunistic encrypted DNS is pushed
+  back to plaintext DNS on port 53, where router DNAT applies the selected
+  resolver. Blocking UDP/443 disables HTTP/3 for hotspot clients, but normal
+  HTTPS falls back to TCP.
+- **Nested mode** allows UDP/443 through the router VPN path so client-side VPN
+  tunnels and VPN-over-VPN/mesh scenarios can work through the hotspot. It does
+  not change the fail-closed safety model: hotspot clients still route to the
+  active router VPN first and still hit the `20901` unreachable fallback before
+  Android's mobile uplink fallback. The tradeoff is DNS/content policy:
+  client-side VPN or QUIC traffic can bypass router DNS filtering because the
+  router sees only the encrypted nested tunnel.
 
 This is a DNS policy control, not a cryptographic content filter. A targeted
 client can still tunnel DNS through an unknown HTTPS endpoint, WebSocket,
@@ -899,7 +909,10 @@ device. For the current Android 14 Samsung router profile, see
 9. Verify DNS behavior:
    - selected router resolver is used,
    - competing DoH/DoT providers are blocked,
-   - UDP/443 is blocked so HTTP/3 and unknown DoH-over-QUIC fall back to TCP,
+   - in Strict mode, UDP/443 is blocked so HTTP/3 and unknown DoH-over-QUIC
+     fall back to TCP,
+   - in Nested mode, UDP/443 is allowed only through the router VPN path so
+     client VPN tunnels can work while direct mobile fallback remains blocked,
    - selected resolver family is not blocked by the DoH blocklist,
    - no mobile-provider DNS appears in repeated client scans.
 10. Verify IPv6 behavior:

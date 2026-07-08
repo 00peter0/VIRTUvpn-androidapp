@@ -15,6 +15,7 @@ class VpnRouterRulePlannerTest {
         tunnel = "tun0",
         downstreams = listOf("swlan0"),
         dnsResolvers = listOf("9.9.9.9", "149.112.112.112"),
+        compatibilityMode = "strict",
         uplinks = listOf("rmnet_data0", "rmnet_data1"),
         vpnOwnerUid = 10084,
         vpnProviderUids = listOf(10084, 10123)
@@ -68,6 +69,12 @@ class VpnRouterRulePlannerTest {
     @Test
     fun dnsChangeRequiresFullRebuild() {
         val changed = baseline.copy(dnsResolvers = listOf("1.1.1.1", "1.0.0.1"))
+        assertTrue(VpnRouterRulePlanner.needsFullRebuild(baseline.signature(), changed, true))
+    }
+
+    @Test
+    fun compatibilityModeChangeRequiresFullRebuild() {
+        val changed = baseline.copy(compatibilityMode = "nested")
         assertTrue(VpnRouterRulePlanner.needsFullRebuild(baseline.signature(), changed, true))
     }
 

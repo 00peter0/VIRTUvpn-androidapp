@@ -10,6 +10,7 @@ object VpnRouterRulePlanner {
         val tunnel: String,
         val downstreams: List<String>,
         val dnsResolvers: List<String>,
+        val compatibilityMode: String,
         val uplinks: List<String>,
         val vpnOwnerUid: Int?,
         val vpnProviderUids: List<Int>
@@ -20,6 +21,7 @@ object VpnRouterRulePlanner {
                 tunnel,
                 downstreams.sorted().joinToString(","),
                 dnsResolvers.joinToString(","),
+                compatibilityMode,
                 uplinks.sorted().joinToString(","),
                 vpnOwnerUid?.toString().orEmpty(),
                 vpnProviderUids.sorted().joinToString(",")
