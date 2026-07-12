@@ -61,6 +61,15 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
         addToList(name, withContext(Dispatchers.IO) { configStore.create(name, config!!) }, Tunnel.State.DOWN)
     }
 
+    suspend fun adoptExisting(name: String): ObservableTunnel = withContext(Dispatchers.Main.immediate) {
+        tunnelMap[name]?.let { return@withContext it }
+        val config = withContext(Dispatchers.IO) {
+            if (name !in configStore.enumerate()) throw IllegalArgumentException("Tunnel configuration does not exist: $name")
+            configStore.load(name)
+        }
+        addToList(name, config, Tunnel.State.DOWN)
+    }
+
     suspend fun delete(tunnel: ObservableTunnel) = withContext(Dispatchers.Main.immediate) {
         val originalState = tunnel.state
         val wasLastUsed = tunnel == lastUsedTunnel

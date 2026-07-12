@@ -207,13 +207,15 @@ object VcsManagedClient {
 
     suspend fun syncManagedTunnels(context: Context): SyncResult = withContext(Dispatchers.IO) {
         var session = requireSession(context)
-        val previouslyAssignedTunnelNames = managedTunnelNames(loadAssignments(context))
+        val previousAssignments = loadAssignments(context)
+        val previouslyAssignedTunnelNames = managedTunnelNames(previousAssignments)
         val syncUrl = "${session.apiBase}/api/mobile/android/sync?appVersion=${urlEncode(BuildConfig.VERSION_NAME)}&appVersionCode=${BuildConfig.VERSION_CODE}&androidVersion=${urlEncode(Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString())}"
         val syncResponse = requestDeviceJson(context, session, "GET", syncUrl, null)
         session = syncResponse.session
         val sync = syncResponse.json
         val updateVersionName = rememberUpdateAvailable(context, session.apiBase, sync.optJSONObject("update"))
         val assignments = sync.optJSONArray("assignments") ?: JSONArray()
+        removeExplicitlyInactiveManagedTunnels(previousAssignments, assignments)
         val bundleAssignments = sync.optJSONArray("bundleAssignments") ?: JSONArray()
         val bundleState = sync.optJSONObject("bundleState")
         val pendingBundleAssignments = if (bundleState?.optString("status") == "PENDING_BUILD") {
@@ -808,6 +810,27 @@ object VcsManagedClient {
         storeManagedTunnelOwnership(context, activeManagedTunnelNames + failedCleanupNames)
     }
 
+    private suspend fun removeExplicitlyInactiveManagedTunnels(previous: JSONArray, current: JSONArray) {
+        val inactiveAssignmentIds = mutableSetOf<String>()
+        for (i in 0 until current.length()) {
+            val assignment = current.optJSONObject(i) ?: continue
+            val id = assignment.optString("id").takeIf { it.isNotBlank() } ?: continue
+            if (assignment.optString("status") !in setOf("ACTIVE", "REISSUE_REQUIRED")) inactiveAssignmentIds.add(id)
+        }
+        if (inactiveAssignmentIds.isEmpty()) return
+
+        val manager = Application.getTunnelManager()
+        for (i in 0 until previous.length()) {
+            val assignment = previous.optJSONObject(i) ?: continue
+            if (assignment.optString("id") !in inactiveAssignmentIds) continue
+            val localName = assignment.optString("localTunnelName").takeIf { it.isNotBlank() } ?: continue
+            val tunnel = manager.getTunnels()[localName]
+                ?: runCatching { manager.adoptExisting(localName) }.getOrNull()
+                ?: continue
+            runCatching { manager.delete(tunnel) }
+        }
+    }
+
     private suspend fun prunePendingTunnelActivations(context: Context, activeManagedTunnelNames: Set<String>) {
         val prefs = managedPrefs(context)
         val raw = prefs.getString(KEY_PENDING_TUNNEL_ACTIVATIONS, "{}") ?: "{}"
@@ -880,7 +903,7 @@ object VcsManagedClient {
             val manager = Application.getTunnelManager()
             val tunnels = manager.getTunnels()
             val existing = tunnels[preferredName]
-                ?: tunnels.firstOrNull { it.name.equals(preferredName, ignoreCase = true) }
+                ?: runCatching { manager.adoptExisting(preferredName) }.getOrNull()
             if (existing == null) {
                 manager.create(preferredName, config)
                 ImportResult(preferredName, applied = true, current = true)
