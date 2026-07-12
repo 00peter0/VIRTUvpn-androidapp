@@ -83,6 +83,13 @@ public final class GoBackend implements Backend {
         return true;
     }
 
+    /** True only while this process owns an established userspace WireGuard tunnel. */
+    public static boolean isVpnServiceTunnelActive() {
+        final VpnService service = vpnService.getNow(null);
+        return service != null && service.owner != null &&
+                service.owner.currentTunnel != null && service.owner.currentTunnelHandle >= 0;
+    }
+
     @Nullable private static native String wgGetConfig(int handle);
 
     private static native int wgGetSocketV4(int handle);

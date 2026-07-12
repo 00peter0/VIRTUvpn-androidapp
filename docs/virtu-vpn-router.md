@@ -73,8 +73,10 @@ Router page also exposes a soft underlay preference:
 The existing connectivity monitor reapplies the selection on network and
 capability changes, so a captive or unvalidated preferred network is never
 pinned. Changing preference does not reconnect WireGuard. Kernel `WgQuick`
-tunnels and external VPN providers remain `Automatic`, because their underlay
-is not owned by Virtu's `VpnService`.
+tunnels, an inactive Virtu userspace tunnel, and external VPN providers remain
+`Automatic`, because their underlay is not currently owned by an established
+Virtu `VpnService` tunnel. The UI checks both backend type and live tunnel
+ownership; backend type alone is not sufficient.
 
 This preference does not add root policy routes and does not alter hotspot
 fail-closed tables, firewall rules, provider selection, or Android lockdown.

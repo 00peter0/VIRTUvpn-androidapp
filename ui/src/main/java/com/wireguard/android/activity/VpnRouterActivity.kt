@@ -131,7 +131,9 @@ class VpnRouterActivity : AppCompatActivity() {
                         )
                 }
                 renderRouterStatus(router)
-                uplinkPreferenceSupported = runCatching { Application.getBackend() is GoBackend }.getOrDefault(false)
+                uplinkPreferenceSupported = runCatching {
+                    Application.getBackend() is GoBackend && GoBackend.isVpnServiceTunnelActive()
+                }.getOrDefault(false)
                 if (!uplinkPreferenceSupported &&
                     VpnRouterManager.getUplinkPreference(this@VpnRouterActivity) != VpnRouterManager.UplinkPreference.AUTOMATIC
                 ) {
@@ -237,7 +239,10 @@ class VpnRouterActivity : AppCompatActivity() {
 
     private fun showUplinkPreferenceSelector() {
         lifecycleScope.launch {
-            if (!uplinkPreferenceSupported || Application.getBackend() !is GoBackend) {
+            if (!uplinkPreferenceSupported ||
+                Application.getBackend() !is GoBackend ||
+                !GoBackend.isVpnServiceTunnelActive()
+            ) {
                 VcsDialogs.show(
                     context = this@VpnRouterActivity,
                     title = getString(R.string.vcs_vpn_router_uplink_preference),

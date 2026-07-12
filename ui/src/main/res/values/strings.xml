@@ -195,7 +195,7 @@
     <string name="vcs_vpn_router_uplink_prefer_wifi">Prefer WiFi — fall back to mobile</string>
     <string name="vcs_vpn_router_uplink_prefer_mobile">Prefer mobile — fall back to WiFi</string>
     <string name="vcs_vpn_router_uplink_preference_detail">Applies dynamically to Virtu userspace VPN tunnels. Only validated networks are selected; Automatic remains the safe fallback.</string>
-    <string name="vcs_vpn_router_uplink_automatic_only">Uplink preference is available only for a Virtu userspace VPN tunnel. Kernel tunnels and external VPN providers continue using Android Automatic routing.</string>
+    <string name="vcs_vpn_router_uplink_automatic_only">Uplink preference becomes available while a Virtu userspace VPN tunnel is actively connected. Kernel tunnels, inactive Virtu tunnels, and external VPN providers continue using Android Automatic routing.</string>
     <string name="vcs_vpn_router_enable">Enable router</string>
     <string name="vcs_vpn_router_disable">Disable router</string>
     <string name="vcs_vpn_router_page_button">Router page</string>
