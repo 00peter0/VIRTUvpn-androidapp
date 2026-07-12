@@ -622,6 +622,10 @@ Implemented:
   assignment under a stale case-variant name: when the assignment ID matches
   and the exact server-preferred config already exists, only that stale
   case-variant is deleted before adopting the exact config.
+- Revoked legacy assignments that no longer carry `localTunnelName` are
+  cleaned by their exact sanitized display name, but only after all exact
+  names claimed by active assignments are protected. This removes stale
+  `EDGE1` without touching the distinct active `edge1` tunnel.
 
 Outside-Android impact:
 No expected server change.

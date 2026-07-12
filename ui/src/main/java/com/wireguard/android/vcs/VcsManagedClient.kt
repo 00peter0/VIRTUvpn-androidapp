@@ -812,10 +812,16 @@ object VcsManagedClient {
 
     private suspend fun removeExplicitlyInactiveManagedTunnels(previous: JSONArray, current: JSONArray) {
         val inactiveAssignmentIds = mutableSetOf<String>()
+        val activeTunnelNames = mutableSetOf<String>()
         for (i in 0 until current.length()) {
             val assignment = current.optJSONObject(i) ?: continue
             val id = assignment.optString("id").takeIf { it.isNotBlank() } ?: continue
-            if (assignment.optString("status") !in setOf("ACTIVE", "REISSUE_REQUIRED")) inactiveAssignmentIds.add(id)
+            if (assignment.optString("status") in setOf("ACTIVE", "REISSUE_REQUIRED")) {
+                assignment.optString("localTunnelName").takeIf { it.isNotBlank() }?.let(activeTunnelNames::add)
+                activeTunnelNames.add(sanitizeTunnelName(assignment.optString("displayName")))
+            } else {
+                inactiveAssignmentIds.add(id)
+            }
         }
         if (inactiveAssignmentIds.isEmpty()) return
 
@@ -823,8 +829,10 @@ object VcsManagedClient {
         for (i in 0 until previous.length()) {
             val assignment = previous.optJSONObject(i) ?: continue
             if (assignment.optString("id") !in inactiveAssignmentIds) continue
-            val localName = assignment.optString("localTunnelName").takeIf { it.isNotBlank() } ?: continue
-            val tunnel = manager.getTunnels()[localName]
+            val localName = assignment.optString("localTunnelName").takeIf { it.isNotBlank() }
+                ?: sanitizeTunnelName(assignment.optString("displayName"))
+            if (localName in activeTunnelNames) continue
+            val tunnel = manager.getTunnels().firstOrNull { it.name == localName }
                 ?: runCatching { manager.adoptExisting(localName) }.getOrNull()
                 ?: continue
             runCatching { manager.delete(tunnel) }
