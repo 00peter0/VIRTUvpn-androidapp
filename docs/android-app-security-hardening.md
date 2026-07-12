@@ -430,6 +430,15 @@ Verification:
 Outside-Android impact:
 No expected server change.
 
+## Web Terminal cleartext scope
+
+- Android cleartext remains denied by default and for the VCS API.
+- The network security config permits HTTP only to the fixed private Web
+  Terminal host `10.77.1.1`. The activity additionally accepts HTTP only for
+  addresses classified as private/local, and reachability requires the
+  assignment's active WireGuard tunnel.
+- Public HTTP browsing and arbitrary LAN cleartext remain blocked.
+
 ## R1 - One failed provision stops whole sync
 
 Status: Needs discussion before implementation.

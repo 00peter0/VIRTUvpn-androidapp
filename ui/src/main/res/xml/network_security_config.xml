@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <!-- Private Web Terminal endpoint, reachable only through its assigned WireGuard tunnel. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain>10.77.1.1</domain>
+    </domain-config>
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">vcs.virtucomputing.com</domain>
         <pin-set expiration="2028-08-15">
