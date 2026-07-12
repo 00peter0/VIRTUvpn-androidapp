@@ -969,7 +969,7 @@ class HomeActivity : AppCompatActivity() {
 
     private fun updateOpenVpnSettingsButtonState(status: VpnRouterManager.Status? = lastVpnRouterStatus) {
         val routerActive = status?.routerActive == true
-        val canOpenSettings = hasActiveVirtuTunnel && !routerActive
+        val canOpenSettings = hasActiveVirtuTunnel || routerActive
         binding.openVpnSettingsButton.setText(R.string.vcs_open_vpn_settings)
         binding.openVpnSettingsButton.isEnabled = canOpenSettings
         binding.openVpnSettingsButton.isClickable = canOpenSettings
@@ -978,7 +978,7 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun canOpenVpnSettings(): Boolean =
-        hasActiveVirtuTunnel && lastVpnRouterStatus?.routerActive != true
+        hasActiveVirtuTunnel || lastVpnRouterStatus?.routerActive == true
 
     private fun openVpnSettings() {
         startActivity(Intent(Settings.ACTION_VPN_SETTINGS))

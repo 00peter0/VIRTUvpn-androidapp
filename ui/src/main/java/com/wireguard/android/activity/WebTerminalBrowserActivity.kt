@@ -8,10 +8,12 @@ import android.annotation.SuppressLint
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.HttpAuthHandler
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceError
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -53,6 +55,7 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
         configureWebView(binding.terminalWebview)
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                Log.i(TAG, "Back requested; canGoBack=${binding.terminalWebview.canGoBack()}")
                 if (binding.terminalWebview.canGoBack()) {
                     binding.terminalWebview.goBack()
                 } else {
@@ -118,6 +121,16 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.web_terminal_browser_blocked_detail, Toast.LENGTH_SHORT).show()
         }
         webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView, url: String) {
+                Log.i(TAG, "Terminal page loaded: $url")
+            }
+
+            override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                if (request.isForMainFrame) {
+                    Log.e(TAG, "Terminal page failed: ${error.errorCode} ${error.description}; ${request.url}")
+                }
+            }
+
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 if (handleTerminalCommand(request.url)) return true
                 if (!isAllowedTerminalUrl(request.url)) {
@@ -202,6 +215,7 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
         WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream(ByteArray(0)))
 
     companion object {
+        private const val TAG = "VirtuWebTerminal"
         const val EXTRA_INITIAL_URL = "com.wireguard.android.extra.WEB_TERMINAL_INITIAL_URL"
     }
 }
