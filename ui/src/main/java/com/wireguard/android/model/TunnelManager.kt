@@ -70,6 +70,10 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
         addToList(name, config, Tunnel.State.DOWN)
     }
 
+    suspend fun hasExistingConfig(name: String): Boolean = withContext(Dispatchers.IO) {
+        name in configStore.enumerate()
+    }
+
     suspend fun delete(tunnel: ObservableTunnel) = withContext(Dispatchers.Main.immediate) {
         val originalState = tunnel.state
         val wasLastUsed = tunnel == lastUsedTunnel

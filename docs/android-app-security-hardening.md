@@ -618,6 +618,10 @@ Implemented:
   on disk but is not loaded by `TunnelManager`, it is adopted before update.
   Distinct assignments such as revoked `EDGE1` and active `edge1` are never
   aliased by a case-insensitive lookup.
+- Migration also handles clients whose earlier build recorded the active
+  assignment under a stale case-variant name: when the assignment ID matches
+  and the exact server-preferred config already exists, only that stale
+  case-variant is deleted before adopting the exact config.
 
 Outside-Android impact:
 No expected server change.

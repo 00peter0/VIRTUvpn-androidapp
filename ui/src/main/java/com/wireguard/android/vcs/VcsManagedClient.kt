@@ -891,11 +891,29 @@ object VcsManagedClient {
         val configVersion = provision.optInt("configVersion", 1)
         val preferredName = sanitizeTunnelName(provision.optString("configFilename", provision.optString("displayName", "vcs-$assignmentId")))
         val config = Config.parse(ByteArrayInputStream(configText.toByteArray(StandardCharsets.UTF_8)))
+        removeSupersededCaseVariant(context, assignmentId, preferredName)
         val applied = applyImportedConfig(preferredName, config)
         if (applied.current) {
             ackTunnelImported(context, session, assignmentId, applied.localTunnelName, configVersion)
         }
         return applied
+    }
+
+    private suspend fun removeSupersededCaseVariant(context: Context, assignmentId: String, preferredName: String) {
+        val previous = loadAssignments(context)
+        val previousName = (0 until previous.length())
+            .asSequence()
+            .mapNotNull(previous::optJSONObject)
+            .firstOrNull { it.optString("id") == assignmentId }
+            ?.optString("localTunnelName")
+            ?.takeIf { it.isNotBlank() && it != preferredName && it.equals(preferredName, ignoreCase = true) }
+            ?: return
+        val manager = Application.getTunnelManager()
+        if (!manager.hasExistingConfig(preferredName)) return
+        val legacy = manager.getTunnels().firstOrNull { it.name == previousName }
+            ?: runCatching { manager.adoptExisting(previousName) }.getOrNull()
+            ?: return
+        runCatching { manager.delete(legacy) }
     }
 
     private suspend fun applyImportedConfig(preferredName: String, config: Config): ImportResult {
