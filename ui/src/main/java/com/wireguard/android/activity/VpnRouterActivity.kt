@@ -239,10 +239,10 @@ class VpnRouterActivity : AppCompatActivity() {
 
     private fun showUplinkPreferenceSelector() {
         lifecycleScope.launch {
-            if (!uplinkPreferenceSupported ||
-                Application.getBackend() !is GoBackend ||
-                !GoBackend.isVpnServiceTunnelActive()
-            ) {
+            val supportedNow = Application.getBackend() is GoBackend && GoBackend.isVpnServiceTunnelActive()
+            uplinkPreferenceSupported = supportedNow
+            renderUplinkPreference()
+            if (!supportedNow) {
                 VcsDialogs.show(
                     context = this@VpnRouterActivity,
                     title = getString(R.string.vcs_vpn_router_uplink_preference),
