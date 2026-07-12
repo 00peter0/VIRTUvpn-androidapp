@@ -60,8 +60,25 @@ Detection uses the device routing table and excludes:
 - loopback.
 
 Router forwarding still targets the active VPN tunnel. The uplink is detected
-for status, diagnostics, and future policy decisions; it does not change the
-provider-neutral router rule model.
+for status and diagnostics. For a Virtu userspace `GoBackend` tunnel, the VPN
+Router page also exposes a soft underlay preference:
+
+- `Automatic` passes `null` to `VpnService.setUnderlyingNetworks()` and keeps
+  Android's current default-network behavior;
+- `Prefer WiFi` selects a validated WiFi network and falls back to validated
+  mobile data;
+- `Prefer mobile` selects validated mobile data and falls back to validated
+  WiFi.
+
+The existing connectivity monitor reapplies the selection on network and
+capability changes, so a captive or unvalidated preferred network is never
+pinned. Changing preference does not reconnect WireGuard. Kernel `WgQuick`
+tunnels and external VPN providers remain `Automatic`, because their underlay
+is not owned by Virtu's `VpnService`.
+
+This preference does not add root policy routes and does not alter hotspot
+fail-closed tables, firewall rules, provider selection, or Android lockdown.
+It only selects the physical underlay for a running Virtu userspace tunnel.
 
 ## Router Rules
 

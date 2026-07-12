@@ -59,6 +59,17 @@ object VpnRouterManager {
         }
     }
 
+    enum class UplinkPreference(val preferenceValue: String) {
+        AUTOMATIC("automatic"),
+        PREFER_WIFI("prefer_wifi"),
+        PREFER_MOBILE("prefer_mobile");
+
+        companion object {
+            fun fromPreference(value: String?): UplinkPreference =
+                values().firstOrNull { it.preferenceValue == value } ?: AUTOMATIC
+        }
+    }
+
     enum class Availability {
         ENABLED,
         DEGRADED,
@@ -204,6 +215,22 @@ object VpnRouterManager {
             .edit()
             .putString(KEY_COMPATIBILITY_MODE, mode.preferenceValue)
             .apply()
+    }
+
+    fun getUplinkPreference(context: Context): UplinkPreference =
+        UplinkPreference.fromPreference(
+            context.applicationContext
+                .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getString(KEY_UPLINK_PREFERENCE, UplinkPreference.AUTOMATIC.preferenceValue)
+        )
+
+    fun setUplinkPreference(context: Context, preference: UplinkPreference) {
+        context.applicationContext
+            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_UPLINK_PREFERENCE, preference.preferenceValue)
+            .apply()
+        TunnelConnectivityMonitor.applyCurrentUplinkPreference()
     }
 
     fun isKernelModuleAvailable(): Boolean = WgQuickBackend.hasKernelSupport()
@@ -1740,6 +1767,7 @@ object VpnRouterManager {
     private const val KEY_OPERATION_STAGE = "operation_stage"
     private const val KEY_OPERATION_DETAIL = "operation_detail"
     private const val KEY_LAST_RULE_SIGNATURE = "last_rule_signature"
+    private const val KEY_UPLINK_PREFERENCE = "uplink_preference"
     private const val ROUTER_RULES_VERSION = 9
     private const val ATTESTATION_PROXY_PIDFILE = "/data/local/tmp/virtuvpn-router-attestation-proxy.pid"
     private const val KEY_LAST_VIRTU_TUNNEL = "last_virtu_tunnel"

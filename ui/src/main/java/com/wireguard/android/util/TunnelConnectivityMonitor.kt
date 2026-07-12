@@ -12,6 +12,7 @@ import android.net.NetworkRequest
 import android.os.SystemClock
 import android.util.Log
 import com.wireguard.android.Application
+import com.wireguard.android.backend.GoBackend
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -20,7 +21,7 @@ class TunnelConnectivityMonitor(context: Context) {
     private val appContext = context.applicationContext
     private val connectivityManager = appContext.getSystemService(ConnectivityManager::class.java)
     private val lock = Any()
-    private val validatedUnderlays = mutableSetOf<Network>()
+    private val validatedUnderlays = mutableMapOf<Network, NetworkCapabilities>()
     private var callbackRegistered = false
     private var wasOffline = false
     private var restartJob: Job? = null
@@ -46,6 +47,7 @@ class TunnelConnectivityMonitor(context: Context) {
             if (becameOffline) {
                 Log.i(TAG, "Underlying internet connectivity lost while monitoring VPN")
             }
+            applyUplinkPreference()
         }
     }
 
@@ -58,6 +60,8 @@ class TunnelConnectivityMonitor(context: Context) {
         try {
             manager.registerNetworkCallback(request, callback)
             callbackRegistered = true
+            activeInstance = this
+            applyUplinkPreference()
         } catch (e: Throwable) {
             Log.e(TAG, "Unable to start VPN connectivity monitor", e)
         }
@@ -71,16 +75,20 @@ class TunnelConnectivityMonitor(context: Context) {
             Log.w(TAG, "Unable to stop VPN connectivity monitor", e)
         }
         callbackRegistered = false
+        if (activeInstance === this) activeInstance = null
+        GoBackend.updateUnderlyingNetworks(null)
         restartJob?.cancel()
     }
 
     private fun refreshInitialState(manager: ConnectivityManager) {
-        val initialUnderlays = manager.allNetworks.filter { network ->
-            manager.getNetworkCapabilities(network)?.isValidatedUnderlay() == true
+        val initialUnderlays = manager.allNetworks.mapNotNull { network ->
+            manager.getNetworkCapabilities(network)
+                ?.takeIf { it.isValidatedUnderlay() }
+                ?.let { network to it }
         }
         synchronized(lock) {
             validatedUnderlays.clear()
-            validatedUnderlays.addAll(initialUnderlays)
+            validatedUnderlays.putAll(initialUnderlays)
             wasOffline = validatedUnderlays.isEmpty()
         }
     }
@@ -89,14 +97,35 @@ class TunnelConnectivityMonitor(context: Context) {
         val isValidatedUnderlay = capabilities.isValidatedUnderlay()
         val shouldRestart = synchronized(lock) {
             val hadValidatedUnderlay = validatedUnderlays.isNotEmpty()
-            if (isValidatedUnderlay) validatedUnderlays.add(network) else validatedUnderlays.remove(network)
+            if (isValidatedUnderlay) validatedUnderlays[network] = capabilities else validatedUnderlays.remove(network)
             val hasValidatedUnderlay = validatedUnderlays.isNotEmpty()
             val restored = !hadValidatedUnderlay && hasValidatedUnderlay && wasOffline
             if (!hasValidatedUnderlay) wasOffline = true
             if (restored) wasOffline = false
             restored
         }
+        applyUplinkPreference()
         if (shouldRestart) scheduleTunnelRestart()
+    }
+
+    private fun applyUplinkPreference() {
+        val preference = VpnRouterManager.getUplinkPreference(appContext)
+        val selected = synchronized(lock) {
+            if (preference == VpnRouterManager.UplinkPreference.AUTOMATIC) return@synchronized null
+            val wifi = validatedUnderlays.entries.firstOrNull {
+                it.value.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+            }?.key
+            val mobile = validatedUnderlays.entries.firstOrNull {
+                it.value.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+            }?.key
+            when (preference) {
+                VpnRouterManager.UplinkPreference.AUTOMATIC -> null
+                VpnRouterManager.UplinkPreference.PREFER_WIFI -> wifi ?: mobile
+                VpnRouterManager.UplinkPreference.PREFER_MOBILE -> mobile ?: wifi
+            }
+        }
+        val applied = GoBackend.updateUnderlyingNetworks(selected?.let { arrayOf(it) })
+        Log.d(TAG, "VPN underlay preference=$preference selected=${selected ?: "system-default"} applied=$applied")
     }
 
     private fun scheduleTunnelRestart() {
@@ -129,5 +158,10 @@ class TunnelConnectivityMonitor(context: Context) {
         private const val TAG = "VirtuVPN/Connectivity"
         private const val RESTART_DEBOUNCE_MS = 2_500L
         private const val MIN_RESTART_INTERVAL_MS = 30_000L
+        @Volatile private var activeInstance: TunnelConnectivityMonitor? = null
+
+        fun applyCurrentUplinkPreference() {
+            activeInstance?.applyUplinkPreference()
+        }
     }
 }

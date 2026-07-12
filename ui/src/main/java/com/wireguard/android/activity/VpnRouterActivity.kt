@@ -17,6 +17,8 @@ import androidx.lifecycle.lifecycleScope
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import com.wireguard.android.R
+import com.wireguard.android.Application
+import com.wireguard.android.backend.GoBackend
 import com.wireguard.android.util.VcsDialogs
 import com.wireguard.android.util.VpnRouterOperationFormatter
 import com.wireguard.android.util.VpnRouterAttestation
@@ -34,11 +36,13 @@ class VpnRouterActivity : AppCompatActivity() {
     private lateinit var routerGuestDownload: TextView
     private lateinit var routerGuestQr: ImageView
     private lateinit var routerModeSelector: TextView
+    private lateinit var routerUplinkSelector: TextView
     private lateinit var routerDnsSelector: TextView
     private var routerMonitorJob: Job? = null
     private var operationDialog: AlertDialog? = null
     private var operationDialogMessage: TextView? = null
     private var refreshing = false
+    private var uplinkPreferenceSupported = false
     private var lastActiveTunnel: String? = null
     private var kernelRequirementDialogShown = false
 
@@ -54,8 +58,10 @@ class VpnRouterActivity : AppCompatActivity() {
         routerGuestDownload = findViewById(R.id.router_guest_download)
         routerGuestQr = findViewById(R.id.router_guest_qr)
         routerModeSelector = findViewById(R.id.router_mode_selector)
+        routerUplinkSelector = findViewById(R.id.router_uplink_selector)
         routerDnsSelector = findViewById(R.id.router_dns_selector)
         routerModeSelector.setOnClickListener { showCompatibilityModeSelector() }
+        routerUplinkSelector.setOnClickListener { showUplinkPreferenceSelector() }
         routerDnsSelector.setOnClickListener { showDnsModeSelector() }
         refreshStatus(showProgress = false)
     }
@@ -125,7 +131,17 @@ class VpnRouterActivity : AppCompatActivity() {
                         )
                 }
                 renderRouterStatus(router)
+                uplinkPreferenceSupported = runCatching { Application.getBackend() is GoBackend }.getOrDefault(false)
+                if (!uplinkPreferenceSupported &&
+                    VpnRouterManager.getUplinkPreference(this@VpnRouterActivity) != VpnRouterManager.UplinkPreference.AUTOMATIC
+                ) {
+                    VpnRouterManager.setUplinkPreference(
+                        this@VpnRouterActivity,
+                        VpnRouterManager.UplinkPreference.AUTOMATIC
+                    )
+                }
                 renderCompatibilityMode()
+                renderUplinkPreference()
                 renderDnsMode()
 
                 routerProtectionStatus.setText(
@@ -214,6 +230,38 @@ class VpnRouterActivity : AppCompatActivity() {
         routerModeSelector.text = labelForCompatibilityMode(VpnRouterManager.getCompatibilityMode(this))
     }
 
+    private fun renderUplinkPreference() {
+        routerUplinkSelector.text = labelForUplinkPreference(VpnRouterManager.getUplinkPreference(this))
+        routerUplinkSelector.alpha = if (uplinkPreferenceSupported) 1f else 0.72f
+    }
+
+    private fun showUplinkPreferenceSelector() {
+        lifecycleScope.launch {
+            if (!uplinkPreferenceSupported || Application.getBackend() !is GoBackend) {
+                VcsDialogs.show(
+                    context = this@VpnRouterActivity,
+                    title = getString(R.string.vcs_vpn_router_uplink_preference),
+                    message = getString(R.string.vcs_vpn_router_uplink_automatic_only),
+                    positive = VcsDialogs.action(this@VpnRouterActivity, android.R.string.ok, primary = true)
+                )
+                return@launch
+            }
+            val modes = VpnRouterManager.UplinkPreference.values().toList()
+            val current = VpnRouterManager.getUplinkPreference(this@VpnRouterActivity)
+            VcsDialogs.showChoice(
+                context = this@VpnRouterActivity,
+                title = getString(R.string.vcs_vpn_router_uplink_preference),
+                items = modes.map { labelForUplinkPreference(it) },
+                selectedIndex = modes.indexOf(current).takeIf { it >= 0 }
+            ) { which ->
+                val mode = modes[which]
+                if (mode == current) return@showChoice
+                VpnRouterManager.setUplinkPreference(this@VpnRouterActivity, mode)
+                renderUplinkPreference()
+            }
+        }
+    }
+
     private fun showCompatibilityModeSelector() {
         val modes = listOf(
             VpnRouterManager.CompatibilityMode.STRICT,
@@ -277,6 +325,15 @@ class VpnRouterActivity : AppCompatActivity() {
             when (mode) {
                 VpnRouterManager.CompatibilityMode.STRICT -> R.string.vcs_vpn_router_mode_strict
                 VpnRouterManager.CompatibilityMode.NESTED -> R.string.vcs_vpn_router_mode_nested
+            }
+        )
+
+    private fun labelForUplinkPreference(preference: VpnRouterManager.UplinkPreference): String =
+        getString(
+            when (preference) {
+                VpnRouterManager.UplinkPreference.AUTOMATIC -> R.string.vcs_vpn_router_uplink_automatic
+                VpnRouterManager.UplinkPreference.PREFER_WIFI -> R.string.vcs_vpn_router_uplink_prefer_wifi
+                VpnRouterManager.UplinkPreference.PREFER_MOBILE -> R.string.vcs_vpn_router_uplink_prefer_mobile
             }
         )
 

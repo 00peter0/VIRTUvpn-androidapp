@@ -7,6 +7,7 @@ package com.wireguard.android.backend;
 
 import android.content.Context;
 import android.content.Intent;
+import android.net.Network;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
 import android.system.OsConstants;
@@ -44,6 +45,7 @@ public final class GoBackend implements Backend {
     private static final String TAG = "WireGuard/GoBackend";
     @Nullable private static AlwaysOnCallback alwaysOnCallback;
     private static CompletableFuture<VpnService> vpnService = new CompletableFuture<>();
+    @Nullable private static volatile Network[] desiredUnderlyingNetworks;
     private final Context context;
     @Nullable private Config currentConfig;
     @Nullable private Tunnel currentTunnel;
@@ -67,6 +69,18 @@ public final class GoBackend implements Backend {
      */
     public static void setAlwaysOnCallback(final AlwaysOnCallback cb) {
         alwaysOnCallback = cb;
+    }
+
+    /** Apply the selected physical underlay without reconnecting WireGuard. */
+    public static boolean updateUnderlyingNetworks(@Nullable final Network[] networks) {
+        desiredUnderlyingNetworks = networks == null ? null : networks.clone();
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M)
+            return false;
+        final VpnService service = vpnService.getNow(null);
+        if (service == null)
+            return false;
+        service.setUnderlyingNetworks(desiredUnderlyingNetworks);
+        return true;
     }
 
     @Nullable private static native String wgGetConfig(int handle);
@@ -332,7 +346,7 @@ public final class GoBackend implements Backend {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
                 builder.setMetered(false);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-                service.setUnderlyingNetworks(null);
+                service.setUnderlyingNetworks(desiredUnderlyingNetworks);
 
             builder.setBlocking(true);
             try (final ParcelFileDescriptor tun = builder.establish()) {
