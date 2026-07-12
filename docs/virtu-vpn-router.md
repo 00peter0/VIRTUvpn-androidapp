@@ -84,6 +84,12 @@ It only selects the physical underlay for a running Virtu userspace tunnel.
 
 ## Router Rules
 
+Rule existence checks use filtered `ip rule show pref <priority> iif <iface>
+table <id>` queries rather than grepping the rendered table name. Android may
+display numeric tables such as `1047/1048` using a symbolic tunnel name; text
+matching the numeric `lookup` value would then miss an existing rule, attempt a
+duplicate add, and prevent reconcile and attestation proxy recovery.
+
 When enabled, the app installs root rules that:
 
 - enable IPv4 forwarding,

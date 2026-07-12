@@ -896,9 +896,9 @@ object VpnRouterManager {
         downstreams.forEach { downstream ->
             checkedRun(
                 "verify hotspot routing",
-                "ip rule show | grep -q \"^$HOTSPOT_VPN_RULE_PRIORITY:.*iif $downstream .*lookup $HOTSPOT_VPN_ROUTE_TABLE\" && " +
+                ruleExistsCommand(HOTSPOT_VPN_RULE_PRIORITY, downstream, HOTSPOT_VPN_ROUTE_TABLE.toString()) + " && " +
                     "ip route show table $HOTSPOT_VPN_ROUTE_TABLE | grep -q \"default dev $tunnel\" && " +
-                    "ip rule show | grep -q \"^$HOTSPOT_BLOCK_RULE_PRIORITY:.*iif $downstream .*lookup $HOTSPOT_BLOCK_ROUTE_TABLE\" && " +
+                    ruleExistsCommand(HOTSPOT_BLOCK_RULE_PRIORITY, downstream, HOTSPOT_BLOCK_ROUTE_TABLE.toString()) + " && " +
                     "ip route show table $HOTSPOT_BLOCK_ROUTE_TABLE | grep -q \"unreachable default\""
                 )
         }
@@ -943,7 +943,7 @@ object VpnRouterManager {
         if (!commandSucceeds("ip6tables -C $IPV6_FORWARD_CHAIN -j REJECT >/dev/null 2>&1")) return false
         return downstreams.all { downstream ->
             val coreRulesHold = commandSucceeds(
-                "ip rule show | grep -q \"^$HOTSPOT_BLOCK_RULE_PRIORITY:.*iif $downstream .*lookup $HOTSPOT_BLOCK_ROUTE_TABLE\" && " +
+                ruleExistsCommand(HOTSPOT_BLOCK_RULE_PRIORITY, downstream, HOTSPOT_BLOCK_ROUTE_TABLE.toString()) + " && " +
                     "ip route show table $HOTSPOT_BLOCK_ROUTE_TABLE | grep -q \"unreachable default\" && " +
                     "iptables -C $FORWARD_CHAIN -i $downstream -j REJECT >/dev/null 2>&1 && " +
                     "ip6tables -C $IPV6_FORWARD_CHAIN -i $downstream -j REJECT >/dev/null 2>&1"
@@ -983,9 +983,9 @@ object VpnRouterManager {
         return downstreams.all { downstream ->
             commandSucceeds(
                 verifyLocalHotspotRouteCommand(downstream) + " && " +
-                    "ip rule show | grep -q \"^$HOTSPOT_VPN_RULE_PRIORITY:.*iif $downstream .*lookup $HOTSPOT_VPN_ROUTE_TABLE\" && " +
+                    ruleExistsCommand(HOTSPOT_VPN_RULE_PRIORITY, downstream, HOTSPOT_VPN_ROUTE_TABLE.toString()) + " && " +
                     "ip route show table $HOTSPOT_VPN_ROUTE_TABLE | grep -q \"default dev $tunnel\" && " +
-                    "ip rule show | grep -q \"^$HOTSPOT_BLOCK_RULE_PRIORITY:.*iif $downstream .*lookup $HOTSPOT_BLOCK_ROUTE_TABLE\" && " +
+                    ruleExistsCommand(HOTSPOT_BLOCK_RULE_PRIORITY, downstream, HOTSPOT_BLOCK_ROUTE_TABLE.toString()) + " && " +
                     "ip route show table $HOTSPOT_BLOCK_ROUTE_TABLE | grep -q \"unreachable default\" && " +
                     "iptables -C INPUT -i $downstream -p tcp --dport ${VpnRouterAttestation.PORT} -j ACCEPT >/dev/null 2>&1 && " +
                     verifyAttestationProxyCommand(downstream) + " && " +
@@ -1004,8 +1004,12 @@ object VpnRouterManager {
     }
 
     private fun ensureRuleCommand(priority: Int, inputInterface: String, table: String): String {
-        return "ip rule show | grep -q \"^$priority:.*iif $inputInterface .*lookup $table\" || " +
+        return ruleExistsCommand(priority, inputInterface, table) + " || " +
             "ip rule add pref $priority iif $inputInterface lookup $table"
+    }
+
+    private fun ruleExistsCommand(priority: Int, inputInterface: String, table: String): String {
+        return "ip rule show pref $priority iif $inputInterface table $table | grep -q ."
     }
 
     private fun localHotspotRouteCommand(downstream: String): String {
