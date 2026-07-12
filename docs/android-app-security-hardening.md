@@ -611,6 +611,10 @@ Implemented:
 - Assignment ack behavior remains outside the shared helper, so direct managed
   config imports still ack imported assignments and bundle imports keep their
   existing bundle ack flow.
+- Existing local tunnel names are resolved case-insensitively before create.
+  Legacy names such as `EDGE1` therefore satisfy a server-preferred `edge1`
+  without deleting configs or aborting sync. Import ACK and assignment metadata
+  use the actual reused local name. Running tunnels remain non-rewritable.
 
 Outside-Android impact:
 No expected server change.

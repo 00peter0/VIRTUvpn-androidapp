@@ -870,7 +870,7 @@ object VcsManagedClient {
         val config = Config.parse(ByteArrayInputStream(configText.toByteArray(StandardCharsets.UTF_8)))
         val applied = applyImportedConfig(preferredName, config)
         if (applied.current) {
-            ackTunnelImported(context, session, assignmentId, preferredName, configVersion)
+            ackTunnelImported(context, session, assignmentId, applied.localTunnelName, configVersion)
         }
         return applied
     }
@@ -880,16 +880,17 @@ object VcsManagedClient {
             val manager = Application.getTunnelManager()
             val tunnels = manager.getTunnels()
             val existing = tunnels[preferredName]
+                ?: tunnels.firstOrNull { it.name.equals(preferredName, ignoreCase = true) }
             if (existing == null) {
                 manager.create(preferredName, config)
                 ImportResult(preferredName, applied = true, current = true)
             } else if (existing.getConfigAsync() == config) {
-                ImportResult(preferredName, applied = false, current = true)
+                ImportResult(existing.name, applied = false, current = true)
             } else if (existing.state == Tunnel.State.UP) {
-                ImportResult(preferredName, applied = false, current = false)
+                ImportResult(existing.name, applied = false, current = false)
             } else {
                 existing.setConfigAsync(config)
-                ImportResult(preferredName, applied = true, current = true)
+                ImportResult(existing.name, applied = true, current = true)
             }
         }
     }
