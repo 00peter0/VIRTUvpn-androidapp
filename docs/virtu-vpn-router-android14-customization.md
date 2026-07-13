@@ -355,6 +355,7 @@ The watchdog does not disable Settings UI. It only re-asserts required router
 state:
 
 - `secure/wifi_ap_timeout_setting=0`
+- `secure/wifi_ap_wifi_sharing=1`
 - `global/tether_offload_disabled=1`
 - `global/mobile_data=1`
 - `global/airplane_mode_on=0`
@@ -381,6 +382,11 @@ Validation:
 - Perturbation test:
   - set `secure/wifi_ap_timeout_setting` to `600`
   - after the watchdog interval, it returned to `0`
+- Concurrent WiFi test:
+  - connect `wlan0` to a validated WiFi uplink;
+  - start the router hotspot and verify `swlan0` remains up alongside `wlan0`;
+  - stop only SoftAP while router intent remains active and verify the watchdog
+    restores it without removing the fail-closed backstop.
 - `VpnRouterService` remained active during the watchdog test.
 - Attestation listeners remained active during the watchdog test:
   - `192.168.115.186:8788`
@@ -571,6 +577,7 @@ Watchdog:
   - `sh /data/adb/service.d/virtu-router-watchdog.sh`
 - Critical settings remain:
   - `secure/wifi_ap_timeout_setting=0`
+  - `secure/wifi_ap_wifi_sharing=1`
   - `global/tether_offload_disabled=1`
   - `global/mobile_data=1`
   - `global/airplane_mode_on=0`

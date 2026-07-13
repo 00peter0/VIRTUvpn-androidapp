@@ -143,6 +143,7 @@ appop_allow() {
 
 apply_os_hardening() {
   put_if_changed secure wifi_ap_timeout_setting 0
+  put_if_changed secure wifi_ap_wifi_sharing 1
   put_if_changed global tether_offload_disabled 1
   put_if_changed global mobile_data 1
   put_if_changed global airplane_mode_on 0
@@ -167,8 +168,10 @@ tick() {
     pre_block
     if block_armed; then
       assert_always_on
+      # SoftAP has an independent Samsung lifecycle. Restore it even when the
+      # router firewall rules survived the platform stopping tethering.
+      tether_up || start_tether
       if ! rules_installed; then
-        tether_up || start_tether
         app_running || kick_app
       fi
     else
@@ -193,4 +196,3 @@ while true; do
   tick
   sleep "$INTERVAL"
 done
-

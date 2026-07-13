@@ -158,6 +158,7 @@ object VpnRouterManager {
             return@withLock status.also { syncAttestationServer(appContext, it) }
         }
         disableHotspotAutoShutdown(appContext)
+        enableWifiSharing(appContext)
         val tunnelName = status.activeTunnel ?: return@withLock status.also { syncAttestationServer(appContext, it) }
         if (status.tetherInterfaces.isEmpty()) return@withLock status.also { syncAttestationServer(appContext, it) }
         try {
@@ -401,7 +402,12 @@ object VpnRouterManager {
 
         val runningTunnel = readVpnInterfaces().firstOrNull()
         val allUpInterfaces = readUpInterfaces()
-        val presentTetherInterfaces = readTetherInterfaces(runningTunnel ?: "", allUpInterfaces)
+        val defaultRouteInterfaces = readDefaultRouteInterfaces().toSet()
+        val presentTetherInterfaces = readTetherInterfaces(
+            runningTunnel ?: "",
+            allUpInterfaces,
+            defaultRouteInterfaces
+        )
         assertHotspotBackstop(presentTetherInterfaces)
         if (runningTunnel == null) {
             val lastActive = lastActiveRouterSnapshot(context)
@@ -500,10 +506,18 @@ object VpnRouterManager {
         return names.toList().sortedWith(compareBy(::vpnInterfacePriority, { it }))
     }
 
-    private fun readTetherInterfaces(activeTunnel: String, upInterfaces: List<String>): List<String> {
+    private fun readTetherInterfaces(
+        activeTunnel: String,
+        upInterfaces: List<String>,
+        defaultRouteInterfaces: Set<String>
+    ): List<String> {
         return upInterfaces.asSequence()
             .filter { name -> isValidInterfaceName(name) }
             .filterNot { name -> name == activeTunnel || name == "lo" }
+            // In STA+AP concurrency the Wi-Fi station (normally wlan0) and
+            // hotspot (for example swlan0) are both UP. The station is an
+            // uplink, never a tether downstream while it owns a default route.
+            .filterNot { name -> name in defaultRouteInterfaces && isPhysicalUplinkCandidate(name) }
             .filter { name -> isTetherInterfaceCandidate(name) }
             .distinct()
             .toList()
@@ -651,6 +665,7 @@ object VpnRouterManager {
         val rulesHealthy = verifyRouterRules(tunnel, downstreams, vpnOwnerUid, vpnProviderUids)
 
         disableHotspotAutoShutdown(context)
+        enableWifiSharing(context)
         disableTetherOffload(context)
         if (allowFastPath && !VpnRouterRulePlanner.needsFullRebuild(lastSignature, snapshot, rulesHealthy)) {
             setOperation(context, OperationStage.CHECKING_HEALTH, "Checking internet through VPN interface $tunnel")
@@ -721,6 +736,16 @@ object VpnRouterManager {
             checkedRun(
                 "remove hotspot VPN route while firewall is rebuilding",
                 "ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY iif $downstream 2>/dev/null || true"
+            )
+        }
+        // Older builds could classify the Wi-Fi station as a tether downstream.
+        // Remove only policy rules for confirmed physical uplinks after the real
+        // downstream backstop above is armed, so migration remains fail-closed.
+        uplinks.forEach { uplink ->
+            checkedRun(
+                "remove stale hotspot policy from uplink",
+                "while ip rule del pref $HOTSPOT_VPN_RULE_PRIORITY iif $uplink 2>/dev/null; do :; done; " +
+                    "while ip rule del pref $HOTSPOT_BLOCK_RULE_PRIORITY iif $uplink 2>/dev/null; do :; done"
             )
         }
         checkedRun(
@@ -1355,7 +1380,8 @@ object VpnRouterManager {
         val liveTethers = interfaceRead?.let { read ->
             readTetherInterfaces(
                 activeTunnel = "",
-                upInterfaces = read.interfaces
+                upInterfaces = read.interfaces,
+                defaultRouteInterfaces = readDefaultRouteInterfaces().toSet()
             )
         }.orEmpty()
         if (liveTethers.isNotEmpty()) {
@@ -1431,6 +1457,7 @@ object VpnRouterManager {
         checkedRun("clear IPv6 output chain", "ip6tables -F $IPV6_OUTPUT_CHAIN 2>/dev/null || true")
         checkedRun("delete IPv6 output chain", "ip6tables -X $IPV6_OUTPUT_CHAIN 2>/dev/null || true")
         restoreHotspotAutoShutdown()
+        restoreWifiSharing()
         restoreTetherOffload()
     }
 
@@ -1454,6 +1481,30 @@ object VpnRouterManager {
             checkedRun("restore hotspot auto shutdown", "settings put secure $WIFI_AP_TIMEOUT_SETTING $previous")
         }
         prefs.edit().remove(KEY_WIFI_AP_TIMEOUT_PREVIOUS).apply()
+    }
+
+    private fun enableWifiSharing(context: Context) {
+        val current = readSecureSetting(WIFI_AP_WIFI_SHARING_SETTING) ?: return
+        if (current == "null") return
+        val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (!prefs.contains(KEY_WIFI_AP_WIFI_SHARING_PREVIOUS)) {
+            prefs.edit().putString(KEY_WIFI_AP_WIFI_SHARING_PREVIOUS, current).apply()
+        }
+        if (current != "1") {
+            checkedRun("enable concurrent WiFi hotspot", "settings put secure $WIFI_AP_WIFI_SHARING_SETTING 1")
+        }
+    }
+
+    private fun restoreWifiSharing() {
+        val prefs = Application.get().applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (!prefs.contains(KEY_WIFI_AP_WIFI_SHARING_PREVIOUS)) return
+        val previous = prefs.getString(KEY_WIFI_AP_WIFI_SHARING_PREVIOUS, "") ?: ""
+        if (previous.isBlank() || previous == "null") {
+            checkedRun("restore concurrent WiFi hotspot", "settings delete secure $WIFI_AP_WIFI_SHARING_SETTING 2>/dev/null || true")
+        } else {
+            checkedRun("restore concurrent WiFi hotspot", "settings put secure $WIFI_AP_WIFI_SHARING_SETTING $previous")
+        }
+        prefs.edit().remove(KEY_WIFI_AP_WIFI_SHARING_PREVIOUS).apply()
     }
 
     private fun disableTetherOffload(context: Context) {
@@ -1772,7 +1823,7 @@ object VpnRouterManager {
     private const val KEY_OPERATION_DETAIL = "operation_detail"
     private const val KEY_LAST_RULE_SIGNATURE = "last_rule_signature"
     private const val KEY_UPLINK_PREFERENCE = "uplink_preference"
-    private const val ROUTER_RULES_VERSION = 9
+    private const val ROUTER_RULES_VERSION = 10
     private const val ATTESTATION_PROXY_PIDFILE = "/data/local/tmp/virtuvpn-router-attestation-proxy.pid"
     private const val KEY_LAST_VIRTU_TUNNEL = "last_virtu_tunnel"
     private const val KEY_DEGRADED_TUNNEL = "degraded_tunnel"
@@ -1791,6 +1842,7 @@ object VpnRouterManager {
     private const val KEY_LAST_ACTIVE_ROUTER_DNS = "last_active_router_dns"
     private const val KEY_TETHER_OFFLOAD_PREVIOUS = "tether_offload_previous"
     private const val KEY_WIFI_AP_TIMEOUT_PREVIOUS = "wifi_ap_timeout_previous"
+    private const val KEY_WIFI_AP_WIFI_SHARING_PREVIOUS = "wifi_ap_wifi_sharing_previous"
     private const val TUNNEL_HEALTH_FAILED_DETAIL = "Selected VPN tunnel has no internet; hotspot clients remain fail-closed. Try another tunnel on the router."
     private const val UPSTREAM_INTERNET_FAILED_DETAIL = "Upstream internet unavailable (mobile data / ISP / captive portal); hotspot clients remain fail-closed. Restore the router's internet connection."
     private const val TUNNEL_HEALTH_TRANSIENT_DETAIL = "VPN tunnel probe missed; keeping router active until failures are sustained"
@@ -1807,6 +1859,7 @@ object VpnRouterManager {
     private const val ROOT_CHECK_FAILURES_BEFORE_UNSUPPORTED = 3
     private const val TETHER_OFFLOAD_DISABLED_SETTING = "tether_offload_disabled"
     private const val WIFI_AP_TIMEOUT_SETTING = "wifi_ap_timeout_setting"
+    private const val WIFI_AP_WIFI_SHARING_SETTING = "wifi_ap_wifi_sharing"
     private const val NAT_CHAIN = "VIRTUVPN_ROUTER"
     private const val DNS_CHAIN = "VIRTUVPN_ROUTER_DNS"
     private const val FORWARD_CHAIN = "VIRTUVPN_ROUTER_FWD"

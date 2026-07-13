@@ -541,6 +541,17 @@ When VPN Router is enabled, VirtuVPN disables the Samsung hotspot timeout with:
 settings put secure wifi_ap_timeout_setting 0
 ```
 
+Samsung also gates concurrent WiFi station plus hotspot operation behind its
+WiFi sharing setting. On supported hardware, VPN Router enables:
+
+```text
+settings put secure wifi_ap_wifi_sharing 1
+```
+
+The app saves and restores the previous value with the router lifecycle. The
+Android 14 appliance watchdog re-asserts it because the appliance is dedicated
+to router operation.
+
 The previous value is saved and restored when VPN Router is disabled. Reconcile
 also reapplies this setting while router rules are installed, so app updates or
 temporary hotspot changes do not leave the device with timeout enabled.
@@ -551,16 +562,20 @@ trusted:
 - Verify the hotspot does not auto-disable while VPN Router is on.
 - On Samsung, verify `settings get secure wifi_ap_timeout_setting` returns `0`
   while router mode is enabled.
+- On Samsung hardware that supports STA + AP concurrency, verify
+  `settings get secure wifi_ap_wifi_sharing` returns `1` and both `wlan0` and
+  the tether interface such as `swlan0` remain up.
 - Check `dumpsys wifi` for SoftAP stop events and shutdown timeout fields.
 - If a firmware uses another OEM setting for hotspot timeout, add it to router
   setup before declaring the device production-ready.
 - If hotspot is manually disabled or stopped by the OS, router rules must remain
   fail-closed; clients must not receive mobile uplink internet outside VPN.
 
-VirtuVPN currently prevents the known Samsung timeout case. It does not yet
-guarantee automatic SoftAP restart after a manual user/system stop. That can be
-added later with a stored SoftAP profile and `cmd wifi start-softap`, but it must
-not guess or overwrite the user's hotspot password.
+The Android 14 appliance watchdog restores SoftAP through the existing
+framework `TetheringManager` helper when router intent is active and the
+fail-closed backstop is armed. This restore is independent of whether router
+firewall rules survived the SoftAP stop, so a platform-only hotspot shutdown
+does not leave the appliance without its client network.
 
 ## Client app download and pairing
 
