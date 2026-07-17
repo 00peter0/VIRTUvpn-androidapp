@@ -105,7 +105,8 @@ When enabled, the app installs root rules that:
 - redirect hotspot client TCP/UDP DNS on port 53 to the selected router DNS
   resolver,
 - show a VirtuVPN app download/pairing QR code in the VPN Router page,
-- allow the router phone's own internet traffic only through the VPN interface,
+- allow the router phone's protected application traffic only through the VPN
+  interface,
 - allow the active VPN provider UID, installed Android `VpnService` provider
   UIDs, or WireGuard fwmark to use the physical uplink for tunnel transport,
 - allow narrow router-phone bootstrap traffic needed by Android VPN providers:
@@ -114,6 +115,9 @@ When enabled, the app installs root rules that:
   such as NordVPN can resolve and establish a new `tun` interface while router
   mode is fail-closed,
 - reject other router-phone traffic on physical uplinks while router mode is on,
+- permit the explicitly configured router-local general browser (Chrome) as a
+  separate product policy; this exception never applies to the VirtuVPN UID or
+  Secured Browser,
 - allow hotspot-to-VPN forwarding immediately,
 - allow established VPN return traffic to hotspot clients,
 - reject hotspot forwarding to any non-VPN path.
@@ -416,13 +420,18 @@ third-party VPNs, or the active VPN Router tunnel on the router phone. After the
 protected path is active, the browser performs a short egress identity check and
 adds the apparent exit country and public IP without delaying page navigation.
 
-The router phone also gets its own lockdown while router mode is enabled. Normal
-phone internet must go through the active VPN interface. IPv4 and IPv6 phone
-OUTPUT chains are fail-closed: loopback, the active VPN interface, WireGuard
-transport marks, and the active VPN provider UID are allowed, then all other
-phone output is rejected. This avoids relying only on known OEM uplink interface
-names. When router mode is disabled, these OUTPUT rules are removed and the
-phone returns to normal mobile internet behavior.
+The router phone also gets its own lockdown while router mode is enabled. IPv4
+and IPv6 phone OUTPUT chains are fail-closed for VirtuVPN and other unlisted
+applications: loopback, the active VPN interface, WireGuard transport marks,
+required provider bootstrap traffic, and the explicitly configured local Chrome
+browser are allowed, then all other phone output is rejected. VirtuVPN's own UID
+is deliberately excluded from generic provider UID exemptions because Secured
+Browser shares it. Consequently Secured Browser has no direct-uplink path and
+requires an active router VPN tunnel, while Chrome remains available as the
+router's ordinary local browser. Hotspot FORWARD and the `20901` unreachable
+backstop are unaffected by this local-browser policy. When router mode is
+disabled, these OUTPUT rules are removed and the phone returns to normal mobile
+internet behavior.
 
 ## DNS
 

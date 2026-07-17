@@ -1584,17 +1584,15 @@ class SecureBrowserActivity : AppCompatActivity() {
             )
         }
         val routerStatus = runCatching { VpnRouterManager.getStatus(this@SecureBrowserActivity) }.getOrNull()
-        if (routerStatus?.securityProtected == true) {
+        if (routerStatus?.securityProtected == true &&
+            routerStatus.availability == VpnRouterManager.Availability.ENABLED &&
+            !routerStatus.activeTunnel.isNullOrBlank()
+        ) {
             unbindBrowserNetwork()
-            val tunnel = routerStatus.activeTunnel ?: getString(R.string.vcs_vpn_status_no_tunnel)
-            val label = if (routerStatus.availability == VpnRouterManager.Availability.ENABLED) {
-                getString(R.string.vcs_secure_browser_egress_router, tunnel)
-            } else {
-                getString(R.string.vcs_secure_browser_egress_router_attested_via_offline, tunnel)
-            }
+            val tunnel = routerStatus.activeTunnel
             return BrowserProtection(
                 true,
-                label,
+                getString(R.string.vcs_secure_browser_egress_router, tunnel),
                 source = ProtectionSource.LOCAL_ROUTER
             )
         }

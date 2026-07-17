@@ -648,8 +648,10 @@ object VpnRouterManager {
             .ifEmpty { DnsMode.QUAD9.resolvers }
         val dnsResolver = dnsResolvers.first()
         val compatibilityMode = getCompatibilityMode(context)
-        val vpnOwnerUid = readVpnOwnerUid()
+        val appUid = context.applicationInfo.uid
+        val vpnOwnerUid = readVpnOwnerUid()?.takeUnless { uid -> uid == appUid }
         val vpnProviderUids = readVpnProviderUids(context)
+        val localBrowserUids = readRouterLocalBrowserUids(context)
         val snapshot = VpnRouterRulePlanner.Snapshot(
             rulesVersion = ROUTER_RULES_VERSION,
             tunnel = tunnel,
@@ -658,7 +660,8 @@ object VpnRouterManager {
             compatibilityMode = compatibilityMode.preferenceValue,
             uplinks = uplinks,
             vpnOwnerUid = vpnOwnerUid,
-            vpnProviderUids = vpnProviderUids
+            vpnProviderUids = vpnProviderUids,
+            localBrowserUids = localBrowserUids
         )
         val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val lastSignature = prefs.getString(KEY_LAST_RULE_SIGNATURE, null)
@@ -805,6 +808,10 @@ object VpnRouterManager {
         vpnProviderUids.filterNot { uid -> uid == vpnOwnerUid }.forEach { uid ->
             checkedRun("allow installed VPN provider bootstrap $uid", "iptables -A $OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN")
             checkedRun("allow installed VPN provider IPv6 bootstrap $uid", "ip6tables -A $IPV6_OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN || true")
+        }
+        localBrowserUids.forEach { uid ->
+            checkedRun("allow router-local browser $uid", "iptables -A $OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN")
+            checkedRun("allow router-local browser IPv6 $uid", "ip6tables -A $IPV6_OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN || true")
         }
         VPN_BOOTSTRAP_SYSTEM_UIDS.forEach { uid ->
             checkedRun("allow Android VPN bootstrap system UID $uid", "iptables -A $OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN || true")
@@ -980,8 +987,9 @@ object VpnRouterManager {
     private fun verifyRouterRules(
         tunnel: String,
         downstreams: List<String>,
-        vpnOwnerUid: Int? = readVpnOwnerUid(),
-        vpnProviderUids: List<Int> = readVpnProviderUids(Application.get().applicationContext)
+        vpnOwnerUid: Int? = readVpnOwnerUid()?.takeUnless { uid -> uid == Application.get().applicationInfo.uid },
+        vpnProviderUids: List<Int> = readVpnProviderUids(Application.get().applicationContext),
+        localBrowserUids: List<Int> = readRouterLocalBrowserUids(Application.get().applicationContext)
     ): Boolean {
         if (downstreams.isEmpty()) return false
         if (!commandSucceeds("iptables -t nat -S $NAT_CHAIN >/dev/null 2>&1")) return false
@@ -1000,6 +1008,10 @@ object VpnRouterManager {
         vpnProviderUids.forEach { uid ->
             if (!commandSucceeds("iptables -C $OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN >/dev/null 2>&1")) return false
         }
+        localBrowserUids.forEach { uid ->
+            if (!commandSucceeds("iptables -C $OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN >/dev/null 2>&1")) return false
+        }
+        if (commandSucceeds("iptables -C $OUTPUT_CHAIN -m owner --uid-owner ${Application.get().applicationInfo.uid} -j RETURN >/dev/null 2>&1")) return false
         VPN_BOOTSTRAP_SYSTEM_UIDS.forEach { uid ->
             if (!commandSucceeds("iptables -C $OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN >/dev/null 2>&1")) return false
         }
@@ -1691,13 +1703,14 @@ object VpnRouterManager {
     private class TunnelHealthException(message: String) : IllegalStateException(message)
 
     private fun readVpnProviderUids(context: Context): List<Int> {
+        val ownUid = context.applicationInfo.uid
         return runCatching {
             val flags = PackageManager.GET_META_DATA
             context.packageManager
                 .queryIntentServices(Intent(VpnService.SERVICE_INTERFACE), flags)
                 .asSequence()
                 .mapNotNull { info -> info.serviceInfo?.applicationInfo?.uid }
-                .filter { uid -> uid > 0 }
+                .filter { uid -> uid > 0 && uid != ownUid }
                 .distinct()
                 .sorted()
                 .toList()
@@ -1705,6 +1718,12 @@ object VpnRouterManager {
             Log.w(TAG, "Unable to enumerate VPN provider UIDs", e)
             emptyList()
         }
+    }
+
+    private fun readRouterLocalBrowserUids(context: Context): List<Int> {
+        return ROUTER_LOCAL_BROWSER_PACKAGES.mapNotNull { packageName ->
+            runCatching { context.packageManager.getApplicationInfo(packageName, 0).uid }.getOrNull()
+        }.distinct().sorted()
     }
 
     private fun readGlobalSetting(name: String): String? {
@@ -1879,6 +1898,7 @@ object VpnRouterManager {
         1052, // tether/system DNS helper on Samsung builds
         1073 // network stack validation and bootstrap plumbing
     )
+    private val ROUTER_LOCAL_BROWSER_PACKAGES = listOf("com.android.chrome")
     private val COMMON_ENCRYPTED_DNS_RESOLVERS = listOf(
         "1.0.0.1",
         "1.0.0.3",

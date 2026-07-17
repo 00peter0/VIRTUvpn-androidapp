@@ -13,7 +13,8 @@ object VpnRouterRulePlanner {
         val compatibilityMode: String,
         val uplinks: List<String>,
         val vpnOwnerUid: Int?,
-        val vpnProviderUids: List<Int>
+        val vpnProviderUids: List<Int>,
+        val localBrowserUids: List<Int>
     ) {
         fun signature(): String {
             return listOf(
@@ -24,7 +25,8 @@ object VpnRouterRulePlanner {
                 compatibilityMode,
                 uplinks.sorted().joinToString(","),
                 vpnOwnerUid?.toString().orEmpty(),
-                vpnProviderUids.sorted().joinToString(",")
+                vpnProviderUids.sorted().joinToString(","),
+                localBrowserUids.sorted().joinToString(",")
             ).joinToString("|")
         }
     }

@@ -18,7 +18,8 @@ class VpnRouterRulePlannerTest {
         compatibilityMode = "strict",
         uplinks = listOf("rmnet_data0", "rmnet_data1"),
         vpnOwnerUid = 10084,
-        vpnProviderUids = listOf(10084, 10123)
+        vpnProviderUids = listOf(10084, 10123),
+        localBrowserUids = listOf(10267)
     )
 
     @Test
@@ -93,6 +94,12 @@ class VpnRouterRulePlannerTest {
     @Test
     fun vpnProviderUidChangeRequiresFullRebuild() {
         val changed = baseline.copy(vpnProviderUids = listOf(10084, 10555))
+        assertTrue(VpnRouterRulePlanner.needsFullRebuild(baseline.signature(), changed, true))
+    }
+
+    @Test
+    fun localBrowserUidChangeRequiresFullRebuild() {
+        val changed = baseline.copy(localBrowserUids = listOf(10267, 10268))
         assertTrue(VpnRouterRulePlanner.needsFullRebuild(baseline.signature(), changed, true))
     }
 

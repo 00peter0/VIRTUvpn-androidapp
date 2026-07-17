@@ -374,9 +374,11 @@ phone. The import still requires explicit confirmation before the per-router
 secret is stored. The same blocked screen also exposes `Forget paired routers`
 so guest devices can remove old trust without navigating through hidden settings.
 
-On the router phone itself, Secure Browser may run while VPN Router is enabled
-because router OUTPUT lockdown prevents normal phone traffic from bypassing the
-VPN. The browser still shows the router tunnel in the egress header.
+On the router phone itself, Secure Browser may run only while VPN Router has an
+active VPN tunnel and router OUTPUT lockdown enforces its egress. The VirtuVPN
+application UID must never receive a generic VPN-provider bootstrap exemption:
+the embedded WebView shares that UID and such an exemption would create a short
+direct-uplink leak before the browser state watch locks the UI.
 
 While running as a verified hotspot client, Secure Browser periodically
 re-checks the local router attestation and fails closed if the router reports an
@@ -385,7 +387,7 @@ lookup services. Exit IP/country lookup remains an explicit user action from the
 egress status dialog.
 
 
-From router build 824 onward, Secured Browser treats router attestation
+From router build 824 onward, a hotspot-client Secured Browser treats router attestation
 `protected` as the fail-closed security invariant only. A verified router may
 return `protected=true` and signed `tunnelOnline=false`; in that case the browser
 remains allowed because traffic cannot leak to the uplink, but the egress label
@@ -393,6 +395,12 @@ shows that tunnel internet is offline. The browser blocks only when the router
 signs `protected=false`, when the paired router cannot be verified after the
 transient grace window, or when Android reports loss of the bound router WiFi
 network.
+
+This offline-tunnel tolerance applies only to an attested hotspot client, whose
+traffic remains trapped by the router's forwarding backstop. It does not apply
+to Secured Browser running locally on the router phone: local mode requires
+`ENABLED`, a non-empty active tunnel, and the phone OUTPUT policy must block the
+VirtuVPN UID when that tunnel disappears.
 
 Router build 825 keeps the attestation plane alive through short root/detect
 hiccups. A transient router status read miss no longer immediately stops the
