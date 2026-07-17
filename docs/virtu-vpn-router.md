@@ -118,6 +118,10 @@ When enabled, the app installs root rules that:
 - permit the explicitly configured router-local general browser (Chrome) as a
   separate product policy; this exception never applies to the VirtuVPN UID or
   Secured Browser,
+- permit the VirtuVPN UID to reach only the resolved IPv4/IPv6 addresses of
+  `vcs.virtucomputing.com` over TCP port 443. This narrow control-plane path
+  keeps enrollment, managed sync, heartbeat, and update metadata available
+  while the router VPN tunnel is absent; it is not a generic app-UID bypass,
 - allow hotspot-to-VPN forwarding immediately,
 - allow established VPN return traffic to hotspot clients,
 - reject hotspot forwarding to any non-VPN path.
@@ -434,12 +438,15 @@ applications: loopback, the active VPN interface, WireGuard transport marks,
 required provider bootstrap traffic, and the explicitly configured local Chrome
 browser are allowed, then all other phone output is rejected. VirtuVPN's own UID
 is deliberately excluded from generic provider UID exemptions because Secured
-Browser shares it. Consequently Secured Browser has no direct-uplink path and
-requires an active router VPN tunnel, while Chrome remains available as the
-router's ordinary local browser. Hotspot FORWARD and the `20901` unreachable
-backstop are unaffected by this local-browser policy. When router mode is
-disabled, these OUTPUT rules are removed and the phone returns to normal mobile
-internet behavior.
+Browser shares it. The only direct-uplink exception for that UID is destination-
+scoped TCP/443 to the currently resolved addresses of
+`vcs.virtucomputing.com`, tagged `virtuvpn-control-plane` in the OUTPUT chains.
+This allows router management sync without a working VPN but does not provide a
+general web path. Consequently Secured Browser still requires an active router
+VPN tunnel, while Chrome remains available as the router's ordinary local
+browser. Hotspot FORWARD and the `20901` unreachable backstop are unaffected by
+this local-browser policy. When router mode is disabled, these OUTPUT rules are
+removed and the phone returns to normal mobile internet behavior.
 
 ## DNS
 

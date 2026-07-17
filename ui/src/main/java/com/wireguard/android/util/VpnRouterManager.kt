@@ -20,6 +20,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.net.Inet4Address
+import java.net.Inet6Address
+import java.net.InetAddress
 import java.util.Locale
 
 object VpnRouterManager {
@@ -655,6 +658,7 @@ object VpnRouterManager {
         val vpnOwnerUid = readVpnOwnerUid()?.takeUnless { uid -> uid == appUid }
         val vpnProviderUids = readVpnProviderUids(context)
         val localBrowserUids = readRouterLocalBrowserUids(context)
+        val controlPlaneAddresses = resolveControlPlaneAddresses()
         val snapshot = VpnRouterRulePlanner.Snapshot(
             rulesVersion = ROUTER_RULES_VERSION,
             tunnel = tunnel,
@@ -815,6 +819,9 @@ object VpnRouterManager {
         localBrowserUids.forEach { uid ->
             checkedRun("allow router-local browser $uid", "iptables -A $OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN")
             checkedRun("allow router-local browser IPv6 $uid", "ip6tables -A $IPV6_OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN || true")
+        }
+        appendControlPlaneRules(context, controlPlaneAddresses).forEach { command ->
+            checkedRun("allow Virtu control plane", command)
         }
         VPN_BOOTSTRAP_SYSTEM_UIDS.forEach { uid ->
             checkedRun("allow Android VPN bootstrap system UID $uid", "iptables -A $OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN || true")
@@ -1744,7 +1751,40 @@ object VpnRouterManager {
             commands += "iptables -C $OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN >/dev/null 2>&1 || iptables -I $OUTPUT_CHAIN 1 -m owner --uid-owner $uid -j RETURN"
             commands += "ip6tables -C $IPV6_OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN >/dev/null 2>&1 || ip6tables -I $IPV6_OUTPUT_CHAIN 1 -m owner --uid-owner $uid -j RETURN"
         }
+        commands += appendControlPlaneRules(context, resolveControlPlaneAddresses(), insert = true)
         return commandSucceeds(commands.joinToString("; "))
+    }
+
+    private fun resolveControlPlaneAddresses(): List<String> = runCatching {
+        InetAddress.getAllByName(CONTROL_PLANE_HOST)
+            .asSequence()
+            .filter { address -> address is Inet4Address || address is Inet6Address }
+            .mapNotNull { address -> address.hostAddress?.substringBefore('%') }
+            .distinct()
+            .sorted()
+            .toList()
+    }.getOrElse { error ->
+        Log.w(TAG, "Unable to resolve Virtu control plane", error)
+        emptyList()
+    }
+
+    private fun appendControlPlaneRules(
+        context: Context,
+        addresses: List<String>,
+        insert: Boolean = false
+    ): List<String> {
+        val ownUid = context.applicationInfo.uid
+        val operation = if (insert) "-I $OUTPUT_CHAIN 1" else "-A $OUTPUT_CHAIN"
+        val operation6 = if (insert) "-I $IPV6_OUTPUT_CHAIN 1" else "-A $IPV6_OUTPUT_CHAIN"
+        return addresses.map { address ->
+            if (address.contains(':')) {
+                "ip6tables -C $IPV6_OUTPUT_CHAIN -d $address -p tcp --dport 443 -m owner --uid-owner $ownUid -m comment --comment $CONTROL_PLANE_RULE_COMMENT -j RETURN >/dev/null 2>&1 || " +
+                    "ip6tables $operation6 -d $address -p tcp --dport 443 -m owner --uid-owner $ownUid -m comment --comment $CONTROL_PLANE_RULE_COMMENT -j RETURN"
+            } else {
+                "iptables -C $OUTPUT_CHAIN -d $address -p tcp --dport 443 -m owner --uid-owner $ownUid -m comment --comment $CONTROL_PLANE_RULE_COMMENT -j RETURN >/dev/null 2>&1 || " +
+                    "iptables $operation -d $address -p tcp --dport 443 -m owner --uid-owner $ownUid -m comment --comment $CONTROL_PLANE_RULE_COMMENT -j RETURN"
+            }
+        }
     }
 
     private fun readGlobalSetting(name: String): String? {
@@ -1904,6 +1944,8 @@ object VpnRouterManager {
     private const val DNS_CHAIN = "VIRTUVPN_ROUTER_DNS"
     private const val FORWARD_CHAIN = "VIRTUVPN_ROUTER_FWD"
     private const val OUTPUT_CHAIN = "VIRTUVPN_ROUTER_OUT"
+    private const val CONTROL_PLANE_HOST = "vcs.virtucomputing.com"
+    private const val CONTROL_PLANE_RULE_COMMENT = "virtuvpn-control-plane"
     private const val IPV6_FORWARD_CHAIN = "VIRTUVPN_ROUTER6_FWD"
     private const val IPV6_OUTPUT_CHAIN = "VIRTUVPN_ROUTER6_OUT"
     private const val HOTSPOT_LOCAL_RULE_PRIORITY = 12050
