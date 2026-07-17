@@ -398,6 +398,9 @@ object VpnRouterManager {
                 detail = e.message ?: "root required"
             )
         }
+        if (installed && !enforceRouterLocalEgressOwnership(context)) {
+            Log.w(TAG, "Unable to enforce router-local browser egress ownership; keeping status fail-closed")
+        }
         pruneMissingStoredTunnelReferences(context)
 
         val runningTunnel = readVpnInterfaces().firstOrNull()
@@ -972,6 +975,11 @@ object VpnRouterManager {
         if (!commandSucceeds("ip6tables -C OUTPUT -j $IPV6_OUTPUT_CHAIN >/dev/null 2>&1")) return false
         if (!commandSucceeds("iptables -C $OUTPUT_CHAIN -j REJECT >/dev/null 2>&1")) return false
         if (!commandSucceeds("ip6tables -C $IPV6_OUTPUT_CHAIN -j REJECT >/dev/null 2>&1")) return false
+        val appContext = Application.get().applicationContext
+        if (commandSucceeds("iptables -C $OUTPUT_CHAIN -m owner --uid-owner ${appContext.applicationInfo.uid} -j RETURN >/dev/null 2>&1")) return false
+        readRouterLocalBrowserUids(appContext).forEach { uid ->
+            if (!commandSucceeds("iptables -C $OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN >/dev/null 2>&1")) return false
+        }
         if (!commandSucceeds("ip6tables -C $IPV6_FORWARD_CHAIN -j REJECT >/dev/null 2>&1")) return false
         return downstreams.all { downstream ->
             val coreRulesHold = commandSucceeds(
@@ -1726,6 +1734,19 @@ object VpnRouterManager {
         }.distinct().sorted()
     }
 
+    private fun enforceRouterLocalEgressOwnership(context: Context): Boolean {
+        val ownUid = context.applicationInfo.uid
+        val commands = mutableListOf(
+            "while iptables -D $OUTPUT_CHAIN -m owner --uid-owner $ownUid -j RETURN 2>/dev/null; do :; done",
+            "while ip6tables -D $IPV6_OUTPUT_CHAIN -m owner --uid-owner $ownUid -j RETURN 2>/dev/null; do :; done"
+        )
+        readRouterLocalBrowserUids(context).forEach { uid ->
+            commands += "iptables -C $OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN >/dev/null 2>&1 || iptables -I $OUTPUT_CHAIN 1 -m owner --uid-owner $uid -j RETURN"
+            commands += "ip6tables -C $IPV6_OUTPUT_CHAIN -m owner --uid-owner $uid -j RETURN >/dev/null 2>&1 || ip6tables -I $IPV6_OUTPUT_CHAIN 1 -m owner --uid-owner $uid -j RETURN"
+        }
+        return commandSucceeds(commands.joinToString("; "))
+    }
+
     private fun readGlobalSetting(name: String): String? {
         val output = mutableListOf<String>()
         val exit = Application.getRootShell().run(output, "settings get global $name 2>/dev/null")
@@ -1842,7 +1863,7 @@ object VpnRouterManager {
     private const val KEY_OPERATION_DETAIL = "operation_detail"
     private const val KEY_LAST_RULE_SIGNATURE = "last_rule_signature"
     private const val KEY_UPLINK_PREFERENCE = "uplink_preference"
-    private const val ROUTER_RULES_VERSION = 10
+    private const val ROUTER_RULES_VERSION = 11
     private const val ATTESTATION_PROXY_PIDFILE = "/data/local/tmp/virtuvpn-router-attestation-proxy.pid"
     private const val KEY_LAST_VIRTU_TUNNEL = "last_virtu_tunnel"
     private const val KEY_DEGRADED_TUNNEL = "degraded_tunnel"
