@@ -357,6 +357,14 @@ process network binding before starting or refreshing the pairing/attestation
 server so provider-specific VPN routing cannot make the local HTTP server stop
 answering hotspot clients.
 
+On client devices, an Android network advertising `TRANSPORT_VPN` and
+`NET_CAPABILITY_INTERNET` is not sufficient proof of protected internet
+egress. Split VPN Mesh and S2S tunnels may advertise those capabilities while
+installing only private host routes. Secured Browser accepts a VPN network only
+when its `LinkProperties` also contain a default route. Split tunnels remain
+available to their private destinations, but they cannot unlock public WebView
+navigation or bypass VPN Router attestation.
+
 The app-side attestation server lifecycle is intentionally separate from the
 root hotspot proxy lifecycle. The app server binds only `127.0.0.1:8789`; the
 public gateway address belongs to the root proxy. Therefore changes in the

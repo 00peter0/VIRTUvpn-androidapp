@@ -1671,8 +1671,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         val connectivityManager = getSystemService(ConnectivityManager::class.java) ?: return
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return
-                if (isUsableVpnCapabilities(capabilities)) {
+                if (isUsableVpnNetwork(connectivityManager, network)) {
                     refreshBrowserProtectionAsync()
                 }
             }
@@ -1686,12 +1685,12 @@ class SecureBrowserActivity : AppCompatActivity() {
             override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
                 if (network == boundNetwork) {
                     val stillProtected = when (boundNetworkKind) {
-                        BoundNetworkKind.VPN -> isUsableVpnCapabilities(networkCapabilities)
+                        BoundNetworkKind.VPN -> isUsableVpnNetwork(connectivityManager, network)
                         BoundNetworkKind.ROUTER_WIFI -> isUsableRouterWifiCapabilities(networkCapabilities)
                         null -> false
                     }
                     if (!stillProtected) lockBrowserFromNetworkCallback()
-                } else if (isUsableVpnCapabilities(networkCapabilities)) {
+                } else if (isUsableVpnNetwork(connectivityManager, network)) {
                     refreshBrowserProtectionAsync()
                 }
             }
@@ -2177,7 +2176,8 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun isUsableVpnNetwork(connectivityManager: ConnectivityManager, network: Network): Boolean {
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-        return isUsableVpnCapabilities(capabilities)
+        val linkProperties = connectivityManager.getLinkProperties(network) ?: return false
+        return isUsableVpnCapabilities(capabilities) && linkProperties.routes.any { it.isDefaultRoute }
     }
 
     private fun isUsableWifiNetwork(connectivityManager: ConnectivityManager, network: Network): Boolean {
@@ -2202,7 +2202,7 @@ class SecureBrowserActivity : AppCompatActivity() {
                 ?: return failClosedRequestGate()
             val capabilities = connectivityManager.getNetworkCapabilities(network)
             val protected = when (kind) {
-                BoundNetworkKind.VPN -> capabilities?.let { isUsableVpnCapabilities(it) } == true
+                BoundNetworkKind.VPN -> isUsableVpnNetwork(connectivityManager, network)
                 BoundNetworkKind.ROUTER_WIFI -> capabilities?.let { isUsableRouterWifiCapabilities(it) } == true
             }
             if (!protected) runOnUiThread { lockBrowser(showToast = false) }
