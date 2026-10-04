@@ -691,9 +691,12 @@ class HomeActivity : AppCompatActivity() {
             message = getString(R.string.vcs_sign_out_confirm_message),
             negative = VcsDialogs.action(this, android.R.string.cancel),
             positive = VcsDialogs.action(this, R.string.vcs_account_sign_out, primary = true) {
-                VcsManagedClient.clearAllVcsState(this)
-                updateSignedInState()
-                Toast.makeText(this, R.string.vcs_signed_out, Toast.LENGTH_LONG).show()
+                lifecycleScope.launch {
+                    VcsManagedClient.signOutAccount(this@HomeActivity) {
+                        updateSignedInState()
+                        Toast.makeText(this@HomeActivity, R.string.vcs_signed_out, Toast.LENGTH_LONG).show()
+                    }
+                }
             }
         )
     }

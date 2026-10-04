@@ -39,6 +39,7 @@ object VcsManagedClient {
     private const val TOKEN_KEY_ALIAS = "virtuvpn_vcs_managed_token_aes_gcm"
     private const val KEY_ACCOUNT_API_BASE = "account_api_base"
     private const val KEY_ACCOUNT_ACCESS_TOKEN = "account_access_token"
+    private const val KEY_ACCOUNT_REFRESH_TOKEN = "account_refresh_token"
     private const val KEY_ACCOUNT_EXPIRES_AT = "account_expires_at"
     private const val KEY_ACCOUNT_EMAIL = "account_email"
     private const val KEY_ACCOUNT_NAME = "account_name"
@@ -127,6 +128,7 @@ object VcsManagedClient {
         private fun clearTokenSecrets() {
             edit {
                 remove(KEY_ACCOUNT_ACCESS_TOKEN)
+                remove(KEY_ACCOUNT_REFRESH_TOKEN)
                 remove(KEY_ACCESS_TOKEN)
                 remove(KEY_DEVICE_REFRESH_TOKEN)
             }
@@ -156,10 +158,35 @@ object VcsManagedClient {
         storeAccountSession(context, normalizedBase, response)
     }
 
+    suspend fun signOutAccount(context: Context, onLocalSignOut: () -> Unit) = withContext(Dispatchers.IO) {
+        val account = loadAccountSession(context)
+        val refreshToken = managedPrefs(context).getSecretString(KEY_ACCOUNT_REFRESH_TOKEN)
+        // Clear local state immediately even if central Auth is unavailable.
+        // Existing WireGuard profiles, router protection and shells are untouched.
+        clearAllVcsState(context)
+        withContext(Dispatchers.Main.immediate) { onLocalSignOut() }
+        if (account != null && refreshToken != null) {
+            runCatching {
+                requestJson("POST", "${account.apiBase}/api/mobile/android/auth/logout",
+                    JSONObject().put("accountRefreshToken", refreshToken), account.token)
+            }
+        }
+    }
+
+    private fun verifyAccountSessionIfPresent(context: Context) {
+        val account = loadAccountSession(context) ?: return
+        try {
+            requestJson("GET", "${account.apiBase}/api/mobile/android/auth/me", null, account.token)
+        } catch (e: MobileHttpException) {
+            if (e.status == HttpURLConnection.HTTP_UNAUTHORIZED) clearAccountSession(context) else throw e
+        }
+    }
+
     fun clearAccountSession(context: Context) {
         managedPrefs(context).edit {
             remove(KEY_ACCOUNT_API_BASE)
             remove(KEY_ACCOUNT_ACCESS_TOKEN)
+            remove(KEY_ACCOUNT_REFRESH_TOKEN)
             remove(KEY_ACCOUNT_EXPIRES_AT)
             remove(KEY_ACCOUNT_EMAIL)
             remove(KEY_ACCOUNT_NAME)
@@ -335,6 +362,7 @@ object VcsManagedClient {
     }
 
     suspend fun reportDeviceHeartbeat(context: Context) = withContext(Dispatchers.IO) {
+        verifyAccountSessionIfPresent(context)
         val session = requireSession(context)
         requestDeviceJson(context, session, "POST", "${session.apiBase}/api/mobile/android/device/heartbeat", deviceRegistrationBody())
         Unit
@@ -867,7 +895,7 @@ object VcsManagedClient {
         return requestDeviceJson(context, session, "POST", "${session.apiBase}/api/mobile/android/commands/$commandId/ack", body).session
     }
 
-    private fun ackTunnelImported(context: Context, session: Session, assignmentId: String, localTunnelName: String, configVersion: Int, bundleImport: Boolean = false): Session {
+    private fun ackTunnelImported(context: Context, session: Session, assignmentId: String, localTunnelName: String, configVersion: Long, bundleImport: Boolean = false): Session {
         val body = JSONObject()
             .put("localTunnelName", localTunnelName)
             .put("configVersion", configVersion)
@@ -877,7 +905,7 @@ object VcsManagedClient {
 
     private fun ackManagedBundleImport(context: Context, session: Session, bundle: JSONObject, localTunnelName: String): Session {
         var activeSession = session
-        val configVersion = bundle.optInt("configVersion", 1)
+        val configVersion = bundle.optLong("configVersion", 1L)
         val ids = bundle.optJSONArray("assignmentIds") ?: return activeSession
         for (i in 0 until ids.length()) {
             val assignmentId = ids.optString(i).takeIf { it.isNotBlank() } ?: continue
@@ -896,7 +924,7 @@ object VcsManagedClient {
     private suspend fun importManagedConfig(context: Context, session: Session, provision: JSONObject): ImportResult {
         val configText = provision.getString("config")
         val assignmentId = provision.getString("assignmentId")
-        val configVersion = provision.optInt("configVersion", 1)
+        val configVersion = provision.optLong("configVersion", 1L)
         val preferredName = sanitizeTunnelName(provision.optString("configFilename", provision.optString("displayName", "vcs-$assignmentId")))
         val config = Config.parse(ByteArrayInputStream(configText.toByteArray(StandardCharsets.UTF_8)))
         removeSupersededCaseVariant(context, assignmentId, preferredName)
@@ -1087,6 +1115,7 @@ object VcsManagedClient {
         prefs.edit {
             putString(KEY_ACCOUNT_API_BASE, account.apiBase)
             prefs.putSecretString(this, KEY_ACCOUNT_ACCESS_TOKEN, account.token)
+            prefs.putSecretString(this, KEY_ACCOUNT_REFRESH_TOKEN, response.optString("accountRefreshToken").takeIf { it.isNotBlank() })
             putLong(KEY_ACCOUNT_EXPIRES_AT, account.expiresAtMillis)
             putString(KEY_ACCOUNT_EMAIL, account.email)
             putString(KEY_ACCOUNT_NAME, account.name)
