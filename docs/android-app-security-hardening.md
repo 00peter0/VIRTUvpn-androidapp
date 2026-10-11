@@ -90,6 +90,14 @@ index 1 in A/B/C; inserting AA before B makes index 1 identify AA. The deletion 
 reads the current list using saved positions. TunnelManager's sorted list can change
 during synchronization or rename, and saved-instance selection also stores indexes.
 This is a concrete code-level risk, not a reproduced destructive device test.
+Its scope is manual selection/deletion in Android's tunnel-list action mode.
+Managed Access removal followed by Android synchronization is a separate path:
+VcsManagedClient matches inactive assignment IDs and owned local tunnel names,
+not selected UI row positions. Cleanup is gated on a complete import and retains
+the existing checks for names still used by active assignments. The owner explicitly
+confirmed that removing a device's VPN assignment in Managed Access, then syncing
+the device, is the desired workflow. Preserve it; this does not authorize revoking
+the underlying VPN or replacing the managed-assignment synchronization logic.
 Proposed next behavior review: retain selection by tunnel identity, validate the
 selected objects at deletion time, then assess granular adapter updates. Obtain the
 owner's decision before changing the selection/deletion contract; never test this
