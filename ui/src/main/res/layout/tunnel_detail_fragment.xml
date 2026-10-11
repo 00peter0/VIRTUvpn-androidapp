@@ -355,7 +355,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="40dp"
                             android:minWidth="92dp"
-                            android:text="@string/copy"
+                            android:text="@string/vcs_copy_label"
                             android:textAllCaps="false" />
 
                         <Button

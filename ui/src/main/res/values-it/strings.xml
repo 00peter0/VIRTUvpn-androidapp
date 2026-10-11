@@ -567,4 +567,5 @@
     <string name="vcs_sync_skipped_running">La sincronizzazione ha trovato aggiornamenti di configurazione dei tunnel: %1$d, ma il tunnel è attivo. Disattiva il tunnel e sincronizza di nuovo per applicarli in sicurezza.</string>
     <string name="vcs_sync_success">Sincronizzazione VCS completata: importati %1$d di %2$d tunnel assegnati</string>
     <string name="vcs_sync_error">Sincronizzazione VCS non riuscita: %1$s</string>
+    <string name="vcs_copy_label">Copia</string>
 </resources>

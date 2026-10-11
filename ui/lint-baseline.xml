@@ -354,28 +354,6 @@
     </issue>
 
     <issue
-        id="PrivateResource"
-        message="Overriding `@string/copy` which is marked as private in androidx.preference:preference:1.2.1. If deliberate, use tools:override=&quot;true&quot;, otherwise pick a different name."
-        errorLine1="    &lt;string name=&quot;copy&quot;>Copy&lt;/string>"
-        errorLine2="                  ~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="359"
-            column="19"/>
-    </issue>
-
-    <issue
-        id="PrivateResource"
-        message="The resource `@string/copy` is marked as private in androidx.preference:preference:1.2.1"
-        errorLine1="                            android:text=&quot;@string/copy&quot;"
-        errorLine2="                                          ~~~~~~~~~~~~">
-        <location
-            file="src/main/res/layout/tunnel_detail_fragment.xml"
-            line="354"
-            column="43"/>
-    </issue>
-
-    <issue
         id="UseCompatLoadingForDrawables"
         message="Use `AppCompatResources.getDrawable()`"
         errorLine1="            background = getDrawable(R.drawable.fastest_button_background)"
@@ -647,17 +625,6 @@
         <location
             file="src/main/res/layout/vcs_sign_in_dialog.xml"
             line="92"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;copy&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;copy&quot;>Copy&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="359"
             column="13"/>
     </issue>
 

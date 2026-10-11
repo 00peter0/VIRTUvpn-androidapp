@@ -390,7 +390,7 @@
     <string name="create_temp_dir_error">Cannot create local temporary directory</string>
     <string name="create_tunnel">Create Tunnel</string>
     <string name="copied_to_clipboard">%s copied to clipboard</string>
-    <string name="copy">Copy</string>
+    <string name="vcs_copy_label">Copy</string>
     <string name="dark_theme_summary_off">Currently using light (day) theme</string>
     <string name="dark_theme_summary_on">Currently using dark (night) theme</string>
     <string name="dark_theme_title">Use dark theme</string>

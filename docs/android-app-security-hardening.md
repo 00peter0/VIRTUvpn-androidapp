@@ -1,13 +1,15 @@
 # VirtuVPN Android App Security Hardening Backlog
 
-## Localization maintenance — October 11, 2026, version 901
+## Localization maintenance — October 11, 2026, version 902
 
 The owner approved the remaining translation block, with application behavior
 changes still requiring discussion. Added German, Italian and French translations
-for **250 resource IDs per locale** (249 strings and one plural resource), covering
+for **251 resource IDs per locale** (250 strings and one plural resource), covering
 account messages, VPN status/router operation, browser protection and pairing,
 terminal access, enrollment, synchronization and update prompts. Existing English
-text, resource IDs, calls, layouts and all previous translations are preserved.
+text, calls and all previous translations are preserved. The sole resource-name
+change isolates the Copy label under the app-owned `vcs_copy_label`; its one XML
+reference changes with it, while its label and action remain the same.
 
 Formatting argument positions/types, line breaks, product names, protocol terms
 and DNS addresses were checked against the English resources. Safety requirements,
@@ -21,22 +23,25 @@ the example HTTPS address, browser action symbols, match/zoom numeric formats an
 the no-data dash. Their original contents are unchanged. This is a resource
 classification, not a suppression of untranslated human-readable messages.
 
-| Gate | Version 900 | Version 901 |
+| Gate | Version 900 | Version 902 |
 | --- | --- | --- |
-| MissingTranslation findings in full lint | 262 | 1 |
-| Full lint warnings, empty diagnostic baseline | 433 | 172 |
+| MissingTranslation findings in full lint | 262 | 0 |
+| Full lint warnings, empty diagnostic baseline | 433 | 169 |
 | Visible lint warnings | 33 | 33 |
 | Lint errors | 0 | 0 |
-| Repository baseline entries | 400 | 139 |
+| Repository baseline entries | 400 | 136 |
 | Newly introduced full-lint findings | — | 0 |
 
-Only 261 resolved translation entries were removed from the baseline. No baseline
-entry or suppression was added. The sole remaining translation is the existing
-`copy` override of an AndroidX private resource. Translating that override also
-changes the shared dependency label and adds three private-resource findings;
-those candidate translations were removed. Isolating the app label under its own
-name requires separate review of both app references and dependency behavior.
-The remaining behavior/design review items from version 900 remain deferred.
+Only 262 resolved translation entries and two resolved private-resource entries
+were removed from the baseline. No baseline entry or suppression was added.
+The `copy` override was initially deferred in version 901. Inspection of the
+installed AndroidX dependency and the compiled APK then established that its
+default and three requested translations are identical to the app label. Version
+902 removes the override and gives the app its own label. Every compiled AndroidX
+Copy-label locale configuration is compared before/after and must remain exactly
+the same. This resolves the final missing translation and both private-resource
+warnings without changing the dependency UI. The remaining behavior/design review
+items from version 900 remain deferred.
 
 Validation: all 52 existing unit tests, full and normal lint, production assemble,
 compiled resource presence for all three locales, source preservation checks,
@@ -45,7 +50,7 @@ binding. This block does not constitute a new physical-device VPN/router or
 screen-by-screen language acceptance test. Build/deployment scripts, VPN/router,
 sync, updater persistence, authentication and registration policies are unchanged.
 
-Release: **901 / 1.0.20261011.362-vcsinstall**, established signing certificate.
+Release: **902 / 1.0.20261011.363-vcsinstall**, established signing certificate.
 Evidence: `/srv/vcs/deploy/evidence/virtuvpn-localization-20261011/`.
 Earlier dated release sections below retain their historical measurements.
 
