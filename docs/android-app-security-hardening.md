@@ -1,5 +1,53 @@
 # VirtuVPN Android App Security Hardening Backlog
 
+## Unreleased preference cleanup — October 11, 2026
+
+Applied the owner's intent-review requirement to preference writes before cleanup.
+Converted 41 plain asynchronous editor chains to the existing AndroidX `edit`
+helper across HomeActivity, SecureBrowserActivity, VpnRouterAttestation and
+VpnRouterManager. Forty were reported in the preceding full lint inventory; the
+first pass also exposed one unchanged legacy write of the router's `app` restore
+mode, which received the same equivalence review and conversion.
+
+The installed `core-ktx:1.17.0` helper defaults to `commit=false`: it creates one
+editor, performs the ordered mutations, then calls `apply()` once. It adds no
+catch/finally handling. Preserved all 88 ordered key/value mutations, preference
+stores, surrounding guards, callbacks and asynchronous write behavior. Source
+verification reverses only the enumerated replacements and three added imports
+and requires the remaining four source files to match their preceding versions.
+
+The updater files ManagedApkUpdates and ManagedUpdateFlow remain byte-identical.
+Their synchronous writes, success checks and existing storage-error behavior
+are deliberately retained. The router's separate editor with conditional
+`if (changed) editor.apply()` is also retained; converting it to an unconditional
+helper would change the write condition. Router snapshots, fail-closed decisions,
+pairing identities/expiry, previous hotspot settings and browser session/bookmark
+policies keep their existing behavior.
+
+| Gate | Previous unreleased source | This unreleased source |
+| --- | --- | --- |
+| Full lint warnings, empty diagnostic baseline | 92 | 52 |
+| Visible lint warnings | 30 | 17 |
+| Lint errors | 0 | 0 |
+| Repository baseline entries | 62 | 35 |
+| Newly introduced full-lint findings | — | 0 |
+
+Removed only 27 resolved baseline entries. No rule suppression or baseline entry
+was added. The two updater `SharedPreferences.edit` recommendations remain visible
+because their synchronous behavior is intentional; a lint recommendation is not
+a reason to remove it. Canvas restoration and other behavior/design review items
+remain deferred.
+
+Validation: 52 existing unit tests, normal/full lint, assemble, established signer,
+package and non-debuggable checks, installed-helper bytecode review and source
+equivalence. These checks do not constitute new physical-device reboot, process
+death, storage-failure or VPN/router acceptance tests.
+
+**Production remains version 903.** Version properties, resources, scripts,
+dependencies and SDK levels are unchanged. The local test APK is unpublished;
+the next consolidated release must use a higher versionCode and the release gates.
+Evidence: `/srv/vcs/deploy/evidence/virtuvpn-preference-cleanup-20261011/`.
+
 ## Distinguish intended behavior from defects — October 11, 2026
 
 The owner requires each maintenance finding to be evaluated against the existing

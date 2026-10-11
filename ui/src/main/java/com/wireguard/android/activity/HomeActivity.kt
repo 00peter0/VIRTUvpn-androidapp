@@ -26,6 +26,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.edit
 import androidx.core.graphics.drawable.toDrawable
 import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
@@ -305,17 +306,17 @@ class HomeActivity : AppCompatActivity() {
     private fun persistHomeTunnelSelection(name: String) {
         selectedHomeTunnelName = name
         getSharedPreferences(HOME_PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_HOME_SELECTED_TUNNEL, name)
-            .apply()
+            .edit {
+                putString(KEY_HOME_SELECTED_TUNNEL, name)
+            }
     }
 
     private fun clearHomeTunnelSelection() {
         selectedHomeTunnelName = null
         getSharedPreferences(HOME_PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .remove(KEY_HOME_SELECTED_TUNNEL)
-            .apply()
+            .edit {
+                remove(KEY_HOME_SELECTED_TUNNEL)
+            }
     }
 
     private fun toggleHomeVpnStatus(checked: Boolean) {

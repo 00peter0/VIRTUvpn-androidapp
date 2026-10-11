@@ -200,9 +200,9 @@ object VpnRouterManager {
     fun setDnsMode(context: Context, mode: DnsMode) {
         context.applicationContext
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_DNS_MODE, mode.preferenceValue)
-            .apply()
+            .edit {
+                putString(KEY_DNS_MODE, mode.preferenceValue)
+            }
     }
 
     fun getCompatibilityMode(context: Context): CompatibilityMode {
@@ -216,9 +216,9 @@ object VpnRouterManager {
     fun setCompatibilityMode(context: Context, mode: CompatibilityMode) {
         context.applicationContext
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_COMPATIBILITY_MODE, mode.preferenceValue)
-            .apply()
+            .edit {
+                putString(KEY_COMPATIBILITY_MODE, mode.preferenceValue)
+            }
     }
 
     fun getUplinkPreference(context: Context): UplinkPreference =
@@ -231,9 +231,9 @@ object VpnRouterManager {
     fun setUplinkPreference(context: Context, preference: UplinkPreference) {
         context.applicationContext
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_UPLINK_PREFERENCE, preference.preferenceValue)
-            .apply()
+            .edit {
+                putString(KEY_UPLINK_PREFERENCE, preference.preferenceValue)
+            }
         TunnelConnectivityMonitor.applyCurrentUplinkPreference()
     }
 
@@ -344,9 +344,9 @@ object VpnRouterManager {
     private fun setRouterDesiredActive(context: Context, desired: Boolean) {
         context.applicationContext
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(KEY_ROUTER_DESIRED_ACTIVE, desired)
-            .apply()
+            .edit {
+                putBoolean(KEY_ROUTER_DESIRED_ACTIVE, desired)
+            }
     }
 
     /**
@@ -958,16 +958,16 @@ object VpnRouterManager {
             }
         }
         checkedRun("flush route cache", "ip route flush cache 2>/dev/null || true")
-        prefs.edit()
-            .putString(KEY_LAST_RULE_SIGNATURE, snapshot.signature())
-            .remove(KEY_DEGRADED_TUNNEL)
-            .remove(KEY_DEGRADED_DETAIL)
-            .remove(KEY_HEALTH_FAILURES)
-            .remove(KEY_HEALTH_SUCCESSES)
-            .remove(KEY_VERIFY_FAILURES)
-            .putString(KEY_OPERATION_STAGE, OperationStage.IDLE.name)
-            .putString(KEY_OPERATION_DETAIL, "")
-            .apply()
+        prefs.edit {
+            putString(KEY_LAST_RULE_SIGNATURE, snapshot.signature())
+            remove(KEY_DEGRADED_TUNNEL)
+            remove(KEY_DEGRADED_DETAIL)
+            remove(KEY_HEALTH_FAILURES)
+            remove(KEY_HEALTH_SUCCESSES)
+            remove(KEY_VERIFY_FAILURES)
+            putString(KEY_OPERATION_STAGE, OperationStage.IDLE.name)
+            putString(KEY_OPERATION_DETAIL, "")
+        }
     }
 
     private fun routerSecurityInvariantHolds(tunnel: String?, downstreams: List<String>): Boolean {
@@ -1123,31 +1123,31 @@ object VpnRouterManager {
     private fun clearLastRuleSignature(context: Context) {
         context.applicationContext
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .remove(KEY_LAST_RULE_SIGNATURE)
-            .apply()
+            .edit {
+                remove(KEY_LAST_RULE_SIGNATURE)
+            }
     }
 
     private fun clearRouterState(context: Context) {
         context.applicationContext
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .remove(KEY_LAST_RULE_SIGNATURE)
-            .remove(KEY_LAST_VIRTU_TUNNEL)
-            .putBoolean(KEY_ROUTER_DESIRED_ACTIVE, false)
-            .remove(KEY_TUNNEL_RESTORE_MODE)
-            .remove(KEY_LAST_ACTIVE_ROUTER_TUNNEL)
-            .remove(KEY_LAST_ACTIVE_ROUTER_TETHERS)
-            .remove(KEY_LAST_ACTIVE_ROUTER_DNS)
-            .remove(KEY_ROOT_CHECK_FAILURES)
-            .remove(KEY_DEGRADED_TUNNEL)
-            .remove(KEY_DEGRADED_DETAIL)
-            .remove(KEY_HEALTH_FAILURES)
-            .remove(KEY_HEALTH_SUCCESSES)
-            .remove(KEY_VERIFY_FAILURES)
-            .putString(KEY_OPERATION_STAGE, OperationStage.IDLE.name)
-            .putString(KEY_OPERATION_DETAIL, "")
-            .apply()
+            .edit {
+                remove(KEY_LAST_RULE_SIGNATURE)
+                remove(KEY_LAST_VIRTU_TUNNEL)
+                putBoolean(KEY_ROUTER_DESIRED_ACTIVE, false)
+                remove(KEY_TUNNEL_RESTORE_MODE)
+                remove(KEY_LAST_ACTIVE_ROUTER_TUNNEL)
+                remove(KEY_LAST_ACTIVE_ROUTER_TETHERS)
+                remove(KEY_LAST_ACTIVE_ROUTER_DNS)
+                remove(KEY_ROOT_CHECK_FAILURES)
+                remove(KEY_DEGRADED_TUNNEL)
+                remove(KEY_DEGRADED_DETAIL)
+                remove(KEY_HEALTH_FAILURES)
+                remove(KEY_HEALTH_SUCCESSES)
+                remove(KEY_VERIFY_FAILURES)
+                putString(KEY_OPERATION_STAGE, OperationStage.IDLE.name)
+                putString(KEY_OPERATION_DETAIL, "")
+            }
     }
 
     private fun rememberRouterActiveStatus(context: Context, status: Status) {
@@ -1155,13 +1155,13 @@ object VpnRouterManager {
         val activeTunnel = status.activeTunnel ?: return
         context.applicationContext
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_LAST_ACTIVE_ROUTER_TUNNEL, activeTunnel)
-            .putString(KEY_LAST_ACTIVE_ROUTER_TETHERS, status.tetherInterfaces.joinToString(","))
-            .putString(KEY_LAST_ACTIVE_ROUTER_DNS, status.dnsResolvers.joinToString(","))
-            .putBoolean(KEY_ROUTER_DESIRED_ACTIVE, true)
-            .putInt(KEY_ROOT_CHECK_FAILURES, 0)
-            .apply()
+            .edit {
+                putString(KEY_LAST_ACTIVE_ROUTER_TUNNEL, activeTunnel)
+                putString(KEY_LAST_ACTIVE_ROUTER_TETHERS, status.tetherInterfaces.joinToString(","))
+                putString(KEY_LAST_ACTIVE_ROUTER_DNS, status.dnsResolvers.joinToString(","))
+                putBoolean(KEY_ROUTER_DESIRED_ACTIVE, true)
+                putInt(KEY_ROOT_CHECK_FAILURES, 0)
+            }
     }
 
     /**
@@ -1187,7 +1187,7 @@ object VpnRouterManager {
             packages.size == 1 && packages[0] == appContext.packageName -> {
                 // Our own tunnel: rely on the app's WgQuick boot restore instead.
                 clearAlwaysOnProviderIfOwned(appContext)
-                prefs.edit().putString(KEY_TUNNEL_RESTORE_MODE, "app").apply()
+                prefs.edit { putString(KEY_TUNNEL_RESTORE_MODE, "app") }
             }
             packages.size == 1 -> {
                 val provider = packages[0]
@@ -1198,10 +1198,10 @@ object VpnRouterManager {
                     ) == 0
                 }.getOrDefault(false)
                 if (ok) {
-                    prefs.edit()
-                        .putString(KEY_TUNNEL_RESTORE_MODE, "provider")
-                        .putBoolean(KEY_ALWAYS_ON_OWNED, true)
-                        .apply()
+                    prefs.edit {
+                        putString(KEY_TUNNEL_RESTORE_MODE, "provider")
+                        putBoolean(KEY_ALWAYS_ON_OWNED, true)
+                    }
                     Log.i(TAG, "Recorded VPN router always-on provider $provider for boot restore")
                 } else {
                     clearAlwaysOnProviderIfOwned(appContext)
@@ -1211,7 +1211,7 @@ object VpnRouterManager {
             else -> {
                 // Unknown or ambiguous owner: never touch always-on.
                 clearAlwaysOnProviderIfOwned(appContext)
-                prefs.edit().remove(KEY_TUNNEL_RESTORE_MODE).apply()
+                prefs.edit { remove(KEY_TUNNEL_RESTORE_MODE) }
             }
         }
     }
@@ -1227,7 +1227,7 @@ object VpnRouterManager {
                 "settings delete secure $ALWAYS_ON_INTENT_SETTING; settings delete secure always_on_vpn_app"
             )
         }.onFailure { Log.w(TAG, "Unable to clear always-on provider setting", it) }
-        prefs.edit().putBoolean(KEY_ALWAYS_ON_OWNED, false).apply()
+        prefs.edit { putBoolean(KEY_ALWAYS_ON_OWNED, false) }
     }
 
     private data class LastActiveRouterSnapshot(
@@ -1258,9 +1258,9 @@ object VpnRouterManager {
         val tunnel = snapshot.tunnel ?: return null
         val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val failures = (prefs.getInt(KEY_ROOT_CHECK_FAILURES, 0) + 1).coerceAtMost(ROOT_CHECK_FAILURES_BEFORE_UNSUPPORTED)
-        prefs.edit()
-            .putInt(KEY_ROOT_CHECK_FAILURES, failures)
-            .apply()
+        prefs.edit {
+            putInt(KEY_ROOT_CHECK_FAILURES, failures)
+        }
         if (failures >= ROOT_CHECK_FAILURES_BEFORE_UNSUPPORTED) return null
         Log.w(TAG, "VPN router root check missed; keeping last active attestation state (${failures}/$ROOT_CHECK_FAILURES_BEFORE_UNSUPPORTED)", error)
         return Status(
@@ -1276,14 +1276,14 @@ object VpnRouterManager {
     private fun clearDegradedTunnel(context: Context) {
         context.applicationContext
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .remove(KEY_DEGRADED_TUNNEL)
-            .remove(KEY_DEGRADED_DETAIL)
-            .remove(KEY_HEALTH_FAILURES)
-            .remove(KEY_HEALTH_SUCCESSES)
-            .remove(KEY_VERIFY_FAILURES)
-            .remove(KEY_ROOT_CHECK_FAILURES)
-            .apply()
+            .edit {
+                remove(KEY_DEGRADED_TUNNEL)
+                remove(KEY_DEGRADED_DETAIL)
+                remove(KEY_HEALTH_FAILURES)
+                remove(KEY_HEALTH_SUCCESSES)
+                remove(KEY_VERIFY_FAILURES)
+                remove(KEY_ROOT_CHECK_FAILURES)
+            }
     }
 
     private fun degradedAvailability(context: Context, tunnel: String): Availability {
@@ -1300,13 +1300,13 @@ object VpnRouterManager {
     private fun markTunnelDegraded(context: Context, base: Status, tunnel: String, detail: String): Status {
         context.applicationContext
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_DEGRADED_TUNNEL, tunnel)
-            .putString(KEY_DEGRADED_DETAIL, detail)
-            .putInt(KEY_HEALTH_FAILURES, HEALTH_FAILURES_BEFORE_DEGRADED)
-            .putInt(KEY_HEALTH_SUCCESSES, 0)
-            .remove(KEY_VERIFY_FAILURES)
-            .apply()
+            .edit {
+                putString(KEY_DEGRADED_TUNNEL, tunnel)
+                putString(KEY_DEGRADED_DETAIL, detail)
+                putInt(KEY_HEALTH_FAILURES, HEALTH_FAILURES_BEFORE_DEGRADED)
+                putInt(KEY_HEALTH_SUCCESSES, 0)
+                remove(KEY_VERIFY_FAILURES)
+            }
         return base.copy(
             availability = Availability.DEGRADED,
             activeTunnel = base.activeTunnel ?: tunnel,
@@ -1339,48 +1339,48 @@ object VpnRouterManager {
     private fun recordTunnelHealthSuccess(context: Context): Int {
         val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val successes = (prefs.getInt(KEY_HEALTH_SUCCESSES, 0) + 1).coerceAtMost(HEALTH_SUCCESSES_BEFORE_RECOVERY)
-        prefs.edit()
-            .putInt(KEY_HEALTH_SUCCESSES, successes)
-            .putInt(KEY_HEALTH_FAILURES, 0)
-            .remove(KEY_VERIFY_FAILURES)
-            .apply()
+        prefs.edit {
+            putInt(KEY_HEALTH_SUCCESSES, successes)
+            putInt(KEY_HEALTH_FAILURES, 0)
+            remove(KEY_VERIFY_FAILURES)
+        }
         return successes
     }
 
     private fun recordTunnelHealthFailure(context: Context): Int {
         val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val failures = (prefs.getInt(KEY_HEALTH_FAILURES, 0) + 1).coerceAtMost(HEALTH_FAILURES_BEFORE_DEGRADED)
-        prefs.edit()
-            .putInt(KEY_HEALTH_FAILURES, failures)
-            .putInt(KEY_HEALTH_SUCCESSES, 0)
-            .apply()
+        prefs.edit {
+            putInt(KEY_HEALTH_FAILURES, failures)
+            putInt(KEY_HEALTH_SUCCESSES, 0)
+        }
         return failures
     }
 
     private fun recordRouterVerifyFailure(context: Context): Int {
         val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val failures = (prefs.getInt(KEY_VERIFY_FAILURES, 0) + 1).coerceAtMost(VERIFY_FAILURES_BEFORE_ERROR)
-        prefs.edit()
-            .putInt(KEY_VERIFY_FAILURES, failures)
-            .apply()
+        prefs.edit {
+            putInt(KEY_VERIFY_FAILURES, failures)
+        }
         return failures
     }
 
     private fun clearRouterVerifyFailures(context: Context) {
         context.applicationContext
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .remove(KEY_VERIFY_FAILURES)
-            .apply()
+            .edit {
+                remove(KEY_VERIFY_FAILURES)
+            }
     }
 
     private fun setOperation(context: Context, stage: OperationStage, detail: String? = null) {
         context.applicationContext
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_OPERATION_STAGE, stage.name)
-            .putString(KEY_OPERATION_DETAIL, detail ?: "")
-            .apply()
+            .edit {
+                putString(KEY_OPERATION_STAGE, stage.name)
+                putString(KEY_OPERATION_DETAIL, detail ?: "")
+            }
     }
 
     private fun assertHotspotBackstop(tetherInterfaces: List<String>) {
@@ -1491,7 +1491,7 @@ object VpnRouterManager {
     private fun disableHotspotAutoShutdown(context: Context) {
         val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         if (!prefs.contains(KEY_WIFI_AP_TIMEOUT_PREVIOUS)) {
-            prefs.edit().putString(KEY_WIFI_AP_TIMEOUT_PREVIOUS, readSecureSetting(WIFI_AP_TIMEOUT_SETTING) ?: "").apply()
+            prefs.edit { putString(KEY_WIFI_AP_TIMEOUT_PREVIOUS, readSecureSetting(WIFI_AP_TIMEOUT_SETTING) ?: "") }
         }
         if (readSecureSetting(WIFI_AP_TIMEOUT_SETTING) != "0") {
             checkedRun("disable hotspot auto shutdown", "settings put secure $WIFI_AP_TIMEOUT_SETTING 0")
@@ -1507,7 +1507,7 @@ object VpnRouterManager {
         } else {
             checkedRun("restore hotspot auto shutdown", "settings put secure $WIFI_AP_TIMEOUT_SETTING $previous")
         }
-        prefs.edit().remove(KEY_WIFI_AP_TIMEOUT_PREVIOUS).apply()
+        prefs.edit { remove(KEY_WIFI_AP_TIMEOUT_PREVIOUS) }
     }
 
     private fun enableWifiSharing(context: Context) {
@@ -1515,7 +1515,7 @@ object VpnRouterManager {
         if (current == "null") return
         val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         if (!prefs.contains(KEY_WIFI_AP_WIFI_SHARING_PREVIOUS)) {
-            prefs.edit().putString(KEY_WIFI_AP_WIFI_SHARING_PREVIOUS, current).apply()
+            prefs.edit { putString(KEY_WIFI_AP_WIFI_SHARING_PREVIOUS, current) }
         }
         if (current != "1") {
             checkedRun("enable concurrent WiFi hotspot", "settings put secure $WIFI_AP_WIFI_SHARING_SETTING 1")
@@ -1531,13 +1531,13 @@ object VpnRouterManager {
         } else {
             checkedRun("restore concurrent WiFi hotspot", "settings put secure $WIFI_AP_WIFI_SHARING_SETTING $previous")
         }
-        prefs.edit().remove(KEY_WIFI_AP_WIFI_SHARING_PREVIOUS).apply()
+        prefs.edit { remove(KEY_WIFI_AP_WIFI_SHARING_PREVIOUS) }
     }
 
     private fun disableTetherOffload(context: Context) {
         val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         if (!prefs.contains(KEY_TETHER_OFFLOAD_PREVIOUS)) {
-            prefs.edit().putString(KEY_TETHER_OFFLOAD_PREVIOUS, readGlobalSetting(TETHER_OFFLOAD_DISABLED_SETTING) ?: "").apply()
+            prefs.edit { putString(KEY_TETHER_OFFLOAD_PREVIOUS, readGlobalSetting(TETHER_OFFLOAD_DISABLED_SETTING) ?: "") }
         }
         if (readGlobalSetting(TETHER_OFFLOAD_DISABLED_SETTING) != "1") {
             checkedRun("disable tether offload", "settings put global $TETHER_OFFLOAD_DISABLED_SETTING 1")
@@ -1553,7 +1553,7 @@ object VpnRouterManager {
         } else {
             checkedRun("restore tether offload", "settings put global $TETHER_OFFLOAD_DISABLED_SETTING $previous")
         }
-        prefs.edit().remove(KEY_TETHER_OFFLOAD_PREVIOUS).apply()
+        prefs.edit { remove(KEY_TETHER_OFFLOAD_PREVIOUS) }
     }
 
     private fun overrideTetherDnsForwarders(resolvers: List<String>) {
@@ -1609,9 +1609,9 @@ object VpnRouterManager {
         }.getOrNull() ?: return
         context.applicationContext
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_LAST_VIRTU_TUNNEL, tunnelName)
-            .apply()
+            .edit {
+                putString(KEY_LAST_VIRTU_TUNNEL, tunnelName)
+            }
     }
 
     private suspend fun tryVirtuFallback(context: Context, failedTunnel: String): Boolean {

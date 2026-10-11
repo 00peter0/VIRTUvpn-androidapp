@@ -16,6 +16,7 @@ import android.system.OsConstants
 import android.system.StructTimeval
 import android.util.Base64
 import android.util.Log
+import androidx.core.content.edit
 import androidx.core.net.toUri
 import com.wireguard.android.R
 import org.json.JSONArray
@@ -238,11 +239,11 @@ object VpnRouterAttestation {
         val updated = (pairedRouters(appContext).filterNot { it.routerId == pairing.routerId } + pairing)
             .sortedByDescending { it.pairedAt }
         appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_PAIRED_ROUTERS, pairingsJson(updated))
-            .remove(KEY_PAIRED_ROUTER_ID)
-            .remove(KEY_PAIRED_SECRET)
-            .apply()
+            .edit {
+                putString(KEY_PAIRED_ROUTERS, pairingsJson(updated))
+                remove(KEY_PAIRED_ROUTER_ID)
+                remove(KEY_PAIRED_SECRET)
+            }
     }
 
     fun pairedRouters(context: Context): List<Pairing> {
@@ -277,30 +278,30 @@ object VpnRouterAttestation {
             .distinctBy { it.routerId }
             .sortedByDescending { it.pairedAt }
         if (active.size != parsed.size || legacyRouterId != null || legacySecret != null) {
-            prefs.edit()
-                .putString(KEY_PAIRED_ROUTERS, pairingsJson(active))
-                .remove(KEY_PAIRED_ROUTER_ID)
-                .remove(KEY_PAIRED_SECRET)
-                .apply()
+            prefs.edit {
+                putString(KEY_PAIRED_ROUTERS, pairingsJson(active))
+                remove(KEY_PAIRED_ROUTER_ID)
+                remove(KEY_PAIRED_SECRET)
+            }
         }
         return active
     }
 
     fun clearPairings(context: Context) {
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .remove(KEY_PAIRED_ROUTERS)
-            .remove(KEY_PAIRED_ROUTER_ID)
-            .remove(KEY_PAIRED_SECRET)
-            .apply()
+            .edit {
+                remove(KEY_PAIRED_ROUTERS)
+                remove(KEY_PAIRED_ROUTER_ID)
+                remove(KEY_PAIRED_SECRET)
+            }
     }
 
     private fun removeExpiredPairings(context: Context) {
         val active = pairedRouters(context)
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_PAIRED_ROUTERS, pairingsJson(active))
-            .apply()
+            .edit {
+                putString(KEY_PAIRED_ROUTERS, pairingsJson(active))
+            }
     }
 
     private fun pairingsJson(pairings: List<Pairing>): String {
@@ -387,7 +388,7 @@ object VpnRouterAttestation {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         prefs.getString(KEY_ROUTER_ID, null)?.let { return it }
         val id = randomNonce()
-        prefs.edit().putString(KEY_ROUTER_ID, id).apply()
+        prefs.edit { putString(KEY_ROUTER_ID, id) }
         return id
     }
 
@@ -395,7 +396,7 @@ object VpnRouterAttestation {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         prefs.getString(KEY_ROUTER_SECRET, null)?.let { return it }
         val secret = randomNonce()
-        prefs.edit().putString(KEY_ROUTER_SECRET, secret).apply()
+        prefs.edit { putString(KEY_ROUTER_SECRET, secret) }
         return secret
     }
 

@@ -44,6 +44,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
 import androidx.core.widget.addTextChangedListener
@@ -318,7 +319,7 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun toggleSessionMemory() {
         keepSessionsOnLeave = !keepSessionsOnLeave
-        getPreferences(MODE_PRIVATE).edit().putBoolean(PREF_KEEP_SESSIONS_ON_LEAVE, keepSessionsOnLeave).apply()
+        getPreferences(MODE_PRIVATE).edit { putBoolean(PREF_KEEP_SESSIONS_ON_LEAVE, keepSessionsOnLeave) }
         updateSessionMemoryButton()
         if (!keepSessionsOnLeave) {
             clearRetainedBrowserSession()
@@ -765,7 +766,7 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun changeTextZoom(delta: Int) {
         textZoom = (textZoom + delta).coerceIn(MIN_TEXT_ZOOM, MAX_TEXT_ZOOM)
-        getPreferences(MODE_PRIVATE).edit().putInt(PREF_TEXT_ZOOM, textZoom).apply()
+        getPreferences(MODE_PRIVATE).edit { putInt(PREF_TEXT_ZOOM, textZoom) }
         applyTextZoom()
     }
 
@@ -780,7 +781,7 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun toggleDesktopMode() {
         desktopMode = !desktopMode
-        getPreferences(MODE_PRIVATE).edit().putBoolean(PREF_DESKTOP_MODE, desktopMode).apply()
+        getPreferences(MODE_PRIVATE).edit { putBoolean(PREF_DESKTOP_MODE, desktopMode) }
         applyDesktopMode(reload = true)
     }
 
@@ -808,7 +809,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     private fun toggleBrowserCookies() {
         if (!isolatedCookies) { Toast.makeText(this, R.string.vcs_browser_shared_cookies, Toast.LENGTH_LONG).show(); return }
         browserCookiesEnabled = !browserCookiesEnabled
-        getPreferences(MODE_PRIVATE).edit().putBoolean(PREF_BROWSER_COOKIES, browserCookiesEnabled).apply()
+        getPreferences(MODE_PRIVATE).edit { putBoolean(PREF_BROWSER_COOKIES, browserCookiesEnabled) }
         browserTabs.mapNotNull { it.webView }.forEach(::applyCookiePolicy)
         if (!browserCookiesEnabled) {
             clearEphemeralBrowserData()
@@ -1125,10 +1126,10 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun saveNavigationPadPosition() {
         getPreferences(MODE_PRIVATE)
-            .edit()
-            .putFloat(PREF_NAVIGATION_PAD_X, binding.browserNavigationPad.x)
-            .putFloat(PREF_NAVIGATION_PAD_Y, binding.browserNavigationPad.y)
-            .apply()
+            .edit {
+                putFloat(PREF_NAVIGATION_PAD_X, binding.browserNavigationPad.x)
+                putFloat(PREF_NAVIGATION_PAD_Y, binding.browserNavigationPad.y)
+            }
     }
 
     private fun restoreNavigationPadPosition() {
@@ -1562,10 +1563,10 @@ class SecureBrowserActivity : AppCompatActivity() {
             DEFAULT_BOOKMARKS.any { it.equals(url, ignoreCase = true) }
         }
         getPreferences(MODE_PRIVATE)
-            .edit()
-            .putString(PREF_BOOKMARKS, JSONArray(customUrls).toString())
-            .putString(PREF_HIDDEN_DEFAULT_BOOKMARKS, JSONArray(hiddenDefaults.toList()).toString())
-            .apply()
+            .edit {
+                putString(PREF_BOOKMARKS, JSONArray(customUrls).toString())
+                putString(PREF_HIDDEN_DEFAULT_BOOKMARKS, JSONArray(hiddenDefaults.toList()).toString())
+            }
     }
 
     private fun hiddenDefaultBookmarks(): Set<String> {
