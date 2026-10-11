@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="vcs_manual_tunnel_delete_disabled">La suppression manuelle des tunnels est indisponible. Gérez les tunnels affectés dans Managed Access, puis synchronisez cet appareil.</string>
     <string name="vcs_home_language">Langue</string>
     <string name="vcs_language_system">Langue du système</string>
     <string name="vcs_language_busy">Attendez la fin de l\'opération VPN, de synchronisation ou de mise à jour en cours avant de changer la langue de l\'application.</string>

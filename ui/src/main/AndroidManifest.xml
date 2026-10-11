@@ -163,8 +163,10 @@
             </intent-filter>
         </activity>
 
+        <!-- Parked by owner decision: retain TV sources, hide its launcher and reject direct starts. -->
         <activity
             android:name=".activity.TvMainActivity"
+            android:enabled="false"
             android:exported="true"
             android:theme="@style/TvTheme">
             <intent-filter>

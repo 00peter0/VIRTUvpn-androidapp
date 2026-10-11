@@ -42,6 +42,7 @@ import com.wireguard.android.util.ErrorMessages
 import com.wireguard.android.util.PingManager
 import com.wireguard.android.util.QrCodeFromFileScanner
 import com.wireguard.android.util.TunnelImporter
+import com.wireguard.android.util.TunnelUiPolicy
 import com.wireguard.android.util.VpnRouterAttestation
 import com.wireguard.android.vcs.VcsManagedClient
 import com.wireguard.android.widget.MultiselectableRelativeLayout
@@ -144,7 +145,7 @@ class TunnelListFragment : BaseFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        if (savedInstanceState != null) {
+        if (TunnelUiPolicy.manualDeletionEnabled && savedInstanceState != null) {
             val checkedItems = savedInstanceState.getIntegerArrayList(CHECKED_ITEMS)
             if (checkedItems != null) {
                 for (i in checkedItems) actionModeListener.setItemChecked(i, true)
@@ -324,7 +325,11 @@ class TunnelListFragment : BaseFragment() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putIntegerArrayList(CHECKED_ITEMS, actionModeListener.getCheckedItems())
+        if (TunnelUiPolicy.manualDeletionEnabled) {
+            outState.putIntegerArrayList(CHECKED_ITEMS, actionModeListener.getCheckedItems())
+        } else {
+            outState.remove(CHECKED_ITEMS)
+        }
     }
 
     override fun onSelectedTunnelChanged(oldTunnel: ObservableTunnel?, newTunnel: ObservableTunnel?) {
@@ -368,16 +373,18 @@ class TunnelListFragment : BaseFragment() {
             override fun onConfigureRow(binding: TunnelListItemBinding, item: ObservableTunnel, position: Int) {
                 binding.fragment = this@TunnelListFragment
                 val openClick = View.OnClickListener {
-                    if (actionMode == null) {
+                    if (!TunnelUiPolicy.manualDeletionEnabled || actionMode == null) {
                         openTunnelDetail(item)
                     } else {
                         actionModeListener.toggleItemChecked(position)
                     }
                 }
-                val deleteLongClick = View.OnLongClickListener {
-                    actionModeListener.toggleItemChecked(position)
-                    true
-                }
+                val deleteLongClick = if (TunnelUiPolicy.manualDeletionEnabled) {
+                    View.OnLongClickListener {
+                        actionModeListener.toggleItemChecked(position)
+                        true
+                    }
+                } else null
                 binding.root.setOnClickListener(openClick)
                 binding.tunnelListItem.setOnClickListener(openClick)
                 binding.tunnelName.setOnClickListener(openClick)
@@ -386,9 +393,13 @@ class TunnelListFragment : BaseFragment() {
                 binding.tunnelListItem.setOnLongClickListener(deleteLongClick)
                 binding.tunnelName.setOnLongClickListener(deleteLongClick)
                 binding.chevron.setOnLongClickListener(deleteLongClick)
+                binding.root.isLongClickable = TunnelUiPolicy.manualDeletionEnabled
+                binding.tunnelListItem.isLongClickable = TunnelUiPolicy.manualDeletionEnabled
+                binding.tunnelName.isLongClickable = TunnelUiPolicy.manualDeletionEnabled
+                binding.chevron.isLongClickable = TunnelUiPolicy.manualDeletionEnabled
                 val displayName = VcsManagedClient.displayNameForLocalTunnel(requireContext(), item.name)
                 binding.tunnelName.text = displayName ?: item.name
-                if (actionMode != null)
+                if (TunnelUiPolicy.manualDeletionEnabled && actionMode != null)
                     binding.tunnelListItem.setMultiSelected(actionModeListener.checkedItems.contains(position))
                 else
                     binding.tunnelListItem.setSingleSelected(selectedTunnel == item)
@@ -453,6 +464,7 @@ class TunnelListFragment : BaseFragment() {
         fun getCheckedItems(): ArrayList<Int> = ArrayList(checkedItems)
 
         override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
+            if (!TunnelUiPolicy.manualDeletionEnabled) return false
             return when (item.itemId) {
                 R.id.menu_action_delete -> {
                     val activity = activity ?: return true
@@ -489,6 +501,7 @@ class TunnelListFragment : BaseFragment() {
         }
 
         override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
+            if (!TunnelUiPolicy.manualDeletionEnabled) return false
             actionMode = mode
             backPressedCallback?.isEnabled = true
             if (activity != null) resources = activity!!.resources
@@ -513,6 +526,7 @@ class TunnelListFragment : BaseFragment() {
         }
 
         fun setItemChecked(position: Int, checked: Boolean) {
+            if (!TunnelUiPolicy.manualDeletionEnabled) return
             if (checked) checkedItems.add(position) else checkedItems.remove(position)
             val adapter = if (binding == null) null else binding!!.tunnelList.adapter
             if (actionMode == null && checkedItems.isNotEmpty() && activity != null) {

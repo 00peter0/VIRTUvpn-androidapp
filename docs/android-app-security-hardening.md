@@ -1,5 +1,73 @@
 # VirtuVPN Android App Security Hardening Backlog
 
+## Manual tunnel deletion and Android TV entry parked — October 11, 2026
+
+The owner explicitly chose to disable manual tunnel deletion in VirtuVPN while
+retaining its source for a possible future workflow. This applies to all local
+tunnels in both the mobile list and the existing Android TV activity. There is
+no end-user switch to re-enable it. Remove managed assignments in Managed Access
+and synchronize the device using the existing workflow.
+
+The shared `TunnelUiPolicy.manualDeletionEnabled` field is false. Mobile rows
+have no long-click deletion listener and are explicitly not long-clickable.
+Ignore previously saved positional selections and stop saving them; guard action
+mode creation, selection changes and menu callbacks. Ordinary taps still open
+tunnel details. The TV delete button is hidden and disabled, with guards on its
+callback and delete-mode row handler. Its ordinary VPN toggle path is unchanged.
+The manual-only `ObservableTunnel.deleteAsync()` wrapper also rejects deletion
+before calling the shared manager, with a message in all four existing languages.
+
+The owner subsequently requested hiding the legacy TV interface itself. Set only
+`TvMainActivity`'s manifest entry to `android:enabled="false"`. Android no longer
+offers its Leanback launcher entry or accepts a direct activity start. Retain the
+activity, intent filter, banner and other TV sources for a future reviewed TV
+workflow; the mobile Home launcher and WireGuard/VPN backend remain enabled.
+The old WireGuard-branded TV banner is dormant, not a new VirtuVPN product screen.
+Do not re-enable this interface without reviewing its branding and intended flow.
+
+Retain the old selection/delete handlers, action-mode menu, TV resources and
+underlying delete implementation. Do not remove them as dead code during future
+maintenance. Re-enabling requires a new owner decision, replacing positional
+selection with validated tunnel identities, and checking both UI paths. Simply
+changing the policy field is not an approved reactivation procedure.
+
+Managed Access cleanup calls `TunnelManager.delete()` directly and does not use
+the manual-only wrapper. `VcsManagedClient`, `TunnelManager`, both config-store
+interfaces/implementations and the surrounding import, synchronization, rename,
+state-toggle and browser/router code are unchanged. Removing a managed assignment
+still synchronizes away its owned local tunnel under the existing import and
+active-assignment checks; it does not revoke the underlying VPN.
+
+Validation: the unchanged build script passed its 52 existing unit tests, lint,
+assemble and established signer/package checks. Full lint remains 46 warnings,
+normal lint remains 17 warnings plus one informational baseline hint, and both
+have zero errors. The 29-entry repository baseline is byte-identical; no finding
+or suppression was added. A bounded source comparison reverses only the policy
+additions and confirms the previous mobile/TV handlers and surrounding model
+code, menus, scripts and other translation resources are retained. Reversing the
+isolated TV entry/comment addition also reproduces the previous manifest exactly.
+
+Used the MacBook-connected Samsung for private, data-preserving upgrades after
+confirming no active VPN. On the first candidate, verified nine mobile row/name/
+chevron nodes are not long-clickable, a long press offers no delete/select-all
+action, and an ordinary tap still opens the tunnel name and state-switch detail.
+Rendered the existing TV activity read-only on the phone and confirmed its delete
+button is absent; never clicked a TV tunnel card, which would toggle VPN.
+
+After parking the TV entry, the final installed APK hash matches
+`fb906d4553c0d28082846f1d80b5059d206387f36a9ff1034d2f493c0d339150`.
+Verified Android no longer resolves the TV launcher, rejects a direct TV activity
+start, and still resolves the mobile Home launcher. First-install time and app
+locale are unchanged; returned to Home with its account menu and inactive VPN.
+Removed only the test-owned temporary files. No tunnel deletion, VPN toggle,
+editing or assignment change was invoked. Actual Android TV hardware/remote
+behavior is not newly tested. The final manifest-only delta leaves the previously
+checked mobile manual-delete policy and handlers byte-identical.
+
+Public version 903 and its artifact remain unchanged. This candidate is a private
+device check; keep the next public release consolidated under a higher versionCode.
+Evidence: `/srv/vcs/deploy/evidence/virtuvpn-manual-delete-disabled-20261011/`.
+
 ## Unreleased Home language control and quantity wording — October 11, 2026
 
 Home previously offered no in-app language selector. The build already generated
@@ -98,10 +166,11 @@ the existing checks for names still used by active assignments. The owner explic
 confirmed that removing a device's VPN assignment in Managed Access, then syncing
 the device, is the desired workflow. Preserve it; this does not authorize revoking
 the underlying VPN or replacing the managed-assignment synchronization logic.
-Proposed next behavior review: retain selection by tunnel identity, validate the
-selected objects at deletion time, then assess granular adapter updates. Obtain the
-owner's decision before changing the selection/deletion contract; never test this
-by deleting a production tunnel.
+Subsequent owner decision: manual deletion is parked as documented above. Its
+positional selection risk is dormant while deletion is disabled. Before any future
+reactivation, retain selection by tunnel identity and validate the selected objects
+at deletion time, then assess granular adapter updates. Never test this by deleting
+a production tunnel.
 
 The French keepalive ImpliedQuantity finding is also retained deliberately:
 the plural is a suffix of a separate numeric input. Adding the number to the suffix

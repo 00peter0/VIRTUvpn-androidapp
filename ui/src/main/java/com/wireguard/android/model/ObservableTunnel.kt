@@ -7,10 +7,13 @@ package com.wireguard.android.model
 import android.util.Log
 import androidx.databinding.BaseObservable
 import androidx.databinding.Bindable
+import com.wireguard.android.Application
 import com.wireguard.android.BR
+import com.wireguard.android.R
 import com.wireguard.android.backend.Statistics
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.databinding.Keyed
+import com.wireguard.android.util.TunnelUiPolicy
 import com.wireguard.android.util.applicationScope
 import com.wireguard.config.Config
 import kotlinx.coroutines.Dispatchers
@@ -139,7 +142,12 @@ class ObservableTunnel internal constructor(
     }
 
 
-    suspend fun deleteAsync() = manager.delete(this)
+    suspend fun deleteAsync() {
+        check(TunnelUiPolicy.manualDeletionEnabled) {
+            Application.get().getString(R.string.vcs_manual_tunnel_delete_disabled)
+        }
+        manager.delete(this)
+    }
 
         // --- Latency for Smart Server Picker ---
     @get:Bindable

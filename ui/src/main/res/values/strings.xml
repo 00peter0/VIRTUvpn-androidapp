@@ -3,6 +3,7 @@
   ~ SPDX-License-Identifier: Apache-2.0
   -->
 <resources>
+    <string name="vcs_manual_tunnel_delete_disabled">Manual tunnel deletion is unavailable. Manage assigned tunnels in Managed Access and sync this device.</string>
     <string name="vcs_home_language">Language</string>
     <string name="vcs_language_system">System default</string>
     <string name="vcs_language_busy">Wait for the current VPN, sync or update operation to finish before changing the app language.</string>

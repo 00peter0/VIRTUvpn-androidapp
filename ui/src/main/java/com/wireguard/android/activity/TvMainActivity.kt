@@ -48,6 +48,7 @@ import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.util.ErrorMessages
 import com.wireguard.android.util.QuantityFormatter
 import com.wireguard.android.util.TunnelImporter
+import com.wireguard.android.util.TunnelUiPolicy
 import com.wireguard.android.util.UserKnobs
 import com.wireguard.android.util.VcsDialogs
 import com.wireguard.android.util.applicationScope
@@ -148,6 +149,7 @@ class TvMainActivity : AppCompatActivity() {
                 binding.root.setOnClickListener {
                     lifecycleScope.launch {
                         if (isDeleting.get()) {
+                            if (!TunnelUiPolicy.manualDeletionEnabled) return@launch
                             try {
                                 item.deleteAsync()
                                 if (this@TvMainActivity.binding.tunnels?.isEmpty() != false)
@@ -232,7 +234,9 @@ class TvMainActivity : AppCompatActivity() {
             }
         }
 
+        binding.deleteButton.isEnabled = TunnelUiPolicy.manualDeletionEnabled
         binding.deleteButton.setOnClickListener {
+            if (!TunnelUiPolicy.manualDeletionEnabled) return@setOnClickListener
             isDeleting.set(!isDeleting.get())
             runOnUiThread {
                 binding.tunnelList.requestFocus()
