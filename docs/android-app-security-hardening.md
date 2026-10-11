@@ -76,11 +76,28 @@ passed 56 unit tests with no failures/errors/skips, assemble and the established
 signer/package/non-debug checks. Three obsolete port tests were removed; seven
 percentage/boot-state tests were added. Full lint remains 38 warnings, visible lint
 13 warnings plus one baseline hint, with zero errors and no new findings or
-suppressions. The 25-entry baseline is unchanged. The connected Samsung initially
-had Usage access allowed. It then disconnected before the private upgrade; new
-screen acceptance is pending reconnection and is not counted as passed. Public
-version 903 and its immutable APK remain unchanged; batch the next public release
-under a higher versionCode.
+suppressions. The 25-entry baseline is unchanged.
+
+After reconnection, the Samsung SM-S948B (API 37) received the private candidate
+through a data-preserving upgrade. The installed APK matched SHA-256
+`8c75a7f773730f47f944b0bda91eab43a4b29fa579283f92b71496beb6b2f1f5`.
+All six cards opened/closed correctly, the removed cards were absent, and opening
+a card did not start an optional check. The explicit resource check measured
+64 / 105 visible launcher apps and displayed eight storage-share rows and eight
+foreground-time rows with the actual Android record period. The startup check
+examined 219 / 219 visible packages and identified 205 entries; its bounded list
+showed 128 / 205 with Partial evidence. These observations do not establish actual
+boot execution or safety of an app. Both results survived collapse/reopen and
+basic Refresh checks and scoped Activity recreation. A startup Review action
+opened Android app details and returned to the existing results without changing
+settings. The original first-install timestamp, app locale and allowed Usage
+access were retained; VPN stayed inactive and no tunnel/assignment was changed.
+The phone returned to Home and only this check's owned Mac/phone temporary files
+were removed. No TalkBack speech, older-API handset, live CPU/RAM ranking or
+in-progress collapsed spinner acceptance is claimed.
+
+Public version 903 and its immutable APK remain unchanged; batch the next public
+release under a higher versionCode.
 
 Platform references: [process memory restrictions](https://developer.android.com/reference/android/app/ActivityManager#getProcessMemoryInfo(int%5B%5D)),
 [daily usage record boundaries](https://developer.android.com/reference/android/app/usage/UsageStatsManager#queryUsageStats(int,long,long)),
