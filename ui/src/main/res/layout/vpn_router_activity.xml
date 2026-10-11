@@ -147,28 +147,17 @@
                 android:orientation="vertical"
                 android:padding="14dp">
 
-                <LinearLayout
+                <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:gravity="center_vertical">
-
-                    <ImageView
-                        android:contentDescription="@null"
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
-                        android:layout_marginEnd="8dp"
-                        android:src="@drawable/ic_server"
-                        app:tint="#AFC0CC" />
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/vcs_vpn_router_router_protection"
-                        android:textColor="#AFC0CC"
-                        android:textSize="12sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
+                    android:drawablePadding="8dp"
+                    android:gravity="center_vertical"
+                    android:text="@string/vcs_vpn_router_router_protection"
+                    android:textColor="#AFC0CC"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    app:drawableStartCompat="@drawable/ic_router_header_server"
+                    app:drawableTint="#AFC0CC" />
 
                 <TextView
                     android:id="@+id/router_protection_status"
@@ -199,28 +188,17 @@
                 android:orientation="vertical"
                 android:padding="14dp">
 
-                <LinearLayout
+                <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:gravity="center_vertical">
-
-                    <ImageView
-                        android:contentDescription="@null"
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
-                        android:layout_marginEnd="8dp"
-                        android:src="@drawable/ic_server"
-                        app:tint="#AFC0CC" />
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/vcs_vpn_router_mode"
-                        android:textColor="#AFC0CC"
-                        android:textSize="12sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
+                    android:drawablePadding="8dp"
+                    android:gravity="center_vertical"
+                    android:text="@string/vcs_vpn_router_mode"
+                    android:textColor="#AFC0CC"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    app:drawableStartCompat="@drawable/ic_router_header_server"
+                    app:drawableTint="#AFC0CC" />
 
                 <TextView
                     android:id="@+id/router_mode_selector"
@@ -258,28 +236,17 @@
                 android:orientation="vertical"
                 android:padding="14dp">
 
-                <LinearLayout
+                <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:gravity="center_vertical">
-
-                    <ImageView
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
-                        android:layout_marginEnd="8dp"
-                        android:contentDescription="@null"
-                        android:src="@drawable/ic_web"
-                        app:tint="#AFC0CC" />
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/vcs_vpn_router_guest_access"
-                        android:textColor="#AFC0CC"
-                        android:textSize="12sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
+                    android:drawablePadding="8dp"
+                    android:gravity="center_vertical"
+                    android:text="@string/vcs_vpn_router_guest_access"
+                    android:textColor="#AFC0CC"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    app:drawableStartCompat="@drawable/ic_router_header_web"
+                    app:drawableTint="#AFC0CC" />
 
                 <TextView
                     android:id="@+id/router_guest_access_status"
@@ -329,28 +296,17 @@
                 android:orientation="vertical"
                 android:padding="14dp">
 
-                <LinearLayout
+                <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:gravity="center_vertical">
-
-                    <ImageView
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
-                        android:layout_marginEnd="8dp"
-                        android:contentDescription="@null"
-                        android:src="@drawable/ic_web"
-                        app:tint="#AFC0CC" />
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/vcs_vpn_router_dns"
-                        android:textColor="#AFC0CC"
-                        android:textSize="12sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
+                    android:drawablePadding="8dp"
+                    android:gravity="center_vertical"
+                    android:text="@string/vcs_vpn_router_dns"
+                    android:textColor="#AFC0CC"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    app:drawableStartCompat="@drawable/ic_router_header_web"
+                    app:drawableTint="#AFC0CC" />
 
                 <TextView
                     android:id="@+id/router_dns_selector"

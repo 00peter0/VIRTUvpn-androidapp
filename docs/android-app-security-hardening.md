@@ -1,5 +1,120 @@
 # VirtuVPN Android App Security Hardening Backlog
 
+## Current maintenance status — October 11, 2026
+
+This section is the current checkpoint. Records below the history boundary describe
+what was observed or implemented at their dated revisions; their old findings,
+warning counts and public version numbers are not a current open-task list.
+Do not reimplement a historical proposal without inspecting the current source.
+
+The owner-approved final bounded block adds themed launcher icons, simplifies four
+decorative VPN Router headings and Home's logo wrapper, and uses the existing
+AndroidX resource loader for the older Quick Tile branch. No VPN, synchronization,
+enrollment, router, updater, anonymous-access or Secure Browser logic changes.
+Android TV and manual tunnel deletion remain parked under the documented policies.
+No new dependency, SDK, permission, service, language or build-script change.
+
+| Validation gate | Before this block | Current source |
+| --- | --- | --- |
+| Full lint warnings, empty diagnostic baseline | 46 | 38 |
+| Visible lint warnings | 17 | 13 |
+| Lint errors | 0 | 0 |
+| Repository baseline entries | 29 | 25 |
+| New full-lint findings | — | 0 |
+| Existing unit tests | 52 | 52 passing |
+
+Normal lint also includes one informational baseline hint. Remove only the four
+resolved baseline entries (three router headings and Home baseline alignment).
+The fourth heading, drawable loader and two missing monochrome tags were visible
+findings. Add no suppression or baseline entry to make these counts smaller.
+
+The monochrome wolf/shield vector is traced from the current launcher artwork,
+with a single white fill and preserved negative spaces. Both adaptive icons use
+it for system-selected themed icons. Keep their existing color foreground/background
+and all density PNGs intact. The vector's **48dp intrinsic size** matches those
+foregrounds; a 108dp viewport does not mean a 108dp intrinsic size here. A first
+private candidate exposed ImageView rasterization changes from a larger intrinsic
+size; corrected the intrinsic dimensions before the final checkpoint.
+[Android adaptive-icon contract](https://developer.android.com/develop/ui/views/launch/icon_design_adaptive).
+
+Only the four unbound, noninteractive router title rows become TextViews with a
+start compound drawable. Two small layer-list wrappers retain the previous 16dp
+icon bounds; retain the 8dp gap, tint, weight-equivalent text space, typography,
+translations and parent cards. Home loses its redundant 64dp logo FrameLayout;
+retain the image size, 14dp end margin, content description and scale type. Disable
+unused baseline alignment only in that logo/title header. Other headings, selectors,
+chevrons, switches, touch targets, listeners and activity code remain unchanged.
+
+Quick Tile uses `ResourcesCompat.getDrawable(resources, id, theme)` with the exact
+previous resources object and Application theme. The fixed packaged launcher
+resource remains required and non-null; there is no placeholder or theme fallback.
+The installed AndroidX 1.17.0 bytecode delegates this call to the same platform
+`Resources.getDrawable(id, theme)` for API21+, covering the app's API24 minimum.
+Retain the API28+ icon branch, pre-28 slash rendering, animation setting, state
+mapping and click logic. No new pre-28 physical-device acceptance is claimed.
+[ResourcesCompat theme contract](https://developer.android.com/reference/androidx/core/content/res/ResourcesCompat).
+
+### Validation and limits of this checkpoint
+
+The unchanged build script passed all 52 existing unit tests, full/normal lint,
+assemble and established signer/package/non-debug gates. A bounded source proof
+reverses only the approved UI/resource-loader changes and checks the remaining
+code and resources against the previous revision. Scripts, dependency/version
+properties, core VPN/sync/browser logic and parked UI policies are unchanged.
+
+An isolated temporary renderer on the MacBook-connected Samsung loads only the
+installed package's resources/classes for off-screen view inflation. It does not
+launch production activities or initialize VirtuVPN's Application/backend. Compare
+Home and VPN Router in 40 cases: the four existing languages and an Arabic RTL
+fallback, font scales 1.0/1.3, and light/dark themes. Final bitmaps match in all cases;
+text wrapping, baselines and all 380 observed clickable-control instances retain
+their bounds/flags. The four decorative text views include their icons in their
+new view bounds; compare their actual text bounds after that area is accounted for.
+Normal and round launcher rendering also match; reviewed the monochrome mask.
+This is render/geometry evidence, not an Android TV, real VPN or emergency-router
+acceptance test. Those runtime paths were not newly exercised by this block.
+
+Private upgrades preserve installed app data, first-install time and locale;
+verify the final installed APK hash against the built candidate, confirm no active
+VPN, and retain the disabled TV entry/mobile launcher. Home's actual controls were
+checked before the final icon-size-only adjustment. The phone locked automatically
+before that final foreground check; no lock bypass or final unlocked Home pass is
+claimed. Final layout equivalence is independently covered by the native renderer.
+Uninstall only the temporary renderer and remove its owned phone/Mac files.
+The first evidence harness used slow per-byte bitmap hashing and timed out; its
+incomplete attempt is recorded and is not counted as a pass. The completed harness
+uses row batches and owned result files rather than oversized Binder status bundles.
+
+### Deliberately retained recommendations and parked work
+
+- Preserve synchronous updater commits and checked persistence results; do not
+  replace them mechanically with asynchronous writes to remove KTX hints.
+- Retain old-Android/widget/shortcut compatibility declarations and the owner's
+  current single-line preference display. Predictive Back requires flow review.
+- Preserve generic/full-list refresh behavior. Positional manual deletion is
+  dormant; identity validation remains a prerequisite for any future reactivation.
+- Preserve browser privacy/autofill exclusions and reviewed accessibility choices.
+- Other compound-view, themed-button, overdraw and drawable recommendations need
+  individual geometry/theme/interaction evidence before changes. The French
+  keepalive suffix belongs to a separate numeric input; adding a number duplicates it.
+- Android TV remains disabled and retained, not a feature under development.
+
+This is the end of the approved bounded cosmetic/compatibility maintenance block.
+Remaining recommendations do not justify altering the established application
+flow merely to reach a zero-warning report. New functionality and behavioral
+changes require their own owner-reviewed scope.
+
+Public distribution remains version 903 with its original immutable artifact.
+Private validation candidates keep that code only for data-preserving device
+checks; the eventual consolidated public release must have a higher versionCode.
+Evidence: `/srv/vcs/deploy/evidence/virtuvpn-final-ui-20261011/`.
+
+## Historical implementation and audit records
+
+The following sections preserve dated decisions, findings and validation. References
+to "current", "production" or "unreleased" within an older record apply to its own
+checkpoint. Use the current status above and fresh discovery for the next change.
+
 ## Manual tunnel deletion and Android TV entry parked — October 11, 2026
 
 The owner explicitly chose to disable manual tunnel deletion in VirtuVPN while
@@ -899,9 +1014,9 @@ router protection gates and detached terminal-job behavior are preserved.
   immutable releases and production device data remain retained.
 
 
-## Current discovery audit October 11 2026
+## Historical discovery snapshot — October 11, 2026, version 896
 
-Current source is `9a7ceccf0672e37c9c5bec0f9fe60c103a7a291d` on `main`,
+Source at this discovery checkpoint was `9a7ceccf0672e37c9c5bec0f9fe60c103a7a291d` on `main`,
 clean and aligned with its tracked upstream before this documentation update.
 The production APK and immutable EDGE artifact have identical SHA-256
 `3e24baced44b315e4157291797442444920a19f64896f88cb4c26dbcc9fed18e`:
@@ -933,7 +1048,7 @@ the distributed app is 896. Existing imports skip identical configs and defer
 replacing a running tunnel. Account logout intentionally preserves VPN profiles,
 router protection and server-side shell jobs.
 
-### Confirmed gaps and improvements
+### Gaps observed at the version-896 checkpoint
 
 | ID | Priority | Current behavior and proposed improvement |
 | --- | --- | --- |
@@ -948,7 +1063,7 @@ router protection and server-side shell jobs.
 | VPN-09 | P2 | Every foreground cycle provisions each active standalone assignment even when unchanged, though local apply already avoids duplicate writes. Reuse configVersion/conditional validation so only changed configs are provisioned. One June22 clone is a cleanup candidate of about 69 MiB; no references were found in inspected units/wrappers/current source, but compare unique Git/private state before deletion. It was not deleted. |
 | VPN-10 | P2 | Secure Browser uses process-global `CookieManager.removeAllCookies`; its existing documented limit is that this can sign out Web Terminal. Verify supported WebView profile/process isolation before changing data scopes. Preserve terminal detach-only job lifetime and its private transport. |
 
-### Finite proposed maintenance blocks
+### Maintenance blocks proposed at that checkpoint
 
 1. A1: sync coordination, partial results, safe local writes and durable command
    receipts — VPN-01/05/06. Verify concurrent sync, malformed assignment, lost
@@ -993,7 +1108,7 @@ plan, then review of any behavior change before code is changed.
 - Every implementation must define verification before coding.
 - Security fixes must fail closed unless explicitly documented otherwise.
 
-## Current priority order
+## Historical priority order — superseded by the current status above
 
 1. S1: enrollment confirmation and enrollment domain policy.
 2. S2: APK update URL validation and APK integrity checks.

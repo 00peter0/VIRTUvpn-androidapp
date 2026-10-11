@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Keep the previous decorative header icon's 16dp bounds. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:width="16dp"
+        android:height="16dp"
+        android:gravity="center"
+        android:drawable="@drawable/ic_server" />
+</layer-list>
