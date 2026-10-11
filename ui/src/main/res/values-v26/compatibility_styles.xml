@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Identify the email login and password without changing input or submission. -->
+    <style name="VcsSignInUsernameAutofill" parent="">
+        <item name="android:autofillHints">username</item>
+    </style>
+    <style name="VcsSignInPasswordAutofill" parent="">
+        <item name="android:autofillHints">password</item>
+    </style>
+</resources>

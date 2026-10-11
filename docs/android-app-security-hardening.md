@@ -1,5 +1,66 @@
 # VirtuVPN Android App Security Hardening Backlog
 
+## Unreleased login metadata and preserved browser privacy — October 11, 2026
+
+The owner requires Secure Browser maintenance to preserve or improve its existing
+privacy protections. Warning reduction does not authorize weaker protection.
+SecureBrowserActivity, its layouts, translations, autofill exclusions, network
+binding, fail-closed checks and session/cookie policies are unchanged in this block.
+Browser accessibility changes remain deferred following the privacy discussion.
+An editable field's content description is accessibility metadata, not a security
+barrier against reading its contents. Preserve the current browser implementation
+pending a separate review rather than treating these warnings as privacy defects.
+
+Improved password-manager identification in the separate native VCS sign-in
+dialog. Its email login identifier uses the standard `username` autofill hint;
+the password uses `password`. Isolated styles contain only these hints on API 26
+and newer and are empty below API 26. Input types, hints, appearance, validation,
+submission and authentication code are unchanged. The configured Android autofill
+service controls whether it offers saved credentials. No autofill hint is added
+to the Secure Browser and no website credential association is introduced.
+
+Made `android:autoVerify="false"` explicit on the two existing HTTPS enrollment
+and router-pairing filters. False is Android's existing default, so this records
+the current verification policy without enabling verified App Links. All schemes,
+hosts, paths, actions and categories remain unchanged; this does not promise new
+automatic HTTPS-link handling on Android 12 or newer. Enabling domain verification
+would require a separate policy review.
+
+| Gate | Previous unreleased source | This unreleased source |
+| --- | --- | --- |
+| Full lint warnings, empty diagnostic baseline | 52 | 50 |
+| Visible lint warnings | 17 | 17 |
+| Lint errors | 0 | 0 |
+| Repository baseline entries | 35 | 33 |
+| Newly introduced full-lint findings | — | 0 |
+
+Removed only the two resolved AppLinkWarning baseline entries. The installed lint
+still reports two missing-autofill-hint findings in the sign-in layout despite the
+API-qualified hints being present in the compiled style bags and assigned to the
+correct fields. These entries remain visible in the full inventory; no rule is
+suppressed and no whole layout is duplicated to satisfy a detector. Browser input
+descriptions and its existing two autofill exclusions remain intact.
+
+Discovery boundary: the current browser autofill exclusions apply to the native
+address and find-in-page fields. They do not establish a blanket exclusion for
+all website forms inside WebView. This is recorded as a separate privacy-policy
+review, not permission to alter browser behavior during warning cleanup.
+
+Validation: the existing 52-test gate, full/normal lint, assemble, established
+signer/package checks, source comparison, compiled manifest comparison and
+compiled API-qualified sign-in styles. No Android device is attached, so an
+actual password-manager offer or TalkBack behavior is not claimed as tested.
+Before release, check sign-in autofill with a configured service on a device;
+Android 8.0/8.1 also have a documented limitation for dialogs resized after showing,
+as this existing dialog is. Hint metadata alone does not fix that platform issue.
+
+**Production remains version 903.** This APK is an unpublished local candidate;
+the consolidated release must use a higher versionCode and retain the signer.
+Evidence: `/srv/vcs/deploy/evidence/virtuvpn-ui-semantics-20261011/`.
+References: [Android autofill](https://developer.android.com/identity/autofill/autofill-optimize),
+[intent-filter defaults](https://developer.android.com/guide/topics/manifest/intent-filter-element),
+[editable accessibility labels](https://developer.android.com/guide/topics/ui/accessibility/views/principles-views).
+
 ## Unreleased preference cleanup — October 11, 2026
 
 Applied the owner's intent-review requirement to preference writes before cleanup.

@@ -2,4 +2,8 @@
 <resources>
     <!-- XML outline clipping is unavailable below API 31; keep other defaults. -->
     <style name="VcsOutlineClip" parent="" />
+
+    <!-- Android Autofill is unavailable below API 26; retain field defaults. -->
+    <style name="VcsSignInUsernameAutofill" parent="" />
+    <style name="VcsSignInPasswordAutofill" parent="" />
 </resources>

@@ -135,7 +135,7 @@
                 <data android:scheme="virtuvpn" android:host="router-pair" />
             </intent-filter>
 
-            <intent-filter>
+            <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
@@ -145,7 +145,7 @@
                     android:pathPrefix="/api/mobile/android/enroll/open" />
             </intent-filter>
 
-            <intent-filter>
+            <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />

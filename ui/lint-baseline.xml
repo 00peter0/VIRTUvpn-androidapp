@@ -68,28 +68,6 @@
     </issue>
 
     <issue
-        id="AppLinkWarning"
-        message="This intent filter has the format of an Android App Link but is missing the `autoVerify` attribute; add `android:autoVerify=&quot;true&quot;` to ensure your domain will be validated and enable App Link-related Lint warnings. If you do not want clicked URLs to bring the user to your app, remove the `android.intent.category.BROWSABLE` category, or set `android:autoVerify=&quot;false&quot;` to make it clear this is not intended to be an Android App Link."
-        errorLine1="            &lt;intent-filter>"
-        errorLine2="             ~~~~~~~~~~~~~">
-        <location
-            file="src/main/AndroidManifest.xml"
-            line="122"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="AppLinkWarning"
-        message="This intent filter has the format of an Android App Link but is missing the `autoVerify` attribute; add `android:autoVerify=&quot;true&quot;` to ensure your domain will be validated and enable App Link-related Lint warnings. If you do not want clicked URLs to bring the user to your app, remove the `android.intent.category.BROWSABLE` category, or set `android:autoVerify=&quot;false&quot;` to make it clear this is not intended to be an Android App Link."
-        errorLine1="            &lt;intent-filter>"
-        errorLine2="             ~~~~~~~~~~~~~">
-        <location
-            file="src/main/AndroidManifest.xml"
-            line="132"
-            column="14"/>
-    </issue>
-
-    <issue
         id="UseCompatTextViewDrawableXml"
         message="Use `app:drawableStartCompat` instead of `android:drawableStart`"
         errorLine1="            android:drawableStart=&quot;@drawable/ic_account&quot;"

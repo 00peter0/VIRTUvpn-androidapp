@@ -25,6 +25,7 @@
 
     <EditText
         android:id="@+id/email_input"
+        style="@style/VcsSignInUsernameAutofill"
         android:layout_width="match_parent"
         android:layout_height="50dp"
         android:layout_marginTop="20dp"
@@ -40,6 +41,7 @@
 
     <EditText
         android:id="@+id/password_input"
+        style="@style/VcsSignInPasswordAutofill"
         android:layout_width="match_parent"
         android:layout_height="50dp"
         android:layout_marginTop="12dp"
