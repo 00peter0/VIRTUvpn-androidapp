@@ -222,7 +222,7 @@
     <string name="vcs_vpn_router_service_active_detail">%1$s protects hotspot clients on %2$s</string>
     <string name="vcs_vpn_router_service_degraded">No protected internet path (VPN tunnel or upstream internet down). Hotspot clients remain fail-closed.</string>
     <string name="vcs_secure_browser_title">Secured Browser</string>
-    <string name="vcs_secure_browser_hint">https://example.com</string>
+    <string name="vcs_secure_browser_hint" translatable="false">https://example.com</string>
     <string name="vcs_secure_browser_url_input_description">Address bar</string>
     <string name="vcs_secure_browser_go">Go</string>
     <string name="vcs_secure_browser_go_description">Open address</string>
@@ -297,7 +297,7 @@
     <string name="vcs_secure_browser_egress_blocked">Protected route required</string>
     <string name="vcs_secure_browser_save">Save</string>
     <string name="vcs_secure_browser_save_description">Save current page as quick link</string>
-    <string name="vcs_secure_browser_new_tab">+</string>
+    <string name="vcs_secure_browser_new_tab" translatable="false">+</string>
     <string name="vcs_secure_browser_new_tab_description">Open new browser tab</string>
     <string name="vcs_secure_browser_untitled_tab">New tab</string>
     <string name="vcs_secure_browser_tab_description">Tab %1$d: %2$s</string>
@@ -309,25 +309,25 @@
     <string name="vcs_secure_browser_delete_bookmark_title">Remove quick link?</string>
     <string name="vcs_secure_browser_delete_bookmark_description">Remove quick link %1$s</string>
     <string name="vcs_secure_browser_features">Browser features</string>
-    <string name="vcs_secure_browser_features_icon">⋮</string>
+    <string name="vcs_secure_browser_features_icon" translatable="false">⋮</string>
     <string name="vcs_secure_browser_features_description">Open browser features</string>
     <string name="vcs_secure_browser_features_zoom">Text zoom</string>
     <string name="vcs_secure_browser_find">Find</string>
     <string name="vcs_secure_browser_find_description">Find text on page</string>
     <string name="vcs_secure_browser_find_hint">Find in page</string>
     <string name="vcs_secure_browser_find_input_description">Find in page text field</string>
-    <string name="vcs_secure_browser_find_prev">↑</string>
+    <string name="vcs_secure_browser_find_prev" translatable="false">↑</string>
     <string name="vcs_secure_browser_find_prev_description">Previous find result</string>
-    <string name="vcs_secure_browser_find_next">↓</string>
+    <string name="vcs_secure_browser_find_next" translatable="false">↓</string>
     <string name="vcs_secure_browser_find_next_description">Next find result</string>
-    <string name="vcs_secure_browser_find_close">×</string>
+    <string name="vcs_secure_browser_find_close" translatable="false">×</string>
     <string name="vcs_secure_browser_find_close_description">Close find bar</string>
-    <string name="vcs_secure_browser_find_matches">%1$d/%2$d</string>
-    <string name="vcs_secure_browser_zoom_down">A-</string>
+    <string name="vcs_secure_browser_find_matches" translatable="false">%1$d/%2$d</string>
+    <string name="vcs_secure_browser_zoom_down" translatable="false">A-</string>
     <string name="vcs_secure_browser_zoom_down_description">Decrease text zoom</string>
-    <string name="vcs_secure_browser_zoom_up">A+</string>
+    <string name="vcs_secure_browser_zoom_up" translatable="false">A+</string>
     <string name="vcs_secure_browser_zoom_up_description">Increase text zoom</string>
-    <string name="vcs_secure_browser_text_zoom_value">%1$d%%</string>
+    <string name="vcs_secure_browser_text_zoom_value" translatable="false">%1$d%%</string>
     <string name="vcs_secure_browser_desktop_on">Desktop on</string>
     <string name="vcs_secure_browser_desktop_off">Desktop off</string>
     <string name="vcs_secure_browser_desktop_mode_description">Toggle desktop mode</string>
@@ -507,7 +507,7 @@
     <string name="stat_public_ip">Public IP</string>
     <string name="status_vpn_live">VPN is live</string>
     <string name="stat_download">Download</string>
-    <string name="stat_no_data">—</string>
+    <string name="stat_no_data" translatable="false">—</string>
     <string name="stat_public_identity">Internet sees you as</string>
     <string name="stat_checking">Checking…</string>
     <string name="stat_tap_recheck">Tap to re-check</string>
