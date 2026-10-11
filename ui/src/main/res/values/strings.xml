@@ -3,6 +3,9 @@
   ~ SPDX-License-Identifier: Apache-2.0
   -->
 <resources>
+    <string name="vcs_home_language">Language</string>
+    <string name="vcs_language_system">System default</string>
+    <string name="vcs_language_busy">Wait for the current VPN, sync or update operation to finish before changing the app language.</string>
     <plurals name="delete_error">
         <item quantity="one">Unable to delete %d tunnel: %s</item>
         <item quantity="other">Unable to delete %d tunnels: %s</item>
@@ -342,7 +345,10 @@
     <string name="vcs_secure_browser_https_badge_description">HTTPS-only status</string>
     <string name="vcs_secure_browser_https_locked">HTTPS-only locked</string>
     <string name="vcs_secure_browser_trackers_blocked_zero">0 trackers blocked</string>
-    <string name="vcs_secure_browser_trackers_blocked_count">%1$d trackers blocked</string>
+    <plurals name="vcs_secure_browser_trackers_blocked_count">
+        <item quantity="one">%1$d tracker blocked</item>
+        <item quantity="other">%1$d trackers blocked</item>
+    </plurals>
     <string name="vcs_secure_browser_tracker_badge_description">Blocked tracker count</string>
     <string name="web_terminal_browser_title">Web Terminal</string>
     <string name="web_terminal_browser_blocked_detail">Terminal traffic is stopped until the required VPN tunnel is active.</string>
@@ -558,11 +564,20 @@
     <string name="vcs_update_none">No update available</string>
     <string name="vcs_sync_running">Syncing VCS tunnels…</string>
     <string name="vcs_sync_no_assignments">Sync complete: no tunnels are assigned to this device</string>
-    <string name="vcs_sync_checked_no_imports">Sync complete: checked %1$d assigned tunnels, nothing new imported</string>
+    <plurals name="vcs_sync_checked_no_imports">
+        <item quantity="one">Sync complete: checked %1$d assigned tunnel, nothing new imported</item>
+        <item quantity="other">Sync complete: checked %1$d assigned tunnels, nothing new imported</item>
+    </plurals>
     <string name="vcs_sync_bundle_pending">Managed Access is ready to finish in VCS App. Build the cluster there, then sync again.</string>
     <string name="vcs_managed_access_pending_empty">Managed Access is prepared in VCS App. Build the cluster there, then sync again to show it here.</string>
-    <string name="vcs_sync_skipped_running">Sync found %1$d tunnel config update(s), but the tunnel is running. Turn the tunnel off and sync again to apply safely.</string>
-    <string name="vcs_sync_success">VCS sync complete: imported %1$d of %2$d assigned tunnels</string>
+    <plurals name="vcs_sync_skipped_running">
+        <item quantity="one">Sync found %1$d tunnel config update, but the tunnel is running. Turn the tunnel off and sync again to apply safely.</item>
+        <item quantity="other">Sync found %1$d tunnel config updates, but the tunnel is running. Turn the tunnel off and sync again to apply safely.</item>
+    </plurals>
+    <plurals name="vcs_sync_success">
+        <item quantity="one">VCS sync complete: imported %1$d of %2$d assigned tunnel</item>
+        <item quantity="other">VCS sync complete: imported %1$d of %2$d assigned tunnels</item>
+    </plurals>
     <string name="vcs_sync_error">VCS sync failed: %1$s</string>
     <string name="vcs_sync_partial">Sync partially completed. Operations to retry: %1$d. Existing profiles were retained.</string>
     <string name="vcs_browser_shared_cookies">Shared cookies — update Android System WebView for browser isolation</string>

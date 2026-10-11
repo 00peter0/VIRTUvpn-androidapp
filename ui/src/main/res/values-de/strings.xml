@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="vcs_home_language">Sprache</string>
+    <string name="vcs_language_system">Systemsprache</string>
+    <string name="vcs_language_busy">Warten Sie, bis der aktuelle VPN-, Synchronisierungs- oder Aktualisierungsvorgang abgeschlossen ist, bevor Sie die App-Sprache ändern.</string>
     <plurals name="delete_error">
         <item quantity="one">%d Tunnel konnte nicht gelöscht werden: %s</item>
         <item quantity="other">%d Tunnel konnten nicht gelöscht werden: %s</item>
@@ -507,7 +510,10 @@
     <string name="vcs_secure_browser_link_share">Link teilen</string>
     <string name="vcs_secure_browser_link_copied">Link kopiert</string>
     <string name="vcs_secure_browser_trackers_blocked_zero">0 Tracker blockiert</string>
-    <string name="vcs_secure_browser_trackers_blocked_count">%1$d Tracker blockiert</string>
+    <plurals name="vcs_secure_browser_trackers_blocked_count">
+        <item quantity="one">%1$d Tracker blockiert</item>
+        <item quantity="other">%1$d Tracker blockiert</item>
+    </plurals>
     <string name="vcs_secure_browser_tracker_badge_description">Anzahl blockierter Tracker</string>
     <string name="web_terminal_browser_title">Webterminal</string>
     <string name="web_terminal_browser_blocked_detail">Terminal-Verkehr wird gestoppt, bis der erforderliche VPN-Tunnel aktiv ist.</string>
@@ -550,11 +556,20 @@
     <string name="vcs_update_none">Kein Update verfügbar</string>
     <string name="vcs_sync_running">VCS-Tunnel werden synchronisiert…</string>
     <string name="vcs_sync_no_assignments">Synchronisierung abgeschlossen: Diesem Gerät sind keine Tunnel zugewiesen</string>
-    <string name="vcs_sync_checked_no_imports">Synchronisierung abgeschlossen: %1$d zugewiesene Tunnel geprüft, nichts Neues importiert</string>
+    <plurals name="vcs_sync_checked_no_imports">
+        <item quantity="one">Synchronisierung abgeschlossen: %1$d zugewiesener Tunnel geprüft, nichts Neues importiert</item>
+        <item quantity="other">Synchronisierung abgeschlossen: %1$d zugewiesene Tunnel geprüft, nichts Neues importiert</item>
+    </plurals>
     <string name="vcs_sync_bundle_pending">Managed Access kann in VCS App fertiggestellt werden. Erstellen Sie dort den Cluster und synchronisieren Sie anschließend erneut.</string>
     <string name="vcs_managed_access_pending_empty">Managed Access ist in VCS App vorbereitet. Erstellen Sie dort den Cluster und synchronisieren Sie erneut, um ihn hier anzuzeigen.</string>
-    <string name="vcs_sync_skipped_running">Die Synchronisierung hat Konfigurationsupdates für Tunnel gefunden: %1$d. Der Tunnel ist jedoch aktiv. Schalten Sie ihn aus und synchronisieren Sie erneut, um die Updates sicher anzuwenden.</string>
-    <string name="vcs_sync_success">VCS-Synchronisierung abgeschlossen: %1$d von %2$d zugewiesenen Tunneln importiert</string>
+    <plurals name="vcs_sync_skipped_running">
+        <item quantity="one">Die Synchronisierung hat %1$d Konfigurationsupdate für einen Tunnel gefunden. Der Tunnel ist jedoch aktiv. Schalten Sie ihn aus und synchronisieren Sie erneut, um das Update sicher anzuwenden.</item>
+        <item quantity="other">Die Synchronisierung hat %1$d Konfigurationsupdates für Tunnel gefunden. Der Tunnel ist jedoch aktiv. Schalten Sie ihn aus und synchronisieren Sie erneut, um die Updates sicher anzuwenden.</item>
+    </plurals>
+    <plurals name="vcs_sync_success">
+        <item quantity="one">VCS-Synchronisierung abgeschlossen: %1$d von %2$d zugewiesenem Tunnel importiert</item>
+        <item quantity="other">VCS-Synchronisierung abgeschlossen: %1$d von %2$d zugewiesenen Tunneln importiert</item>
+    </plurals>
     <string name="vcs_sync_error">VCS-Synchronisierung fehlgeschlagen: %1$s</string>
     <string name="vcs_copy_label">Kopieren</string>
 </resources>

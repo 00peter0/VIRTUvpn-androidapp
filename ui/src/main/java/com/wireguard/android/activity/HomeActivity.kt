@@ -26,10 +26,12 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.edit
 import androidx.core.graphics.drawable.toDrawable
 import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
+import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.wireguard.android.Application
@@ -48,6 +50,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.Locale
 import kotlin.system.exitProcess
 
 class HomeActivity : AppCompatActivity() {
@@ -61,6 +64,7 @@ class HomeActivity : AppCompatActivity() {
     private var promptedUpdateVersionName: String? = null
     private var vpnStatusJob: Job? = null
     private var vpnRouterActionRunning = false
+    private var homeVpnToggleOperations = 0
     private var lastVpnRouterStatus: VpnRouterManager.Status? = null
     private var deviceHeartbeatRunning = false
     private var lastDeviceHeartbeatAt = 0L
@@ -321,6 +325,7 @@ class HomeActivity : AppCompatActivity() {
 
     private fun toggleHomeVpnStatus(checked: Boolean) {
         lifecycleScope.launch {
+            homeVpnToggleOperations += 1
             try {
                 val manager = Application.getTunnelManager()
                 val tunnels = manager.getTunnels()
@@ -361,6 +366,7 @@ class HomeActivity : AppCompatActivity() {
                 }
                 Toast.makeText(this@HomeActivity, getString(R.string.vcs_vpn_status_toggle_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
             } finally {
+                homeVpnToggleOperations -= 1
                 refreshVpnStatus()
                 updateVpnRouterStatus()
             }
@@ -381,12 +387,46 @@ class HomeActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
+            R.id.menu_vcs_language -> {
+                showLanguageDialog()
+                true
+            }
             R.id.menu_vcs_account -> {
                 if (VcsManagedClient.hasAccountSession(this)) showAccountDialog() else showSignInDialog()
                 true
             }
             else -> super.onOptionsItemSelected(item)
         }
+    }
+
+    private fun showLanguageDialog() {
+        if (languageChangeIsBusy()) return
+        val languageTags = listOf("", "en", "de", "fr", "it")
+        // Autonyms remain recognizable when the user does not understand the current UI language.
+        val labels = languageTags.map { tag ->
+            if (tag.isEmpty()) getString(R.string.vcs_language_system)
+            else Locale.forLanguageTag(tag).getDisplayLanguage(Locale.forLanguageTag(tag))
+        }
+        val currentLanguage = AppCompatDelegate.getApplicationLocales()[0]?.language.orEmpty()
+        VcsDialogs.showChoice(
+            context = this,
+            title = getString(R.string.vcs_home_language),
+            items = labels,
+            selectedIndex = languageTags.indexOf(currentLanguage).takeIf { it >= 0 }
+        ) { which ->
+            val tag = languageTags[which]
+            if (tag != currentLanguage && !languageChangeIsBusy()) {
+                AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag))
+            }
+        }
+    }
+
+    private fun languageChangeIsBusy(): Boolean {
+        val busy = homeVpnToggleOperations > 0 || vpnRouterActionRunning || updateCheckRunning ||
+            VpnRouterManager.getOperationStatus(this).active ||
+            VcsManagedClient.syncStatus(this).optString("phase") == "Synchronizing"
+        if (busy) Toast.makeText(this, R.string.vcs_language_busy, Toast.LENGTH_SHORT).show()
+        return busy
     }
 
     private fun syncManagedAccess() {
@@ -409,11 +449,11 @@ class HomeActivity : AppCompatActivity() {
     private fun syncResultMessage(result: VcsManagedClient.SyncResult): String {
         return when {
             result.failures > 0 -> getString(R.string.vcs_sync_partial, result.failures)
-            result.skippedRunning > 0 -> getString(R.string.vcs_sync_skipped_running, result.skippedRunning)
+            result.skippedRunning > 0 -> resources.getQuantityString(R.plurals.vcs_sync_skipped_running, result.skippedRunning, result.skippedRunning)
             result.pendingBundleAssignments > 0 -> getString(R.string.vcs_sync_bundle_pending)
             result.assigned == 0 -> getString(R.string.vcs_sync_no_assignments)
-            result.imported == 0 -> getString(R.string.vcs_sync_checked_no_imports, result.assigned)
-            else -> getString(R.string.vcs_sync_success, result.imported, result.assigned)
+            result.imported == 0 -> resources.getQuantityString(R.plurals.vcs_sync_checked_no_imports, result.assigned, result.assigned)
+            else -> resources.getQuantityString(R.plurals.vcs_sync_success, result.assigned, result.imported, result.assigned)
         }
     }
 

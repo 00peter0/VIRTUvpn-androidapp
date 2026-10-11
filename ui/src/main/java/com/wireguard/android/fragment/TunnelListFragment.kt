@@ -181,11 +181,11 @@ class TunnelListFragment : BaseFragment() {
                         VcsManagedClient.reportCurrentStates(ctx)
                         showSnackbar(
                             when {
-                                result.skippedRunning > 0 -> getString(R.string.vcs_sync_skipped_running, result.skippedRunning)
+                                result.skippedRunning > 0 -> resources.getQuantityString(R.plurals.vcs_sync_skipped_running, result.skippedRunning, result.skippedRunning)
                                 result.pendingBundleAssignments > 0 -> getString(R.string.vcs_sync_bundle_pending)
                                 result.assigned == 0 -> getString(R.string.vcs_sync_no_assignments)
-                                result.imported == 0 -> getString(R.string.vcs_sync_checked_no_imports, result.assigned)
-                                else -> getString(R.string.vcs_sync_success, result.imported, result.assigned)
+                                result.imported == 0 -> resources.getQuantityString(R.plurals.vcs_sync_checked_no_imports, result.assigned, result.assigned)
+                                else -> resources.getQuantityString(R.plurals.vcs_sync_success, result.assigned, result.imported, result.assigned)
                             }
                         )
                     } catch (e: Throwable) {
@@ -303,11 +303,11 @@ class TunnelListFragment : BaseFragment() {
     private fun syncResultMessage(result: VcsManagedClient.SyncResult): String {
         return when {
             result.failures > 0 -> getString(R.string.vcs_sync_partial, result.failures)
-            result.skippedRunning > 0 -> getString(R.string.vcs_sync_skipped_running, result.skippedRunning)
+            result.skippedRunning > 0 -> resources.getQuantityString(R.plurals.vcs_sync_skipped_running, result.skippedRunning, result.skippedRunning)
             result.pendingBundleAssignments > 0 -> getString(R.string.vcs_sync_bundle_pending)
             result.assigned == 0 -> getString(R.string.vcs_sync_no_assignments)
-            result.imported == 0 -> getString(R.string.vcs_sync_checked_no_imports, result.assigned)
-            else -> getString(R.string.vcs_sync_success, result.imported, result.assigned)
+            result.imported == 0 -> resources.getQuantityString(R.plurals.vcs_sync_checked_no_imports, result.assigned, result.assigned)
+            else -> resources.getQuantityString(R.plurals.vcs_sync_success, result.assigned, result.imported, result.assigned)
         }
     }
 

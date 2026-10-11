@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="vcs_home_language">Lingua</string>
+    <string name="vcs_language_system">Lingua del sistema</string>
+    <string name="vcs_language_busy">Attendi il completamento dell\'operazione VPN, di sincronizzazione o di aggiornamento in corso prima di cambiare la lingua dell\'app.</string>
     <plurals name="delete_error">
         <item quantity="one">Impossibile eliminare %d tunnel: %s</item>
         <item quantity="other">Impossibile eliminare %d tunnel: %s</item>
@@ -518,7 +521,11 @@
     <string name="vcs_secure_browser_link_share">Condividi link</string>
     <string name="vcs_secure_browser_link_copied">Link copiato</string>
     <string name="vcs_secure_browser_trackers_blocked_zero">0 tracker bloccati</string>
-    <string name="vcs_secure_browser_trackers_blocked_count">%1$d tracker bloccati</string>
+    <plurals name="vcs_secure_browser_trackers_blocked_count">
+        <item quantity="one">%1$d tracker bloccato</item>
+        <item quantity="other">%1$d tracker bloccati</item>
+        <item quantity="many">%1$d tracker bloccati</item>
+    </plurals>
     <string name="vcs_secure_browser_tracker_badge_description">Numero di tracker bloccati</string>
     <string name="web_terminal_browser_title">Terminale web</string>
     <string name="web_terminal_browser_blocked_detail">Il traffico del terminale è bloccato finché il tunnel VPN richiesto non è attivo.</string>
@@ -561,11 +568,23 @@
     <string name="vcs_update_none">Nessun aggiornamento disponibile</string>
     <string name="vcs_sync_running">Sincronizzazione dei tunnel VCS…</string>
     <string name="vcs_sync_no_assignments">Sincronizzazione completata: nessun tunnel assegnato a questo dispositivo</string>
-    <string name="vcs_sync_checked_no_imports">Sincronizzazione completata: verificati %1$d tunnel assegnati, nessuna nuova importazione</string>
+    <plurals name="vcs_sync_checked_no_imports">
+        <item quantity="one">Sincronizzazione completata: verificato %1$d tunnel assegnato, nessuna nuova importazione</item>
+        <item quantity="other">Sincronizzazione completata: verificati %1$d tunnel assegnati, nessuna nuova importazione</item>
+        <item quantity="many">Sincronizzazione completata: verificati %1$d tunnel assegnati, nessuna nuova importazione</item>
+    </plurals>
     <string name="vcs_sync_bundle_pending">Managed Access è pronto per essere completato in VCS App. Crea lì il cluster, poi sincronizza di nuovo.</string>
     <string name="vcs_managed_access_pending_empty">Managed Access è predisposto in VCS App. Crea lì il cluster, poi sincronizza di nuovo per visualizzarlo qui.</string>
-    <string name="vcs_sync_skipped_running">La sincronizzazione ha trovato aggiornamenti di configurazione dei tunnel: %1$d, ma il tunnel è attivo. Disattiva il tunnel e sincronizza di nuovo per applicarli in sicurezza.</string>
-    <string name="vcs_sync_success">Sincronizzazione VCS completata: importati %1$d di %2$d tunnel assegnati</string>
+    <plurals name="vcs_sync_skipped_running">
+        <item quantity="one">La sincronizzazione ha trovato %1$d aggiornamento di configurazione dei tunnel, ma il tunnel è attivo. Disattiva il tunnel e sincronizza di nuovo per applicarlo in sicurezza.</item>
+        <item quantity="other">La sincronizzazione ha trovato %1$d aggiornamenti di configurazione dei tunnel, ma il tunnel è attivo. Disattiva il tunnel e sincronizza di nuovo per applicarli in sicurezza.</item>
+        <item quantity="many">La sincronizzazione ha trovato %1$d aggiornamenti di configurazione dei tunnel, ma il tunnel è attivo. Disattiva il tunnel e sincronizza di nuovo per applicarli in sicurezza.</item>
+    </plurals>
+    <plurals name="vcs_sync_success">
+        <item quantity="one">Sincronizzazione VCS completata: %2$d tunnel assegnato; importazioni: %1$d</item>
+        <item quantity="other">Sincronizzazione VCS completata: %2$d tunnel assegnati; importazioni: %1$d</item>
+        <item quantity="many">Sincronizzazione VCS completata: %2$d tunnel assegnati; importazioni: %1$d</item>
+    </plurals>
     <string name="vcs_sync_error">Sincronizzazione VCS non riuscita: %1$s</string>
     <string name="vcs_copy_label">Copia</string>
 </resources>

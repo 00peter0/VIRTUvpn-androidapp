@@ -727,7 +727,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         binding.trackerBadge.text = if (blockedTrackers == 0) {
             getString(R.string.vcs_secure_browser_trackers_blocked_zero)
         } else {
-            getString(R.string.vcs_secure_browser_trackers_blocked_count, blockedTrackers)
+            resources.getQuantityString(R.plurals.vcs_secure_browser_trackers_blocked_count, blockedTrackers, blockedTrackers)
         }
     }
 

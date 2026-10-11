@@ -101,50 +101,6 @@
     </issue>
 
     <issue
-        id="PluralsCandidate"
-        message="Formatting %d followed by words (&quot;trackers&quot;): This should probably be a plural rather than a string"
-        errorLine1="    &lt;string name=&quot;vcs_secure_browser_trackers_blocked_count&quot;>%1$d trackers blocked&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="309"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="PluralsCandidate"
-        message="Formatting %d followed by words (&quot;assigned&quot;): This should probably be a plural rather than a string"
-        errorLine1="    &lt;string name=&quot;vcs_sync_checked_no_imports&quot;>Sync complete: checked %1$d assigned tunnels, nothing new imported&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="563"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="PluralsCandidate"
-        message="Formatting %d followed by words (&quot;tunnel&quot;): This should probably be a plural rather than a string"
-        errorLine1="    &lt;string name=&quot;vcs_sync_skipped_running&quot;>Sync found %1$d tunnel config update(s), but the tunnel is running. Turn the tunnel off and sync again to apply safely.&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="566"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="PluralsCandidate"
-        message="Formatting %d followed by words (&quot;assigned&quot;): This should probably be a plural rather than a string"
-        errorLine1="    &lt;string name=&quot;vcs_sync_success&quot;>VCS sync complete: imported %1$d of %2$d assigned tunnels&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="567"
-            column="5"/>
-    </issue>
-
-    <issue
         id="NotifyDataSetChanged"
         message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
         errorLine1="        notifyDataSetChanged()"

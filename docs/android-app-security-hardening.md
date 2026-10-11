@@ -1,5 +1,113 @@
 # VirtuVPN Android App Security Hardening Backlog
 
+## Unreleased Home language control and quantity wording — October 11, 2026
+
+Home previously offered no in-app language selector. The build already generated
+Android's per-app language configuration, and the app otherwise followed the
+device or system app-language preference. Added a globe action in Home's toolbar,
+with System default and the four existing application languages: English, German,
+French and Italian. Native language names remain recognizable regardless of the
+current UI language. On constrained toolbar widths the action remains available
+in the overflow menu. No new language or translation of technical diagnostic
+detail is claimed by this selector.
+
+Uses the installed AppCompat 1.7.1 locale APIs and the existing generated locale
+configuration. Android 13+ stores the choice in its app-language setting; opted
+into AppCompat's locale storage for Android 12 and lower using its disabled,
+non-exported metadata holder service. No separate language preference store or
+custom resource-context wrapper was introduced. System default clears the explicit
+app locale. Selecting the current choice does not request a recreation.
+
+Changing language recreates the screen through the platform/library's normal
+configuration handling. Check both before opening the selector and before applying
+a choice for a Home VPN toggle, router operation, synchronization or update check
+in progress, and ask the user to wait. The new Home toggle counter only guards
+language changes; existing toggle operations, ordering and exception handling are
+preserved. The busy guard is code-reviewed; intentionally did not start a live
+VPN or router operation merely to test that guard. Existing Home recreation
+behavior, including reset of expanded panels, is retained.
+
+The owner also requested a distinct application-colored Device diagnostics button.
+Applied a scoped Material button style with dark teal fill, mint text/device icon,
+a subtle teal stroke, rounded corners and the normal ripple interaction. Its
+destination, click handler and diagnostics collection logic are unchanged.
+
+Corrected four quantity resources in all four languages and all 13 callers.
+Trackers and synchronization messages now use Android quantity selection. The
+successful-sync sentence selects its form by the number of **assigned** tunnels,
+while retaining the independent imported/assigned formatting arguments. French
+and Italian use a neutral import-count label to avoid choosing the wrong agreement
+for the other count. Preserve synchronization guard order, counters, skipped
+running-tunnel handling and the separate zero-trackers message. French/Italian
+`many` forms are included. Browser network binding, fail-closed checks, cookies,
+session policies, URL/find autofill exclusions and accessibility handling are
+unchanged; its only code change is the approved tracker-count formatter.
+
+| Gate | Previous source | This source |
+| --- | --- | --- |
+| Full lint warnings, empty diagnostic baseline | 50 | 46 |
+| Visible lint warnings | 17 | 17 |
+| Lint errors | 0 | 0 |
+| Repository baseline entries | 33 | 29 |
+| Newly introduced full-lint findings | — | 0 |
+
+Removed only four resolved PluralsCandidate baseline entries; added no baseline
+entry or suppression. The normal report also contains one informational
+LintBaseline hint, separate from the 17 warnings.
+
+Validation: 52 existing unit tests, full/normal lint, assemble, established
+signer/package checks and bounded source/resource comparison. The source proof
+reverses the 13 formatter replacements and isolated Home-language additions to
+compare the surrounding Kotlin code with its previous revision. All other
+translation resources and layout/manifest content retain their previous semantics.
+Physical-device results and their limits are recorded in the evidence directory.
+On the MacBook-connected Samsung API-37 device, checked all four language choices,
+their Home diagnostics label and selected-choice marker, selecting the same choice,
+restoring System default and opening/returning from the diagnostics screen. Verified
+the globe action is visible on this device and visually reviewed the button style.
+The private upgrade preserves app data and first-install time; the installed
+candidate hash is
+`c4b233f5c57222140ccc5abb5df10959236cd918f4a3605fe62db1a32ea4aad0`.
+Android 24–32 locale-storage behavior has not received a new device acceptance
+test. A standalone Android resource probe was stopped by the device with exit 137;
+no runtime plural-case pass is claimed for that probe.
+
+### Tunnel-list refresh discovery: preserve until behavior review
+
+Reviewed all five NotifyDataSetChanged findings. Replacing an entire list or
+receiving the generic ObservableList callback supplies no reliable change range.
+Action-mode entry/exit intentionally changes selection presentation for every row.
+The section refresh also updates rows after assignment display-name/filter changes,
+even when the underlying list reference does not change. Row configuration installs
+click handlers that capture position, and delete selections are stored as positions.
+Blindly replacing refreshes with range notifications could leave old positions or
+selection presentation in rows. These are optimization recommendations, not five
+demonstrated functional failures; adapter and selection code remain unchanged.
+
+Separate static-analysis concern: full refresh does **not** make positional delete
+selection safe across insertion, removal or reordering. For example, select B at
+index 1 in A/B/C; inserting AA before B makes index 1 identify AA. The deletion path
+reads the current list using saved positions. TunnelManager's sorted list can change
+during synchronization or rename, and saved-instance selection also stores indexes.
+This is a concrete code-level risk, not a reproduced destructive device test.
+Proposed next behavior review: retain selection by tunnel identity, validate the
+selected objects at deletion time, then assess granular adapter updates. Obtain the
+owner's decision before changing the selection/deletion contract; never test this
+by deleting a production tunnel.
+
+The French keepalive ImpliedQuantity finding is also retained deliberately:
+the plural is a suffix of a separate numeric input. Adding the number to the suffix
+would display it twice. Do not rewrite that layout to satisfy the heuristic.
+
+**Production remains public version 903 with its original artifact.** This is a
+private test candidate, not an overwritten public release. The next consolidated
+public release must have a higher versionCode and retain the established signer.
+Scripts, dependencies, SDK levels, version properties and enrollment/gateway/VPN
+logic remain unchanged. Evidence:
+`/srv/vcs/deploy/evidence/virtuvpn-counts-language-20261011/`.
+References: [Android quantities](https://developer.android.com/guide/topics/resources/string-resource#Plurals),
+[Android app languages](https://developer.android.com/guide/topics/resources/app-languages).
+
 ## Physical Android device access from EDGE — October 11, 2026
 
 Use the owner's MacBook for physical-device checks. The verified connection is

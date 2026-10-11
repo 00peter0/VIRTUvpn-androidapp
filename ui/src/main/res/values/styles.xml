@@ -2,6 +2,20 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <style name="VcsDiagnosticsButton" parent="Widget.Material3.Button">
+        <item name="android:minHeight">52dp</item>
+        <item name="android:textColor">#BFF6EA</item>
+        <item name="backgroundTint">#153E42</item>
+        <item name="strokeColor">#387C78</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="cornerRadius">12dp</item>
+        <item name="icon">@drawable/ic_device</item>
+        <item name="iconTint">#5EEAD4</item>
+        <item name="iconGravity">textStart</item>
+        <item name="iconPadding">10dp</item>
+        <item name="rippleColor">#335EEAD4</item>
+    </style>
+
     <style name="WireGuardTheme.Toolbar" parent="Widget.Material3.Toolbar">
         <item name="android:background">@android:color/transparent</item>
         <item name="titleTextColor">#FFFFFF</item>
