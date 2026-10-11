@@ -101,6 +101,9 @@ class Application : android.app.Application() {
         tunnelConnectivityMonitor = TunnelConnectivityMonitor(applicationContext)
         tunnelConnectivityMonitor.start()
         startVpnRouterServiceIfNeeded()
+        com.wireguard.android.vcs.VcsManagedClient.recoverSyncStatus(this)
+        com.wireguard.android.vcs.ManagedApkUpdates.pruneInstalled(this)
+        com.wireguard.android.vcs.ManagedSyncWorker.schedule(this)
         coroutineScope.launch(Dispatchers.IO) {
             try {
                 backend = determineBackend()

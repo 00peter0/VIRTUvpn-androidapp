@@ -21,6 +21,12 @@ import com.wireguard.android.util.AndroidKeystoreAead
 import com.wireguard.android.util.EncryptedSecretCodec
 import com.wireguard.android.util.EncryptedSecretMigrator
 import com.wireguard.config.Config
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.withTimeout
+import com.wireguard.android.util.SingleFlight
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -58,6 +64,9 @@ object VcsManagedClient {
     private const val KEY_LAST_UPDATE_URL = "last_update_url"
     private const val TIMEOUT_MS = 15_000
     private val deviceSessionRefreshLock = Any()
+    private val syncFlight = SingleFlight<SyncResult>(CoroutineScope(SupervisorJob() + Dispatchers.IO))
+    private const val KEY_SYNC_STATUS = "sync_status"
+    private const val KEY_COMMAND_RECEIPTS = "command_receipts"
 
     data class SyncResult(
         val imported: Int,
@@ -65,7 +74,8 @@ object VcsManagedClient {
         val deviceName: String?,
         val updateVersionName: String?,
         val skippedRunning: Int,
-        val pendingBundleAssignments: Int
+        val pendingBundleAssignments: Int,
+        val failures: Int = 0
     )
     data class UpdateCheck(val available: Boolean, val versionName: String?)
     data class UpdateDownloadStart(val downloadId: Long, val fileName: String)
@@ -151,7 +161,7 @@ object VcsManagedClient {
 
     suspend fun signInAccount(context: Context, apiBaseUrl: String, email: String, password: String): AccountInfo = withContext(Dispatchers.IO) {
         val normalizedBase = normalizeApiBase(apiBaseUrl)
-        val body = deviceRegistrationBody()
+        val body = deviceRegistrationBody(context)
             .put("email", email.trim())
             .put("password", password)
         val response = requestJson("POST", "$normalizedBase/api/mobile/android/auth/login", body, null)
@@ -232,7 +242,44 @@ object VcsManagedClient {
         completeEnrollment(context, request)
     }
 
-    suspend fun syncManagedTunnels(context: Context): SyncResult = withContext(Dispatchers.IO) {
+    suspend fun syncManagedTunnels(context: Context): SyncResult = syncFlight.run {
+        val started = System.currentTimeMillis()
+        storeSyncStatus(context, JSONObject().put("phase", "Synchronizing").put("startedAt", started))
+        try {
+            val result = withTimeout(120_000) { syncManagedTunnelsOnce(context.applicationContext) }
+            storeSyncStatus(context, JSONObject().put("phase", if (result.failures == 0) "Completed" else "Partially completed")
+                .put("startedAt", started).put("finishedAt", System.currentTimeMillis()).put("failures", result.failures)
+                .put("pendingConfigs", result.skippedRunning + result.pendingBundleAssignments))
+            result
+        } catch (error: Throwable) {
+            storeSyncStatus(context, JSONObject().put("phase", "Sync incomplete — retry available")
+                .put("startedAt", started).put("finishedAt", System.currentTimeMillis()).put("errorType", error.javaClass.simpleName))
+            throw error
+        }
+    }
+
+    @android.annotation.SuppressLint("ApplySharedPref") // Operation evidence must survive immediate process death.
+    private fun storeSyncStatus(context: Context, value: JSONObject) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_SYNC_STATUS, value.toString()).commit()
+    }
+
+    fun recoverSyncStatus(context: Context) {
+        val prefs = managedPrefs(context)
+        val deviceId = sessionInfo(context)?.deviceId
+        if (deviceId != null && prefs.getString("legacy_ownership_device") == null) {
+            prefs.edit { putString("legacy_ownership_device", deviceId) }
+        }
+        val status = syncStatus(context)
+        if (status.optString("phase") == "Synchronizing") {
+            storeSyncStatus(context, status.put("phase", "Interrupted by app restart — retry available").put("finishedAt", System.currentTimeMillis()))
+        }
+    }
+
+    fun syncStatus(context: Context): JSONObject = runCatching {
+        JSONObject(managedPrefs(context).getString(KEY_SYNC_STATUS, "{}") ?: "{}")
+    }.getOrElse { JSONObject().put("phase", "Status unavailable — sync to refresh") }
+
+    private suspend fun syncManagedTunnelsOnce(context: Context): SyncResult = withContext(Dispatchers.IO) {
         var session = requireSession(context)
         val previousAssignments = loadAssignments(context)
         val previouslyAssignedTunnelNames = managedTunnelNames(previousAssignments)
@@ -241,8 +288,7 @@ object VcsManagedClient {
         session = syncResponse.session
         val sync = syncResponse.json
         val updateVersionName = rememberUpdateAvailable(context, session.apiBase, sync.optJSONObject("update"))
-        val assignments = sync.optJSONArray("assignments") ?: JSONArray()
-        removeExplicitlyInactiveManagedTunnels(previousAssignments, assignments)
+        val assignments = sync.optJSONArray("assignments") ?: error("Sync assignments are missing")
         val bundleAssignments = sync.optJSONArray("bundleAssignments") ?: JSONArray()
         val bundleState = sync.optJSONObject("bundleState")
         val pendingBundleAssignments = if (bundleState?.optString("status") == "PENDING_BUILD") {
@@ -252,12 +298,20 @@ object VcsManagedClient {
         }
         val commands = sync.optJSONArray("commands") ?: JSONArray()
         val bundledAssignmentIds = mutableSetOf<String>()
+        var failures = 0
         var imported = 0
         var skippedRunning = 0
         val bundle = sync.optJSONObject("bundle")
         var bundleLocalTunnelName: String? = null
         if (bundle != null && bundle.optString("config").isNotBlank()) {
-            val bundleImport = importManagedBundle(context, bundle)
+          try {
+            check(loadSession(context)?.deviceId == session.deviceId) { "Device session changed" }
+            val prefs = managedPrefs(context)
+            val cachedName = prefs.getString("confirmed_bundle_name").orEmpty()
+            val alreadyConfirmed = prefs.getString("confirmed_bundle_device") == session.deviceId && prefs.getString("confirmed_bundle_id") == bundle.optString("bundleId") &&
+                prefs.getLong("confirmed_bundle_version", 0L) == bundle.optLong("configVersion", -1L) &&
+                cachedName.isNotBlank() && Application.getTunnelManager().hasExistingConfig(cachedName)
+            val bundleImport = if (alreadyConfirmed) ImportResult(cachedName, false, true) else importManagedBundle(context, bundle)
             val localTunnelName = bundleImport.localTunnelName
             bundleLocalTunnelName = localTunnelName
             val ids = bundle.optJSONArray("assignmentIds") ?: JSONArray()
@@ -271,16 +325,47 @@ object VcsManagedClient {
                 assignment.put("bundleLocalTunnelName", localTunnelName)
                 assignment.put("localTunnelName", localTunnelName)
             }
-            if (bundleImport.current) {
+            if (bundleImport.current && !alreadyConfirmed) {
                 session = ackManagedBundleImport(context, session, bundle, localTunnelName)
+                prefs.edit {
+                    putString("confirmed_bundle_device", session.deviceId)
+                    putString("confirmed_bundle_id", bundle.optString("bundleId"))
+                    putLong("confirmed_bundle_version", bundle.optLong("configVersion", 1L))
+                    putString("confirmed_bundle_name", localTunnelName)
+                }
             }
             if (bundleImport.applied) imported += 1
             if (!bundleImport.current) skippedRunning += 1
+          } catch (error: Exception) {
+            if (error is CancellationException) throw error
+            failures += 1
+          }
         }
         for (i in 0 until assignments.length()) {
+            check(loadSession(context)?.deviceId == session.deviceId) { "Device session changed" }
             val assignment = assignments.getJSONObject(i)
             if (assignment.optString("status") != "ACTIVE" && assignment.optString("status") != "REISSUE_REQUIRED") continue
             if (assignment.optString("kind") != "VPN_ROUTE" && assignment.optString("kind") != "AGENT_GATEWAY_PROFILE") continue
+            val previous = (0 until previousAssignments.length()).asSequence().mapNotNull(previousAssignments::optJSONObject)
+                .firstOrNull { it.optString("id") == assignment.optString("id") }
+            previous?.optString("localTunnelName")?.takeIf { it.isNotBlank() }?.let { assignment.put("localTunnelName", it) }
+            val knownVersion = previous?.optLong("confirmedConfigVersion", 0L) ?: 0L
+            val localName = assignment.optString("localTunnelName")
+            if (previous?.optLong("pendingConfigVersion", 0L) == assignment.optLong("configVersion", -1L) &&
+                localName.isNotBlank() && Application.getTunnelManager().getTunnels()[localName]?.state == Tunnel.State.UP) {
+                assignment.put("pendingConfigVersion", previous.optLong("pendingConfigVersion"))
+                assignment.put("confirmedConfigVersion", knownVersion)
+                assignment.put("configUpdateSkipped", "tunnel_running")
+                skippedRunning += 1
+                continue
+            }
+            if (knownVersion > 0L && knownVersion == assignment.optLong("configVersion", -1L) &&
+                assignment.optString("status") == "ACTIVE" && localName.isNotBlank() &&
+                Application.getTunnelManager().hasExistingConfig(localName)) {
+                assignment.put("confirmedConfigVersion", knownVersion)
+                continue
+            }
+          try {
             val assignmentId = assignment.getString("id")
             val provisionResponse = requestDeviceJson(context, session, "POST", "${session.apiBase}/api/mobile/android/tunnels/$assignmentId/provision", JSONObject())
             session = provisionResponse.session
@@ -288,23 +373,41 @@ object VcsManagedClient {
             val configImport = importManagedConfig(context, session, provision)
             val localTunnelName = configImport.localTunnelName
             assignment.put("localTunnelName", localTunnelName)
+            if (configImport.current) assignment.put("confirmedConfigVersion", provision.optLong("configVersion", 1L))
             if (configImport.applied) imported += 1
             if (!configImport.current) {
                 skippedRunning += 1
                 assignment.put("configUpdateSkipped", "tunnel_running")
+                assignment.put("pendingConfigVersion", provision.optLong("configVersion", 1L))
             }
+          } catch (error: Exception) {
+            if (error is CancellationException) throw error
+            failures += 1
+            assignment.put("syncErrorType", error.javaClass.simpleName)
+          }
         }
         val storedAssignments = JSONArray()
         for (i in 0 until assignments.length()) storedAssignments.put(assignments.getJSONObject(i))
         if (bundleLocalTunnelName != null) {
             for (i in 0 until bundleAssignments.length()) storedAssignments.put(bundleAssignments.getJSONObject(i))
         }
+        // An incomplete import is not authoritative evidence that a working local profile is obsolete.
+        val importsComplete = failures == 0 && pendingBundleAssignments == 0
+        if (!importsComplete) {
+            val storedIds = (0 until storedAssignments.length()).map { storedAssignments.optJSONObject(it)?.optString("id") }.toSet()
+            for (i in 0 until previousAssignments.length()) {
+                val old = previousAssignments.optJSONObject(i) ?: continue
+                if (old.optString("id") !in storedIds) storedAssignments.put(old)
+            }
+        }
+        check(loadSession(context)?.deviceId == session.deviceId) { "Device session changed during synchronization" }
+        if (importsComplete) removeExplicitlyInactiveManagedTunnels(previousAssignments, storedAssignments)
         storeAssignments(context, storedAssignments)
         val activeManagedTunnelNames = managedTunnelNames(storedAssignments)
-        reconcileManagedTunnelOwnership(context, previouslyAssignedTunnelNames, activeManagedTunnelNames)
+        if (importsComplete) reconcileManagedTunnelOwnership(context, previouslyAssignedTunnelNames, activeManagedTunnelNames)
         prunePendingTunnelActivations(context, activeManagedTunnelNames)
         storePendingBundleAssignments(context, pendingBundleAssignments)
-        processCommands(context, session, commands, storedAssignments, bundleLocalTunnelName)
+        failures += processCommands(context, session, commands, storedAssignments, bundleLocalTunnelName ?: managedBundleTunnelName(storedAssignments))
         val device = sync.optJSONObject("device")
         SyncResult(
             imported,
@@ -312,13 +415,15 @@ object VcsManagedClient {
             device?.optString("deviceName")?.takeIf { it.isNotBlank() },
             updateVersionName,
             skippedRunning,
-            pendingBundleAssignments
+            pendingBundleAssignments,
+            failures
         )
     }
 
 
     private fun rememberUpdateAvailable(context: Context, apiBase: String, update: JSONObject?): String? {
         if (update == null || !update.optBoolean("updateAvailable", false)) return null
+        if (!ManagedApkUpdates.validManifest(update)) return null
         val latestVersion = update.optString("latestVersionName").takeIf { it.isNotBlank() } ?: return null
         val apkUrl = update.optString("apkUrl").takeIf { it.isNotBlank() } ?: return null
         val prefs = managedPrefs(context)
@@ -333,6 +438,7 @@ object VcsManagedClient {
         prefs.edit {
             putString(KEY_LAST_UPDATE_PROMPT, latestVersion)
             putString(KEY_LAST_UPDATE_URL, validatedUrl)
+            putString("update_manifest", update.toString())
         }
         return latestVersion
     }
@@ -364,7 +470,7 @@ object VcsManagedClient {
     suspend fun reportDeviceHeartbeat(context: Context) = withContext(Dispatchers.IO) {
         verifyAccountSessionIfPresent(context)
         val session = requireSession(context)
-        requestDeviceJson(context, session, "POST", "${session.apiBase}/api/mobile/android/device/heartbeat", deviceRegistrationBody())
+        requestDeviceJson(context, session, "POST", "${session.apiBase}/api/mobile/android/device/heartbeat", deviceRegistrationBody(context))
         Unit
     }
 
@@ -506,65 +612,43 @@ object VcsManagedClient {
 
     private fun downloadStoredUpdate(context: Context, latestVersion: String, apkUrl: ValidatedUpdateUrl): UpdateDownloadStart? {
         val prefs = managedPrefs(context)
-        val fileName = updateDownloadFileName(latestVersion)
-        return try {
-            val manager = context.getSystemService(DownloadManager::class.java) ?: return if (openUpdateUrl(context, apkUrl)) UpdateDownloadStart(-1L, fileName) else null
-            val request = DownloadManager.Request(updateDownloadUri(apkUrl))
-                .setTitle(fileName)
-                .setDescription("VirtuVPN update")
-                .setMimeType("application/vnd.android.package-archive")
-                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
-                .setAllowedOverMetered(true)
-                .setAllowedOverRoaming(true)
-            val downloadId = manager.enqueue(request)
-            observeUpdateDownload(context.applicationContext, manager, downloadId, fileName, apkUrl)
-            prefs.edit {
-                putString(KEY_LAST_UPDATE_PROMPT, latestVersion)
-                putString(KEY_LAST_UPDATE_URL, apkUrl.value)
-            }
-            UpdateDownloadStart(downloadId, fileName)
-        } catch (_: Throwable) {
-            if (!openUpdateUrl(context, apkUrl)) null else {
-                prefs.edit {
-                    putString(KEY_LAST_UPDATE_PROMPT, latestVersion)
-                    putString(KEY_LAST_UPDATE_URL, apkUrl.value)
+        val manifest = JSONObject(prefs.getString("update_manifest") ?: error("Update integrity metadata is missing"))
+        check(ManagedApkUpdates.validManifest(manifest)) { "Update integrity metadata is invalid" }
+        val manager = context.getSystemService(DownloadManager::class.java) ?: error("Download service unavailable")
+        val pending = ManagedApkUpdates.pendingId(context)
+        val compatible = ManagedApkUpdates.matches(context, manifest)
+        val status = if (pending > 0 && compatible) updateDownloadStatus(manager, pending) else null
+        if (status?.first == DownloadManager.STATUS_SUCCESSFUL) {
+            CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+                try { ManagedApkUpdates.installVerified(context.applicationContext, manager, pending) }
+                catch (error: Exception) {
+                    manager.remove(pending)
+                    ManagedApkUpdates.forget(context)
+                    withContext(Dispatchers.Main) { Toast.makeText(context, "Update verification failed. Check updates and retry.", Toast.LENGTH_LONG).show() }
                 }
-                UpdateDownloadStart(-1L, fileName)
             }
+            return UpdateDownloadStart(pending, "Verified VirtuVPN update")
         }
+        if (status != null && status.first != DownloadManager.STATUS_FAILED) {
+            return UpdateDownloadStart(pending, "VirtuVPN update")
+        }
+        val fileName = updateDownloadFileName(latestVersion)
+        val request = DownloadManager.Request(updateDownloadUri(apkUrl))
+            .setTitle(fileName).setDescription("VirtuVPN update")
+            .setMimeType("application/vnd.android.package-archive")
+            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+            .setAllowedOverMetered(true).setAllowedOverRoaming(true)
+        val id = manager.enqueue(request)
+        ManagedApkUpdates.remember(context, id, manifest)
+        // Only an explicitly owned obsolete download is removed, after recording its replacement.
+        if (pending > 0) manager.remove(pending)
+        return UpdateDownloadStart(id, fileName)
     }
 
     private fun updateDownloadFileName(latestVersion: String): String {
         val safeVersion = latestVersion.replace(Regex("[^A-Za-z0-9._-]"), "_")
         return "VirtuVPN-$safeVersion-${System.currentTimeMillis()}.apk"
-    }
-
-    private fun observeUpdateDownload(context: Context, manager: DownloadManager, downloadId: Long, fileName: String, apkUrl: ValidatedUpdateUrl) {
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(receiverContext: Context, intent: Intent) {
-                val completedId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
-                if (completedId != downloadId) return
-                runCatching { receiverContext.unregisterReceiver(this) }
-                val status = updateDownloadStatus(manager, downloadId)
-                val message = when (status?.first) {
-                    DownloadManager.STATUS_SUCCESSFUL -> context.getString(R.string.vcs_update_download_complete, fileName)
-                    DownloadManager.STATUS_FAILED -> context.getString(
-                        R.string.vcs_update_download_failed_detail,
-                        status.second ?: context.getString(R.string.vcs_update_download_reason_unknown)
-                    )
-                    else -> return
-                }
-                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                if (status.first == DownloadManager.STATUS_SUCCESSFUL) {
-                    openDownloadedUpdate(context, manager, downloadId, apkUrl)
-                } else if (status.first == DownloadManager.STATUS_FAILED) {
-                    openUpdateUrl(context, apkUrl)
-                }
-            }
-        }
-        val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
-        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
     private fun updateDownloadStatus(manager: DownloadManager, downloadId: Long): Pair<Int, String?>? {
@@ -593,33 +677,10 @@ object VcsManagedClient {
         }
     }
 
-    private fun openDownloadedUpdate(context: Context, manager: DownloadManager, downloadId: Long, apkUrl: ValidatedUpdateUrl): Boolean {
-        val uri = manager.getUriForDownloadedFile(downloadId) ?: return openUpdateUrl(context, apkUrl)
-        val intent = Intent(Intent.ACTION_VIEW)
-            .setDataAndType(uri, "application/vnd.android.package-archive")
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        return runCatching {
-            context.startActivity(intent)
-            true
-        }.getOrElse {
-            openUpdateUrl(context, apkUrl)
-        }
-    }
-
     private fun updateDownloadUri(apkUrl: ValidatedUpdateUrl): Uri {
         val uri = apkUrl.value.toUri()
         if (uri.getQueryParameter("download") == "1") return uri
         return uri.buildUpon().appendQueryParameter("download", "1").build()
-    }
-
-    private fun openUpdateUrl(context: Context, apkUrl: ValidatedUpdateUrl): Boolean {
-        val intent = Intent(Intent.ACTION_VIEW, updateDownloadUri(apkUrl))
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        return runCatching {
-            context.startActivity(intent)
-            true
-        }.getOrDefault(false)
     }
 
     private fun validateManagedUpdateUrl(apiBase: String, apkUrl: String): ValidatedUpdateUrl {
@@ -709,14 +770,45 @@ object VcsManagedClient {
         commands: JSONArray,
         assignments: JSONArray,
         bundleLocalTunnelName: String?
-    ) {
+    ): Int {
+        var failures = 0
         var activeSession = session
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val receiptKey = "$KEY_COMMAND_RECEIPTS:${session.deviceId}"
+        val receipts = runCatching { JSONObject(prefs.getString(receiptKey, "{}") ?: "{}") }
+            .getOrElse { error("Command receipts are unreadable; commands were not executed") }
+        val expired = receipts.keys().asSequence().filter { id ->
+            val receipt = receipts.optJSONObject(id)
+            receipt?.optBoolean("acknowledged") == true && receipt.optLong("recordedAt") < System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000L
+        }.toList()
+        expired.forEach(receipts::remove)
+        check(receipts.length() < 1024) { "Command receipt limit reached; synchronization requires support review" }
+        // Retry receipts even when the server no longer includes a command in this batch.
+        for (id in receipts.keys().asSequence().toList()) {
+            val receipt = receipts.getJSONObject(id)
+            if (receipt.optBoolean("acknowledged")) continue
+            try {
+                activeSession = ackCommand(context, activeSession, id, receipt.getJSONObject("result"))
+                receipt.put("acknowledged", true)
+                check(prefs.edit().putString(receiptKey, receipts.toString()).commit())
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                failures += 1
+            }
+        }
         for (i in 0 until commands.length()) {
+            check(loadSession(context)?.deviceId == session.deviceId) { "Device session changed" }
             val command = commands.getJSONObject(i)
             val commandId = command.getString("id")
             val action = command.optString("action")
             val assignmentId = command.optString("assignmentId").takeIf { it.isNotBlank() && it != "null" }
+            val existingReceipt = receipts.optJSONObject(commandId)
+            if (existingReceipt != null) continue
             val result = JSONObject()
+            // Persist the intent before the desired-state operation. A crash leaves an explicit
+            // interrupted receipt; it is reported, never blindly executed for a second time.
+            receipts.put(commandId, JSONObject().put("result", JSONObject().put("ok", false).put("error", "Interrupted before outcome was recorded; inspect current state")))
+            check(prefs.edit().putString(receiptKey, receipts.toString()).commit()) { "Could not persist command intent" }
             try {
                 val localTunnelName = when (action) {
                     // managed_cluster_* are the current names; managed_bundle_* kept for backward compatibility.
@@ -736,11 +828,25 @@ object VcsManagedClient {
                     result.put("localTunnelName", localTunnelName)
                 }
                 if (action == "report_state") reportCurrentStates(context)
-                activeSession = ackCommand(context, activeSession, commandId, result.put("ok", true))
-            } catch (e: Throwable) {
-                activeSession = ackCommand(context, activeSession, commandId, result.put("ok", false).put("error", e.message ?: e.javaClass.simpleName))
+                result.put("ok", true)
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                result.put("ok", false).put("error", error.javaClass.simpleName)
+            }
+            val receipt = JSONObject().put("result", result).put("recordedAt", System.currentTimeMillis())
+            receipts.put(commandId, receipt)
+            check(prefs.edit().putString(receiptKey, receipts.toString()).commit()) { "Could not persist command outcome" }
+            try {
+                activeSession = ackCommand(context, activeSession, commandId, result)
+                receipt.put("acknowledged", true)
+                check(prefs.edit().putString(receiptKey, receipts.toString()).commit())
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                failures += 1
             }
         }
+
+        return failures
     }
 
     private fun localTunnelNameForAssignment(assignments: JSONArray, assignmentId: String): String {
@@ -803,7 +909,7 @@ object VcsManagedClient {
 
     private fun storePendingActivation(context: Context, tunnelName: String, metadata: JSONObject) {
         val prefs = managedPrefs(context)
-        val all = JSONObject(prefs.getString(KEY_PENDING_TUNNEL_ACTIVATIONS, "{}") ?: "{}")
+        val all = runCatching { JSONObject(prefs.getString(KEY_PENDING_TUNNEL_ACTIVATIONS, "{}") ?: "{}") }.getOrElse { JSONObject() }
         all.put(tunnelName, metadata)
         prefs.edit {
             putString(KEY_PENDING_TUNNEL_ACTIVATIONS, all.toString())
@@ -812,7 +918,7 @@ object VcsManagedClient {
 
     private fun pendingActivation(context: Context, tunnelName: String): JSONObject? {
         val raw = managedPrefs(context).getString(KEY_PENDING_TUNNEL_ACTIVATIONS, "{}") ?: "{}"
-        val all = JSONObject(raw)
+        val all = runCatching { JSONObject(raw) }.getOrElse { return null }
         val metadata = all.optJSONObject(tunnelName) ?: return null
         val observedAt = runCatching { Instant.parse(metadata.optString("observedAt")) }.getOrNull() ?: return metadata
         return if (Instant.now().minusSeconds(300).isBefore(observedAt)) metadata else null
@@ -849,6 +955,13 @@ object VcsManagedClient {
                 activeTunnelNames.add(sanitizeTunnelName(assignment.optString("displayName")))
             } else {
                 inactiveAssignmentIds.add(id)
+            }
+        }
+        for (i in 0 until previous.length()) {
+            val old = previous.optJSONObject(i) ?: continue
+            if (old.optString("id") !in inactiveAssignmentIds) {
+                old.optString("localTunnelName").takeIf { it.isNotBlank() }?.let(activeTunnelNames::add)
+                old.optString("bundleLocalTunnelName").takeIf { it.isNotBlank() }?.let(activeTunnelNames::add)
             }
         }
         if (inactiveAssignmentIds.isEmpty()) return
@@ -973,7 +1086,7 @@ object VcsManagedClient {
     }
 
     private fun completeEnrollment(context: Context, request: EnrollmentRequest): EnrollResult {
-        val body = deviceRegistrationBody()
+        val body = deviceRegistrationBody(context)
             .put("enrollmentToken", request.enrollmentToken)
             .put("devicePublicKey", JSONObject.NULL)
         val response = requestJson("POST", "${request.apiBaseUrl}/api/mobile/android/enroll/complete", body, null)
@@ -1076,12 +1189,33 @@ object VcsManagedClient {
     }
 
     private fun requireSession(context: Context): Session =
-        loadSession(context)
+        loadSession(context)?.let { current ->
+            if (managedPrefs(context).getInt("installation_bound", 0) == 0 &&
+                managedPrefs(context).getSecretString(KEY_DEVICE_REFRESH_TOKEN) != null) {
+                restoreManagedSessionFromDeviceRefreshToken(context) ?: current
+            } else current
+        }
             ?: restoreManagedSessionForUnauthorized(context)
             ?: error("Sign in to VCS to use Virtu VPN.")
 
-    private fun deviceRegistrationBody(): JSONObject {
+    private fun deviceRegistrationBody(context: Context): JSONObject {
+        val prefs = managedPrefs(context)
+        val (id, secret) = synchronized(deviceSessionRefreshLock) {
+            val storedId = prefs.getString("installation_id")
+            val storedSecret = prefs.getSecretString("installation_secret")
+            if (storedId != null && storedSecret != null) storedId to storedSecret else {
+                val newId = java.util.UUID.randomUUID().toString()
+                val newSecret = ByteArray(32).also { java.security.SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
+                val editor = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("installation_id", newId)
+                prefs.putSecretString(editor, "installation_secret", newSecret)
+                check(editor.commit()) { "Cannot persist installation identity" }
+                newId to newSecret
+            }
+        }
         return JSONObject()
+            .put("installationId", id)
+            .put("installationSecret", secret)
+            .put("deviceRefreshToken", prefs.getSecretString(KEY_DEVICE_REFRESH_TOKEN))
             .put("deviceName", Build.MODEL ?: "Android device")
             .put("appVersion", BuildConfig.VERSION_NAME)
             .put("appVersionCode", BuildConfig.VERSION_CODE)
@@ -1158,7 +1292,7 @@ object VcsManagedClient {
 
     private fun restoreManagedSessionFromAccount(context: Context): Session? {
         val account = loadAccountSession(context) ?: return null
-        val response = requestJson("POST", "${account.apiBase}/api/mobile/android/auth/device", deviceRegistrationBody(), account.token)
+        val response = requestJson("POST", "${account.apiBase}/api/mobile/android/auth/device", deviceRegistrationBody(context), account.token)
         return storeManagedDeviceSessionFromResponse(context, account.apiBase, response)
     }
 
@@ -1166,7 +1300,7 @@ object VcsManagedClient {
         val prefs = managedPrefs(context)
         val apiBase = prefs.getString(KEY_API_BASE, null) ?: return null
         val refreshToken = prefs.getSecretString(KEY_DEVICE_REFRESH_TOKEN) ?: return null
-        val body = deviceRegistrationBody()
+        val body = deviceRegistrationBody(context)
             .put("grantType", "device_refresh_token")
             .put("deviceRefreshToken", refreshToken)
         val response = try {
@@ -1188,6 +1322,7 @@ object VcsManagedClient {
         val refreshToken = response.optString("deviceRefreshToken").takeIf { it.isNotBlank() }
         val deviceId = response.optJSONObject("device")?.optString("id")?.takeIf { it.isNotBlank() }
         storeManagedDeviceSession(context, apiBase, accessToken, refreshToken, deviceId)
+        managedPrefs(context).edit { putInt("installation_bound", if (response.optBoolean("installationBound")) 1 else 0) }
         return Session(apiBase, accessToken, deviceId)
     }
 
@@ -1208,18 +1343,23 @@ object VcsManagedClient {
     }
 
     private fun loadManagedTunnelOwnership(context: Context): Set<String> {
-        val raw = managedPrefs(context).getString(KEY_MANAGED_TUNNEL_OWNERS, "[]") ?: "[]"
+        val prefs = managedPrefs(context)
+        val device = sessionInfo(context)?.deviceId ?: return emptySet()
+        val scoped = prefs.getString("$KEY_MANAGED_TUNNEL_OWNERS:$device")
+        val legacy = if (prefs.getString("legacy_ownership_device") == device) prefs.getString(KEY_MANAGED_TUNNEL_OWNERS) else null
+        val raw = scoped ?: legacy ?: "[]"
         val names = runCatching { JSONArray(raw) }.getOrElse { return emptySet() }
         return jsonStringSet(names)
     }
 
     private fun storeManagedTunnelOwnership(context: Context, names: Set<String>) {
         val sortedNames = names.filter { it.isNotBlank() }.sorted()
+        val key = "$KEY_MANAGED_TUNNEL_OWNERS:${sessionInfo(context)?.deviceId ?: return}"
         managedPrefs(context).edit {
             if (sortedNames.isEmpty()) {
-                remove(KEY_MANAGED_TUNNEL_OWNERS)
+                remove(key)
             } else {
-                putString(KEY_MANAGED_TUNNEL_OWNERS, JSONArray(sortedNames).toString())
+                putString(key, JSONArray(sortedNames).toString())
             }
         }
     }
@@ -1232,7 +1372,9 @@ object VcsManagedClient {
 
     private fun loadAssignments(context: Context): JSONArray {
         val raw = managedPrefs(context).getString(KEY_ASSIGNMENTS, "[]") ?: "[]"
-        return JSONArray(raw)
+        return runCatching { JSONArray(raw).also { entries ->
+            check((0 until entries.length()).all { entries.optJSONObject(it) != null })
+        } }.getOrElse { JSONArray() }
     }
 
     private fun managedTunnelNames(assignments: JSONArray): Set<String> {

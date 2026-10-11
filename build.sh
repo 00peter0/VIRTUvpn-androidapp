@@ -1,33 +1,24 @@
-#!/bin/bash
-set -e
-
-# Virtu VPN Build Script
-KEYSTORE="virtu-vpn.keystore"
-ALIAS="virtuvpn"
-BUILD_TOOLS="/opt/homebrew/share/android-commandlinetools/build-tools/35.0.0"
-RELEASE_DIR="ui/build/outputs/apk/release"
-DEBUG_DIR="ui/build/outputs/apk/debug"
-OUTPUT="virtu-vpn.apk"
-
-echo -n "🔑 Keystore password: "
-read -s KS_PASS
-echo ""
-
-echo "🔨 Building release APK..."
-./gradlew clean assembleRelease assembleDebug
-
-echo "📐 Zipaligning..."
-$BUILD_TOOLS/zipalign -v 4 $RELEASE_DIR/ui-release-unsigned.apk $RELEASE_DIR/virtu-vpn-aligned.apk
-
-echo "🔑 Signing APK..."
-$BUILD_TOOLS/apksigner sign --ks $KEYSTORE --ks-key-alias $ALIAS --ks-pass "pass:$KS_PASS" --key-pass "pass:$KS_PASS" --out $RELEASE_DIR/$OUTPUT $RELEASE_DIR/virtu-vpn-aligned.apk
-
-echo "📦 Copying to server directory..."
-cp $RELEASE_DIR/$OUTPUT $DEBUG_DIR/$OUTPUT
-
-echo ""
-echo "✅ Done! APK ready at:"
-echo "   $RELEASE_DIR/$OUTPUT"
-echo "   $DEBUG_DIR/$OUTPUT (server)"
-echo ""
-echo "📱 Download from: http://192.168.1.252:8080/$OUTPUT"
+#!/usr/bin/env bash
+set -euo pipefail
+# Canonical VCS-installed artifact. Signing continuity is verified before publication.
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
+TASK_ANDROID_SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+if [[ -z "$TASK_ANDROID_SDK" || ! -d "$TASK_ANDROID_SDK/build-tools/36.0.0" ]]; then
+  echo 'Set ANDROID_HOME to an Android SDK with build-tools 36.0.0.' >&2
+  exit 1
+fi
+export ANDROID_HOME="$TASK_ANDROID_SDK"
+./gradlew :ui:testVcsinstallUnitTest :ui:lintVcsinstall :ui:assembleVcsinstall --console=plain "$@"
+TASK_APK='ui/build/outputs/apk/vcsinstall/ui-vcsinstall.apk'
+TASK_CERT="$($TASK_ANDROID_SDK/build-tools/36.0.0/apksigner verify --print-certs "$TASK_APK")"
+if [[ "$TASK_CERT" != *'Signer #1 certificate SHA-256 digest: f3802b267a2f4bc16f8c00c74de3665b63d4e7c3cd1fd8012e757137f40c63a3'* ]]; then
+  echo 'Signing identity mismatch: publication is blocked. Restore the established signing key; do not reinstall devices.' >&2
+  exit 1
+fi
+TASK_BADGING="$($TASK_ANDROID_SDK/build-tools/36.0.0/aapt dump badging "$TASK_APK")"
+if [[ "$TASK_BADGING" == *'application-debuggable'* || "$TASK_BADGING" != *"name='com.virtuvpn.android'"* ]]; then
+  echo 'Production APK package/debuggable gate failed.' >&2
+  exit 1
+fi
+sha256sum "$TASK_APK"
+echo 'Validated production candidate. Publish APK, output-metadata.json and release-integrity.json as one release.'

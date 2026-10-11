@@ -632,4 +632,11 @@
     <string name="vcs_sync_skipped_running">Sync found %1$d tunnel config update(s), but the tunnel is running. Turn the tunnel off and sync again to apply safely.</string>
     <string name="vcs_sync_success">VCS sync complete: imported %1$d of %2$d assigned tunnels</string>
     <string name="vcs_sync_error">VCS sync failed: %1$s</string>
+    <string name="vcs_sync_partial">Sync partially completed: %1$d operations need a retry. Existing profiles were retained.</string>
+    <string name="vcs_browser_shared_cookies">Shared cookies — update Android System WebView for browser isolation</string>
+    <string name="vcs_device_diagnostics">Device diagnostics</string>
+    <string name="vcs_diagnostics_share">Share redacted report</string>
+    <string name="vcs_sync_waiting">Managed sync: waiting for device synchronization</string>
+    <string name="vcs_sync_status_summary">Managed sync: %1$s · %2$d s\n%3$s</string>
+    <string name="vcs_optional_account_status">VCS not connected (optional for Secure Browser and third-party VPN Router)</string>
 </resources>

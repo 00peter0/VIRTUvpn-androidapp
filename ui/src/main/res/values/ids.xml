@@ -6,4 +6,5 @@
     <item name="item_change_listener" type="id" />
     <item name="master_detail_wrapper" type="id" />
     <item name="detail_container" type="id" />
+    <item name="browser_profile_bound" type="id" />
 </resources>

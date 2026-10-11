@@ -1,5 +1,128 @@
 # VirtuVPN Android App Security Hardening Backlog
 
+## October 11 maintenance implementation — A1–A4
+
+The owner authorized implementation after the discovery below. The four bounded
+blocks are implemented together as version code **897**,
+**1.0.20261011.358-vcsinstall**. The discovery records describe the earlier 896
+artifact; they are retained as evidence, not current deployment instructions.
+
+### Access and compatibility contract
+
+- **Secure Browser requires neither VCS registration nor a VCS account session.**
+  Its protected-network/router-pairing check remains independent of account auth.
+- **VPN Router with a third-party VPN requires no VCS registration/login.** Root,
+  routing and protected-uplink requirements still apply. VCS-managed VPN profiles,
+  VPN Mesh, Managed Access, device enrollment/sync and device update grants retain
+  their existing VCS authorization requirements.
+- Account logout never revokes a global VPN, deletes local VPN configurations,
+  disables router protection or ends detached server shells. Managed ownership
+  and command receipts are scoped to the authorized device; legacy ownership is
+  adopted only for the device already recorded at startup.
+- Enrollment QR/deep-link formats and refresh grants remain compatible. On the
+  first upgraded managed request, a valid existing refresh grant adopts a durable
+  installation ID plus Keystore-encrypted installation secret. Server binding
+  verifies this proof and retains the device ID and its assignments. An arbitrary
+  name/model or client device ID cannot claim an existing installation. Legacy
+  clients without installation proof remain accepted but cannot claim a device
+  by matching its model name; upgrading is recommended.
+- The installed signing certificate is unchanged. The legacy Android Debug
+  subject does **not** imply that this APK is debuggable: `vcsinstall` now has
+  `isDebuggable=false`. A separate signing-key migration is outside this change.
+  Never replace this key or require uninstalling existing production devices.
+
+### Completed blocks
+
+**A1 — reliable synchronization and configuration storage (VPN01/05/06).**
+Manual, foreground and periodic synchronization share a single operation.
+Stopping a UI observer cannot cancel shared work; stopped/resumed screens cannot
+leave duplicate polling loops. A failed config or import ACK is isolated to its
+assignment, other imports and commands continue, and incomplete/pending bundle
+imports do not authorize deleting healthy previous profiles. Encryption finishes
+before touching the original configuration; a complete synced temporary file in
+the same directory replaces it atomically. No permanent configuration backup is
+created. Corrupt assignment/pending metadata does not crash normal navigation.
+
+Command intent/outcome receipts are committed before acknowledgment. A lost ACK
+is retried with the recorded outcome and does not turn successful execution into
+failure. An interrupted command is reported as requiring state inspection rather
+than silently executed again. Pending receipts are retained; acknowledged receipts
+are bounded by seven-day retention and a safety cap. The API atomically records a
+terminal outcome, accepts duplicates and rejects contradictory/previously
+rejected outcomes. It never downgrades a completed command after a lost reply.
+
+**A2 — installation identity and atomic enrollment (VPN03/04).**
+Tenant-scoped PostgreSQL transaction locks serialize binding/quota decisions in
+both login/refresh and enrollment. The enrollment token is claimed with an unused,
+unexpired compare-and-set inside the same transaction. Quota/account failures
+roll back consumption. Identical phone models do not rotate each other's tokens;
+proof-backed re-enrollment retains the original device and assignments. No schema
+migration or second auth database was introduced.
+
+**A3 — production APK and verified updates (VPN02).**
+The release contains APK, output metadata and `release-integrity.json` as one atomic
+unit. Artifact metadata is authoritative over stale version hints. The API verifies
+the published SHA-256/size/version/signer binding and caches unchanged verification;
+it checks actual download bytes before serving. Android persists the DownloadManager
+ID and expected manifest, displays actual state/progress after restart and checks
+size, SHA-256, package, version and both installed/candidate certificate identities
+before passing an app-owned content URI to Package Installer. Failed verification
+has no unverified URL/install fallback. The installer still owns its OS permission
+and signature checks. Cleanup is restricted to tracked obsolete downloads and
+this app's own verified cache candidates. `build.sh` is now the portable Java17/SDK
+production entry point with test/lint/signature/package/debuggable publication gates;
+it does not publish to the old private IP or create duplicate debug/release copies.
+
+**A4 — truthful status, low-impact sync and browser separation (VPN07/08/09/10).**
+Home shows persisted sync phase, elapsed time, partial failures/pending work and
+DownloadManager progress. Interrupted sync is recoverable after app restart.
+Unique WorkManager sync runs at a 15-minute minimum with network/battery constraints
+and exponential bounded retries; Android controls timing, so this is not an emergency
+or instant-command promise. Explicit sync keeps its existing immediate path.
+Confirmed unchanged standalone configs skip provisioning; an unchanged pending
+config is not re-downloaded while its tunnel stays UP. Confirmed bundle versions
+skip repeated imports/ACKs. New/changed/missing configs are still fetched normally,
+and changed running profiles remain deferred until DOWN.
+
+Device diagnostics explicitly distinguish local UP, configured DNS/default routes,
+observed handshakes and unknown external reachability/leak behavior. The dead,
+unreferenced 100%-privacy score helper was removed. The user can explicitly share
+a bounded report containing no keys, tokens, endpoint URLs or browsing history.
+Modern WebView uses a named Secure Browser profile, including its own cookies and
+WebStorage. Older providers keep their shared storage intact, explain the limitation
+and disable global cookie changes/clearing that could sign Web Terminal out. VPN/
+router protection gates and detached terminal-job behavior are preserved.
+
+### Validation and release evidence
+
+- UI unit tests: 45 passed, including failure-safe atomic writes and concurrent
+  single-flight observers/cancellation; existing router, URL, blocker and secret
+  migration suites remain passing. Android assemble and lint pass with zero lint
+  errors. Existing translation/style/icon warnings remain explicitly reported;
+  the baseline was not expanded to hide findings.
+- Real isolated PostgreSQL tests cover installation proof, legacy migration,
+  concurrent device quota, one-use enrollment, rollback, idempotent/immutable ACK
+  and tenant isolation. Production data and customer agents are not test fixtures.
+- Production APK static verification confirms code897, correct package, minimum24,
+  target36, non-debuggable manifest and unchanged certificate. In-place install over
+  the actual 896 APK preserved app UID and existing profile bytes on an isolated
+  Android36 emulator, without uninstalling.
+- This x86 emulator's ARM translation crashes in the old published WireGuard Go
+  library too. UI coverage therefore uses an explicitly test-only re-signed fixture
+  with the unchanged locally built x86 tunnel library. Home, redacted diagnostics,
+  plaintext-to-Keystore profile migration and anonymous Secure Browser entry were
+  observed. This does not constitute an ARM VPN/hotspot/router or customer-login
+  acceptance test. Such device checks remain a documented physical-device gate.
+- Private reproducible logs/manifests/preservation evidence:
+  `/srv/vcs/deploy/evidence/virtuvpn-maintenance-20261011/`. App release builds happen
+  only on edge; prod1 receives verified artifacts through vRack with no Git pull,
+  dependency installation or build. Guardian remains paused and Rust is reused.
+- The clean June clone was an ancestor of canonical Git with no unique tracked,
+  untracked or private inputs; only generated CMake caches were ignored. It was
+  removed, reclaiming 72,261,632 allocated bytes. Current source, signing inputs,
+  immutable releases and production device data remain retained.
+
+
 ## Current discovery audit October 11 2026
 
 Current source is `9a7ceccf0672e37c9c5bec0f9fe60c103a7a291d` on `main`,

@@ -74,6 +74,12 @@
             </LinearLayout>
         </LinearLayout>
 
+        <TextView android:id="@+id/managed_sync_status" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp" android:text="@string/vcs_sync_waiting" android:textColor="#AFC0CC" android:textSize="13sp" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/device_diagnostics_button"
+            android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="16dp"
+            android:text="@string/vcs_device_diagnostics" />
+
         <LinearLayout
             android:id="@+id/vpn_status_panel"
             android:layout_width="match_parent"

@@ -29,6 +29,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.backend.Tunnel
@@ -86,7 +87,35 @@ class HomeActivity : AppCompatActivity() {
         binding.managedAccessS2sClusterButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_MANAGED_ACCESS_S2S_CLUSTER) }
         binding.enrollButton.setOnClickListener { showEnrollDialog() }
         binding.syncButton.setOnClickListener { syncManagedAccess() }
+        binding.deviceDiagnosticsButton.setOnClickListener {
+            lifecycleScope.launch {
+                val report = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    com.wireguard.android.vcs.ManagedDiagnostics.collect(this@HomeActivity).toString(2)
+                }
+                AlertDialog.Builder(this@HomeActivity).setTitle(R.string.vcs_device_diagnostics).setMessage(report)
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setPositiveButton(R.string.vcs_diagnostics_share) { _, _ ->
+                        startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain")
+                            .putExtra(Intent.EXTRA_TEXT, report), getString(R.string.vcs_diagnostics_share)))
+                    }.show()
+            }
+        }
         binding.checkUpdatesButton.setOnClickListener { checkUpdates() }
+        lifecycleScope.launch {
+            lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+                while (isActive) {
+                    val status = VcsManagedClient.syncStatus(this@HomeActivity)
+                    val phase = if (VcsManagedClient.hasSession(this@HomeActivity) || VcsManagedClient.hasAccountSession(this@HomeActivity))
+                        status.optString("phase", "Waiting for device synchronization") else getString(R.string.vcs_optional_account_status)
+                    val started = status.optLong("startedAt", 0L)
+                    val elapsed = if (started > 0) ((status.optLong("finishedAt", System.currentTimeMillis()) - started) / 1000).coerceAtLeast(0) else 0
+                    val update = com.wireguard.android.vcs.ManagedApkUpdates.progress(this@HomeActivity)
+                    binding.managedSyncStatus.text = getString(R.string.vcs_sync_status_summary, phase, elapsed, update)
+                    binding.syncButton.isEnabled = phase != "Synchronizing"
+                    delay(1000)
+                }
+            }
+        }
         binding.openVpnSettingsButton.setOnClickListener {
             if (canOpenVpnSettings()) openVpnSettings()
         }
@@ -389,6 +418,7 @@ class HomeActivity : AppCompatActivity() {
 
     private fun syncResultMessage(result: VcsManagedClient.SyncResult): String {
         return when {
+            result.failures > 0 -> getString(R.string.vcs_sync_partial, result.failures)
             result.skippedRunning > 0 -> getString(R.string.vcs_sync_skipped_running, result.skippedRunning)
             result.pendingBundleAssignments > 0 -> getString(R.string.vcs_sync_bundle_pending)
             result.assigned == 0 -> getString(R.string.vcs_sync_no_assignments)

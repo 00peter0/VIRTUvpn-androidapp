@@ -15,7 +15,7 @@ import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileNotFoundException
-import java.io.FileOutputStream
+import com.wireguard.android.util.AtomicConfigWriter
 import java.io.IOException
 import java.nio.charset.StandardCharsets
 
@@ -29,7 +29,12 @@ class FileConfigStore(private val context: Context) : ConfigStore {
         val file = fileFor(name)
         if (!file.createNewFile())
             throw IOException(context.getString(R.string.config_file_exists_error, file.name))
-        writeEncryptedConfig(file, config)
+        try {
+            writeEncryptedConfig(file, config)
+        } catch (error: Throwable) {
+            file.delete()
+            throw error
+        }
         return config
     }
 
@@ -96,9 +101,7 @@ class FileConfigStore(private val context: Context) : ConfigStore {
     }
 
     private fun writeEncryptedText(file: File, configText: String) {
-        FileOutputStream(file, false).use { stream ->
-            stream.write(codec.encrypt(configText).toByteArray(StandardCharsets.UTF_8))
-        }
+        AtomicConfigWriter.write(file) { codec.encrypt(configText).toByteArray(StandardCharsets.UTF_8) }
     }
 
     companion object {

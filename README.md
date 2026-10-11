@@ -1,18 +1,31 @@
-# Android GUI for [WireGuard](https://www.wireguard.com/)
+# VirtuVPN for Android
 
-**[Download from the Play Store](https://play.google.com/store/apps/details?id=com.wireguard.android)**
+Canonical source: `github.com:00peter0/VIRTUvpn-androidapp.git`, branch `main`.
+This is the VCS-managed VPN/router/browser/terminal application, derived from
+WireGuard Android under the upstream licenses. Production package is
+`com.virtuvpn.android`; do not distribute the upstream or `.debug` package.
 
-This is an Android GUI for [WireGuard](https://www.wireguard.com/). It [opportunistically uses the kernel implementation](https://git.zx2c4.com/android_kernel_wireguard/about/), and falls back to using the non-root [userspace implementation](https://git.zx2c4.com/wireguard-go/about/).
+## VCS production build and publication
 
-## Building
+Use Java 17 and the Android SDK (compile SDK 36; minimum Android API 24).
+Set `ANDROID_HOME` and run `./build.sh`. The `vcsinstall` variant is non-debuggable.
+The established production signing certificate must remain
+`f3802b267a2f4bc16f8c00c74de3665b63d4e7c3cd1fd8012e757137f40c63a3`.
+Its legacy certificate subject is Android Debug; changing the key without a
+separately planned migration would break upgrades and must not be done here.
+Signing keys stay outside Git. A fresh checkout must fail the publication gate
+if it builds with an unrelated newly generated debug key.
 
-```
-$ git clone --recurse-submodules https://git.zx2c4.com/wireguard-android
-$ cd wireguard-android
-$ ./gradlew assembleRelease
-```
+Publish the tested APK together with `output-metadata.json` and a verified
+`release-integrity.json` containing package, version code/name, SHA-256, size,
+signer SHA-256 and source commit. VCS App consumes the atomic release on prod1
+at `/opt/vcs-mobile/android/vcsinstall/`; edge artifacts are immutable and bound
+to the source commit. Never overwrite only one file in a live release.
 
-macOS users may need [flock(1)](https://github.com/discoteq/flock).
+See [maintenance and security evidence](docs/android-app-security-hardening.md)
+for enrollment compatibility, sync, command receipts and acceptance limits.
+
+## Upstream library information
 
 ## Embedding
 

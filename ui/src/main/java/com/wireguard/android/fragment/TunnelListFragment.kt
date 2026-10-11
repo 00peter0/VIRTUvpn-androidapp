@@ -58,6 +58,8 @@ class TunnelListFragment : BaseFragment() {
     private var binding: TunnelListFragmentBinding? = null
     private var displayedTunnels: ObservableKeyedArrayList<String, ObservableTunnel>? = null
     private var pingActive = false
+    private var managedSyncJob: kotlinx.coroutines.Job? = null
+    private var pingLoopJob: kotlinx.coroutines.Job? = null
     private var managedSyncActive = false
 
     private val tunnelFileImportResultLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { data ->
@@ -264,7 +266,8 @@ class TunnelListFragment : BaseFragment() {
         startPingTest()
         startManagedSyncLoop()
         // Refresh every 30 seconds
-        lifecycleScope.launch {
+        pingLoopJob?.cancel()
+        pingLoopJob = lifecycleScope.launch {
             while (pingActive) {
                 delay(30_000)
                 if (pingActive) startPingTest()
@@ -275,17 +278,21 @@ class TunnelListFragment : BaseFragment() {
     override fun onStop() {
         pingActive = false
         managedSyncActive = false
+        managedSyncJob?.cancel()
+        pingLoopJob?.cancel()
         super.onStop()
     }
 
     private fun startManagedSyncLoop() {
-        lifecycleScope.launch {
+        managedSyncJob?.cancel()
+        managedSyncJob = lifecycleScope.launch {
             while (managedSyncActive) {
                 try {
                     VcsManagedClient.syncManagedTunnels(requireContext())
                     VcsManagedClient.reportCurrentStates(requireContext())
                     refreshTunnelFilter()
                 } catch (e: Throwable) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
                     Log.d(TAG, "Managed access sync skipped", e)
                 }
                 delay(15_000)
@@ -295,6 +302,7 @@ class TunnelListFragment : BaseFragment() {
 
     private fun syncResultMessage(result: VcsManagedClient.SyncResult): String {
         return when {
+            result.failures > 0 -> getString(R.string.vcs_sync_partial, result.failures)
             result.skippedRunning > 0 -> getString(R.string.vcs_sync_skipped_running, result.skippedRunning)
             result.pendingBundleAssignments > 0 -> getString(R.string.vcs_sync_bundle_pending)
             result.assigned == 0 -> getString(R.string.vcs_sync_no_assignments)

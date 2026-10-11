@@ -440,8 +440,14 @@ class SecureBrowserActivity : AppCompatActivity() {
         return true
     }
 
+    private val isolatedCookies: Boolean get() = WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)
+
     @SuppressLint("SetJavaScriptEnabled")
     private fun configureWebView(webView: WebView) {
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE) && webView.getTag(R.id.browser_profile_bound) != true) {
+            WebViewCompat.setProfile(webView, "virtuvpn-secure-browser")
+            webView.setTag(R.id.browser_profile_bound, true)
+        }
         browserCookiesEnabled = getPreferences(MODE_PRIVATE).getBoolean(PREF_BROWSER_COOKIES, true)
         applyCookiePolicy(webView)
         webView.settings.apply {
@@ -798,6 +804,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun toggleBrowserCookies() {
+        if (!isolatedCookies) { Toast.makeText(this, R.string.vcs_browser_shared_cookies, Toast.LENGTH_LONG).show(); return }
         browserCookiesEnabled = !browserCookiesEnabled
         getPreferences(MODE_PRIVATE).edit().putBoolean(PREF_BROWSER_COOKIES, browserCookiesEnabled).apply()
         browserTabs.mapNotNull { it.webView }.forEach(::applyCookiePolicy)
@@ -807,7 +814,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun browserCookiesLabel(): String =
-        getString(
+        if (!isolatedCookies) getString(R.string.vcs_browser_shared_cookies) else getString(
             if (browserCookiesEnabled) {
                 R.string.vcs_secure_browser_cookies_on
             } else {
@@ -816,9 +823,15 @@ class SecureBrowserActivity : AppCompatActivity() {
         )
 
     private fun applyCookiePolicy(webView: WebView) {
-        CookieManager.getInstance().setAcceptCookie(browserCookiesEnabled)
-        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, browserCookiesEnabled)
-        CookieManager.getInstance().flush()
+        // Older providers share cookies with Web Terminal. Never alter that global cookie jar.
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
+            val cookies = WebViewCompat.getProfile(webView).cookieManager
+            cookies.setAcceptCookie(browserCookiesEnabled)
+            cookies.setAcceptThirdPartyCookies(webView, browserCookiesEnabled)
+            cookies.flush()
+        } else {
+            CookieManager.getInstance().setAcceptThirdPartyCookies(webView, false)
+        }
     }
 
     private fun showLinkMenuFromHitTest(): Boolean {
@@ -2101,12 +2114,16 @@ class SecureBrowserActivity : AppCompatActivity() {
         if (!::binding.isInitialized) return
         browserTabs.mapNotNull { it.webView }.forEach { webView ->
             webView.clearHistory()
-            webView.clearCache(true)
+            if (isolatedCookies) webView.clearCache(true)
             webView.clearFormData()
         }
-        WebStorage.getInstance().deleteAllData()
-        CookieManager.getInstance().removeAllCookies(null)
-        CookieManager.getInstance().flush()
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
+            val view = browserTabs.mapNotNull { it.webView }.firstOrNull() ?: return
+            val profile = WebViewCompat.getProfile(view)
+            profile.webStorage.deleteAllData()
+            profile.cookieManager.removeAllCookies(null)
+            profile.cookieManager.flush()
+        }
     }
 
     private fun blockedResponse(): WebResourceResponse =

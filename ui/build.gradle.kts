@@ -54,6 +54,8 @@ android {
         }
         create("vcsinstall") {
             initWith(getByName("debug"))
+            isDebuggable = false
+            signingConfig = signingConfigs.getByName("debug") // Keep installed production certificate continuity.
             applicationIdSuffix = ""
             versionNameSuffix = "-vcsinstall"
             matchingFallbacks += "debug"
@@ -88,6 +90,7 @@ dependencies {
     implementation(libs.androidx.preference.ktx)
     implementation(libs.androidx.swiperefreshlayout)
     implementation(libs.androidx.webkit)
+    implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.google.material)
