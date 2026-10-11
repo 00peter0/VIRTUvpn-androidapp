@@ -1,5 +1,64 @@
 # VirtuVPN Android App Security Hardening Backlog
 
+## Android compatibility maintenance — October 11, 2026, version 903
+
+The owner authorized continued fixes with consultation before changes that may
+affect existing application behavior. This block preserves the current VPN,
+browser protection, sync, updater, authentication and task-persistence contracts.
+
+- Replaced 12 browser drawable-loading calls with `ContextCompat.getDrawable`
+  using the same `SecureBrowserActivity` context and resource IDs. The actual
+  installed AndroidX 1.17.0 bytecode delegates to `Context.getDrawable` on API21+;
+  minSdk remains 24. Theme/resource selection, nullable results, exceptions and
+  callbacks are preserved. This resolves 23 lint findings because some call sites
+  were reported twice. AppCompat's separate tint/vector loading path is not used.
+- Moved the existing outline-clipping flag on 27 views into one isolated shared
+  style. The default style is empty with no parent; its API31 variant contains
+  only `android:clipToOutline=true`. The XML attribute exists from API31, unlike
+  the older Java setter. Clipping remains enabled where the XML attribute is
+  supported, while older frameworks retain their existing defaults. No entire
+  layout was copied, existing styles were not replaced, and other attributes,
+  bindings, view order, sizes and actions are preserved.
+
+| Gate | Version 902 | Version 903 |
+| --- | --- | --- |
+| Full lint warnings, empty diagnostic baseline | 169 | 119 |
+| Visible lint warnings | 33 | 30 |
+| Lint errors | 0 | 0 |
+| Repository baseline entries | 136 | 89 |
+| Newly introduced full-lint findings | — | 0 |
+
+Removed only 47 resolved baseline entries: 24 outline-attribute findings and 23
+browser drawable findings. No finding was added to the baseline and no rule was
+suppressed. Translation and private-resource findings remain at zero.
+
+Validation includes all 52 existing unit tests, normal/full lint, production
+assemble, source-equivalence checks, compiled XML/style bags and a comparison of
+effective compiled layout attributes under the API24–36 boundary model. The
+model verifies empty/default and API31 style selection; it is not a claim of new
+physical-device rendering or OEM firmware tests. Package, signing identity,
+non-debuggable status and the served production APK/metadata/hash are checked.
+Build scripts, dependencies, minSdk and targetSdk are unchanged.
+
+### Behavior consultation still required
+
+| Candidate | Possible effect and current decision |
+| --- | --- |
+| Five `singleLineTitle` preference attributes | AndroidX checks its own attribute before the framework fallback. Switching namespaces can make multiline titles explicit and affect wrapping/row height; preference keys, values and VPN logic need not change. The owner chose to preserve the current display; XML and title wrapping remain unchanged. |
+| Shortcut XML variants | Empty API24 fallback could change what a third-party launcher reads even though native static shortcuts require API25. Retain the complete current definitions until launcher compatibility is agreed. |
+| Widget XML variants | Keep current preview, dimensions and 4×3 target cells. Versioned complete XML variants would duplicate metadata and require checking launcher sizing/preview behavior; no cosmetic deletion of newer attributes. |
+| Predictive Back manifest flag | Changing it can affect Back gestures, WebView history, dialogs and exit behavior on Android13+. Keep the current opt-in. |
+| Quick Settings drawable | Preserve its application theme and non-null constructor contract; the remaining resource-loader warning is deferred with icon rendering/nullability review. |
+| SharedPreferences KTX changes | Keep synchronous `commit()` and existing success checks, especially download/install recovery and router snapshots. Do not convert mechanically to `apply()` or Unit-returning helpers. |
+
+Release: **903 / 1.0.20261011.364-vcsinstall**, established signing certificate.
+Evidence: `/srv/vcs/deploy/evidence/virtuvpn-compatibility-20261011/`.
+
+Primary references:
+[alternative Android resources](https://developer.android.com/guide/topics/resources/providing-resources),
+[XML outline attribute](https://developer.android.google.cn/reference/android/R.attr#clipToOutline),
+[widget sizing by platform version](https://developer.android.com/develop/ui/views/appwidgets/layouts).
+
 ## Localization maintenance — October 11, 2026, version 902
 
 The owner approved the remaining translation block, with application behavior

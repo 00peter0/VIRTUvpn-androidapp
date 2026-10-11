@@ -462,7 +462,7 @@
                 android:layout_gravity="bottom|center_horizontal"
                 android:layout_marginBottom="18dp"
                 android:background="@drawable/fastest_button_background"
-                android:clipToOutline="true"
+                style="@style/VcsOutlineClip"
                 android:elevation="8dp"
                 android:gravity="center"
                 android:orientation="horizontal"

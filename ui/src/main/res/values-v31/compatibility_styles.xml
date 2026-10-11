@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Preserve the existing clipping flag without duplicating whole layouts. -->
+    <style name="VcsOutlineClip" parent="">
+        <item name="android:clipToOutline">true</item>
+    </style>
+</resources>

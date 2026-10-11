@@ -68,7 +68,7 @@
                     android:foreground="?attr/selectableItemBackground"
                     android:gravity="center_vertical"
                     android:elevation="6dp"
-                    android:clipToOutline="true"
+                    style="@style/VcsOutlineClip"
                     android:orientation="horizontal"
                     android:padding="18dp"
                     android:visibility="gone">
@@ -159,7 +159,7 @@
             android:layout_gravity="bottom|end"
             android:layout_margin="@dimen/fab_margin"
             android:background="@drawable/vcs_fab_bg"
-            android:clipToOutline="true"
+            style="@style/VcsOutlineClip"
             android:contentDescription="@string/vcs_sync_now"
             android:elevation="12dp"
             android:foreground="?attr/selectableItemBackgroundBorderless"

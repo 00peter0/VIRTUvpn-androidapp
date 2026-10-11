@@ -217,7 +217,7 @@ class SecureBrowserActivity : AppCompatActivity() {
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 dp(32)
             )
-            background = getDrawable(R.drawable.fastest_button_background)
+            background = ContextCompat.getDrawable(this@SecureBrowserActivity, R.drawable.fastest_button_background)
             foreground = selectableForeground()
             isClickable = true
             isFocusable = true
@@ -240,7 +240,7 @@ class SecureBrowserActivity : AppCompatActivity() {
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 dp(32)
             ).also { it.marginStart = dp(8) }
-            background = getDrawable(R.drawable.fastest_button_background)
+            background = ContextCompat.getDrawable(this@SecureBrowserActivity, R.drawable.fastest_button_background)
             foreground = selectableForeground()
             isClickable = true
             isFocusable = true
@@ -301,7 +301,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     private fun actionBarFeaturesButton(): TextView =
         TextView(this).apply {
             layoutParams = LinearLayout.LayoutParams(dp(40), dp(32)).also { it.marginStart = dp(8) }
-            background = getDrawable(R.drawable.fastest_button_background)
+            background = ContextCompat.getDrawable(this@SecureBrowserActivity, R.drawable.fastest_button_background)
             foreground = selectableForeground()
             isClickable = true
             isFocusable = true
@@ -655,7 +655,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     private fun featureSmallButton(value: String, action: (View) -> Unit): TextView =
         TextView(this).apply {
             layoutParams = LinearLayout.LayoutParams(dp(48), dp(40)).also { it.marginStart = dp(6) }
-            background = getDrawable(R.drawable.fastest_button_background)
+            background = ContextCompat.getDrawable(this@SecureBrowserActivity, R.drawable.fastest_button_background)
             foreground = selectableForeground()
             isClickable = true
             isFocusable = true
@@ -673,7 +673,7 @@ class SecureBrowserActivity : AppCompatActivity() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 dp(44)
             ).also { it.topMargin = dp(8) }
-            background = getDrawable(R.drawable.fastest_button_background)
+            background = ContextCompat.getDrawable(this@SecureBrowserActivity, R.drawable.fastest_button_background)
             gravity = android.view.Gravity.CENTER_VERTICAL
             setPadding(dp(14), 0, dp(14), 0)
             text = value
@@ -685,7 +685,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     private fun selectableForeground() =
         TypedValue().let { outValue ->
             theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
-            getDrawable(outValue.resourceId)
+            ContextCompat.getDrawable(this@SecureBrowserActivity, outValue.resourceId)
         }
 
     private fun configurePullToRefresh() {
@@ -1278,7 +1278,7 @@ class SecureBrowserActivity : AppCompatActivity() {
             ).also { it.marginEnd = dp(8) }
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
-            background = getDrawable(R.drawable.fastest_button_background)
+            background = ContextCompat.getDrawable(this@SecureBrowserActivity, R.drawable.fastest_button_background)
             foreground = selectableForeground()
             isClickable = true
             isFocusable = true
@@ -1309,7 +1309,7 @@ class SecureBrowserActivity : AppCompatActivity() {
                 layoutParams = LinearLayout.LayoutParams(dp(28), dp(28)).also {
                     it.marginStart = dp(4)
                 }
-                background = getDrawable(R.drawable.fastest_button_background)
+                background = ContextCompat.getDrawable(this@SecureBrowserActivity, R.drawable.fastest_button_background)
                 foreground = selectableForeground()
                 isClickable = true
                 isFocusable = true
@@ -1328,7 +1328,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     private fun newBrowserTabButton(): TextView =
         TextView(this).apply {
             layoutParams = LinearLayout.LayoutParams(dp(44), dp(36))
-            background = getDrawable(R.drawable.fastest_button_background)
+            background = ContextCompat.getDrawable(this@SecureBrowserActivity, R.drawable.fastest_button_background)
             foreground = selectableForeground()
             isClickable = true
             isFocusable = true
@@ -1445,10 +1445,10 @@ class SecureBrowserActivity : AppCompatActivity() {
             }
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
-            background = getDrawable(R.drawable.fastest_button_background)
+            background = ContextCompat.getDrawable(this@SecureBrowserActivity, R.drawable.fastest_button_background)
             val outValue = TypedValue()
             theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
-            foreground = getDrawable(outValue.resourceId)
+            foreground = ContextCompat.getDrawable(this@SecureBrowserActivity, outValue.resourceId)
             isClickable = true
             isFocusable = true
             minimumWidth = dp(96)
@@ -1478,7 +1478,7 @@ class SecureBrowserActivity : AppCompatActivity() {
                 layoutParams = LinearLayout.LayoutParams(dp(30), dp(30)).also {
                     it.marginStart = dp(4)
                 }
-                background = getDrawable(R.drawable.fastest_button_background)
+                background = ContextCompat.getDrawable(this@SecureBrowserActivity, R.drawable.fastest_button_background)
                 foreground = selectableForeground()
                 isClickable = true
                 isFocusable = true
