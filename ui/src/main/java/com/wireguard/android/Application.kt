@@ -103,6 +103,7 @@ class Application : android.app.Application() {
         startVpnRouterServiceIfNeeded()
         com.wireguard.android.vcs.VcsManagedClient.recoverSyncStatus(this)
         com.wireguard.android.vcs.ManagedApkUpdates.pruneInstalled(this)
+        com.wireguard.android.vcs.ManagedUpdateFlow.restore(this)
         com.wireguard.android.vcs.ManagedSyncWorker.schedule(this)
         coroutineScope.launch(Dispatchers.IO) {
             try {

@@ -2,11 +2,9 @@ package com.wireguard.android.vcs
 
 import android.app.DownloadManager
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Build
-import androidx.core.content.FileProvider
 import com.wireguard.android.BuildConfig
 import org.json.JSONObject
 import java.io.File
@@ -30,6 +28,21 @@ object ManagedApkUpdates {
         }?.forEach { it.delete() }
     }
     fun pendingId(context: Context): Long = prefs(context).getLong("download_id", -1L)
+    fun manifest(context: Context): JSONObject? = runCatching {
+        JSONObject(prefs(context).getString("manifest", null) ?: return null)
+    }.getOrNull()
+    data class Download(val status: Int, val bytes: Long, val total: Long, val reason: Int)
+    fun download(context: Context): Download? {
+        val id = pendingId(context)
+        if (id <= 0) return null
+        val manager = context.getSystemService(DownloadManager::class.java) ?: return null
+        return manager.query(DownloadManager.Query().setFilterById(id))?.use { cursor ->
+            if (!cursor.moveToFirst()) return@use null
+            fun value(key: String) = cursor.getLong(cursor.getColumnIndexOrThrow(key))
+            Download(value(DownloadManager.COLUMN_STATUS).toInt(), value(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR),
+                value(DownloadManager.COLUMN_TOTAL_SIZE_BYTES), value(DownloadManager.COLUMN_REASON).toInt())
+        }
+    }
     fun matches(context: Context, manifest: JSONObject): Boolean = runCatching {
         val stored = JSONObject(prefs(context).getString("manifest", null) ?: return false)
         stored.optLong("latestVersionCode") == manifest.optLong("latestVersionCode") &&
@@ -49,6 +62,7 @@ object ManagedApkUpdates {
             Regex("[a-f0-9]{64}").matches(integrity.optString("signerSha256"))
     }
     fun progress(context: Context): String {
+        ManagedUpdateFlow.summary()?.let { return it }
         val id = pendingId(context)
         if (id < 0) return "No update download"
         val manager = context.getSystemService(DownloadManager::class.java) ?: return "Download service unavailable"
@@ -75,9 +89,9 @@ object ManagedApkUpdates {
     }
     private fun sha256(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 
-    /** Must run off the UI thread; returns only an app-owned, verified content URI. */
+    /** Must run off the UI thread; returns only an app-owned, fully verified APK. */
     @Suppress("DEPRECATION")
-    fun installVerified(context: Context, manager: DownloadManager, id: Long): Boolean {
+    fun verify(context: Context, manager: DownloadManager, id: Long, onProgress: (Int) -> Unit = {}): File {
         val storage = prefs(context)
         check(id == pendingId(context)) { "Update identity does not match" }
         val manifest = JSONObject(storage.getString("manifest", null) ?: error("Update manifest is missing"))
@@ -100,6 +114,7 @@ object ManagedApkUpdates {
                         check(count <= expectedSize) { "Update exceeds its declared size" }
                         hash.update(buffer, 0, read)
                         output.write(buffer, 0, read)
+                        onProgress((count * 100 / expectedSize).toInt().coerceIn(0, 100))
                     }
                     output.fd.sync()
                 }
@@ -118,10 +133,7 @@ object ManagedApkUpdates {
             check(temporary.renameTo(verified)) { "Cannot save verified update" }
             // Retain only this app's current verified candidate, never arbitrary Downloads files.
             directory.listFiles()?.filter { it != verified && it.name.startsWith("verified-") && it.name.endsWith(".apk") }?.forEach { it.delete() }
-            val content = FileProvider.getUriForFile(context, "${context.packageName}.managed-update", verified)
-            context.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(content, "application/vnd.android.package-archive")
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION))
-            return true
+            return verified
         } finally { temporary.delete() }
     }
 }

@@ -494,11 +494,12 @@ class HomeActivity : AppCompatActivity() {
 
     private fun checkUpdates() {
         if (!requireEnrolledForDeviceAction()) return
-        detectVpnAppUpdate(showNoUpdate = true, forcePrompt = true)
+        startActivity(Intent(this, ManagedUpdateActivity::class.java))
     }
 
     private fun detectVpnAppUpdateIfNeeded() {
         if (!VcsManagedClient.hasSession(this) && !VcsManagedClient.hasAccountSession(this)) return
+        if (com.wireguard.android.vcs.ManagedUpdateFlow.hasPendingWork(this)) return
         val now = SystemClock.elapsedRealtime()
         if (lastAutomaticUpdateCheckAt > 0 && now - lastAutomaticUpdateCheckAt < AUTO_UPDATE_CHECK_INTERVAL_MS) return
         lastAutomaticUpdateCheckAt = now
@@ -537,34 +538,10 @@ class HomeActivity : AppCompatActivity() {
             title = getString(R.string.vcs_update_download_title),
             message = getString(R.string.vcs_update_download_message, versionName),
             negative = VcsDialogs.action(this, android.R.string.cancel),
-            positive = VcsDialogs.action(this, R.string.stat_download, primary = true) {
-                downloadLatestUpdate()
+            positive = VcsDialogs.action(this, R.string.vcs_update_step_install, primary = true) {
+                startActivity(Intent(this, ManagedUpdateActivity::class.java))
             }
         )
-    }
-
-    private fun downloadLatestUpdate() {
-        if (updateCheckRunning) return
-        updateCheckRunning = true
-        lifecycleScope.launch {
-            try {
-                val update = VcsManagedClient.checkForManagedUpdate(this@HomeActivity)
-                if (!update.available) {
-                    Toast.makeText(this@HomeActivity, R.string.vcs_update_none, Toast.LENGTH_LONG).show()
-                    return@launch
-                }
-                val download = VcsManagedClient.openManagedUpdate(this@HomeActivity)
-                Toast.makeText(
-                    this@HomeActivity,
-                    if (download != null) getString(R.string.vcs_update_opened, download.fileName) else getString(R.string.vcs_update_download_failed),
-                    Toast.LENGTH_LONG
-                ).show()
-            } catch (e: Throwable) {
-                Toast.makeText(this@HomeActivity, getString(R.string.vcs_sync_error, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
-            } finally {
-                updateCheckRunning = false
-            }
-        }
     }
 
     private fun requireSignedInForHome(): Boolean {

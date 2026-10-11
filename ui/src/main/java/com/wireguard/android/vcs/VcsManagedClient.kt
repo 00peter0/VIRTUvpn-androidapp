@@ -618,17 +618,6 @@ object VcsManagedClient {
         val pending = ManagedApkUpdates.pendingId(context)
         val compatible = ManagedApkUpdates.matches(context, manifest)
         val status = if (pending > 0 && compatible) updateDownloadStatus(manager, pending) else null
-        if (status?.first == DownloadManager.STATUS_SUCCESSFUL) {
-            CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-                try { ManagedApkUpdates.installVerified(context.applicationContext, manager, pending) }
-                catch (error: Exception) {
-                    manager.remove(pending)
-                    ManagedApkUpdates.forget(context)
-                    withContext(Dispatchers.Main) { Toast.makeText(context, "Update verification failed. Check updates and retry.", Toast.LENGTH_LONG).show() }
-                }
-            }
-            return UpdateDownloadStart(pending, "Verified VirtuVPN update")
-        }
         if (status != null && status.first != DownloadManager.STATUS_FAILED) {
             return UpdateDownloadStart(pending, "VirtuVPN update")
         }

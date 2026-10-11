@@ -1,5 +1,48 @@
 # VirtuVPN Android App Security Hardening Backlog
 
+## Unified updater — October 11, 2026, version 898
+
+An explicit **Check updates** opens one lifecycle-aware progress window and starts
+Check → Download → Verify → Install. New updates no longer require a second
+check/download click. DownloadManager remains the durable download owner; its
+actual bytes/total determine progress. Hashing/copy progress is measured separately.
+PackageInstaller owns the installation session and reports its actual progress and
+final result. A 100% download or staging percentage is never reported as installed.
+
+The application coordinator outlives screen observers. Hiding the window continues
+download/verification, while permission and installer confirmation are launched only
+by a resumed foreground window. Returning reuses the recorded download, re-verifies
+it and continues. Android's unknown-source permission and installation confirmation
+are preserved; denial/cancellation gives an actionable state with the retained
+owned download. No silent install, browser/URL fallback or background activity
+launch was introduced. Installation callbacks are scoped to an explicit non-exported
+receiver and the recorded session ID. Only the recorded stale session is eligible
+for cleanup; an active install cannot be replaced by a second session.
+
+Installation uses the verified APK directly in a PackageInstaller session, removing
+the obsolete FileProvider installation path. Security checks still bind size, SHA-256,
+package/version and both installed/candidate signer identities; staging checks the
+hash again. Success comes from Android's result or the actual installed version.
+Failed/missing native downloads can be retried; contradictory/unrelated session
+callbacks cannot advance this workflow. Secure Browser and third-party VPN Router
+continue to require no VCS account. Managed update authorization stays unchanged.
+
+Validation passed: 45 existing unit tests, production assemble/signing gates and
+lint (0 errors, 136 unchanged warnings). Isolated Android36 testing rejected a
+checksum mismatch without creating an installer session, completed download and
+verification while hidden, preserved required Android permission/confirmation,
+and retried a cancelled install without another download. PackageInstaller
+completed a real self-update to a deliberately higher test-only code899; only
+production code898 is published. No customer accounts, production DB fixtures
+or VPN/router changes were involved.
+
+Release/test evidence: `/srv/vcs/deploy/evidence/virtuvpn-update-flow-20261011/`.
+Emulator coverage uses private x86-native fixtures as previously documented; the
+current test fixture allows only localhost HTTP to exercise DownloadManager without
+customer tokens. Production APK and network policy remain unchanged by that fixture.
+APK publication is an atomic APK/metadata/integrity swap through vRack, with the
+matching signer preserved and no App, Gateway or Rust restart required.
+
 ## October 11 maintenance implementation — A1–A4
 
 The owner authorized implementation after the discovery below. The four bounded
