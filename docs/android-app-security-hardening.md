@@ -1,5 +1,56 @@
 # VirtuVPN Android App Security Hardening Backlog
 
+## Physical Android device access from EDGE — October 11, 2026
+
+Use the owner's MacBook for physical-device checks. The verified connection is
+`virtucomputing@10.76.3.2`, with the existing EDGE key
+`/root/.ssh/edge-to-macbook`. The persistent `vcs-macbook` alias is configured in
+`/root/.ssh/config` with identities-only and strict host-key checking. Keep the
+private key outside Git. The Mac is reached through Agent Gateway tunnel
+`ag-9cb90ccd-t`; `10.76.3.1/32` is the EDGE endpoint, **not** the SSH destination.
+The legacy `10.76.1.2` address belongs to the Mac Studio LLM path and must not be
+used for this MacBook connection.
+
+ADB on the MacBook is installed at
+`/Users/virtucomputing/Library/Android/sdk/platform-tools/adb`. Verify the current
+device list before each test and select the intended serial explicitly if more
+than one device is present:
+
+```sh
+ssh vcs-macbook /usr/bin/uname -s
+ssh vcs-macbook /Users/virtucomputing/Library/Android/sdk/platform-tools/adb devices -l
+```
+
+The initial read-only check found an authorized Samsung SM-S948B device running
+Android API 37, VirtuVPN version 898, Samsung Pass autofill configured and system
+accessibility disabled. These are observations, not permanent device defaults.
+Do not reset enrollment, clear app data, change the gateway/VPN, enable a new
+autofill/accessibility service or publish a production APK merely to run a test.
+Record the exact APK/hash actually installed before attributing device results
+to a maintenance candidate. User interaction may still be needed for unlocking
+the phone and the password manager.
+
+### Controlled device smoke check
+
+Subsequently installed the unpublished version-903 maintenance candidate from
+source `a90ffe90912d11fe6473e2d62ea34a5f68ac1bfa` on this one connected phone using
+`adb install -r`. Its SHA-256 is
+`e10b92cc4f976f0d708c5342cc6084db2e7960b15f8dafed4012f9664d6f6854`;
+pulling the installed base APK back from the phone confirms the same hash.
+The established signer and package are retained, first-install time is unchanged,
+HomeActivity launches successfully and the existing signed-in VCS account dialog
+is accessible. Samsung Pass and accessibility settings remain unchanged.
+No account sign-out, enrollment reset, app-data clear or gateway change was made.
+
+This is a private device test, **not another public version-903 release**. The
+served production version-903 APK retains its original hash recorded below.
+The next consolidated public release must have a higher versionCode. The actual
+password-manager offer remains a manual acceptance step because this phone is
+already signed in and unlocking the password manager may require the owner.
+The connection/upgrade smoke check does not establish a new VPN/router or
+TalkBack acceptance result. Evidence:
+`/srv/vcs/deploy/evidence/virtuvpn-ui-semantics-20261011/macbook-device-smoke.json`.
+
 ## Unreleased login metadata and preserved browser privacy — October 11, 2026
 
 The owner requires Secure Browser maintenance to preserve or improve its existing
@@ -48,8 +99,10 @@ review, not permission to alter browser behavior during warning cleanup.
 
 Validation: the existing 52-test gate, full/normal lint, assemble, established
 signer/package checks, source comparison, compiled manifest comparison and
-compiled API-qualified sign-in styles. No Android device is attached, so an
-actual password-manager offer or TalkBack behavior is not claimed as tested.
+compiled API-qualified sign-in styles. No Android device was attached directly to
+EDGE during those gates; the owner subsequently supplied the MacBook connection
+recorded above. The initial remote check sees the older version 898, so an actual
+candidate password-manager offer or TalkBack behavior is not yet claimed as tested.
 Before release, check sign-in autofill with a configured service on a device;
 Android 8.0/8.1 also have a documented limitation for dialogs resized after showing,
 as this existing dialog is. Hint metadata alone does not fix that platform issue.
