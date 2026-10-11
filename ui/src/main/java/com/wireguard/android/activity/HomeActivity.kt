@@ -87,19 +87,7 @@ class HomeActivity : AppCompatActivity() {
         binding.managedAccessS2sClusterButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_MANAGED_ACCESS_S2S_CLUSTER) }
         binding.enrollButton.setOnClickListener { showEnrollDialog() }
         binding.syncButton.setOnClickListener { syncManagedAccess() }
-        binding.deviceDiagnosticsButton.setOnClickListener {
-            lifecycleScope.launch {
-                val report = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    com.wireguard.android.vcs.ManagedDiagnostics.collect(this@HomeActivity).toString(2)
-                }
-                AlertDialog.Builder(this@HomeActivity).setTitle(R.string.vcs_device_diagnostics).setMessage(report)
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .setPositiveButton(R.string.vcs_diagnostics_share) { _, _ ->
-                        startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain")
-                            .putExtra(Intent.EXTRA_TEXT, report), getString(R.string.vcs_diagnostics_share)))
-                    }.show()
-            }
-        }
+        binding.deviceDiagnosticsButton.setOnClickListener { startActivity(Intent(this, DeviceDiagnosticsActivity::class.java)) }
         binding.checkUpdatesButton.setOnClickListener { checkUpdates() }
         lifecycleScope.launch {
             lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {

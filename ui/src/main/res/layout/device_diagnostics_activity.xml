@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/diagnostics_root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/dashboard_gradient" android:orientation="vertical">
+    <com.google.android.material.appbar.MaterialToolbar android:id="@+id/diagnostics_toolbar"
+        android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp"
+        android:background="@color/vcs_top_bar" app:title="@string/vcs_device_diagnostics"
+        app:titleTextColor="#FFFFFF" app:navigationIconTint="#FFFFFF" app:navigationIcon="@drawable/ic_arrow_back"
+        app:navigationContentDescription="@string/vcs_diag_back" />
+    <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+    <ImageView android:layout_width="280dp" android:layout_height="280dp" android:layout_gravity="center"
+        android:alpha="0.035" android:contentDescription="@null" android:src="@mipmap/ic_launcher" />
+    <ScrollView android:id="@+id/diagnostics_scroll" android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true" android:clipToPadding="false">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical"
+            android:paddingHorizontal="20dp" android:paddingTop="24dp" android:paddingBottom="32dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
+                <ImageView android:layout_width="52dp" android:layout_height="52dp" android:layout_marginEnd="14dp"
+                    android:background="@drawable/vpn_router_logo_circle_background" android:padding="12dp" android:contentDescription="@null"
+                    android:src="@drawable/ic_device" app:tint="#5EEAD4" />
+                <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical">
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/vcs_device_diagnostics"
+                        android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="24sp" />
+                    <TextView style="@style/VcsDiagnosticNote" android:text="@string/vcs_diag_subtitle" />
+                </LinearLayout>
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:orientation="horizontal">
+                <com.google.android.material.button.MaterialButton android:id="@+id/diagnostics_refresh"
+                    android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:minHeight="48dp"
+                    android:text="@string/vcs_diag_refresh" android:textColor="#052019" app:backgroundTint="#5EEAD4" app:cornerRadius="12dp" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/diagnostics_share" style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:minHeight="48dp"
+                    android:enabled="false" android:text="@string/vcs_diag_share_report" android:textColor="#5EEAD4" app:strokeColor="#5EEAD4" app:cornerRadius="12dp" />
+            </LinearLayout>
+            <TextView android:id="@+id/diagnostics_status" style="@style/VcsDiagnosticNote" android:layout_marginTop="8dp" android:accessibilityLiveRegion="polite" android:text="@string/vcs_diag_collecting" />
+            <ProgressBar android:id="@+id/diagnostics_loading" style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent" android:layout_height="4dp" android:layout_marginTop="8dp" android:indeterminate="true" android:indeterminateTint="#5EEAD4" />
+            <LinearLayout android:id="@+id/diagnostics_sections" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
+            <TextView style="@style/VcsDiagnosticNote" android:layout_marginTop="20dp" android:text="@string/vcs_diag_privacy" />
+        </LinearLayout>
+    </ScrollView>
+    </FrameLayout>
+</LinearLayout>

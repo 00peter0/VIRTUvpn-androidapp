@@ -1,5 +1,85 @@
 # VirtuVPN Android App Security Hardening Backlog
 
+
+## Device diagnostics — October 11, 2026, version 899
+
+**Device diagnostics** now opens a full VirtuVPN screen with the existing dark
+background, teal actions, resource bars and readable cards. It is available without
+a VCS account. Technical JSON is retained only as an explicit redacted Share report
+export. CPU/RAM, internal storage, battery/thermal state, device security, VPN/sync,
+optional app storage and local TCP checks have separate evidence and timestamps.
+Unavailable values remain unknown; there is no invented security score or malware
+verdict. Findings never authorize deleting files, changing VPNs or stopping apps.
+
+### Measurement and privacy contract
+
+- Resources use Android MemoryInfo, Debug process PSS, StatFs, sticky battery state
+  and thermal status when supported. CPU is a measured 750ms sample of the
+  **VirtuVPN process**; 100% means one logical CPU, so multicore work can exceed
+  100%. The sample includes diagnostic work. Logical CPU count is the count
+  available to this process, not a promise about all physical cores. Android's
+  low-memory signal is separate from occupied RAM because cached RAM is normal.
+- Security shows the reported Android patch/date, screen lock, USB debugging and
+  developer settings. A patch older than 180 days suggests reviewing system
+  updates; this is not CVE detection. Patch age uses the phone clock, malformed,
+  future or unavailable dates stay unknown. Root, bootloader integrity and malware
+  are not assessed. Battery temperature is not presented as CPU temperature.
+- **Measure app storage** is optional and requires user-enabled Usage access on
+  Android8+. The app measures up to 64 launcher-visible packages for the current
+  user with a 15s traversal budget and shows the eight largest measured apps.
+  Missing/failed/capped results are partial evidence, not a complete phone ranking.
+  It uses each package's storage volume, never reads private app files, and never
+  uses QUERY_ALL_PACKAGES, Accessibility or root. Cache is included in data bytes
+  and must not be added a second time. Android7 keeps basic diagnostics and offers
+  Android Storage instead. Actual CPU/RAM rankings for other apps are unavailable
+  under Android's sandbox; usage access does not remove this limitation.
+- **Check local ports** is an explicit connect-only sample of 32 fixed TCP ports
+  on numeric IPv4 and IPv6 loopback (64 checks), six concurrent slots and 180ms
+  connection timeout. No DNS, external targets, banners, payloads, UDP or subnet
+  scan. Refusal is distinguished from inconclusive/unsupported address results.
+  An accepting local port proves only that the sampled address accepted a local
+  connection: it does not identify its application or prove LAN/public exposure.
+  Ports outside the list and interface-only listeners remain unverified.
+- VPN state, DNS configuration and handshake age retain the existing evidence
+  limits: UP/default routes do not prove reachability or absence of leaks.
+  Collection is bounded to 32 tunnels and a 4s coroutine deadline. No external
+  public-IP/DNS tests are performed. No-account status is informational, not a
+  security fault. Diagnostic operations do not enroll, sync, log out or update.
+- A screen ViewModel prevents duplicate clicks and preserves observations across
+  rotation. Explicit navigation away cancels observation jobs; process restart
+  starts fresh, with no persisted app inventory or diagnostic history. Revoking
+  Usage access clears app insights and invalidates late results. Export uses an
+  explicit allowlist: no app/package names, VPN profile names/keys/endpoints,
+  installation IDs, credentials, tokens or browsing data. Nothing is uploaded
+  automatically. Sharing requires the user's Android share action.
+
+### Validation and release
+
+Validation: 52 unit tests, lint/signing/production build gates and isolated Android36
+instrumentation. Coverage includes anonymous basic diagnostics, real resource
+measurements, an actual accepting localhost listener with no transmitted payload,
+64-probe bounds, refresh, rotation retention, export redaction and actual Android
+Usage access grant/revocation. Lint has 0 errors and 135 visible pre-existing
+warnings (one obsolete export label removed); the 627 matching legacy baseline
+warnings remain a separate audit scope and have not been presented as fixed.
+UI is visually checked in portrait, landscape and
+larger system text. The x86 UI fixture adds locally built x86 WireGuard libraries
+for emulator compatibility only; production remains the unchanged ARM build.
+
+Canonical version: **899 / 1.0.20261011.360-vcsinstall**. The established signing
+certificate, unified updater, managed enrollment and independent anonymous Browser/
+third-party Router access are preserved. APK/metadata/integrity are published
+atomically through vRack; App, Gateway and Rust need no changes or restart.
+Evidence: `/srv/vcs/deploy/evidence/virtuvpn-device-diagnostics-20261011/`.
+
+Platform references:
+[StorageStatsManager](https://developer.android.com/reference/android/app/usage/StorageStatsManager),
+[cache included in data](https://developer.android.com/reference/android/app/usage/StorageStats),
+[per-app RAM limits](https://developer.android.com/reference/android/app/ActivityManager#getProcessMemoryInfo(int%5B%5D)),
+[CPU access limits](https://developer.android.com/reference/android/os/HardwarePropertiesManager),
+[network state restrictions](https://developer.android.com/about/versions/10/privacy/changes),
+[package visibility](https://developer.android.com/training/package-visibility/declaring).
+
 ## Unified updater — October 11, 2026, version 898
 
 An explicit **Check updates** opens one lifecycle-aware progress window and starts
