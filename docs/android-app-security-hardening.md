@@ -1,9 +1,76 @@
 # VirtuVPN Android App Security Hardening Backlog
 
-## Current UI follow-up — app resources and startup, October 11, 2026
+## Current UI — searchable startup list and consolidated release 904, October 11, 2026
+
+Apps at startup now exposes every entry collected by the existing read-only
+metadata check. The collector retains its 512-visible-package ceiling, 10-second
+loop deadline, cancellation, visibility rules and classification. It no longer
+throws away entries after the first 128. All captured entries remain only in the
+current ViewModel and are displayed in pages of 20; no new scan is triggered by
+search, filters or page navigation.
+
+All apps includes unknown app types; Installed apps and System apps match only
+confirmed type flags. Search matches labels or package identifiers without case
+sensitivity, combines with the selected type and resets to the first page. Clear
+search uses the built-in field control. An empty filtered list is distinguished
+from a capture with no identified startup entries. Each page retains the existing
+status, before-/after-unlock evidence and explicit Android Review link. Previous
+and Next controls at both ends operate on one selection and return the viewport
+to the page controls, rather than growing an unbounded screen. Disabled navigation
+and diagnostic actions use dimmed text and strokes as well as disabled clicks.
+
+Collection evidence and checked/identified counts describe the entire captured
+sample, independently of its current search/filter/page. Reaching a display page
+limit no longer makes an otherwise complete metadata capture partial. Failed or
+missing observations still produce Partial evidence. Declared boot capability
+remains distinct from actual execution, active processes or a malware verdict.
+The redacted schema-3 export keeps aggregate startup counts for the full capture;
+it exports no names, package identifiers, search text, usage records or per-app
+startup details.
+
+Search, type and current page live in ViewModel memory. Controls remain stable
+during diagnostic state updates so typing does not recreate the field or lose
+focus. The query is excluded from view-state saving and autofill; suggestions
+are disabled and Android 8+ receives the no-personalized-learning IME hint.
+No app inventory or new preferences are persisted. Activity recreation retains
+the selection while its ViewModel lives; explicit exit ends the observation.
+The diagnostic screen accounts for keyboard insets.
+
+The consolidated candidate is version 904 / 1.0.20261011.365-vcsinstall with the
+established signer. It includes the completed private maintenance/UI changes
+recorded below. Scripts, dependencies, SDK levels, manifest permissions, VPN,
+enrollment, managed synchronization, anonymous browser/router access and parked
+TV/manual-deletion policies retain their established contracts. Publication must
+replace APK, metadata and integrity files as one verified release over vRack;
+the immutable public version-903 artifact remains historical evidence.
+
+Validation evidence is stored in
+`/srv/vcs/deploy/evidence/virtuvpn-startup-browser-20261011/`. Four pagination/filter
+regression tests cover all 205 entries beyond the old cap, unknown type handling,
+combined search/type selection and stale/empty page boundaries. All 60 unit tests
+pass; full lint remains 38 warnings and visible lint 13 warnings plus its baseline
+hint, with zero errors, zero new findings and the same 25-entry baseline.
+
+Samsung SM-S948B / API 37 acceptance examined 219 visible packages and retained
+all 205 identified entries. All 11 pages, both boundary buttons, each type filter,
+case-insensitive package search, empty results, clear text, Android Review/return,
+typing with the software keyboard and selection retention through basic Refresh
+checks and scoped Activity recreation passed. The final installed APK SHA-256 is
+`304c60c837f74f10dbc2b383a2819073fb038e20d73b435b30cfcfee01b2af28`.
+Following an appearance-only disabled-color adjustment, the final binary was
+rechecked for paging, query focus and toolbar navigation. First-install time,
+app locale and Usage access were preserved; VPN was inactive and no app settings
+were changed. Only this check's owned phone/Mac temporary files were removed.
+No older-API handset or real TalkBack speech acceptance is claimed.
+
+Promote this tested binary only after its source commit passes CI. Publication
+and authenticated download/version/header verification are recorded separately in
+the same evidence directory, binding the served APK to its integrity manifest.
+
+## Completed UI checkpoint — app resources and startup, October 11, 2026
 
 The owner chose a device resource/startup overview without root, replacing the
-limited local port probe. Current Device diagnostics has six collapsible sections:
+limited local port probe. At this checkpoint, Device diagnostics had six collapsible sections:
 Performance & resources, Storage, Battery & temperature, Device security, App
 resource overview and Apps at startup. The VPN & synchronization section is removed
 along with its diagnostic-only tunnel/session collection, models and report fields.

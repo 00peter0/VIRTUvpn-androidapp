@@ -26,7 +26,11 @@ class DeviceDiagnosticsViewModel(application: Application) : AndroidViewModel(ap
     private var appsJob: Job? = null
     private var startupJob: Job? = null
     private var appGeneration = 0
+    var startupSelection = StartupAppSelection()
+        private set
     init { refresh() }
+
+    fun selectStartupApps(selection: StartupAppSelection) { startupSelection = selection }
 
     fun refresh() {
         if (refreshJob?.isActive == true) return
@@ -56,6 +60,7 @@ class DeviceDiagnosticsViewModel(application: Application) : AndroidViewModel(ap
     }
     fun scanStartup() {
         if (startupJob?.isActive == true) return
+        startupSelection = startupSelection.copy(pageIndex = 0)
         startupJob = viewModelScope.launch {
             mutable.value = mutable.value.copy(startup = null, startupProgress = 0 to 0, startupError = false)
             try {

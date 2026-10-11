@@ -70,8 +70,8 @@ object StartupDiagnostics {
             )
         }
         val ordered = rows.sortedWith(compareBy<StartupApp> { it.systemApp == true }.thenBy { it.label.lowercase(java.util.Locale.ROOT) })
-        StartupAppReport(ordered.take(128), names.size, checked,
-            receiverQueriesComplete && metadataComplete && checked == names.size && rows.size <= 128 && rows.none { it.status == StartupAppStatus.UNVERIFIED },
+        StartupAppReport(ordered, names.size, checked,
+            receiverQueriesComplete && metadataComplete && checked == names.size && rows.none { it.status == StartupAppStatus.UNVERIFIED },
             System.currentTimeMillis(), rows.size)
     }
 

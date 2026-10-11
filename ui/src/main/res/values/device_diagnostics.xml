@@ -41,7 +41,16 @@
     <string name="vcs_diag_optional_older" translatable="false">App storage insights require Android 8 or later. You can use Android Storage instead.</string>
     <string name="vcs_diag_scan_startup" translatable="false">Check startup apps</string>
     <string name="vcs_diag_startup_intro" translatable="false">Review visible apps that declare the boot permission or a boot receiver. This check reads local metadata; it does not start, stop or disable apps.</string>
-    <string name="vcs_diag_startup_limit" translatable="false">An enabled boot receiver can respond to Android startup; it does not prove that the app actually ran, is still running or is harmful. Boot permission alone is weaker evidence. Android may hide apps or receivers, and other profiles are excluded. Up to 512 visible apps are checked with a time limit; up to 128 startup entries are shown. Review unfamiliar apps in Android settings; background schedules and other startup mechanisms are not fully covered.</string>
+    <string name="vcs_diag_startup_limit" translatable="false">An enabled boot receiver can respond to Android startup; it does not prove that the app actually ran, is still running or is harmful. Boot permission alone is weaker evidence. Android may hide apps or receivers, and other profiles are excluded. Up to 512 visible apps are checked with a time limit; all collected startup entries can be browsed in pages of 20. Review unfamiliar apps in Android settings; background schedules and other startup mechanisms are not fully covered.</string>
+    <string name="vcs_diag_startup_search" translatable="false">Search name or package</string>
+    <string name="vcs_diag_startup_all" translatable="false">All apps</string>
+    <string name="vcs_diag_startup_installed" translatable="false">Installed apps</string>
+    <string name="vcs_diag_startup_system" translatable="false">System apps</string>
+    <string name="vcs_diag_startup_page" translatable="false">Page %1$d of %2$d</string>
+    <string name="vcs_diag_startup_scope" translatable="false">Matching entries: %1$d · Collected: %2$d. Filters change this list only; collection evidence is shown above.</string>
+    <string name="vcs_diag_startup_no_matches" translatable="false">No entries match this search and filter. Clear the search or select All apps.</string>
+    <string name="vcs_diag_startup_previous" translatable="false">Previous page</string>
+    <string name="vcs_diag_startup_next" translatable="false">Next page</string>
     <string name="vcs_diag_startup_complete" translatable="false">Visible app check complete</string>
     <string name="vcs_diag_startup_empty" translatable="false">No boot-capable apps were identified in this visible sample. Hidden apps and other startup mechanisms remain unverified.</string>
     <string name="vcs_diag_startup_enabled" translatable="false">Enabled boot receiver</string>

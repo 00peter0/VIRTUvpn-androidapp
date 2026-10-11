@@ -3,12 +3,16 @@ package com.wireguard.android.activity
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Typeface
+import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.TypedValue
+import android.text.InputFilter
+import android.text.InputType
 import android.view.Gravity
 import android.view.View
+import android.view.inputmethod.EditorInfo
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
@@ -25,12 +29,18 @@ import androidx.core.view.AccessibilityDelegateCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.isVisible
+import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.chip.Chip
+import com.google.android.material.chip.ChipGroup
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import com.wireguard.android.BuildConfig
 import com.wireguard.android.R
 import com.wireguard.android.databinding.DeviceDiagnosticsActivityBinding
@@ -38,6 +48,10 @@ import com.wireguard.android.vcs.DeviceDiagnosticMath
 import com.wireguard.android.vcs.DeviceDiagnosticsViewModel
 import com.wireguard.android.vcs.ManagedDiagnostics
 import com.wireguard.android.vcs.StartupAppStatus
+import com.wireguard.android.vcs.StartupAppFilter
+import com.wireguard.android.vcs.StartupAppList
+import com.wireguard.android.vcs.StartupAppPage
+import com.wireguard.android.vcs.StartupAppReport
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
@@ -51,6 +65,13 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
     private val expandedSections = mutableSetOf<Int>()
     private val sectionViews = mutableMapOf<Int, DiagnosticSection>()
     private var sectionPosition = 0
+    private var startupPanel: StartupPanel? = null
+
+    private class StartupPanel(
+        val check: MaterialButton, val progress: LinearLayout, val observations: LinearLayout,
+        val controls: LinearLayout, val search: TextInputEditText,
+        val navigation: LinearLayout, val entries: LinearLayout
+    )
 
     private class DiagnosticSection(
         val container: LinearLayout,
@@ -78,7 +99,8 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
         binding.diagnosticsToolbar.setNavigationOnClickListener { finish() }
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
             val safe = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
-            view.setPadding(safe.left, safe.top, safe.right, safe.bottom)
+            val keyboard = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+            view.setPadding(safe.left, safe.top, safe.right, maxOf(safe.bottom, keyboard))
             insets
         }
         model = ViewModelProvider(this)[DeviceDiagnosticsViewModel::class.java]
@@ -203,45 +225,152 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
                 if (access) action(R.string.vcs_diag_usage_manage) { open(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, "package:$packageName".toUri())) }
             }
         }
-        card(R.string.vcs_diag_startup, R.drawable.ic_power, busy = state.startupProgress != null) {
-            note(R.string.vcs_diag_startup_intro)
-            note(R.string.vcs_diag_startup_limit)
-            action(R.string.vcs_diag_scan_startup, state.startupProgress == null) { model.scanStartup() }
-            state.startupProgress?.let { progress(it) }
-            if (state.startupError) note(R.string.vcs_diag_optional_failed)
+        card(R.string.vcs_diag_startup, R.drawable.ic_power, busy = state.startupProgress != null, rebuild = false) {
+            val panel = startupPanel ?: createStartupPanel().also { startupPanel = it }
+            panel.check.isEnabled = state.startupProgress == null
+            panel.progress.removeAllViews()
+            state.startupProgress?.let { panel.progress.progress(it) }
+            if (state.startupError) panel.progress.note(R.string.vcs_diag_optional_failed)
+            panel.observations.removeAllViews()
             state.startup?.let { sample ->
-                note("Observed ${time(sample.collectedAt)}")
-                row("Visible apps checked", "${sample.checked} / ${sample.visibleApps}")
-                row("Startup entries shown / identified", "${sample.apps.size} / ${sample.identified}")
-                row("Evidence", getString(if (sample.complete) R.string.vcs_diag_startup_complete else R.string.vcs_diag_partial))
-                if (sample.apps.isEmpty()) note(R.string.vcs_diag_startup_empty)
-                sample.apps.forEach { app ->
-                    row(app.label, getString(when (app.status) {
-                        StartupAppStatus.ENABLED_RECEIVER -> R.string.vcs_diag_startup_enabled
-                        StartupAppStatus.DISABLED -> R.string.vcs_diag_startup_disabled
-                        StartupAppStatus.STOPPED -> R.string.vcs_diag_startup_stopped
-                        StartupAppStatus.PERMISSION_ONLY -> R.string.vcs_diag_startup_permission_only
-                        StartupAppStatus.PERMISSION_NOT_GRANTED -> R.string.vcs_diag_startup_permission_missing
-                        StartupAppStatus.UNVERIFIED -> R.string.vcs_diag_unavailable
-                    }))
-                    val kind = when (app.systemApp) { true -> "System app"; false -> "Installed app"; null -> unavailable() }
-                    val phases = listOfNotNull("After unlock".takeIf { app.afterUnlock }, "Before unlock".takeIf { app.beforeUnlock })
-                    note(if (phases.isEmpty()) kind else "$kind · ${phases.joinToString(" / ")}")
-                    action(getString(R.string.vcs_diag_review_app, app.label)) {
-                        open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${app.packageName}".toUri()))
-                    }
+                panel.observations.note("Observed ${time(sample.collectedAt)}")
+                panel.observations.row("Visible apps checked", "${sample.checked} / ${sample.visibleApps}")
+                panel.observations.row("Startup entries collected / identified", "${sample.apps.size} / ${sample.identified}")
+                panel.observations.row("Evidence", getString(if (sample.complete) R.string.vcs_diag_startup_complete else R.string.vcs_diag_partial))
+            }
+            renderStartupResults(state.startup, panel)
+        }
+    }
+
+    private fun LinearLayout.createStartupPanel(): StartupPanel {
+        note(R.string.vcs_diag_startup_intro)
+        note(R.string.vcs_diag_startup_limit)
+        val check = action(R.string.vcs_diag_scan_startup) { model.scanStartup() }
+        val progress = column()
+        val observations = column()
+        val controls = column()
+        val input = TextInputLayout(this@DeviceDiagnosticsActivity).apply {
+            hint = getString(R.string.vcs_diag_startup_search)
+            boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
+            boxBackgroundColor = "#102330".toColorInt()
+            boxStrokeColor = ACCENT
+            defaultHintTextColor = ColorStateList.valueOf(MUTED)
+            endIconMode = TextInputLayout.END_ICON_CLEAR_TEXT
+            setEndIconTintList(ColorStateList.valueOf(ACCENT))
+            isSaveEnabled = false
+        }
+        val search = TextInputEditText(input.context).apply {
+            setTextColor(TEXT); setHintTextColor(MUTED); textSize = 14f
+            isSingleLine = true
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            imeOptions = EditorInfo.IME_ACTION_DONE
+            filters = arrayOf(InputFilter.LengthFilter(200))
+            isSaveEnabled = false
+            if (Build.VERSION.SDK_INT >= 26) {
+                importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO
+                imeOptions = imeOptions or EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
+            }
+            setText(model.startupSelection.query)
+        }
+        input.addView(search, LinearLayout.LayoutParams(-1, -2))
+        controls.addView(input, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
+        val filters = ChipGroup(this@DeviceDiagnosticsActivity).apply {
+            isSingleSelection = true; isSelectionRequired = true; setChipSpacing(dp(6))
+        }
+        val choices = mapOf(StartupAppFilter.ALL to R.string.vcs_diag_startup_all,
+            StartupAppFilter.INSTALLED to R.string.vcs_diag_startup_installed,
+            StartupAppFilter.SYSTEM to R.string.vcs_diag_startup_system)
+        val ids = choices.mapValues { (_, label) ->
+            Chip(this@DeviceDiagnosticsActivity).apply {
+                id = View.generateViewId(); text = getString(label); isCheckable = true
+                setEnsureMinTouchTargetSize(true)
+                chipBackgroundColor = ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                    intArrayOf(ACCENT, "#102330".toColorInt()))
+                setTextColor(ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                    intArrayOf("#071018".toColorInt(), ACCENT)))
+                chipStrokeColor = ColorStateList.valueOf(ACCENT); chipStrokeWidth = dp(1).toFloat()
+                isSaveEnabled = false
+                filters.addView(this)
+            }.id
+        }
+        filters.check(ids.getValue(model.startupSelection.filter))
+        controls.addView(filters, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+        val panel = StartupPanel(check, progress, observations, controls, search, controls.column(), column())
+        search.doAfterTextChanged {
+            model.selectStartupApps(model.startupSelection.copy(query = it?.toString().orEmpty(), pageIndex = 0))
+            renderStartupResults(model.state.value.startup, panel)
+        }
+        filters.setOnCheckedStateChangeListener { _, checked ->
+            ids.entries.firstOrNull { it.value in checked }?.key?.let { kind ->
+                model.selectStartupApps(model.startupSelection.copy(filter = kind, pageIndex = 0))
+                renderStartupResults(model.state.value.startup, panel)
+            }
+        }
+        return panel
+    }
+
+    private fun renderStartupResults(sample: StartupAppReport?, panel: StartupPanel) {
+        panel.controls.isVisible = sample != null
+        panel.navigation.removeAllViews(); panel.entries.removeAllViews()
+        if (sample == null) return
+        val page = StartupAppList.page(sample.apps, model.startupSelection)
+        model.selectStartupApps(model.startupSelection.copy(pageIndex = page.index))
+        panel.navigation.note(getString(R.string.vcs_diag_startup_scope, page.matching, page.collected))
+        if (page.apps.isEmpty()) {
+            panel.entries.note(if (sample.apps.isEmpty()) R.string.vcs_diag_startup_empty else R.string.vcs_diag_startup_no_matches)
+            return
+        }
+        panel.navigation.note(getString(R.string.vcs_diag_startup_page, page.index + 1, page.pages))
+        panel.navigation.startupPager(page, panel)
+        with(panel.entries) {
+            page.apps.forEach { app ->
+                row(app.label, getString(when (app.status) {
+                    StartupAppStatus.ENABLED_RECEIVER -> R.string.vcs_diag_startup_enabled
+                    StartupAppStatus.DISABLED -> R.string.vcs_diag_startup_disabled
+                    StartupAppStatus.STOPPED -> R.string.vcs_diag_startup_stopped
+                    StartupAppStatus.PERMISSION_ONLY -> R.string.vcs_diag_startup_permission_only
+                    StartupAppStatus.PERMISSION_NOT_GRANTED -> R.string.vcs_diag_startup_permission_missing
+                    StartupAppStatus.UNVERIFIED -> R.string.vcs_diag_unavailable
+                }))
+                val kind = when (app.systemApp) { true -> "System app"; false -> "Installed app"; null -> unavailable() }
+                val phases = listOfNotNull("After unlock".takeIf { app.afterUnlock }, "Before unlock".takeIf { app.beforeUnlock })
+                note(if (phases.isEmpty()) kind else "$kind · ${phases.joinToString(" / ")}")
+                action(getString(R.string.vcs_diag_review_app, app.label)) {
+                    open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${app.packageName}".toUri()))
                 }
             }
         }
+        panel.entries.startupPager(page, panel)
     }
-    private fun card(title: Int, icon: Int, busy: Boolean = false, content: LinearLayout.() -> Unit) {
+
+    private fun LinearLayout.startupPager(page: StartupAppPage, panel: StartupPanel) {
+        val buttons = LinearLayout(this@DeviceDiagnosticsActivity).apply { orientation = LinearLayout.HORIZONTAL }
+        fun navigate(index: Int) {
+            model.selectStartupApps(model.startupSelection.copy(pageIndex = index))
+            renderStartupResults(model.state.value.startup, panel)
+            panel.search.clearFocus()
+            WindowCompat.getInsetsController(window, panel.search).hide(WindowInsetsCompat.Type.ime())
+            panel.navigation.post { panel.navigation.requestRectangleOnScreen(Rect(0, 0, panel.navigation.width, panel.navigation.height), false) }
+        }
+        val previous = buttons.action(R.string.vcs_diag_startup_previous, page.index > 0) { navigate(page.index - 1) }
+        previous.layoutParams = LinearLayout.LayoutParams(0, -2, 1f).apply { marginEnd = dp(8) }
+        val next = buttons.action(R.string.vcs_diag_startup_next, page.index + 1 < page.pages) { navigate(page.index + 1) }
+        next.layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
+        addView(buttons, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+    }
+
+    private fun LinearLayout.column() = LinearLayout(this@DeviceDiagnosticsActivity).apply {
+        orientation = LinearLayout.VERTICAL
+    }.also { addView(it, LinearLayout.LayoutParams(-1, -2)) }
+
+    private fun card(title: Int, icon: Int, busy: Boolean = false, rebuild: Boolean = true, content: LinearLayout.() -> Unit) {
         val section = sectionViews.getOrPut(title) { createSection(title, icon) }
         val position = sectionPosition++
         if (binding.diagnosticsSections.indexOfChild(section.container) != position) {
             binding.diagnosticsSections.removeView(section.container)
             binding.diagnosticsSections.addView(section.container, position)
         }
-        section.content.removeAllViews()
+        if (rebuild) section.content.removeAllViews()
         section.content.content()
         section.busy.visibility = if (busy) View.VISIBLE else View.GONE
         updateSection(title, section)
@@ -355,12 +484,16 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
         }, LinearLayout.LayoutParams(-1, dp(6)).apply { topMargin = dp(8) })
     }
     private fun LinearLayout.action(resource: Int, enabled: Boolean = true, callback: () -> Unit) = action(getString(resource), enabled, callback)
-    private fun LinearLayout.action(label: String, enabled: Boolean = true, callback: () -> Unit) {
-        addView(MaterialButton(this@DeviceDiagnosticsActivity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-            text = label; isEnabled = enabled; setTextColor(ACCENT); strokeColor = ColorStateList.valueOf(ACCENT); strokeWidth = dp(1); cornerRadius = dp(12)
+    private fun LinearLayout.action(label: String, enabled: Boolean = true, callback: () -> Unit): MaterialButton {
+        val colors = ColorStateList(arrayOf(intArrayOf(android.R.attr.state_enabled), intArrayOf()),
+            intArrayOf(ACCENT, "#665EEAD4".toColorInt()))
+        val button = MaterialButton(this@DeviceDiagnosticsActivity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = label; isEnabled = enabled; setTextColor(colors); strokeColor = colors; strokeWidth = dp(1); cornerRadius = dp(12)
             backgroundTintList = ColorStateList.valueOf("#102330".toColorInt()); minHeight = dp(48)
             setOnClickListener { callback() }
-        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
+        }
+        addView(button, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
+        return button
     }
     private fun text(value: String, size: Float, color: Int, bold: Boolean = false) = TextView(this).apply {
         text = value; textSize = size; setTextColor(color); if (bold) setTypeface(typeface, Typeface.BOLD)
