@@ -1,5 +1,55 @@
 # VirtuVPN Android App Security Hardening Backlog
 
+## Distinguish intended behavior from defects — October 11, 2026
+
+The owner requires each maintenance finding to be evaluated against the existing
+application contract. A lint warning alone is not evidence of a functional bug.
+Classify findings before implementation:
+
+| Classification | Evidence and treatment |
+| --- | --- |
+| Confirmed intentional behavior | Link the code comment, documented contract, call path or relevant test that explains it. Preserve the contract; do not rewrite it solely to reduce a warning count. |
+| Code-style recommendation | Establish equivalent operations, inputs, ordering, persistence mode, return values and exceptions before changing the spelling. Improvement is optional if the existing code is clearer or protects an important contract. |
+| Suspected or confirmed defect | Describe the concrete failure path and supporting evidence. Separate an unverified concern from a reproduced defect. Consult the owner before changing existing behavior. |
+| Intent not established | Do not infer intent merely because code is old, tested elsewhere or currently works. Record the uncertainty and investigate before changing it. |
+
+### SharedPreferences discovery: 42 recommendations, not 42 confirmed defects
+
+Inspected all 42 `SharedPreferences.edit` findings in the current full lint report:
+
+| Source | Findings | Observed write mode |
+| --- | --- | --- |
+| HomeActivity | 2 | apply |
+| SecureBrowserActivity | 6 | apply |
+| VpnRouterAttestation | 6 | apply |
+| VpnRouterManager | 26 | apply |
+| ManagedApkUpdates | 2 | commit |
+
+The 40 `apply()` sites are suggestions to use the AndroidX editor helper. Their
+presence does not establish a persistence failure, nor prove that the asynchronous
+choice was explicitly intentional at every site. Preserve the current write mode,
+grouped keys, ordering and callbacks pending individual equivalence review.
+
+Confirmed contracts include synchronous updater state writes and the checked
+`commit()` result in `ManagedApkUpdates.remember` and `ManagedUpdateFlow.commit`.
+The latter already documents its intentionally retained editor call: KTX `edit`
+returns Unit and cannot replace its Boolean success check directly. `forget`
+documents synchronous removal of a rejected download's identity. Its existing
+commit result is not checked; storage-failure handling remains a separate review
+question, not a defect proved by the KTX recommendation. Rejected downloads are
+also removed from DownloadManager before `forget` in the verification-failure path.
+
+Router snapshots support documented restore and transient-failure behavior;
+recorded previous hotspot/offload settings are restored when router mode is
+disabled. Browser bookmarks intentionally persist while ephemeral browsing state
+is cleared. These behaviors must remain intact during any syntax cleanup.
+
+This discovery changes documentation only. It adds no suppressions or baseline
+entries, changes no runtime code and leaves the lint inventory at 92 full warnings,
+30 visible warnings and zero lint errors. It does not claim device process-death,
+power-loss or storage-failure testing. Production remains version 903.
+Evidence: `/srv/vcs/deploy/evidence/virtuvpn-intent-review-20261011/`.
+
 ## Unreleased compatibility cleanup — October 11, 2026
 
 The owner requested batching repairs into larger releases rather than publishing
