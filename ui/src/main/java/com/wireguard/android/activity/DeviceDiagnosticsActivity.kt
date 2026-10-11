@@ -6,6 +6,7 @@ import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.widget.ImageView
@@ -17,10 +18,14 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
+import androidx.core.view.AccessibilityDelegateCompat
 import androidx.core.view.ViewCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -42,6 +47,17 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
     private lateinit var binding: DeviceDiagnosticsActivityBinding
     private lateinit var model: DeviceDiagnosticsViewModel
     private var awaitingUsageAccess = false
+    private val expandedSections = mutableSetOf<Int>()
+    private val sectionViews = mutableMapOf<Int, DiagnosticSection>()
+    private var sectionPosition = 0
+
+    private class DiagnosticSection(
+        val container: LinearLayout,
+        val heading: LinearLayout,
+        val content: LinearLayout,
+        val chevron: ImageView,
+        val busy: ProgressBar
+    )
     private val settings = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         if (awaitingUsageAccess) {
             awaitingUsageAccess = false
@@ -55,6 +71,7 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
             navigationBarStyle = SystemBarStyle.dark("#071018".toColorInt()))
         super.onCreate(savedInstanceState)
         awaitingUsageAccess = savedInstanceState?.getBoolean("awaiting_usage_access") ?: false
+        savedInstanceState?.getIntArray(EXPANDED_SECTIONS_KEY)?.let { expandedSections.addAll(it.toList()) }
         binding = DeviceDiagnosticsActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
         binding.diagnosticsToolbar.setNavigationOnClickListener { finish() }
@@ -83,6 +100,7 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
     }
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putBoolean("awaiting_usage_access", awaitingUsageAccess)
+        outState.putIntArray(EXPANDED_SECTIONS_KEY, expandedSections.toIntArray())
         super.onSaveInstanceState(outState)
     }
 
@@ -96,7 +114,8 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
             state.report != null -> getString(R.string.vcs_diag_observed, time(state.report.collectedAt), BuildConfig.VERSION_NAME)
             else -> getString(R.string.vcs_diag_collecting)
         }
-        binding.diagnosticsSections.removeAllViews()
+        // Keep the section headers stable while measurements and progress update.
+        sectionPosition = 0
         state.report?.let { report ->
             val r = report.resources; val s = report.security
             card(R.string.vcs_diag_resources, R.drawable.ic_bolt) {
@@ -156,7 +175,7 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
                 note(R.string.vcs_diag_tunnel_limit)
             }
         }
-        card(R.string.vcs_diag_apps, R.drawable.ic_device) {
+        card(R.string.vcs_diag_apps, R.drawable.ic_device, busy = state.appProgress != null) {
             if (Build.VERSION.SDK_INT < 26) {
                 note(R.string.vcs_diag_optional_older)
                 action(R.string.vcs_diag_storage_settings) { open(Intent(Settings.ACTION_INTERNAL_STORAGE_SETTINGS)) }
@@ -186,7 +205,7 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
                 if (access) action(R.string.vcs_diag_usage_manage) { open(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, "package:$packageName".toUri())) }
             }
         }
-        card(R.string.vcs_diag_ports, R.drawable.ic_server) {
+        card(R.string.vcs_diag_ports, R.drawable.ic_server, busy = state.portProgress != null) {
             note(R.string.vcs_diag_port_intro)
             state.portProgress?.let { progress(it) }
             if (state.portError) note(R.string.vcs_diag_failed)
@@ -201,16 +220,103 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
             action(R.string.vcs_diag_scan_ports, state.portProgress == null) { model.scanPorts() }
         }
     }
-    private fun card(title: Int, icon: Int, content: LinearLayout.() -> Unit) {
-        val card = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(16), dp(16), dp(16)); setBackgroundResource(R.drawable.stat_card_background)
+    private fun card(title: Int, icon: Int, busy: Boolean = false, content: LinearLayout.() -> Unit) {
+        val section = sectionViews.getOrPut(title) { createSection(title, icon) }
+        val position = sectionPosition++
+        if (binding.diagnosticsSections.indexOfChild(section.container) != position) {
+            binding.diagnosticsSections.removeView(section.container)
+            binding.diagnosticsSections.addView(section.container, position)
+        }
+        section.content.removeAllViews()
+        section.content.content()
+        section.busy.visibility = if (busy) View.VISIBLE else View.GONE
+        updateSection(title, section)
+    }
+
+    private fun createSection(title: Int, icon: Int): DiagnosticSection {
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(16), dp(16), dp(16))
+            setBackgroundResource(R.drawable.stat_card_background)
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(16) }
         }
-        val heading = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        heading.addView(ImageView(this).apply { setImageResource(icon); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO; imageTintList = ColorStateList.valueOf(ACCENT) }, LinearLayout.LayoutParams(dp(22), dp(22)).apply { marginEnd = dp(10) })
-        heading.addView(text(getString(title), 18f, TEXT, true), LinearLayout.LayoutParams(-1, -2))
-        card.addView(heading)
-        card.content(); binding.diagnosticsSections.addView(card)
+        val heading = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            minimumHeight = dp(48)
+            isClickable = true
+            isFocusable = true
+            contentDescription = getString(title)
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+            val ripple = TypedValue()
+            if (theme.resolveAttribute(android.R.attr.selectableItemBackground, ripple, true) && ripple.resourceId != 0) {
+                foreground = ContextCompat.getDrawable(this@DeviceDiagnosticsActivity, ripple.resourceId)
+            }
+        }
+        heading.addView(ImageView(this).apply {
+            setImageResource(icon)
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            imageTintList = ColorStateList.valueOf(ACCENT)
+        }, LinearLayout.LayoutParams(dp(22), dp(22)).apply { marginEnd = dp(10) })
+        heading.addView(text(getString(title), 18f, TEXT, true).apply {
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }, LinearLayout.LayoutParams(0, -2, 1f))
+        val busy = ProgressBar(this).apply {
+            isIndeterminate = true
+            indeterminateTintList = ColorStateList.valueOf(ACCENT)
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            visibility = View.GONE
+        }
+        heading.addView(busy, LinearLayout.LayoutParams(dp(18), dp(18)).apply { marginStart = dp(10) })
+        val chevron = ImageView(this).apply {
+            setImageResource(R.drawable.ic_chevron_right)
+            imageTintList = ColorStateList.valueOf(ACCENT)
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+        heading.addView(chevron, LinearLayout.LayoutParams(dp(22), dp(22)).apply { marginStart = dp(12) })
+        val content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        container.addView(heading, LinearLayout.LayoutParams(-1, -2))
+        container.addView(content, LinearLayout.LayoutParams(-1, -2))
+        val section = DiagnosticSection(container, heading, content, chevron, busy)
+        heading.setOnClickListener {
+            if (!expandedSections.add(title)) expandedSections.remove(title)
+            updateSection(title, section)
+        }
+        ViewCompat.setAccessibilityHeading(heading, true)
+        ViewCompat.setAccessibilityDelegate(heading, object : AccessibilityDelegateCompat() {
+            override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfoCompat) {
+                super.onInitializeAccessibilityNodeInfo(host, info)
+                info.className = "android.widget.Button"
+                info.addAction(if (title in expandedSections) {
+                    AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_COLLAPSE
+                } else {
+                    AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_EXPAND
+                })
+            }
+            override fun performAccessibilityAction(host: View, action: Int, args: Bundle?): Boolean {
+                val expanded = title in expandedSections
+                if ((!expanded && action == AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_EXPAND.id) ||
+                    (expanded && action == AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_COLLAPSE.id)) {
+                    return host.performClick()
+                }
+                return super.performAccessibilityAction(host, action, args)
+            }
+        })
+        return section
+    }
+
+    private fun updateSection(title: Int, section: DiagnosticSection) {
+        val expanded = title in expandedSections
+        section.content.visibility = if (expanded) View.VISIBLE else View.GONE
+        section.chevron.rotation = when {
+            expanded -> 90f
+            resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL -> 180f
+            else -> 0f
+        }
+        val state = getString(if (expanded) R.string.vcs_diag_section_expanded else R.string.vcs_diag_section_collapsed)
+        ViewCompat.setStateDescription(section.heading, if (section.busy.isVisible) {
+            getString(R.string.vcs_diag_section_busy, state)
+        } else state)
     }
     private fun LinearLayout.row(label: String, value: String, color: Int = TEXT) {
         val row = LinearLayout(this@DeviceDiagnosticsActivity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.TOP; setPadding(0, dp(12), 0, dp(2)) }
@@ -259,6 +365,7 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
         0 -> "No throttling reported"; 1 -> "Light"; 2 -> "Moderate"; 3 -> "Severe"; 4 -> "Critical"; 5 -> "Emergency"; 6 -> "Shutdown"; else -> unavailable()
     }
     companion object {
+        private const val EXPANDED_SECTIONS_KEY = "expanded_diagnostic_sections"
         private val TEXT = "#FFFFFF".toColorInt(); private val MUTED = "#AFC0CC".toColorInt()
         private val ACCENT = "#5EEAD4".toColorInt(); private val AMBER = "#FFB74D".toColorInt()
     }

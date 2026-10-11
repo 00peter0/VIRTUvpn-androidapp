@@ -9,6 +9,9 @@
     <string name="vcs_diag_observed" translatable="false">Observed %1$s · VirtuVPN %2$s</string>
     <string name="vcs_diag_unavailable" translatable="false">Unavailable</string>
     <string name="vcs_diag_privacy" translatable="false">Checks stay on this phone. Nothing is deleted or changed. Share report exports a redacted technical report only when you choose to share it. App names, VPN keys, tokens and browsing history are excluded.</string>
+    <string name="vcs_diag_section_expanded" translatable="false">Expanded</string>
+    <string name="vcs_diag_section_collapsed" translatable="false">Collapsed</string>
+    <string name="vcs_diag_section_busy" translatable="false">%1$s · Check in progress</string>
     <string name="vcs_diag_resources" translatable="false">Performance &amp; resources</string>
     <string name="vcs_diag_storage" translatable="false">Storage</string>
     <string name="vcs_diag_battery" translatable="false">Battery &amp; temperature</string>

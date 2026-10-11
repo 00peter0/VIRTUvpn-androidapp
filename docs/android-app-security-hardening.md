@@ -1,8 +1,70 @@
 # VirtuVPN Android App Security Hardening Backlog
 
-## Current maintenance status — October 11, 2026
+## Current UI follow-up — collapsible Device diagnostics, October 11, 2026
 
-This section is the current checkpoint. Records below the history boundary describe
+At the owner's request, the seven existing diagnostic sections now use collapsible
+cards: Performance & resources, Storage, Battery & temperature, Device security,
+VPN & synchronization, Largest measured apps and Local TCP ports. Each starts
+closed on a fresh visit, with its existing teal section icon, readable title and
+right chevron. An open card turns the chevron downward and shows the same rows,
+notes and actions. Cards can be opened independently. Long sections and their
+existing action buttons remain reachable by scrolling.
+
+The whole heading is a focusable 48dp-minimum target with normal ripple feedback;
+touching the chevron or heading has the same effect. Give the heading a button
+role, accessibility-heading metadata, Expanded/Collapsed state and matching
+Expand/Collapse actions. Decorative icons and title children do not add duplicate
+screen-reader focus targets. Retain the diagnostic screen's existing English-only
+technical wording; three new state labels follow that same resource policy.
+No Accessibility service or new Android permission is introduced.
+
+Retain section containers/headers while updating their existing content from the
+ViewModel. Header clicks only change local presentation; they do not refresh,
+start, stop or cancel a check. Open-section membership survives refresh/progress
+updates and Android activity recreation through the saved-instance Bundle. A fresh
+visit still starts closed; no preference file, app inventory or diagnostic history
+is persisted. Basic collection, optional app/port check boundaries, cancellation
+on explicit navigation away, redacted sharing, Usage access and existing settings
+callbacks retain their previous behavior. The optional app/port headings show a
+small busy indicator, including when their content is collapsed, derived from the
+same existing progress state. No competing job/progress state is added.
+
+Validation: the unchanged build script passed all 52 existing unit tests, assemble,
+signer/package/non-debug gates, full and normal lint. Full lint remains 38 warnings,
+visible lint remains 13 warnings plus one baseline hint; both have zero errors.
+The 25-entry baseline is byte-identical, with no new finding or suppression. A
+bounded source proof reverses only the new section presentation/state code and
+compares the remaining activity and resources to the prior revision. Diagnostic
+measurement/export/ViewModel, VPN, synchronization, browser, updater, scripts,
+dependencies, permissions, version properties and parked TV/delete policies are
+unchanged.
+
+On the MacBook-connected Samsung, verified all seven cards expand/collapse through
+the production Home navigation, chevron-area touch and keyboard Tab/Enter. Refresh
+retains the open resource section. A scoped Android app-language change exercised
+activity recreation and retained expansion; restored the original app locale.
+Opening sections and refreshing basic checks did not start either optional scan.
+One explicitly requested-through-UI local TCP check completed the existing 64
+loopback probes; its evidence remained visible after collapse/reopen. No app
+storage permission was granted or revoked, no system rotation/font setting was
+changed, no report was shared, and no VPN or managed assignment was changed.
+Direct TalkBack speech, older Android devices and an actual in-progress collapsed
+spinner were not newly tested; accessibility actions and busy-state mapping are
+code-reviewed. Recorded and corrected evidence-driver issues (XML node truthiness,
+layout settling and a button below the viewport) without changing production
+behavior to accommodate the driver.
+
+The private upgrade preserves app data, first-install time and locale, and its
+installed hash matches the candidate. Returned to Home with inactive VPN and
+removed only the test-owned phone/Mac temporary files. Public version 903 and its
+immutable artifact remain unchanged; keep the public release consolidated under
+a higher versionCode. Evidence:
+`/srv/vcs/deploy/evidence/virtuvpn-diagnostics-sections-20261011/`.
+
+## Completed bounded maintenance checkpoint — October 11, 2026
+
+This section records the completed maintenance checkpoint before the UI follow-up
+above. Records below the history boundary describe
 what was observed or implemented at their dated revisions; their old findings,
 warning counts and public version numbers are not a current open-task list.
 Do not reimplement a historical proposal without inspecting the current source.
