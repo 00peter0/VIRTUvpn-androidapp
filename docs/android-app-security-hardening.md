@@ -44,12 +44,16 @@ No account sign-out, enrollment reset, app-data clear or gateway change was made
 
 This is a private device test, **not another public version-903 release**. The
 served production version-903 APK retains its original hash recorded below.
-The next consolidated public release must have a higher versionCode. The actual
-password-manager offer remains a manual acceptance step because this phone is
-already signed in and unlocking the password manager may require the owner.
+The next consolidated public release must have a higher versionCode. The owner
+subsequently confirmed that the Samsung Pass login flow works on the connected
+phone. This is owner-reported acceptance of the current candidate, not an
+automated credential test or evidence for every autofill service and Android
+version. No password or saved credential was collected for this acceptance.
 The connection/upgrade smoke check does not establish a new VPN/router or
 TalkBack acceptance result. Evidence:
 `/srv/vcs/deploy/evidence/virtuvpn-ui-semantics-20261011/macbook-device-smoke.json`.
+Owner acceptance:
+`/srv/vcs/deploy/evidence/virtuvpn-ui-semantics-20261011/owner-autofill-acceptance.json`.
 
 ## Unreleased login metadata and preserved browser privacy — October 11, 2026
 
@@ -101,9 +105,10 @@ Validation: the existing 52-test gate, full/normal lint, assemble, established
 signer/package checks, source comparison, compiled manifest comparison and
 compiled API-qualified sign-in styles. No Android device was attached directly to
 EDGE during those gates; the owner subsequently supplied the MacBook connection
-recorded above. The initial remote check sees the older version 898, so an actual
-candidate password-manager offer or TalkBack behavior is not yet claimed as tested.
-Before release, check sign-in autofill with a configured service on a device;
+recorded above. The initial remote check saw version 898; the candidate was then
+installed and its Samsung Pass login flow was accepted by the owner as recorded
+above. TalkBack behavior and other autofill services remain outside that check.
+Before release, retain device/service-specific autofill acceptance evidence;
 Android 8.0/8.1 also have a documented limitation for dialogs resized after showing,
 as this existing dialog is. Hint metadata alone does not fix that platform issue.
 
