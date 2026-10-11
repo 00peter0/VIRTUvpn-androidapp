@@ -11,7 +11,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.Menu
@@ -21,6 +20,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.core.graphics.toColorInt
+import androidx.core.net.toUri
 import androidx.core.view.MenuProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -69,7 +69,7 @@ class TunnelDetailFragment : BaseFragment(), MenuProvider {
         binding?.publicIdentityCard?.setOnClickListener { refreshPublicIdentity() }
         binding?.dnsCard?.setOnClickListener {
             try {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://dnscheck.tools")))
+                startActivity(Intent(Intent.ACTION_VIEW, "https://dnscheck.tools".toUri()))
             } catch (_: Throwable) {}
         }
     }

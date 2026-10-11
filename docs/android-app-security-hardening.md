@@ -1,5 +1,47 @@
 # VirtuVPN Android App Security Hardening Backlog
 
+## Unreleased compatibility cleanup — October 11, 2026
+
+The owner requested batching repairs into larger releases rather than publishing
+after every change. **Production remains version 903**; this source-only block
+does not bump the Android version or replace the served APK. The local test APK
+is an unpublished candidate, not another version-903 release. A future consolidated
+publication must use a versionCode greater than 903 and the established signing,
+package and integrity gates.
+
+Replaced 25 call sites with equivalent AndroidX KTX spellings across 12 Kotlin
+files: 19 URI parses, two transparent ColorDrawable constructions, three bitmap
+allocations and one bitmap pixel write. Inspection of the actual installed
+`core-ktx:1.17.0` bytecode confirms that each helper directly calls the original
+framework operation. URI text, allowed schemes/hosts, enrollment/pairing checks,
+nullable-input guards, exception scopes, bitmap dimensions, explicit ARGB_8888
+configuration and QR pixel colors remain unchanged. Removed only imports made
+unused by these replacements; URI type/encode/decode imports are retained.
+
+| Gate | Released version 903 | Unreleased source |
+| --- | --- | --- |
+| Full lint warnings, empty diagnostic baseline | 119 | 92 |
+| Visible lint warnings | 30 | 30 |
+| Lint errors | 0 | 0 |
+| Repository baseline entries | 89 | 62 |
+| Newly introduced full-lint findings | — | 0 |
+
+The 25 call sites resolve 27 findings because two URI parses were reported twice.
+Pruned exactly those 27 baseline entries, adding no baseline entries or rule
+suppression. Validation includes all 52 existing unit tests, normal/full lint,
+assemble, signing/package/non-debuggable checks and a source-equivalence proof
+that reverses only the listed call replacements and compares the remaining code.
+There is no new physical-device VPN/router acceptance test in this block.
+
+VPN/browser operation, auth requirements, sync/update recovery, SharedPreferences
+commit/apply behavior, preference display, resources, build scripts, dependencies
+and SDK levels are unchanged. The owner's choice to preserve current preference
+title wrapping still applies. Remaining behavior/design review items in the dated
+sections below stay open, including Canvas save/restore exception behavior,
+preference persistence and launcher/navigation changes.
+
+Evidence: `/srv/vcs/deploy/evidence/virtuvpn-ktx-equivalence-20261011/`.
+
 ## Android compatibility maintenance — October 11, 2026, version 903
 
 The owner authorized continued fixes with consultation before changes that may

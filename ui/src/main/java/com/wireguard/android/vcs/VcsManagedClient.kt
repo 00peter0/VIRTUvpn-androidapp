@@ -1087,7 +1087,7 @@ object VcsManagedClient {
     private fun parseEnrollmentPayload(payload: String): EnrollmentPayload {
         val trimmed = payload.trim()
         if (trimmed.startsWith("virtuvpn://") || trimmed.startsWith("https://")) {
-            val uri = Uri.parse(trimmed)
+            val uri = trimmed.toUri()
             return parseEnrollmentUri(uri) ?: error("Enrollment link is not supported")
         }
         val json = JSONObject(trimmed)

@@ -13,6 +13,8 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.set
 import androidx.core.graphics.toColorInt
 import androidx.lifecycle.lifecycleScope
 import com.google.zxing.BarcodeFormat
@@ -411,10 +413,10 @@ class VpnRouterActivity : AppCompatActivity() {
 
     private fun createQrBitmap(value: String): Bitmap {
         val matrix = QRCodeWriter().encode(value, BarcodeFormat.QR_CODE, QR_SIZE, QR_SIZE)
-        val bitmap = Bitmap.createBitmap(QR_SIZE, QR_SIZE, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(QR_SIZE, QR_SIZE, Bitmap.Config.ARGB_8888)
         for (x in 0 until QR_SIZE) {
             for (y in 0 until QR_SIZE) {
-                bitmap.setPixel(x, y, if (matrix[x, y]) Color.BLACK else Color.WHITE)
+                bitmap[x, y] = if (matrix[x, y]) Color.BLACK else Color.WHITE
             }
         }
         return bitmap

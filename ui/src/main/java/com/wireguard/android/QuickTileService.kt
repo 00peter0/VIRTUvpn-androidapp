@@ -10,7 +10,6 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.Icon
-import android.net.Uri
 import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
@@ -19,6 +18,8 @@ import android.service.quicksettings.TileService
 import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.core.graphics.createBitmap
+import androidx.core.net.toUri
 import androidx.databinding.Observable
 import androidx.databinding.Observable.OnPropertyChangedCallback
 import com.wireguard.android.activity.MainActivity
@@ -82,7 +83,7 @@ class QuickTileService : TileService() {
                                 Log.d(TAG, "Failed to set state, so falling back", e)
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && !Settings.canDrawOverlays(this@QuickTileService)) {
                                     Log.d(TAG, "Need overlay permissions")
-                                    val permissionIntent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
+                                    val permissionIntent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, "package:$packageName".toUri())
                                     permissionIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                     startActivityAndCollapse(
                                         PendingIntent.getActivity(
@@ -115,13 +116,13 @@ class QuickTileService : TileService() {
         val icon = SlashDrawable(resources.getDrawable(R.mipmap.ic_launcher, Application.get().theme))
         icon.setAnimationEnabled(false) /* Unfortunately we can't have animations, since Icons are marshaled. */
         icon.setSlashed(false)
-        var b = Bitmap.createBitmap(icon.intrinsicWidth, icon.intrinsicHeight, Bitmap.Config.ARGB_8888)
+        var b = createBitmap(icon.intrinsicWidth, icon.intrinsicHeight, Bitmap.Config.ARGB_8888)
         var c = Canvas(b)
         icon.setBounds(0, 0, c.width, c.height)
         icon.draw(c)
         iconOn = Icon.createWithBitmap(b)
         icon.setSlashed(true)
-        b = Bitmap.createBitmap(icon.intrinsicWidth, icon.intrinsicHeight, Bitmap.Config.ARGB_8888)
+        b = createBitmap(icon.intrinsicWidth, icon.intrinsicHeight, Bitmap.Config.ARGB_8888)
         c = Canvas(b)
         icon.setBounds(0, 0, c.width, c.height)
         icon.draw(c)

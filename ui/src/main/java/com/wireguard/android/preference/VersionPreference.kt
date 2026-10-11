@@ -6,9 +6,9 @@ package com.wireguard.android.preference
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.util.AttributeSet
 import android.widget.Toast
+import androidx.core.net.toUri
 import androidx.preference.Preference
 import com.wireguard.android.Application
 import com.wireguard.android.BuildConfig
@@ -31,7 +31,7 @@ class VersionPreference(context: Context, attrs: AttributeSet?) : Preference(con
 
     override fun onClick() {
         val intent = Intent(Intent.ACTION_VIEW)
-        intent.data = Uri.parse("https://vcs.virtucomputing.com/")
+        intent.data = "https://vcs.virtucomputing.com/".toUri()
         try {
             context.startActivity(intent)
         } catch (e: Throwable) {

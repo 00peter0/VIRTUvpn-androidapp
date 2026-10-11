@@ -21,6 +21,7 @@ import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import com.wireguard.android.Application
 import com.wireguard.android.R
@@ -187,7 +188,7 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
     }
 
     private fun credentialsForHost(host: String): Pair<String, String>? {
-        val uri = runCatching { Uri.parse(terminalUrl.orEmpty()) }.getOrNull() ?: return null
+        val uri = runCatching { terminalUrl.orEmpty().toUri() }.getOrNull() ?: return null
         val uriHost = uri.host ?: return null
         if (!uriHost.equals(host, ignoreCase = true)) return null
         val userInfo = uri.encodedUserInfo ?: uri.userInfo ?: return null

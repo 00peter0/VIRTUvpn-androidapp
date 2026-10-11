@@ -381,83 +381,6 @@
 
     <issue
         id="UseKtx"
-        message="Use the KTX extension function `Int.toDrawable` instead?"
-        errorLine1="        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))"
-        errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="614"
-            column="46"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(VpnRouterAttestation.pairingLandingUrl(this))))"
-        errorLine2="                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="788"
-            column="50"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(&quot;$baseUrl$path&quot;)))"
-        errorLine2="                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="1020"
-            column="50"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                lastUri = Uri.parse(&quot;content://${BuildConfig.APPLICATION_ID}.exported-log/$key&quot;)"
-        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/LogViewerActivity.kt"
-            line="121"
-            column="27"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                                    val permissionIntent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse(&quot;package:$packageName&quot;))"
-        errorLine2="                                                                                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/QuickTileService.kt"
-            line="85"
-            column="110"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX function `createBitmap` instead?"
-        errorLine1="        var b = Bitmap.createBitmap(icon.intrinsicWidth, icon.intrinsicHeight, Bitmap.Config.ARGB_8888)"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/QuickTileService.kt"
-            line="118"
-            column="17"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX function `createBitmap` instead?"
-        errorLine1="        b = Bitmap.createBitmap(icon.intrinsicWidth, icon.intrinsicHeight, Bitmap.Config.ARGB_8888)"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/QuickTileService.kt"
-            line="124"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
         message="Use the KTX extension function `SharedPreferences.edit` instead?"
         errorLine1="        getPreferences(MODE_PRIVATE).edit().putBoolean(PREF_KEEP_SESSIONS_ON_LEAVE, keepSessionsOnLeave).apply()"
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -465,17 +388,6 @@
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
             line="317"
             column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="        val isHttps = normalizedUrl?.let { Uri.parse(it).scheme.equals(&quot;https&quot;, ignoreCase = true) } == true"
-        errorLine2="                                           ~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="705"
-            column="44"/>
     </issue>
 
     <issue
@@ -502,28 +414,6 @@
 
     <issue
         id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="        if (!isAllowedBrowserUrl(Uri.parse(url), isTopLevel = true)) return false"
-        errorLine2="                                 ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="801"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="        val uri = Uri.parse(url)"
-        errorLine2="                  ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="960"
-            column="19"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
         message="Use the KTX extension function `SharedPreferences.edit` instead?"
         errorLine1="        getPreferences(MODE_PRIVATE)"
         errorLine2="        ^">
@@ -531,39 +421,6 @@
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
             line="1085"
             column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            val uri = runCatching { Uri.parse(candidate) }.getOrNull() ?: continue"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1113"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            val host = runCatching { Uri.parse(url).host }.getOrNull()"
-        errorLine2="                                     ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1308"
-            column="38"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="        val uri = Uri.parse(url)"
-        errorLine2="                  ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1463"
-            column="19"/>
     </issue>
 
     <issue
@@ -579,28 +436,6 @@
 
     <issue
         id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="        val uri = Uri.parse(url)"
-        errorLine2="                  ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1540"
-            column="19"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                normalizeUrl(initialUrl)?.takeIf { isAllowedBrowserUrl(Uri.parse(it), isTopLevel = true) }?.let {"
-        errorLine2="                                                                       ~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1856"
-            column="72"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
         message="Use the KTX extension function `Canvas.withSave` instead?"
         errorLine1="        canvas.save()"
         errorLine2="        ~~~~~~~~~~~~~">
@@ -608,127 +443,6 @@
             file="src/main/java/com/wireguard/android/widget/SlashDrawable.kt"
             line="30"
             column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(&quot;https://dnscheck.tools&quot;)))"
-        errorLine2="                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/fragment/TunnelDetailFragment.kt"
-            line="72"
-            column="58"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                                    data = Uri.parse(&quot;https://play.google.com/store/apps/details?id=com.cxinventor.file.explorer&quot;)"
-        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/TvMainActivity.kt"
-            line="223"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                                    data = Uri.parse(&quot;https://play.google.com/store/apps/details?id=com.cxinventor.file.explorer&quot;)"
-        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/TvMainActivity.kt"
-            line="223"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `Int.toDrawable` instead?"
-        errorLine1="            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))"
-        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/util/VcsDialogs.kt"
-            line="124"
-            column="35"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            val uri = Uri.parse(trimmed)"
-        errorLine2="                      ~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/vcs/VcsManagedClient.kt"
-            line="816"
-            column="23"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="        intent.data = Uri.parse(&quot;https://vcs.virtucomputing.com/&quot;)"
-        errorLine2="                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/preference/VersionPreference.kt"
-            line="34"
-            column="23"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="        intent.data = Uri.parse(&quot;https://vcs.virtucomputing.com/&quot;)"
-        errorLine2="                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/preference/VersionPreference.kt"
-            line="34"
-            column="23"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX function `createBitmap` instead?"
-        errorLine1="        val bitmap = Bitmap.createBitmap(QR_SIZE, QR_SIZE, Bitmap.Config.ARGB_8888)"
-        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/VpnRouterActivity.kt"
-            line="294"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `Bitmap.set` instead?"
-        errorLine1="                bitmap.setPixel(x, y, if (matrix[x, y]) Color.BLACK else Color.WHITE)"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/VpnRouterActivity.kt"
-            line="297"
-            column="17"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="        val direct = runCatching { parsePairingUri(Uri.parse(trimmed)) }.getOrNull()"
-        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/util/VpnRouterAttestation.kt"
-            line="197"
-            column="52"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                parsePairingUri(Uri.parse(&quot;virtuvpn://router-pair?$hash&quot;))"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/util/VpnRouterAttestation.kt"
-            line="202"
-            column="33"/>
     </issue>
 
     <issue
@@ -949,17 +663,6 @@
             file="src/main/java/com/wireguard/android/util/VpnRouterManager.kt"
             line="1029"
             column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="        val uri = runCatching { Uri.parse(terminalUrl.orEmpty()) }.getOrNull() ?: return null"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/WebTerminalBrowserActivity.kt"
-            line="177"
-            column="33"/>
     </issue>
 
     <issue

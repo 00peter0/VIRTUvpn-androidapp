@@ -30,6 +30,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.collection.CircularArray
 import androidx.core.app.ShareCompat
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -118,7 +119,7 @@ class LogViewerActivity : AppCompatActivity() {
                 revokeLastUri()
                 val key = KeyPair().privateKey.toHex()
                 LOGS[key] = rawLogBytes()
-                lastUri = Uri.parse("content://${BuildConfig.APPLICATION_ID}.exported-log/$key")
+                lastUri = "content://${BuildConfig.APPLICATION_ID}.exported-log/$key".toUri()
                 val shareIntent = ShareCompat.IntentBuilder(this@LogViewerActivity)
                     .setType("text/plain")
                     .setSubject(getString(R.string.log_export_subject))

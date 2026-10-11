@@ -25,6 +25,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
+import androidx.core.net.toUri
 import androidx.core.view.forEach
 import androidx.databinding.DataBindingUtil
 import androidx.databinding.Observable
@@ -220,7 +221,7 @@ class TvMainActivity : AppCompatActivity() {
                         positive = VcsDialogs.action(this, android.R.string.ok, primary = true) {
                             try {
                                 startActivity(Intent(Intent.ACTION_VIEW).apply {
-                                    data = Uri.parse("https://play.google.com/store/apps/details?id=com.cxinventor.file.explorer")
+                                    data = "https://play.google.com/store/apps/details?id=com.cxinventor.file.explorer".toUri()
                                     setPackage("com.android.vending")
                                 })
                             } catch (_: Throwable) {

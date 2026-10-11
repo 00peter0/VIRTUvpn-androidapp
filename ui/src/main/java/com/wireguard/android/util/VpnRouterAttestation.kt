@@ -16,6 +16,7 @@ import android.system.OsConstants
 import android.system.StructTimeval
 import android.util.Base64
 import android.util.Log
+import androidx.core.net.toUri
 import com.wireguard.android.R
 import org.json.JSONArray
 import org.json.JSONObject
@@ -221,12 +222,12 @@ object VpnRouterAttestation {
 
     fun parsePairingValue(value: String): Pairing? {
         val trimmed = value.trim()
-        val direct = runCatching { parsePairingUri(Uri.parse(trimmed)) }.getOrNull()
+        val direct = runCatching { parsePairingUri(trimmed.toUri()) }.getOrNull()
         if (direct != null) return direct
         val hash = trimmed.substringAfter('#', missingDelimiterValue = "")
         if (hash.isNotBlank()) {
             return runCatching {
-                parsePairingUri(Uri.parse("virtuvpn://router-pair?$hash"))
+                parsePairingUri("virtuvpn://router-pair?$hash".toUri())
             }.getOrNull()
         }
         return null

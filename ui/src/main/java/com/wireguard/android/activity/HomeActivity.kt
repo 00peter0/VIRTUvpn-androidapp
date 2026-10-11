@@ -10,8 +10,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
@@ -28,7 +26,9 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.drawable.toDrawable
 import androidx.core.graphics.toColorInt
+import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.wireguard.android.Application
@@ -619,7 +619,7 @@ class HomeActivity : AppCompatActivity() {
             true
         }
         dialog.show()
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        dialog.window?.setBackgroundDrawable(Color.TRANSPARENT.toDrawable())
         dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
         dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.9f).toInt(), WindowManager.LayoutParams.WRAP_CONTENT)
         dialogBinding.emailInput.requestFocus()
@@ -798,7 +798,7 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun openRouterPairingPage() {
-        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(VpnRouterAttestation.pairingLandingUrl(this))))
+        startActivity(Intent(Intent.ACTION_VIEW, VpnRouterAttestation.pairingLandingUrl(this).toUri()))
     }
 
     private fun toggleVpnRouter() {
@@ -1016,7 +1016,7 @@ class HomeActivity : AppCompatActivity() {
         (value * resources.displayMetrics.density).toInt()
 
     private fun openSection(path: String) {
-        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$baseUrl$path")))
+        startActivity(Intent(Intent.ACTION_VIEW, "$baseUrl$path".toUri()))
     }
 
     companion object {

@@ -45,6 +45,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
+import androidx.core.net.toUri
 import androidx.core.widget.addTextChangedListener
 import androidx.lifecycle.lifecycleScope
 import androidx.webkit.WebSettingsCompat
@@ -715,7 +716,7 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun updateSecurityBadges(url: String?) {
         val normalizedUrl = url?.takeIf { it.isNotBlank() && it != "about:blank" }
-        val isHttps = normalizedUrl?.let { Uri.parse(it).scheme.equals("https", ignoreCase = true) } == true
+        val isHttps = normalizedUrl?.let { it.toUri().scheme.equals("https", ignoreCase = true) } == true
         binding.httpsBadge.text = when {
             blocked -> getString(R.string.vcs_secure_browser_https_waiting)
             isHttps -> getString(R.string.vcs_secure_browser_https_locked)
@@ -840,7 +841,7 @@ class SecureBrowserActivity : AppCompatActivity() {
             .extra
             ?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
             ?: return false
-        if (!isAllowedBrowserUrl(Uri.parse(url), isTopLevel = true)) return false
+        if (!isAllowedBrowserUrl(url.toUri(), isTopLevel = true)) return false
         VcsDialogs.showChoice(
             context = this,
             title = url,
@@ -998,7 +999,7 @@ class SecureBrowserActivity : AppCompatActivity() {
 
     private fun openUrlInActiveTab(url: String?) {
         if (url == null) return
-        val uri = Uri.parse(url)
+        val uri = url.toUri()
         if (!isAllowedBrowserUrl(uri, isTopLevel = true)) {
             Toast.makeText(this, R.string.vcs_secure_browser_blocked_public_http, Toast.LENGTH_LONG).show()
             return
@@ -1151,7 +1152,7 @@ class SecureBrowserActivity : AppCompatActivity() {
             intent.getStringExtra(EXTRA_INITIAL_URL).orEmpty()
         )
         for (candidate in candidates) {
-            val uri = runCatching { Uri.parse(candidate) }.getOrNull() ?: continue
+            val uri = runCatching { candidate.toUri() }.getOrNull() ?: continue
             val uriHost = uri.host ?: continue
             if (!uriHost.equals(host, ignoreCase = true)) continue
             val userInfo = uri.encodedUserInfo ?: uri.userInfo ?: continue
@@ -1347,7 +1348,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         if (!title.isNullOrBlank() && title != "about:blank") return title
         val url = tab.url?.trim()
         if (!url.isNullOrBlank()) {
-            val host = runCatching { Uri.parse(url).host }.getOrNull()
+            val host = runCatching { url.toUri().host }.getOrNull()
             if (!host.isNullOrBlank()) return host.removePrefix("www.")
             return url
         }
@@ -1502,7 +1503,7 @@ class SecureBrowserActivity : AppCompatActivity() {
             ?: binding.urlInput.text?.toString().orEmpty()
         val url = normalizeUrl(currentValue)
         if (url == null) return
-        val uri = Uri.parse(url)
+        val uri = url.toUri()
         if (!isAllowedBrowserUrl(uri, isTopLevel = true)) {
             Toast.makeText(this, R.string.vcs_secure_browser_blocked_public_http, Toast.LENGTH_LONG).show()
             return
@@ -1579,7 +1580,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun bookmarkLabel(url: String): String {
-        val uri = Uri.parse(url)
+        val uri = url.toUri()
         if (url.equals(GOOGLE_URL, ignoreCase = true)) return getString(R.string.vcs_secure_browser_bookmark_google)
         return uri.host?.removePrefix("www.") ?: url
     }
@@ -1896,7 +1897,7 @@ class SecureBrowserActivity : AppCompatActivity() {
             if (userInitiatedNavigation &&
                 (activeWebView().url.isNullOrBlank() || activeWebView().url == "about:blank")
             ) {
-                normalizeUrl(initialUrl)?.takeIf { isAllowedBrowserUrl(Uri.parse(it), isTopLevel = true) }?.let {
+                normalizeUrl(initialUrl)?.takeIf { isAllowedBrowserUrl(it.toUri(), isTopLevel = true) }?.let {
                     loadUrlWithPrivacyHeaders(it)
                 }
             }
