@@ -13,6 +13,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.toColorInt
 import androidx.lifecycle.lifecycleScope
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
@@ -198,7 +199,7 @@ class VpnRouterActivity : AppCompatActivity() {
         if (operationDialog?.isShowing == true) return
         operationDialogMessage = TextView(this).apply {
             text = VpnRouterOperationFormatter.message(this@VpnRouterActivity, VpnRouterManager.getOperationStatus(this@VpnRouterActivity))
-            setTextColor(Color.parseColor("#AFC0CC"))
+            setTextColor("#AFC0CC".toColorInt())
             textSize = 14f
             setLineSpacing(4f, 1.0f)
             layoutParams = LinearLayout.LayoutParams(
@@ -429,10 +430,10 @@ class VpnRouterActivity : AppCompatActivity() {
     }
 
     private companion object {
-        val TEXT: Int = Color.parseColor("#AFC0CC")
-        val GREEN: Int = Color.parseColor("#86EFAC")
-        val YELLOW: Int = Color.parseColor("#FBBF24")
-        val RED: Int = Color.parseColor("#F87171")
+        val TEXT: Int = "#AFC0CC".toColorInt()
+        val GREEN: Int = "#86EFAC".toColorInt()
+        val YELLOW: Int = "#FBBF24".toColorInt()
+        val RED: Int = "#F87171".toColorInt()
         const val QR_SIZE: Int = 512
     }
 }

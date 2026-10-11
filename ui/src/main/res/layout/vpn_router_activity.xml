@@ -50,6 +50,7 @@
                 android:padding="16dp">
 
                 <ImageView
+                    android:contentDescription="@null"
                     android:layout_width="22dp"
                     android:layout_height="22dp"
                     android:layout_marginEnd="12dp"
@@ -152,6 +153,7 @@
                     android:gravity="center_vertical">
 
                     <ImageView
+                        android:contentDescription="@null"
                         android:layout_width="16dp"
                         android:layout_height="16dp"
                         android:layout_marginEnd="8dp"
@@ -203,6 +205,7 @@
                     android:gravity="center_vertical">
 
                     <ImageView
+                        android:contentDescription="@null"
                         android:layout_width="16dp"
                         android:layout_height="16dp"
                         android:layout_marginEnd="8dp"
@@ -264,6 +267,7 @@
                         android:layout_width="16dp"
                         android:layout_height="16dp"
                         android:layout_marginEnd="8dp"
+                        android:contentDescription="@null"
                         android:src="@drawable/ic_web"
                         app:tint="#AFC0CC" />
 
@@ -334,6 +338,7 @@
                         android:layout_width="16dp"
                         android:layout_height="16dp"
                         android:layout_marginEnd="8dp"
+                        android:contentDescription="@null"
                         android:src="@drawable/ic_web"
                         app:tint="#AFC0CC" />
 

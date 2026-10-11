@@ -3,38 +3,37 @@
     <plurals name="delete_error">
         <item quantity="one">Impossible de supprimer %d tunnel : %s</item>
         <item quantity="other">Impossible de supprimer %d tunnels : %s</item>
+        <item quantity="many">Impossible de supprimer %d tunnels : %s</item>
     </plurals>
     <plurals name="delete_success">
         <item quantity="one">Suppression réussie du tunnel %d</item>
         <item quantity="other">%d tunnels supprimés avec succès</item>
+        <item quantity="many">%d tunnels supprimés avec succès</item>
     </plurals>
     <plurals name="delete_title">
         <item quantity="one">%d tunnel sélectionné</item>
         <item quantity="other">%d tunnels sélectionnés</item>
+        <item quantity="many">%d tunnels sélectionnés</item>
     </plurals>
     <plurals name="import_partial_success">
         <item quantity="one">%1$d de %2$d tunnels importés</item>
         <item quantity="other">%1$d de %2$d tunnels importés</item>
+        <item quantity="many">%1$d de %2$d tunnels importés</item>
     </plurals>
     <plurals name="import_total_success">
         <item quantity="one">%d tunnel importé</item>
         <item quantity="other">%d tunnels importés</item>
+        <item quantity="many">%d tunnels importés</item>
     </plurals>
     <plurals name="set_excluded_applications">
         <item quantity="one">%d application exclue</item>
         <item quantity="other">%d applications exclues</item>
+        <item quantity="many">%d applications exclues</item>
     </plurals>
     <plurals name="set_included_applications">
         <item quantity="one">%d application incluse</item>
         <item quantity="other">%d applications incluses</item>
-    </plurals>
-    <plurals name="n_excluded_applications">
-        <item quantity="one">%d exclue</item>
-        <item quantity="other">%d exclues</item>
-    </plurals>
-    <plurals name="n_included_applications">
-        <item quantity="one">%d incluse</item>
-        <item quantity="other">%d incluses</item>
+        <item quantity="many">%d applications incluses</item>
     </plurals>
     <string name="all_applications">Toutes les Applications</string>
     <string name="exclude_from_tunnel">Exclure</string>
@@ -42,26 +41,21 @@
     <plurals name="include_n_applications">
         <item quantity="one">Inclure %d application</item>
         <item quantity="other">Inclure %d applications</item>
+        <item quantity="many">Inclure %d applications</item>
     </plurals>
     <plurals name="exclude_n_applications">
         <item quantity="one">Exclure %d application</item>
         <item quantity="other">Exclure %d applications</item>
-    </plurals>
-    <plurals name="persistent_keepalive_seconds_unit">
-        <item quantity="one">chaque seconde</item>
-        <item quantity="other">tous les %d secondes</item>
+        <item quantity="many">Exclure %d applications</item>
     </plurals>
     <plurals name="persistent_keepalive_seconds_suffix">
         <item quantity="one">seconde</item>
         <item quantity="other">secondes</item>
+        <item quantity="many">secondes</item>
     </plurals>
     <string name="use_all_applications">Utiliser toutes les applications</string>
     <string name="add_peer">Ajouter un pair</string>
     <string name="addresses">Adresses</string>
-    <string name="applications">Applications</string>
-    <string name="allow_remote_control_intents_summary_off">Les applications externes ne peuvent pas activer les tunnels (recommandé)</string>
-    <string name="allow_remote_control_intents_summary_on">Les applications externes peuvent activer les tunnels (avancés)</string>
-    <string name="allow_remote_control_intents_title">Autoriser les applications de contrôle à distance</string>
     <string name="allowed_ips">Adresses IP autorisées</string>
     <string name="bad_config_context">%1$s de %2$s</string>
     <string name="bad_config_context_top_level">%s</string>
@@ -77,7 +71,6 @@
     <string name="bad_config_reason_syntax_error">Erreur de syntaxe</string>
     <string name="bad_config_reason_unknown_attribute">Attribut inconnu</string>
     <string name="bad_config_reason_unknown_section">Section inconnue</string>
-    <string name="bad_config_reason_value_out_of_range">Valeur hors limite</string>
     <string name="bad_extension_error">Le fichier doit être .conf ou .zip</string>
     <string name="error_no_qr_found">Le code QR est introuvable dans l’image</string>
     <string name="error_qr_checksum">La vérification de la somme de contrôle du QR code a échoué</string>
@@ -113,7 +106,6 @@
     <string name="disable_config_export_title">Désactiver l\'export de configuration</string>
     <string name="disable_config_export_description">La désactivation de l\'export de configuration rend les clés privées moins accessibles</string>
     <string name="dns_servers">Serveurs DNS</string>
-    <string name="dns_search_domains">Domaines de recherche DNS</string>
     <string name="edit">Modifier</string>
     <string name="endpoint">Point de terminaison</string>
     <string name="error_down">Erreur lors de la désactivation du tunnel : %s</string>
@@ -139,27 +131,19 @@
     <string name="key_length_explanation_base64">: Les clés base64 WireGuard doivent comporter 44 caractères (32 octets)</string>
     <string name="key_length_explanation_binary">: Les clés WireGuard doivent comporter 32 octets</string>
     <string name="key_length_explanation_hex">: Les clés hexadécimales WireGuard doivent comporter 64 caractères (32 octets)</string>
-    <string name="latest_handshake">Dernière liaison</string>
     <string name="latest_handshake_ago">Il y a %s</string>
     <string name="listen_port">Port d\'écoute</string>
     <string name="log_export_error">Impossible d\'exporter le journal : %s</string>
     <string name="log_export_subject">Fichier journal de Virtu VPN</string>
     <string name="log_export_success">Enregistré dans « %s »</string>
     <string name="log_export_title">Exporter le fichier journal</string>
-    <string name="log_saver_activity_label">Enregistrer le journal</string>
     <string name="log_viewer_pref_summary">Les journaux peuvent aider au débogage</string>
     <string name="log_viewer_pref_title">Afficher le journal de l\'application</string>
     <string name="log_viewer_title">Journal</string>
-    <string name="logcat_error">Impossible d\'exécuter logcat : </string>
     <string name="module_enabler_disabled_summary">Le module expérimental du noyau peut améliorer les performances</string>
     <string name="module_enabler_disabled_title">Activer le backend du module du noyau</string>
     <string name="module_enabler_enabled_summary">Le backend plus lent de l\'espace utilisateur peut améliorer la stabilité</string>
     <string name="module_enabler_enabled_title">Désactiver le backend du module du noyau</string>
-    <string name="module_installer_error">Une erreur est survenue. Veuillez réessayer</string>
-    <string name="module_installer_initial">Le module expérimental du noyau peut améliorer les performances</string>
-    <string name="module_installer_not_found">Aucun module n\'est disponible pour votre appareil</string>
-    <string name="module_installer_title">Télécharger et installer le module du noyau</string>
-    <string name="module_installer_working">Téléchargement et installation en cours…</string>
     <string name="module_version_error">Impossible de déterminer la version du module noyau</string>
     <string name="mtu">MTU</string>
     <string name="multiple_tunnels_summary_off">Activer un tunnel éteindra les autres</string>
@@ -180,10 +164,8 @@
     <string name="permission_label">contrôler les tunnels VPN</string>
     <string name="persistent_keepalive">Maintien de connexion permanente</string>
     <string name="pre_shared_key">Clé pré-partagée</string>
-    <string name="pre_shared_key_enabled">activée</string>
     <string name="private_key">Clé privée</string>
     <string name="public_key">Clé publique</string>
-    <string name="qr_code_hint">Astuce : générez avec \"qrencode -t ansiutf8 &lt; tunnel.conf\".</string>
     <string name="quick_settings_tile_add_title">Ajouter une bascule au volet des paramètres</string>
     <string name="quick_settings_tile_add_summary">Cette bascule active le dernier tunnel utilisé</string>
     <string name="quick_settings_tile_add_failure">Impossible d\'ajouter la bascule : erreur %d</string>
@@ -209,8 +191,6 @@
     <string name="tools_installer_success_system">wg et wg-quick installés dans la partition système</string>
     <string name="tools_installer_title">Installer les outils de ligne de commande</string>
     <string name="tools_installer_working">Installation de wg et wg-quick</string>
-    <string name="tools_unavailable_error">Outils requis indisponibles</string>
-    <string name="transfer">Données transférées</string>
     <string name="transfer_bytes">%d Octets</string>
     <string name="transfer_gibibytes">%.2f Go</string>
     <string name="transfer_kibibytes">%.2f Ko</string>
@@ -248,4 +228,87 @@
     <string name="biometric_auth_error_reason">Échec de l\'authentification : %s</string>
     <string name="vcs_enroll_confirm_title">Inscrire cet appareil ?</string>
     <string name="vcs_enroll_confirm_message">Inscrire cet appareil auprès du serveur VCS %1$s ? Continuez uniquement s’il s’agit de votre application VCS VirtuComputing.</string>
+    <string name="vcs_home_managed_access_vpn_cluster">Cluster VPN</string>
+    <string name="vcs_home_managed_access_s2s_cluster">Cluster S2S</string>
+    <string name="vcs_shortcut_secured_browser_short">Secured Browser</string>
+    <string name="vcs_shortcut_secured_browser_long">Ouvrir VirtuVPN Secured Browser</string>
+    <string name="vcs_shortcut_vpn_router_short">Routeur VPN</string>
+    <string name="vcs_shortcut_vpn_router_long">Ouvrir VirtuVPN Router</string>
+    <string name="vcs_widget_vpn_router_title">Virtu VPN Router</string>
+    <string name="vcs_widget_vpn_router_description">Affiche le chemin de connexion protégé du routeur VPN.</string>
+    <string name="vcs_widget_vpn_router_vpn">VPN</string>
+    <string name="vcs_widget_vpn_router_router">Routeur</string>
+    <string name="vcs_widget_vpn_router_hotspot">Point d\'accès</string>
+    <string name="vcs_widget_vpn_router_clients">Clients</string>
+    <string name="vcs_widget_vpn_router_protected">Protégé</string>
+    <string name="vcs_widget_vpn_router_disabled">Désactivé</string>
+    <string name="vcs_widget_vpn_router_ready">Prêt</string>
+    <string name="vcs_widget_vpn_router_waiting_tunnel">Démarrer le VPN</string>
+    <string name="vcs_widget_vpn_router_waiting_hotspot">Point d\'accès désactivé</string>
+    <string name="vcs_widget_vpn_router_open_to_check">Ouvrir pour vérifier</string>
+    <string name="vcs_widget_vpn_router_open">Ouvrir</string>
+    <string name="vcs_widget_vpn_router_check">Vérifier</string>
+    <string name="vcs_widget_vpn_router_enable">Activer</string>
+    <string name="vcs_widget_vpn_router_disable">Désactiver</string>
+    <string name="vcs_widget_vpn_router_client_page">Associer</string>
+    <string name="vcs_widget_vpn_router_browser">Navigateur</string>
+    <string name="vcs_widget_vpn_router_tunnel">Tunnel : %1$s</string>
+    <string name="vcs_widget_vpn_router_tap_detail">Appuyez pour ouvrir l\'état du routeur.</string>
+    <string name="vcs_widget_vpn_router_dns">DNS : %1$s</string>
+    <string name="vcs_widget_vpn_router_dns_unknown">DNS : vérifier le routeur</string>
+    <string name="vcs_widget_vpn_router_dns_tunnel">Tunnel</string>
+    <string name="vcs_widget_vpn_router_dns_cloudflare">Cloudflare</string>
+    <string name="vcs_widget_vpn_router_dns_quad9">Quad9</string>
+    <string name="vcs_widget_vpn_router_dns_family">Famille</string>
+    <string name="vcs_widget_vpn_router_hotspot_iface">Point d\'accès : %1$s</string>
+    <string name="vcs_widget_vpn_router_hotspot_off">Point d\'accès : désactivé</string>
+    <string name="vcs_widget_vpn_router_tunnel_online">Tunnel en ligne</string>
+    <string name="vcs_widget_vpn_router_tunnel_offline">Tunnel hors ligne</string>
+    <string name="vcs_widget_vpn_router_tunnel_unknown">Tunnel : vérifier</string>
+    <string name="vcs_widget_vpn_router_clients_count">Clients : %1$d</string>
+    <string name="vcs_widget_vpn_router_clients_unknown">Clients : -</string>
+    <string name="vcs_widget_vpn_router_checked">Vérifié %1$s</string>
+    <string name="vcs_widget_vpn_router_checked_unknown">Vérifié -</string>
+    <string name="vcs_widget_vpn_router_warning_protected">La protection fail-closed est active. Utilisez Secured Browser sur les clients.</string>
+    <string name="vcs_widget_vpn_router_warning_tunnel_offline">Protégé, mais la connexion Internet du tunnel est hors ligne. Les clients ne peuvent pas transmettre de données hors du tunnel.</string>
+    <string name="vcs_widget_vpn_router_warning_waiting_vpn">Démarrez un tunnel VPN avant d\'activer Internet sur le routeur.</string>
+    <string name="vcs_widget_vpn_router_warning_hotspot_off">Activez le point d\'accès pour les clients du routeur.</string>
+    <string name="vcs_widget_vpn_router_warning_default">L\'état du routeur est vérifié par VirtuVPN.</string>
+    <string name="vcs_create_account">Créer un compte VCS</string>
+    <string name="vcs_kill_switch_browser_hint">Pour naviguer, utilisez VirtuVPN Secured Browser comme protection supplémentaire de la vie privée. Il vérifie la protection VPN ou du routeur VPN avant de charger les pages.</string>
+    <string name="vcs_vpn_router_uplink_preference">Préférence de liaison VPN</string>
+    <string name="vcs_vpn_router_uplink_automatic">Automatique — suivre le routage par défaut d\'Android</string>
+    <string name="vcs_vpn_router_uplink_prefer_wifi">Préférer le WiFi — utiliser le réseau mobile en secours</string>
+    <string name="vcs_vpn_router_uplink_prefer_mobile">Préférer le réseau mobile — utiliser le WiFi en secours</string>
+    <string name="vcs_vpn_router_uplink_preference_detail">S\'applique dynamiquement aux tunnels VPN Virtu en espace utilisateur. Seuls les réseaux validés sont sélectionnés ; Automatique reste le choix de secours sûr.</string>
+    <string name="vcs_vpn_router_uplink_automatic_only">La préférence de liaison est disponible lorsqu\'un tunnel VPN Virtu en espace utilisateur est connecté. Les tunnels du noyau, les tunnels Virtu inactifs et les fournisseurs VPN externes continuent d\'utiliser le routage automatique d\'Android.</string>
+    <string name="vcs_vpn_router_guest_download_inactive">Activez le routeur VPN pour afficher le QR d\'installation locale</string>
+    <string name="vcs_vpn_router_mode">Mode du routeur</string>
+    <string name="vcs_vpn_router_mode_strict">Mode strict</string>
+    <string name="vcs_vpn_router_mode_nested">Mode imbriqué</string>
+    <string name="vcs_vpn_router_mode_detail">Le mode strict bloque QUIC sur UDP/443 pour renforcer la politique DNS. Le mode imbriqué autorise les tunnels VPN des clients à travers le VPN du routeur ; le filtrage DNS peut être contourné, mais le basculement vers le réseau mobile reste bloqué.</string>
+    <string name="vcs_secure_browser_cookies_on">Cookies activés</string>
+    <string name="vcs_secure_browser_cookies_off">Cookies désactivés</string>
+    <string name="vcs_secure_browser_https_waiting">HTTPS uniquement : prêt</string>
+    <string name="vcs_secure_browser_https_badge_description">État HTTPS uniquement</string>
+    <string name="vcs_secure_browser_https_locked">HTTPS uniquement : verrouillé</string>
+    <string name="vcs_sync_partial">Synchronisation partiellement terminée. Opérations à réessayer : %1$d. Les profils existants ont été conservés.</string>
+    <string name="vcs_browser_shared_cookies">Cookies partagés — mettez à jour Android System WebView pour isoler le navigateur</string>
+    <string name="vcs_device_diagnostics">Diagnostic de l\'appareil</string>
+    <string name="vcs_sync_waiting">Synchronisation gérée : en attente de la synchronisation de l\'appareil</string>
+    <string name="vcs_sync_status_summary">Synchronisation gérée : %1$s · %2$d s\n%3$s</string>
+    <string name="vcs_optional_account_status">VCS non connecté (facultatif pour Secure Browser et le routeur VPN avec un VPN tiers)</string>
+    <string name="log_viewer_share_logs">Partager les journaux</string>
+    <string name="vcs_vpn_status_checking">Vérification de l\'état du VPN…</string>
+    <string name="vcs_hotspot_vpn_bypass_warning">AVERTISSEMENT POINT D\'ACCÈS MOBILE : les appareils connectés ne sont pas protégés par ce VPN Android. Installez un tunnel sur chaque appareil connecté ou activez le routeur VPN.</string>
+    <string name="vcs_vpn_router_checking">Vérification du routeur VPN…</string>
+    <string name="vcs_vpn_router_degraded">Fail-closed : aucun chemin Internet protégé. Les clients du point d\'accès sont bloqués jusqu\'à ce que le tunnel VPN du routeur et la connexion Internet en amont fonctionnent tous les deux.</string>
+    <string name="vcs_vpn_router_uplink_checking">Vérification de la liaison montante…</string>
+    <string name="vcs_vpn_router_service_starting">Démarrage de la protection du routeur…</string>
+    <string name="vcs_vpn_router_service_degraded">Aucun chemin Internet protégé (tunnel VPN ou connexion Internet en amont indisponible). Les clients du point d\'accès restent bloqués par la protection fail-closed.</string>
+    <string name="vcs_secure_browser_blocked_router_degraded">Le routeur VPN associé est en état fail-closed : son tunnel VPN ou sa connexion Internet en amont est indisponible. Vérifiez la connexion du routeur.</string>
+    <string name="vcs_secure_browser_egress_checking">Vérification du chemin protégé…</string>
+    <string name="vcs_secure_browser_egress_router_protected_short">Protégé par le routeur</string>
+    <string name="vcs_secure_browser_egress_router_attested_offline">Protégé par les règles fail-closed du routeur VPN. La connexion Internet du tunnel est hors ligne.</string>
+    <string name="vcs_secure_browser_egress_router_attested_via_offline">Protégé par les règles fail-closed du routeur VPN : tunnel %1$s hors ligne.</string>
 </resources>

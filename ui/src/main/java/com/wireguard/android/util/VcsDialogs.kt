@@ -17,6 +17,7 @@ import android.widget.TextView
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.toColorInt
 import androidx.core.view.isVisible
 import com.wireguard.android.R
 import com.wireguard.android.databinding.VcsMessageDialogBinding
@@ -125,7 +126,7 @@ object VcsDialogs {
             text = action.text
             textSize = 14f
             typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setTextColor(if (action.primary) Color.parseColor("#02110F") else Color.parseColor("#E5F2F7"))
+            setTextColor(if (action.primary) "#02110F".toColorInt() else "#E5F2F7".toColorInt())
             background = ContextCompat.getDrawable(
                 context,
                 if (action.primary) R.drawable.vcs_dialog_primary_button else R.drawable.vcs_dialog_secondary_button
@@ -163,7 +164,7 @@ object VcsDialogs {
             AlertDialog.BUTTON_NEUTRAL to false
         ).forEach { (which, primary) ->
             dialog.getButton(which)?.apply {
-                setTextColor(if (primary) Color.parseColor("#5EEAD4") else Color.parseColor("#E5F2F7"))
+                setTextColor(if (primary) "#5EEAD4".toColorInt() else "#E5F2F7".toColorInt())
                 isAllCaps = false
             }
         }
@@ -185,7 +186,7 @@ object VcsDialogs {
             this.text = if (selected) "✓ $text" else text
             textSize = 15f
             typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-            setTextColor(if (selected) Color.parseColor("#D1FAE5") else Color.parseColor("#E5F2F7"))
+            setTextColor(if (selected) "#D1FAE5".toColorInt() else "#E5F2F7".toColorInt())
             background = ContextCompat.getDrawable(context, R.drawable.vcs_dialog_secondary_button)
             foreground = android.util.TypedValue().let { outValue ->
                 context.theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)

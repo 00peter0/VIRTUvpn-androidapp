@@ -5,9 +5,9 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
 import android.util.Log
 import android.widget.RemoteViews
+import androidx.core.graphics.toColorInt
 import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.activity.SecureBrowserActivity
@@ -339,10 +339,10 @@ class VpnRouterWidgetProvider : AppWidgetProvider() {
         private const val REQUEST_TOGGLE_OFFSET = 20_000
         private const val REQUEST_CLIENT_OFFSET = 30_000
         private const val REQUEST_BROWSER_OFFSET = 40_000
-        private val GREEN = Color.parseColor("#76F2A1")
-        private val TEAL = Color.parseColor("#49E3F0")
-        private val YELLOW = Color.parseColor("#FBBF24")
-        private val RED = Color.parseColor("#F87171")
+        private val GREEN = "#76F2A1".toColorInt()
+        private val TEAL = "#49E3F0".toColorInt()
+        private val YELLOW = "#FBBF24".toColorInt()
+        private val RED = "#F87171".toColorInt()
         private val MAC_ADDRESS = Regex("(?i)^[0-9a-f]{2}(:[0-9a-f]{2}){5}$")
         private val RULE_TETHER = Regex("\\biif\\s+([^\\s]+)\\s+lookup\\s+1047\\b")
         private val ADDR_IFACE = Regex("^\\d+:\\s+([^\\s]+)\\s+")

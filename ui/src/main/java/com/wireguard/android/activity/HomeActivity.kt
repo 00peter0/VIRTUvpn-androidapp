@@ -28,6 +28,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.toColorInt
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.wireguard.android.Application
@@ -242,14 +243,14 @@ class HomeActivity : AppCompatActivity() {
 
         if (runningTunnelNames.isNotEmpty()) {
             binding.vpnStatusValue.setText(R.string.vcs_vpn_status_connected)
-            binding.vpnStatusValue.setTextColor(Color.parseColor("#86EFAC"))
+            binding.vpnStatusValue.setTextColor("#86EFAC".toColorInt())
             binding.vpnStatusTunnel.text = getString(R.string.vcs_vpn_status_tunnel, runningTunnelNames.joinToString(", "))
         } else {
             binding.vpnStatusValue.setText(R.string.vcs_vpn_status_disconnected)
-            binding.vpnStatusValue.setTextColor(Color.parseColor("#FBBF24"))
+            binding.vpnStatusValue.setTextColor("#FBBF24".toColorInt())
             binding.vpnStatusTunnel.setText(R.string.vcs_vpn_status_no_tunnel)
         }
-        binding.vpnStatusTunnel.setTextColor(Color.parseColor("#AFC0CC"))
+        binding.vpnStatusTunnel.setTextColor("#AFC0CC".toColorInt())
         binding.vpnStatusTunnelSelector.isEnabled = selectableTunnels.isNotEmpty()
         binding.vpnStatusTunnelSelector.alpha = if (selectableTunnels.isNotEmpty()) 1f else 0.58f
         binding.vpnStatusTunnelSelectorValue.text = targetTunnel?.name ?: getString(R.string.vcs_vpn_status_select_tunnel_none)
@@ -426,7 +427,7 @@ class HomeActivity : AppCompatActivity() {
             minLines = 3
             setSingleLine(false)
             setBackgroundResource(R.drawable.vcs_dialog_input_background)
-            setHintTextColor(Color.parseColor("#8EA2AE"))
+            setHintTextColor("#8EA2AE".toColorInt())
             setPadding(32, 24, 32, 24)
             setTextColor(Color.WHITE)
         }
@@ -736,7 +737,7 @@ class HomeActivity : AppCompatActivity() {
         if (routerOperationDialog?.isShowing == true) return
         routerOperationDialogMessage = TextView(this).apply {
             text = VpnRouterOperationFormatter.message(this@HomeActivity, VpnRouterManager.getOperationStatus(this@HomeActivity))
-            setTextColor(Color.parseColor("#AFC0CC"))
+            setTextColor("#AFC0CC".toColorInt())
             textSize = 14f
             setLineSpacing(4f, 1.0f)
             layoutParams = LinearLayout.LayoutParams(
@@ -765,7 +766,7 @@ class HomeActivity : AppCompatActivity() {
     private fun updateVpnRouterStatus() {
         if (vpnRouterActionRunning) return
         binding.vpnRouterStatus.setText(R.string.vcs_vpn_router_checking)
-        binding.vpnRouterStatus.setTextColor(Color.parseColor("#AFC0CC"))
+        binding.vpnRouterStatus.setTextColor("#AFC0CC".toColorInt())
         lifecycleScope.launch {
             val status = runCatching {
                 val current = VpnRouterManager.getStatus(this@HomeActivity)
@@ -806,7 +807,7 @@ class HomeActivity : AppCompatActivity() {
         binding.vpnRouterButton.isEnabled = false
         binding.vpnRouterButton.alpha = 0.58f
         binding.vpnRouterStatus.setText(R.string.vcs_vpn_router_checking)
-        binding.vpnRouterStatus.setTextColor(Color.parseColor("#AFC0CC"))
+        binding.vpnRouterStatus.setTextColor("#AFC0CC".toColorInt())
         lifecycleScope.launch {
             val current = lastVpnRouterStatus ?: runCatching {
                 VpnRouterManager.getStatus(this@HomeActivity)
@@ -887,31 +888,31 @@ class HomeActivity : AppCompatActivity() {
         when (status.availability) {
             VpnRouterManager.Availability.ENABLED -> {
                 binding.vpnRouterStatus.text = getString(R.string.vcs_vpn_router_on, tunnel, interfaces)
-                binding.vpnRouterStatus.setTextColor(Color.parseColor("#86EFAC"))
+                binding.vpnRouterStatus.setTextColor("#86EFAC".toColorInt())
             }
             VpnRouterManager.Availability.DEGRADED -> {
                 binding.vpnRouterStatus.text = status.detail ?: getString(R.string.vcs_vpn_router_degraded)
-                binding.vpnRouterStatus.setTextColor(Color.parseColor("#F87171"))
+                binding.vpnRouterStatus.setTextColor("#F87171".toColorInt())
             }
             VpnRouterManager.Availability.READY -> {
                 binding.vpnRouterStatus.text = getString(R.string.vcs_vpn_router_ready, tunnel, interfaces)
-                binding.vpnRouterStatus.setTextColor(Color.parseColor("#AFC0CC"))
+                binding.vpnRouterStatus.setTextColor("#AFC0CC".toColorInt())
             }
             VpnRouterManager.Availability.WAITING_FOR_TUNNEL -> {
                 binding.vpnRouterStatus.setText(R.string.vcs_vpn_router_waiting_tunnel)
-                binding.vpnRouterStatus.setTextColor(Color.parseColor("#FBBF24"))
+                binding.vpnRouterStatus.setTextColor("#FBBF24".toColorInt())
             }
             VpnRouterManager.Availability.WAITING_FOR_HOTSPOT -> {
                 binding.vpnRouterStatus.setText(R.string.vcs_vpn_router_waiting_hotspot)
-                binding.vpnRouterStatus.setTextColor(Color.parseColor("#FBBF24"))
+                binding.vpnRouterStatus.setTextColor("#FBBF24".toColorInt())
             }
             VpnRouterManager.Availability.UNSUPPORTED -> {
                 binding.vpnRouterStatus.text = status.detail ?: getString(R.string.vcs_vpn_router_unsupported)
-                binding.vpnRouterStatus.setTextColor(Color.parseColor("#FBBF24"))
+                binding.vpnRouterStatus.setTextColor("#FBBF24".toColorInt())
             }
             VpnRouterManager.Availability.ERROR -> {
                 binding.vpnRouterStatus.text = getString(R.string.vcs_vpn_router_error, status.detail ?: "unknown error")
-                binding.vpnRouterStatus.setTextColor(Color.parseColor("#F87171"))
+                binding.vpnRouterStatus.setTextColor("#F87171".toColorInt())
             }
         }
         updateVpnRouterButtonState(status)
@@ -960,7 +961,7 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun setKillSwitchVisualState(color: String) {
-        val parsed = Color.parseColor(color)
+        val parsed = color.toColorInt()
         binding.killSwitchStatus.setTextColor(parsed)
         binding.killSwitchStatusDot.backgroundTintList = ColorStateList.valueOf(parsed)
     }

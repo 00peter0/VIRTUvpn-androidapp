@@ -377,17 +377,6 @@
 
     <issue
         id="UseCompatLoadingForDrawables"
-        message="Use `ResourcesCompat.getDrawable()`"
-        errorLine1="        val icon = SlashDrawable(resources.getDrawable(R.drawable.ic_tile, Application.get().theme))"
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/QuickTileService.kt"
-            line="115"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="UseCompatLoadingForDrawables"
         message="Use `AppCompatResources.getDrawable()`"
         errorLine1="            background = getDrawable(R.drawable.fastest_button_background)"
         errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -659,292 +648,6 @@
             file="src/main/res/layout/vcs_sign_in_dialog.xml"
             line="92"
             column="13"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;fr&quot; (French) the following quantity should also be defined: `many` (e.g. &quot;1000000 de jours&quot;)"
-        errorLine1="    &lt;plurals name=&quot;delete_error&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-fr/strings.xml"
-            line="3"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;it&quot; (Italian) the following quantity should also be defined: `many`"
-        errorLine1="    &lt;plurals name=&quot;delete_error&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-it/strings.xml"
-            line="3"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;fr&quot; (French) the following quantity should also be defined: `many` (e.g. &quot;1000000 de jours&quot;)"
-        errorLine1="    &lt;plurals name=&quot;delete_success&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-fr/strings.xml"
-            line="7"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;it&quot; (Italian) the following quantity should also be defined: `many`"
-        errorLine1="    &lt;plurals name=&quot;delete_success&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-it/strings.xml"
-            line="7"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;fr&quot; (French) the following quantity should also be defined: `many` (e.g. &quot;1000000 de jours&quot;)"
-        errorLine1="    &lt;plurals name=&quot;delete_title&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-fr/strings.xml"
-            line="11"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;it&quot; (Italian) the following quantity should also be defined: `many`"
-        errorLine1="    &lt;plurals name=&quot;delete_title&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-it/strings.xml"
-            line="11"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;fr&quot; (French) the following quantity should also be defined: `many` (e.g. &quot;1000000 de jours&quot;)"
-        errorLine1="    &lt;plurals name=&quot;import_partial_success&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-fr/strings.xml"
-            line="15"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;it&quot; (Italian) the following quantity should also be defined: `many`"
-        errorLine1="    &lt;plurals name=&quot;import_partial_success&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-it/strings.xml"
-            line="15"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;fr&quot; (French) the following quantity should also be defined: `many` (e.g. &quot;1000000 de jours&quot;)"
-        errorLine1="    &lt;plurals name=&quot;import_total_success&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-fr/strings.xml"
-            line="19"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;it&quot; (Italian) the following quantity should also be defined: `many`"
-        errorLine1="    &lt;plurals name=&quot;import_total_success&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-it/strings.xml"
-            line="19"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;fr&quot; (French) the following quantity should also be defined: `many` (e.g. &quot;1000000 de jours&quot;)"
-        errorLine1="    &lt;plurals name=&quot;set_excluded_applications&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-fr/strings.xml"
-            line="23"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;it&quot; (Italian) the following quantity should also be defined: `many`"
-        errorLine1="    &lt;plurals name=&quot;set_excluded_applications&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-it/strings.xml"
-            line="23"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;fr&quot; (French) the following quantity should also be defined: `many` (e.g. &quot;1000000 de jours&quot;)"
-        errorLine1="    &lt;plurals name=&quot;set_included_applications&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-fr/strings.xml"
-            line="27"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;it&quot; (Italian) the following quantity should also be defined: `many`"
-        errorLine1="    &lt;plurals name=&quot;set_included_applications&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-it/strings.xml"
-            line="27"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;fr&quot; (French) the following quantity should also be defined: `many` (e.g. &quot;1000000 de jours&quot;)"
-        errorLine1="    &lt;plurals name=&quot;n_excluded_applications&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-fr/strings.xml"
-            line="31"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;it&quot; (Italian) the following quantity should also be defined: `many`"
-        errorLine1="    &lt;plurals name=&quot;n_excluded_applications&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-it/strings.xml"
-            line="31"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;fr&quot; (French) the following quantity should also be defined: `many` (e.g. &quot;1000000 de jours&quot;)"
-        errorLine1="    &lt;plurals name=&quot;n_included_applications&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-fr/strings.xml"
-            line="35"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;it&quot; (Italian) the following quantity should also be defined: `many`"
-        errorLine1="    &lt;plurals name=&quot;n_included_applications&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-it/strings.xml"
-            line="35"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;fr&quot; (French) the following quantity should also be defined: `many` (e.g. &quot;1000000 de jours&quot;)"
-        errorLine1="    &lt;plurals name=&quot;include_n_applications&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-fr/strings.xml"
-            line="42"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;it&quot; (Italian) the following quantity should also be defined: `many`"
-        errorLine1="    &lt;plurals name=&quot;include_n_applications&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-it/strings.xml"
-            line="42"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;fr&quot; (French) the following quantity should also be defined: `many` (e.g. &quot;1000000 de jours&quot;)"
-        errorLine1="    &lt;plurals name=&quot;exclude_n_applications&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-fr/strings.xml"
-            line="46"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;it&quot; (Italian) the following quantity should also be defined: `many`"
-        errorLine1="    &lt;plurals name=&quot;exclude_n_applications&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-it/strings.xml"
-            line="46"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;fr&quot; (French) the following quantity should also be defined: `many` (e.g. &quot;1000000 de jours&quot;)"
-        errorLine1="    &lt;plurals name=&quot;persistent_keepalive_seconds_unit&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-fr/strings.xml"
-            line="50"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;it&quot; (Italian) the following quantity should also be defined: `many`"
-        errorLine1="    &lt;plurals name=&quot;persistent_keepalive_seconds_unit&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-it/strings.xml"
-            line="50"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;fr&quot; (French) the following quantity should also be defined: `many` (e.g. &quot;1000000 de jours&quot;)"
-        errorLine1="    &lt;plurals name=&quot;persistent_keepalive_seconds_suffix&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-fr/strings.xml"
-            line="54"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="MissingQuantity"
-        message="For locale &quot;it&quot; (Italian) the following quantity should also be defined: `many`"
-        errorLine1="    &lt;plurals name=&quot;persistent_keepalive_seconds_suffix&quot;>"
-        errorLine2="    ^">
-        <location
-            file="src/main/res/values-it/strings.xml"
-            line="54"
-            column="5"/>
     </issue>
 
     <issue
@@ -1246,17 +949,6 @@
 
     <issue
         id="MissingTranslation"
-        message="&quot;vcs_vpn_status_checking&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_status_checking&quot;>Checking VPN state...&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="97"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
         message="&quot;vcs_vpn_status_connected&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
         errorLine1="    &lt;string name=&quot;vcs_vpn_status_connected&quot;>VPN is ON&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -1466,17 +1158,6 @@
 
     <issue
         id="MissingTranslation"
-        message="&quot;vcs_hotspot_vpn_bypass_warning&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_hotspot_vpn_bypass_warning&quot;>MOBILE HOTSPOT WARNING: connected devices are not protected by this Android VPN. Install a tunnel on each connected device.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="117"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
         message="&quot;vcs_hotspot_vpn_router_active&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
         errorLine1="    &lt;string name=&quot;vcs_hotspot_vpn_router_active&quot;>Router protection active: hotspot clients route through the VPN tunnel.&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -1510,34 +1191,12 @@
 
     <issue
         id="MissingTranslation"
-        message="&quot;vcs_vpn_router_checking&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_checking&quot;>Checking VPN router...&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="121"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
         message="&quot;vcs_vpn_router_on&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
         errorLine1="    &lt;string name=&quot;vcs_vpn_router_on&quot;>On: %1$s routes hotspot traffic via %2$s&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
             line="122"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_vpn_router_degraded&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_degraded&quot;>Fail-closed: selected VPN tunnel has no internet. Hotspot clients are blocked until a healthy tunnel is active.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="123"
             column="13"/>
     </issue>
 
@@ -1675,17 +1334,6 @@
 
     <issue
         id="MissingTranslation"
-        message="&quot;vcs_vpn_router_uplink_checking&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_uplink_checking&quot;>Checking uplink...&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="136"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
         message="&quot;vcs_vpn_router_uplink_detected&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
         errorLine1="    &lt;string name=&quot;vcs_vpn_router_uplink_detected&quot;>Uplink: %1$s&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -1818,72 +1466,6 @@
 
     <issue
         id="MissingTranslation"
-        message="&quot;vcs_vpn_router_home_actions_message&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_home_actions_message&quot;>Add an external WireGuard tunnel to VPN Mesh, or open the client page. For safe hotspot browsing, use VirtuVPN Secured Browser on the client device.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="149"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_vpn_router_add_scan_qr&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_add_scan_qr&quot;>Scan tunnel QR into VPN Mesh&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="150"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_vpn_router_add_import_config&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_add_import_config&quot;>Import tunnel config into VPN Mesh&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="151"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_vpn_router_add_create_config&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_add_create_config&quot;>Create tunnel config in VPN Mesh&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="152"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_vpn_router_add_open_client_page&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_add_open_client_page&quot;>Open router client page&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="153"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_vpn_router_scan_tunnel_qr&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_scan_tunnel_qr&quot;>Scan external tunnel QR&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="154"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
         message="&quot;vcs_vpn_router_logo_action_client_page&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
         errorLine1="    &lt;string name=&quot;vcs_vpn_router_logo_action_client_page&quot;>Open client HTML / QR page&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -1967,61 +1549,6 @@
         <location
             file="src/main/res/values/strings.xml"
             line="162"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_vpn_router_guest_download_description&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_guest_download_description&quot;>Downloading guest APK for client devices&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="163"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_vpn_router_guest_download_started&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_guest_download_started&quot;>VirtuVPN guest app download started&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="164"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_vpn_router_guest_download_failed&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_guest_download_failed&quot;>VirtuVPN guest app download failed: %1$s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="165"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_vpn_router_guest_download_with_address&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_guest_download_with_address&quot;>Download: %1$s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="166"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_vpn_router_guest_pair_secure_browser&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_guest_pair_secure_browser&quot;>Scan this QR from the client VirtuVPN app to pair Secured Browser with this VPN Router. Safe browsing through router hotspot clients should use Secured Browser.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="167"
             column="13"/>
     </issue>
 
@@ -2258,34 +1785,12 @@
 
     <issue
         id="MissingTranslation"
-        message="&quot;vcs_vpn_router_service_starting&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_service_starting&quot;>Starting router protection...&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="189"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
         message="&quot;vcs_vpn_router_service_active_detail&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
         errorLine1="    &lt;string name=&quot;vcs_vpn_router_service_active_detail&quot;>%1$s protects hotspot clients on %2$s&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
             line="190"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_vpn_router_service_degraded&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_service_degraded&quot;>VPN tunnel has no internet. Hotspot clients remain fail-closed.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="191"
             column="13"/>
     </issue>
 
@@ -2500,17 +2005,6 @@
 
     <issue
         id="MissingTranslation"
-        message="&quot;vcs_secure_browser_blocked_router_degraded&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_secure_browser_blocked_router_degraded&quot;>The paired VPN Router is fail-closed because its selected VPN tunnel has no internet. Switch to a working tunnel on the router.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="211"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
         message="&quot;vcs_secure_browser_blocked_router_not_paired&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
         errorLine1="    &lt;string name=&quot;vcs_secure_browser_blocked_router_not_paired&quot;>This hotspot is a VPN Router, but it is not one of the paired routers on this device. Pair it from the router QR code.&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -2583,17 +2077,6 @@
         <location
             file="src/main/res/values/strings.xml"
             line="218"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_secure_browser_egress_checking&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_secure_browser_egress_checking&quot;>Checking protected route...&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="219"
             column="13"/>
     </issue>
 
@@ -2797,17 +2280,6 @@
 
     <issue
         id="MissingTranslation"
-        message="&quot;vcs_secure_browser_paste_router_pair_hint&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_secure_browser_paste_router_pair_hint&quot;>virtuvpn://router-pair?id=...&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="238"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
         message="&quot;vcs_secure_browser_paste_router_pair_clipboard&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
         errorLine1="    &lt;string name=&quot;vcs_secure_browser_paste_router_pair_clipboard&quot;>Use clipboard&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -2969,17 +2441,6 @@
             file="src/main/res/values/strings.xml"
             line="253"
             column="14"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_secure_browser_egress_tap_to_check&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_secure_browser_egress_tap_to_check&quot;>%1$s · Tap to check exit&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="257"
-            column="13"/>
     </issue>
 
     <issue
@@ -3501,39 +2962,6 @@
 
     <issue
         id="MissingTranslation"
-        message="&quot;vcs_secure_browser_https_waiting&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_secure_browser_https_waiting&quot;>HTTPS-only ready&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="305"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_secure_browser_https_badge_description&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_secure_browser_https_badge_description&quot;>HTTPS-only status&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="306"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_secure_browser_https_locked&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_secure_browser_https_locked&quot;>HTTPS-only locked&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="307"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
         message="&quot;vcs_secure_browser_trackers_blocked_zero&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
         errorLine1="    &lt;string name=&quot;vcs_secure_browser_trackers_blocked_zero&quot;>0 trackers blocked&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -3595,17 +3023,6 @@
         <location
             file="src/main/res/values/strings.xml"
             line="313"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_enroll_required&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_enroll_required&quot;>Enroll this device from VCS App first.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="314"
             column="13"/>
     </issue>
 
@@ -3688,28 +3105,6 @@
 
     <issue
         id="MissingTranslation"
-        message="&quot;close&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;close&quot;>Close&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="364"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;toggle&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;toggle&quot;>Connect&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="460"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
         message="&quot;tunnel_list_title&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
         errorLine1="    &lt;string name=&quot;tunnel_list_title&quot;>Servers&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -3721,67 +3116,12 @@
 
     <issue
         id="MissingTranslation"
-        message="&quot;status_connected&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;status_connected&quot;>Connected&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="487"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
         message="&quot;status_disconnected&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
         errorLine1="    &lt;string name=&quot;status_disconnected&quot;>Not Connected&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/values/strings.xml"
             line="488"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;status_connecting&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;status_connecting&quot;>Connecting…&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="489"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;stat_your_ip&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;stat_your_ip&quot;>Your IP&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="490"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;stat_server_ip&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;stat_server_ip&quot;>Server&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="491"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;stat_wg_routes&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;stat_wg_routes&quot;>WG routes&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="492"
             column="13"/>
     </issue>
 
@@ -3815,50 +3155,6 @@
         <location
             file="src/main/res/values/strings.xml"
             line="495"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;stat_upload&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;stat_upload&quot;>Upload&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="496"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;stat_total_down&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;stat_total_down&quot;>Total ↓&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="497"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;stat_total_up&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;stat_total_up&quot;>Total ↑&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="498"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;stat_speed_format&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;stat_speed_format&quot;>%s/s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="499"
             column="13"/>
     </issue>
 
@@ -4062,28 +3358,6 @@
 
     <issue
         id="MissingTranslation"
-        message="&quot;web_terminal_unreachable&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;web_terminal_unreachable&quot;>Terminal is not reachable through the active tunnel: %1$s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="518"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;stat_duration&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;stat_duration&quot;>Duration&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="519"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
         message="&quot;connect_to_fastest&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
         errorLine1="    &lt;string name=&quot;connect_to_fastest&quot;>Connect to Fastest&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -4112,61 +3386,6 @@
         <location
             file="src/main/res/values/strings.xml"
             line="545"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;privacy_shield&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;privacy_shield&quot;>Privacy Shield&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="546"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;live_traffic&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;live_traffic&quot;>Live Traffic&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="547"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;stat_latency&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;stat_latency&quot;>Latency&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="548"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;stat_quality&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;stat_quality&quot;>Quality&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="549"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_sync_managed_tunnels&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_sync_managed_tunnels&quot;>Sync VCS tunnels&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="550"
             column="13"/>
     </issue>
 
@@ -4211,61 +3430,6 @@
         <location
             file="src/main/res/values/strings.xml"
             line="554"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_update_download_failed&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_update_download_failed&quot;>Unable to open update download&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="555"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_update_download_failed_detail&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_update_download_failed_detail&quot;>VirtuVPN update download failed: %1$s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="556"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_update_download_reason_unknown&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_update_download_reason_unknown&quot;>unknown download error&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="557"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_update_download_complete&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_update_download_complete&quot;>VirtuVPN update downloaded to Downloads: %1$s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="558"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;vcs_update_opened&quot; is not translated in &quot;de&quot; (German), &quot;it&quot; (Italian), &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;vcs_update_opened&quot;>VirtuVPN update download started: %1$s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="559"
             column="13"/>
     </issue>
 
@@ -4366,17 +3530,6 @@
             file="src/main/res/values/strings.xml"
             line="568"
             column="13"/>
-    </issue>
-
-    <issue
-        id="ImpliedQuantity"
-        message="The quantity `&apos;one&apos;` matches more than one specific number in this locale (0, 1), but the message did not include a formatting argument (such as `%d`). This is usually an internationalization error. See full issue explanation for more."
-        errorLine1="        &lt;item quantity=&quot;one&quot;>chaque seconde&lt;/item>"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values-fr/strings.xml"
-            line="51"
-            column="9"/>
     </issue>
 
     <issue
@@ -4567,1001 +3720,6 @@
     </issue>
 
     <issue
-        id="UnusedResources"
-        message="The resource `R.bool.light_status_bar` appears to be unused"
-        errorLine1="    &lt;bool name=&quot;light_status_bar&quot;>true&lt;/bool>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/bools.xml"
-            line="6"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.bool.light_navigation_bar` appears to be unused"
-        errorLine1="    &lt;bool name=&quot;light_navigation_bar&quot;>true&lt;/bool>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/bools.xml"
-            line="7"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.color.seed` appears to be unused"
-        errorLine1="    &lt;color name=&quot;seed&quot;>#00BFA5&lt;/color>"
-        errorLine2="           ~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/colors.xml"
-            line="3"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.color.md_theme_light_shadow` appears to be unused"
-        errorLine1="    &lt;color name=&quot;md_theme_light_shadow&quot;>#000000&lt;/color>"
-        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/colors.xml"
-            line="30"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.color.md_theme_light_surfaceTint` appears to be unused"
-        errorLine1="    &lt;color name=&quot;md_theme_light_surfaceTint&quot;>#006B5E&lt;/color>"
-        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/colors.xml"
-            line="31"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.color.md_theme_light_outlineVariant` appears to be unused"
-        errorLine1="    &lt;color name=&quot;md_theme_light_outlineVariant&quot;>#BFC9C4&lt;/color>"
-        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/colors.xml"
-            line="32"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.color.md_theme_light_scrim` appears to be unused"
-        errorLine1="    &lt;color name=&quot;md_theme_light_scrim&quot;>#000000&lt;/color>"
-        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/colors.xml"
-            line="33"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.color.md_theme_dark_shadow` appears to be unused"
-        errorLine1="    &lt;color name=&quot;md_theme_dark_shadow&quot;>#000000&lt;/color>"
-        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/colors.xml"
-            line="60"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.color.md_theme_dark_surfaceTint` appears to be unused"
-        errorLine1="    &lt;color name=&quot;md_theme_dark_surfaceTint&quot;>#5EDBC2&lt;/color>"
-        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/colors.xml"
-            line="61"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.color.md_theme_dark_outlineVariant` appears to be unused"
-        errorLine1="    &lt;color name=&quot;md_theme_dark_outlineVariant&quot;>#3F4945&lt;/color>"
-        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/colors.xml"
-            line="62"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.color.md_theme_dark_scrim` appears to be unused"
-        errorLine1="    &lt;color name=&quot;md_theme_dark_scrim&quot;>#000000&lt;/color>"
-        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/colors.xml"
-            line="63"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.color.vpn_connecting` appears to be unused"
-        errorLine1="    &lt;color name=&quot;vpn_connecting&quot;>#FFB74D&lt;/color>"
-        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/colors.xml"
-            line="71"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.drawable.connect_button_background` appears to be unused"
-        errorLine1="&lt;selector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;>"
-        errorLine2="^">
-        <location
-            file="src/main/res/drawable/connect_button_background.xml"
-            line="2"
-            column="1"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.drawable.connect_button_connected` appears to be unused"
-        errorLine1="&lt;layer-list xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;>"
-        errorLine2="^">
-        <location
-            file="src/main/res/drawable/connect_button_connected.xml"
-            line="2"
-            column="1"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.drawable.connect_button_disconnected` appears to be unused"
-        errorLine1="&lt;layer-list xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;>"
-        errorLine2="^">
-        <location
-            file="src/main/res/drawable/connect_button_disconnected.xml"
-            line="2"
-            column="1"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.dimen.tunnel_list_placeholder_margin` appears to be unused"
-        errorLine1="    &lt;dimen name=&quot;tunnel_list_placeholder_margin&quot;>16dp&lt;/dimen>"
-        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/dimens.xml"
-            line="11"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.drawable.ic_power` appears to be unused"
-        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
-        errorLine2="^">
-        <location
-            file="src/main/res/drawable/ic_power.xml"
-            line="2"
-            column="1"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.drawable.ic_shield` appears to be unused"
-        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
-        errorLine2="^">
-        <location
-            file="src/main/res/drawable/ic_shield.xml"
-            line="2"
-            column="1"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.drawable.privacy_progress_drawable` appears to be unused"
-        errorLine1="&lt;layer-list xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;>"
-        errorLine2="^">
-        <location
-            file="src/main/res/drawable/privacy_progress_drawable.xml"
-            line="2"
-            column="1"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.drawable.stat_card_background` appears to be unused"
-        errorLine1="&lt;shape xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
-        errorLine2="^">
-        <location
-            file="src/main/res/drawable/stat_card_background.xml"
-            line="2"
-            column="1"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.plurals.n_excluded_applications` appears to be unused"
-        errorLine1="    &lt;plurals name=&quot;n_excluded_applications&quot;>"
-        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="34"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.plurals.n_included_applications` appears to be unused"
-        errorLine1="    &lt;plurals name=&quot;n_included_applications&quot;>"
-        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="38"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.plurals.persistent_keepalive_seconds_unit` appears to be unused"
-        errorLine1="    &lt;plurals name=&quot;persistent_keepalive_seconds_unit&quot;>"
-        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="53"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.applications` appears to be unused"
-        errorLine1="    &lt;string name=&quot;applications&quot;>Applications&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="64"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.allow_remote_control_intents_summary_off` appears to be unused"
-        errorLine1="    &lt;string name=&quot;allow_remote_control_intents_summary_off&quot;>External apps may not toggle tunnels (recommended)&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="65"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.allow_remote_control_intents_summary_on` appears to be unused"
-        errorLine1="    &lt;string name=&quot;allow_remote_control_intents_summary_on&quot;>External apps may toggle tunnels (advanced)&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="66"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.allow_remote_control_intents_title` appears to be unused"
-        errorLine1="    &lt;string name=&quot;allow_remote_control_intents_title&quot;>Allow remote control apps&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="67"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.vcs_vpn_router_home_actions_message` appears to be unused"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_home_actions_message&quot;>Add an external WireGuard tunnel to VPN Mesh, or open the client page. For safe hotspot browsing, use VirtuVPN Secured Browser on the client device.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="149"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.vcs_vpn_router_add_scan_qr` appears to be unused"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_add_scan_qr&quot;>Scan tunnel QR into VPN Mesh&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="150"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.vcs_vpn_router_add_import_config` appears to be unused"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_add_import_config&quot;>Import tunnel config into VPN Mesh&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="151"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.vcs_vpn_router_add_create_config` appears to be unused"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_add_create_config&quot;>Create tunnel config in VPN Mesh&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="152"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.vcs_vpn_router_add_open_client_page` appears to be unused"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_add_open_client_page&quot;>Open router client page&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="153"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.vcs_vpn_router_scan_tunnel_qr` appears to be unused"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_scan_tunnel_qr&quot;>Scan external tunnel QR&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="154"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.vcs_vpn_router_guest_download_description` appears to be unused"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_guest_download_description&quot;>Downloading guest APK for client devices&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="163"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.vcs_vpn_router_guest_download_started` appears to be unused"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_guest_download_started&quot;>VirtuVPN guest app download started&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="164"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.vcs_vpn_router_guest_download_failed` appears to be unused"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_guest_download_failed&quot;>VirtuVPN guest app download failed: %1$s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="165"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.vcs_vpn_router_guest_download_with_address` appears to be unused"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_guest_download_with_address&quot;>Download: %1$s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="166"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.vcs_vpn_router_guest_pair_secure_browser` appears to be unused"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_guest_pair_secure_browser&quot;>Scan this QR from the client VirtuVPN app to pair Secured Browser with this VPN Router. Safe browsing through router hotspot clients should use Secured Browser.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="167"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.vcs_secure_browser_egress_tap_to_check` appears to be unused"
-        errorLine1="    &lt;string name=&quot;vcs_secure_browser_egress_tap_to_check&quot;>%1$s · Tap to check exit&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="257"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.vcs_enroll_required` appears to be unused"
-        errorLine1="    &lt;string name=&quot;vcs_enroll_required&quot;>Enroll this device from VCS App first.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="314"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.bad_config_reason_value_out_of_range` appears to be unused"
-        errorLine1="    &lt;string name=&quot;bad_config_reason_value_out_of_range&quot;>Value out of range&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="337"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.close` appears to be unused"
-        errorLine1="    &lt;string name=&quot;close&quot;>Close&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="364"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.dns_search_domains` appears to be unused"
-        errorLine1="    &lt;string name=&quot;dns_search_domains&quot;>Search domains&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="375"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.latest_handshake` appears to be unused"
-        errorLine1="    &lt;string name=&quot;latest_handshake&quot;>Latest handshake&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="401"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.log_saver_activity_label` appears to be unused"
-        errorLine1="    &lt;string name=&quot;log_saver_activity_label&quot;>Save log&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="408"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.logcat_error` appears to be unused"
-        errorLine1="    &lt;string name=&quot;logcat_error&quot;>Unable to run logcat: &lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="412"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.module_installer_error` appears to be unused"
-        errorLine1="    &lt;string name=&quot;module_installer_error&quot;>Something went wrong. Please try again&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="417"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.module_installer_initial` appears to be unused"
-        errorLine1="    &lt;string name=&quot;module_installer_initial&quot;>The experimental kernel module can improve performance&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="418"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.module_installer_not_found` appears to be unused"
-        errorLine1="    &lt;string name=&quot;module_installer_not_found&quot;>No modules are available for your device&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="419"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.module_installer_title` appears to be unused"
-        errorLine1="    &lt;string name=&quot;module_installer_title&quot;>Download and install kernel module&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="420"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.module_installer_working` appears to be unused"
-        errorLine1="    &lt;string name=&quot;module_installer_working&quot;>Downloading and installing…&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="421"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.pre_shared_key_enabled` appears to be unused"
-        errorLine1="    &lt;string name=&quot;pre_shared_key_enabled&quot;>enabled&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="442"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.qr_code_hint` appears to be unused"
-        errorLine1="    &lt;string name=&quot;qr_code_hint&quot;>Tip: generate with `qrencode -t ansiutf8 &amp;lt; tunnel.conf`.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="445"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.toggle` appears to be unused"
-        errorLine1="    &lt;string name=&quot;toggle&quot;>Connect&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="460"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.tools_unavailable_error` appears to be unused"
-        errorLine1="    &lt;string name=&quot;tools_unavailable_error&quot;>Required tools unavailable&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="472"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.transfer` appears to be unused"
-        errorLine1="    &lt;string name=&quot;transfer&quot;>Transfer&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="473"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.status_connected` appears to be unused"
-        errorLine1="    &lt;string name=&quot;status_connected&quot;>Connected&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="487"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.status_connecting` appears to be unused"
-        errorLine1="    &lt;string name=&quot;status_connecting&quot;>Connecting…&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="489"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.stat_your_ip` appears to be unused"
-        errorLine1="    &lt;string name=&quot;stat_your_ip&quot;>Your IP&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="490"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.stat_server_ip` appears to be unused"
-        errorLine1="    &lt;string name=&quot;stat_server_ip&quot;>Server&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="491"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.stat_wg_routes` appears to be unused"
-        errorLine1="    &lt;string name=&quot;stat_wg_routes&quot;>WG routes&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="492"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.stat_upload` appears to be unused"
-        errorLine1="    &lt;string name=&quot;stat_upload&quot;>Upload&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="496"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.stat_total_down` appears to be unused"
-        errorLine1="    &lt;string name=&quot;stat_total_down&quot;>Total ↓&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="497"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.stat_total_up` appears to be unused"
-        errorLine1="    &lt;string name=&quot;stat_total_up&quot;>Total ↑&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="498"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.stat_speed_format` appears to be unused"
-        errorLine1="    &lt;string name=&quot;stat_speed_format&quot;>%s/s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="499"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.web_terminal_unreachable` appears to be unused"
-        errorLine1="    &lt;string name=&quot;web_terminal_unreachable&quot;>Terminal is not reachable through the active tunnel: %1$s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="518"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.stat_duration` appears to be unused"
-        errorLine1="    &lt;string name=&quot;stat_duration&quot;>Duration&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="519"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.privacy_shield` appears to be unused"
-        errorLine1="    &lt;string name=&quot;privacy_shield&quot;>Privacy Shield&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="546"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.live_traffic` appears to be unused"
-        errorLine1="    &lt;string name=&quot;live_traffic&quot;>Live Traffic&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="547"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.stat_latency` appears to be unused"
-        errorLine1="    &lt;string name=&quot;stat_latency&quot;>Latency&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="548"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.stat_quality` appears to be unused"
-        errorLine1="    &lt;string name=&quot;stat_quality&quot;>Quality&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="549"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.vcs_sync_managed_tunnels` appears to be unused"
-        errorLine1="    &lt;string name=&quot;vcs_sync_managed_tunnels&quot;>Sync VCS tunnels&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="550"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.layout.tunnel_detail_peer` appears to be unused"
-        errorLine1="&lt;layout xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
-        errorLine2="^">
-        <location
-            file="src/main/res/layout/tunnel_detail_peer.xml"
-            line="5"
-            column="1"/>
-    </issue>
-
-    <issue
-        id="RedundantNamespace"
-        message="This namespace declaration is redundant"
-        errorLine1="    &lt;androidx.fragment.app.FragmentContainerView xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
-        errorLine2="                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/layout/tunnel_creator_activity.xml"
-            line="13"
-            column="50"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_status_checking&quot;>Checking VPN state...&lt;/string>"
-        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="97"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_checking&quot;>Checking VPN router...&lt;/string>"
-        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="121"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_uplink_checking&quot;>Checking uplink...&lt;/string>"
-        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="136"
-            column="51"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;vcs_vpn_router_service_starting&quot;>Starting router protection...&lt;/string>"
-        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="189"
-            column="52"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;vcs_secure_browser_egress_checking&quot;>Checking protected route...&lt;/string>"
-        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="219"
-            column="55"/>
-    </issue>
-
-    <issue
-        id="TypographyEllipsis"
-        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
-        errorLine1="    &lt;string name=&quot;vcs_secure_browser_paste_router_pair_hint&quot;>virtuvpn://router-pair?id=...&lt;/string>"
-        errorLine2="                                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="238"
-            column="62"/>
-    </issue>
-
-    <issue
-        id="IconLauncherShape"
-        message="Launcher icons should not fill every pixel of their square region; see the design guide for details">
-        <location
-            file="src/main/res/mipmap-hdpi/ic_launcher.png"/>
-    </issue>
-
-    <issue
-        id="IconLauncherShape"
-        message="Launcher icons should not fill every pixel of their square region; see the design guide for details">
-        <location
-            file="src/main/res/mipmap-mdpi/ic_launcher.png"/>
-    </issue>
-
-    <issue
-        id="IconLauncherShape"
-        message="Launcher icons should not fill every pixel of their square region; see the design guide for details">
-        <location
-            file="src/main/res/mipmap-xhdpi/ic_launcher.png"/>
-    </issue>
-
-    <issue
-        id="IconLauncherShape"
-        message="Launcher icons should not fill every pixel of their square region; see the design guide for details">
-        <location
-            file="src/main/res/mipmap-xxhdpi/ic_launcher.png"/>
-    </issue>
-
-    <issue
-        id="IconLauncherShape"
-        message="Launcher icons should not fill every pixel of their square region; see the design guide for details">
-        <location
-            file="src/main/res/mipmap-xxxhdpi/ic_launcher.png"/>
-    </issue>
-
-    <issue
-        id="IconLauncherShape"
-        message="Launcher icon used as round icon did not have a circular shape">
-        <location
-            file="src/main/res/mipmap-hdpi/ic_launcher_round.png"/>
-    </issue>
-
-    <issue
-        id="IconLauncherShape"
-        message="Launcher icon used as round icon did not have a circular shape">
-        <location
-            file="src/main/res/mipmap-mdpi/ic_launcher_round.png"/>
-    </issue>
-
-    <issue
-        id="IconLauncherShape"
-        message="Launcher icon used as round icon did not have a circular shape">
-        <location
-            file="src/main/res/mipmap-xhdpi/ic_launcher_round.png"/>
-    </issue>
-
-    <issue
-        id="IconLauncherShape"
-        message="Launcher icon used as round icon did not have a circular shape">
-        <location
-            file="src/main/res/mipmap-xxhdpi/ic_launcher_round.png"/>
-    </issue>
-
-    <issue
-        id="IconLauncherShape"
-        message="Launcher icon used as round icon did not have a circular shape">
-        <location
-            file="src/main/res/mipmap-xxxhdpi/ic_launcher_round.png"/>
-    </issue>
-
-    <issue
-        id="IconDuplicates"
-        message="The following unrelated icon files have identical contents: ic_launcher.png, ic_launcher_round.png">
-        <location
-            file="src/main/res/mipmap-hdpi/ic_launcher_round.png"/>
-        <location
-            file="src/main/res/mipmap-hdpi/ic_launcher.png"/>
-    </issue>
-
-    <issue
-        id="IconDuplicates"
-        message="The following unrelated icon files have identical contents: ic_launcher.png, ic_launcher_round.png">
-        <location
-            file="src/main/res/mipmap-mdpi/ic_launcher_round.png"/>
-        <location
-            file="src/main/res/mipmap-mdpi/ic_launcher.png"/>
-    </issue>
-
-    <issue
-        id="IconDuplicates"
-        message="The following unrelated icon files have identical contents: ic_launcher.png, ic_launcher_round.png">
-        <location
-            file="src/main/res/mipmap-xhdpi/ic_launcher_round.png"/>
-        <location
-            file="src/main/res/mipmap-xhdpi/ic_launcher.png"/>
-    </issue>
-
-    <issue
-        id="IconDuplicates"
-        message="The following unrelated icon files have identical contents: ic_launcher.png, ic_launcher_round.png">
-        <location
-            file="src/main/res/mipmap-xxhdpi/ic_launcher_round.png"/>
-        <location
-            file="src/main/res/mipmap-xxhdpi/ic_launcher.png"/>
-    </issue>
-
-    <issue
-        id="IconDuplicates"
-        message="The following unrelated icon files have identical contents: ic_launcher.png, ic_launcher_round.png">
-        <location
-            file="src/main/res/mipmap-xxxhdpi/ic_launcher_round.png"/>
-        <location
-            file="src/main/res/mipmap-xxxhdpi/ic_launcher.png"/>
-    </issue>
-
-    <issue
         id="ButtonStyle"
         message="Buttons in button bars should be borderless; use `style=&quot;?android:attr/buttonBarButtonStyle&quot;` (and `?android:attr/buttonBarStyle` on the parent)"
         errorLine1="                        &lt;Button"
@@ -5581,28 +3739,6 @@
             file="src/main/res/layout/tunnel_detail_fragment.xml"
             line="357"
             column="26"/>
-    </issue>
-
-    <issue
-        id="SmallSp"
-        message="Avoid using sizes smaller than `11sp`: `10sp`"
-        errorLine1="                            android:textSize=&quot;10sp&quot; />"
-        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/layout/tunnel_detail_fragment.xml"
-            line="135"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="SmallSp"
-        message="Avoid using sizes smaller than `11sp`: `10sp`"
-        errorLine1="                            android:textSize=&quot;10sp&quot;"
-        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/layout/tunnel_detail_fragment.xml"
-            line="258"
-            column="29"/>
     </issue>
 
     <issue
@@ -5644,39 +3780,6 @@
 
     <issue
         id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="            binding.vpnStatusValue.setTextColor(Color.parseColor(&quot;#86EFAC&quot;))"
-        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="227"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="            binding.vpnStatusValue.setTextColor(Color.parseColor(&quot;#FBBF24&quot;))"
-        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="231"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        binding.vpnStatusTunnel.setTextColor(Color.parseColor(&quot;#AFC0CC&quot;))"
-        errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="234"
-            column="46"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
         message="Use the KTX extension function `SharedPreferences.edit` instead?"
         errorLine1="        getSharedPreferences(HOME_PREFS, Context.MODE_PRIVATE)"
         errorLine2="        ^">
@@ -5699,45 +3802,12 @@
 
     <issue
         id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="            setHintTextColor(Color.parseColor(&quot;#8EA2AE&quot;))"
-        errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="404"
-            column="30"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
         message="Use the KTX extension function `Int.toDrawable` instead?"
         errorLine1="        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))"
         errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
             line="614"
-            column="46"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="            setTextColor(Color.parseColor(&quot;#AFC0CC&quot;))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="727"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        binding.vpnRouterStatus.setTextColor(Color.parseColor(&quot;#AFC0CC&quot;))"
-        errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="756"
             column="46"/>
     </issue>
 
@@ -5750,182 +3820,6 @@
             file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
             line="788"
             column="50"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        binding.vpnRouterStatus.setTextColor(Color.parseColor(&quot;#AFC0CC&quot;))"
-        errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="797"
-            column="46"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="                binding.vpnRouterStatus.setTextColor(Color.parseColor(&quot;#86EFAC&quot;))"
-        errorLine2="                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="878"
-            column="54"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="                binding.vpnRouterStatus.setTextColor(Color.parseColor(&quot;#F87171&quot;))"
-        errorLine2="                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="882"
-            column="54"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="                binding.vpnRouterStatus.setTextColor(Color.parseColor(&quot;#AFC0CC&quot;))"
-        errorLine2="                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="886"
-            column="54"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="                binding.vpnRouterStatus.setTextColor(Color.parseColor(&quot;#FBBF24&quot;))"
-        errorLine2="                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="890"
-            column="54"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="                binding.vpnRouterStatus.setTextColor(Color.parseColor(&quot;#FBBF24&quot;))"
-        errorLine2="                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="894"
-            column="54"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="                binding.vpnRouterStatus.setTextColor(Color.parseColor(&quot;#FBBF24&quot;))"
-        errorLine2="                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="898"
-            column="54"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="                binding.vpnRouterStatus.setTextColor(Color.parseColor(&quot;#F87171&quot;))"
-        errorLine2="                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="902"
-            column="54"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        binding.killSwitchStatus.setTextColor(Color.parseColor(&quot;#AFC0CC&quot;))"
-        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="921"
-            column="47"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="                binding.killSwitchStatus.setTextColor(if (protected) Color.parseColor(&quot;#86EFAC&quot;) else Color.parseColor(&quot;#AFC0CC&quot;))"
-        errorLine2="                                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="936"
-            column="70"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="                binding.killSwitchStatus.setTextColor(if (protected) Color.parseColor(&quot;#86EFAC&quot;) else Color.parseColor(&quot;#AFC0CC&quot;))"
-        errorLine2="                                                                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="936"
-            column="103"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="                binding.killSwitchStatus.setTextColor(Color.parseColor(&quot;#F87171&quot;))"
-        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="939"
-            column="55"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="                binding.killSwitchStatus.setTextColor(Color.parseColor(&quot;#86EFAC&quot;))"
-        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="942"
-            column="55"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="                binding.killSwitchStatus.setTextColor(Color.parseColor(&quot;#FBBF24&quot;))"
-        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="945"
-            column="55"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        view.setBackgroundColor(Color.parseColor(&quot;#071018&quot;))"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="1008"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="            setTextColor(Color.parseColor(&quot;#E5F2F7&quot;))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/HomeActivity.kt"
-            line="1010"
-            column="26"/>
     </issue>
 
     <issue
@@ -5948,61 +3842,6 @@
             file="src/main/java/com/wireguard/android/activity/LogViewerActivity.kt"
             line="121"
             column="27"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="            Color.parseColor(&quot;#00BFA5&quot;) // connected = green"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/databinding/PingBindingAdapters.kt"
-            line="38"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        latencyMs &lt; 0 -> Color.parseColor(&quot;#667788&quot;)   // unknown/measuring"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/databinding/PingBindingAdapters.kt"
-            line="46"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        latencyMs &lt; 50 -> Color.parseColor(&quot;#00BFA5&quot;)   // excellent"
-        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/databinding/PingBindingAdapters.kt"
-            line="47"
-            column="27"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        latencyMs &lt; 100 -> Color.parseColor(&quot;#FFB300&quot;)  // medium"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/databinding/PingBindingAdapters.kt"
-            line="48"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        else -> Color.parseColor(&quot;#FF5252&quot;)              // poor"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/databinding/PingBindingAdapters.kt"
-            line="49"
-            column="17"/>
     </issue>
 
     <issue
@@ -6051,28 +3890,6 @@
 
     <issue
         id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="            setTextColor(Color.parseColor(&quot;#AFC0CC&quot;))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="578"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="            setTextColor(Color.parseColor(&quot;#E5F2F7&quot;))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="629"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
         message="Use the KTX extension function `String.toUri` instead?"
         errorLine1="        val isHttps = normalizedUrl?.let { Uri.parse(it).scheme.equals(&quot;https&quot;, ignoreCase = true) } == true"
         errorLine2="                                           ~~~~~~~~~~~~~">
@@ -6117,28 +3934,6 @@
 
     <issue
         id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="            setTextColor(Color.parseColor(&quot;#FFFFFF&quot;))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="864"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="            setHintTextColor(Color.parseColor(&quot;#8EA2AE&quot;))"
-        errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="865"
-            column="30"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
         message="Use the KTX extension function `String.toUri` instead?"
         errorLine1="        val uri = Uri.parse(url)"
         errorLine2="                  ~~~~~~~~~~~~~~">
@@ -6172,28 +3967,6 @@
 
     <issue
         id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="                setTextColor(if (isActive) Color.WHITE else Color.parseColor(&quot;#AFC0CC&quot;))"
-        errorLine2="                                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1262"
-            column="61"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="                setTextColor(Color.parseColor(&quot;#FF8A8A&quot;))"
-        errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1277"
-            column="30"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
         message="Use the KTX extension function `String.toUri` instead?"
         errorLine1="            val host = runCatching { Uri.parse(url).host }.getOrNull()"
         errorLine2="                                     ~~~~~~~~~~~~~~">
@@ -6201,17 +3974,6 @@
             file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
             line="1308"
             column="38"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="                setTextColor(Color.parseColor(&quot;#FF8A8A&quot;))"
-        errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1446"
-            column="30"/>
     </issue>
 
     <issue
@@ -6260,28 +4022,6 @@
 
     <issue
         id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="            setTextColor(Color.parseColor(&quot;#E5F2F7&quot;))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1890"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="                setTextColor(Color.parseColor(&quot;#B8C8D2&quot;))"
-        errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/SecureBrowserActivity.kt"
-            line="1902"
-            column="30"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
         message="Use the KTX extension function `Canvas.withSave` instead?"
         errorLine1="        canvas.save()"
         errorLine2="        ~~~~~~~~~~~~~">
@@ -6304,28 +4044,6 @@
 
     <issue
         id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="            binding.dnsStatus.setTextColor(Color.parseColor(&quot;#86EFAC&quot;))"
-        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/fragment/TunnelDetailFragment.kt"
-            line="132"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="            binding.dnsStatus.setTextColor(Color.parseColor(&quot;#FBBF24&quot;))"
-        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/fragment/TunnelDetailFragment.kt"
-            line="136"
-            column="44"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
         message="Use the KTX extension function `String.toUri` instead?"
         errorLine1="                                    data = Uri.parse(&quot;https://play.google.com/store/apps/details?id=com.cxinventor.file.explorer&quot;)"
         errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -6344,28 +4062,6 @@
             file="src/main/java/com/wireguard/android/activity/TvMainActivity.kt"
             line="223"
             column="44"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="            setTextColor(if (action.primary) Color.parseColor(&quot;#02110F&quot;) else Color.parseColor(&quot;#E5F2F7&quot;))"
-        errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/util/VcsDialogs.kt"
-            line="99"
-            column="46"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="            setTextColor(if (action.primary) Color.parseColor(&quot;#02110F&quot;) else Color.parseColor(&quot;#E5F2F7&quot;))"
-        errorLine2="                                                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/util/VcsDialogs.kt"
-            line="99"
-            column="79"/>
     </issue>
 
     <issue
@@ -6377,28 +4073,6 @@
             file="src/main/java/com/wireguard/android/util/VcsDialogs.kt"
             line="124"
             column="35"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="                setTextColor(if (primary) Color.parseColor(&quot;#5EEAD4&quot;) else Color.parseColor(&quot;#E5F2F7&quot;))"
-        errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/util/VcsDialogs.kt"
-            line="137"
-            column="43"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="                setTextColor(if (primary) Color.parseColor(&quot;#5EEAD4&quot;) else Color.parseColor(&quot;#E5F2F7&quot;))"
-        errorLine2="                                                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/util/VcsDialogs.kt"
-            line="137"
-            column="76"/>
     </issue>
 
     <issue
@@ -6436,17 +4110,6 @@
 
     <issue
         id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="            setTextColor(Color.parseColor(&quot;#AFC0CC&quot;))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/VpnRouterActivity.kt"
-            line="192"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
         message="Use the KTX function `createBitmap` instead?"
         errorLine1="        val bitmap = Bitmap.createBitmap(QR_SIZE, QR_SIZE, Bitmap.Config.ARGB_8888)"
         errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -6465,50 +4128,6 @@
             file="src/main/java/com/wireguard/android/activity/VpnRouterActivity.kt"
             line="297"
             column="17"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        val TEXT: Int = Color.parseColor(&quot;#AFC0CC&quot;)"
-        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/VpnRouterActivity.kt"
-            line="313"
-            column="25"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        val GREEN: Int = Color.parseColor(&quot;#86EFAC&quot;)"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/VpnRouterActivity.kt"
-            line="314"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        val YELLOW: Int = Color.parseColor(&quot;#FBBF24&quot;)"
-        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/VpnRouterActivity.kt"
-            line="315"
-            column="27"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toColorInt` instead?"
-        errorLine1="        val RED: Int = Color.parseColor(&quot;#F87171&quot;)"
-        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/wireguard/android/activity/VpnRouterActivity.kt"
-            line="316"
-            column="24"/>
     </issue>
 
     <issue
@@ -6766,138 +4385,6 @@
 
     <issue
         id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="        &lt;ImageView"
-        errorLine2="         ~~~~~~~~~">
-        <location
-            file="src/main/res/layout/app_list_item.xml"
-            line="35"
-            column="10"/>
-    </issue>
-
-    <issue
-        id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="            &lt;ImageView"
-        errorLine2="             ~~~~~~~~~">
-        <location
-            file="src/main/res/layout/home_activity.xml"
-            line="428"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="            &lt;ImageView"
-        errorLine2="             ~~~~~~~~~">
-        <location
-            file="src/main/res/layout/home_activity.xml"
-            line="445"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="            &lt;ImageView"
-        errorLine2="             ~~~~~~~~~">
-        <location
-            file="src/main/res/layout/home_activity.xml"
-            line="468"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="            &lt;ImageView"
-        errorLine2="             ~~~~~~~~~">
-        <location
-            file="src/main/res/layout/home_activity.xml"
-            line="484"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="            &lt;ImageView"
-        errorLine2="             ~~~~~~~~~">
-        <location
-            file="src/main/res/layout/home_activity.xml"
-            line="507"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="            &lt;ImageView"
-        errorLine2="             ~~~~~~~~~">
-        <location
-            file="src/main/res/layout/home_activity.xml"
-            line="524"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="            &lt;ImageView"
-        errorLine2="             ~~~~~~~~~">
-        <location
-            file="src/main/res/layout/home_activity.xml"
-            line="547"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="            &lt;ImageView"
-        errorLine2="             ~~~~~~~~~">
-        <location
-            file="src/main/res/layout/home_activity.xml"
-            line="563"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="            &lt;ImageView"
-        errorLine2="             ~~~~~~~~~">
-        <location
-            file="src/main/res/layout/home_activity.xml"
-            line="585"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="            &lt;ImageView"
-        errorLine2="             ~~~~~~~~~">
-        <location
-            file="src/main/res/layout/home_activity.xml"
-            line="601"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="    &lt;com.google.android.material.floatingactionbutton.FloatingActionButton"
-        errorLine2="     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/layout/log_viewer_activity.xml"
-            line="20"
-            column="6"/>
-    </issue>
-
-    <issue
-        id="ContentDescription"
         message="Do not set both `contentDescription` and `hint`: the `contentDescription` will mask the `hint`"
         errorLine1="                    android:contentDescription=&quot;@string/vcs_secure_browser_url_input_description&quot;"
         errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -6916,116 +4403,6 @@
             file="src/main/res/layout/secure_browser_activity.xml"
             line="226"
             column="21"/>
-    </issue>
-
-    <issue
-        id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="                        &lt;ImageView"
-        errorLine2="                         ~~~~~~~~~">
-        <location
-            file="src/main/res/layout/tunnel_detail_fragment.xml"
-            line="114"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="                        &lt;ImageView"
-        errorLine2="                         ~~~~~~~~~">
-        <location
-            file="src/main/res/layout/tunnel_detail_fragment.xml"
-            line="187"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="                        &lt;ImageView"
-        errorLine2="                         ~~~~~~~~~">
-        <location
-            file="src/main/res/layout/tunnel_detail_fragment.xml"
-            line="237"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="                        &lt;ImageView"
-        errorLine2="                         ~~~~~~~~~">
-        <location
-            file="src/main/res/layout/tunnel_detail_fragment.xml"
-            line="304"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="                    &lt;ImageView"
-        errorLine2="                     ~~~~~~~~~">
-        <location
-            file="src/main/res/layout/tunnel_list_fragment.xml"
-            line="76"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="                    &lt;ImageView"
-        errorLine2="                     ~~~~~~~~~">
-        <location
-            file="src/main/res/layout/tunnel_list_fragment.xml"
-            line="92"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="                &lt;ImageView"
-        errorLine2="                 ~~~~~~~~~">
-        <location
-            file="src/main/res/layout/vpn_router_activity.xml"
-            line="52"
-            column="18"/>
-    </issue>
-
-    <issue
-        id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="                    &lt;ImageView"
-        errorLine2="                     ~~~~~~~~~">
-        <location
-            file="src/main/res/layout/vpn_router_activity.xml"
-            line="110"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="                    &lt;ImageView"
-        errorLine2="                     ~~~~~~~~~">
-        <location
-            file="src/main/res/layout/vpn_router_activity.xml"
-            line="161"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="ContentDescription"
-        message="Missing `contentDescription` attribute on image"
-        errorLine1="                    &lt;ImageView"
-        errorLine2="                     ~~~~~~~~~">
-        <location
-            file="src/main/res/layout/vpn_router_activity.xml"
-            line="231"
-            column="22"/>
     </issue>
 
 </issues>

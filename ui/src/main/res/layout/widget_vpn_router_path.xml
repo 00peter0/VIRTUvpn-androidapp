@@ -61,7 +61,7 @@
                 android:maxLines="1"
                 android:text="@string/vcs_widget_vpn_router_checked_unknown"
                 android:textColor="#6F8792"
-                android:textSize="10sp" />
+                android:textSize="11sp" />
         </LinearLayout>
 
         <TextView
@@ -142,7 +142,7 @@
             android:layout_width="18dp"
             android:layout_height="28dp"
             android:gravity="center"
-            android:text=">"
+            android:text="@string/vcs_widget_path_separator"
             android:textColor="#79D9E8"
             android:textSize="15sp"
             android:textStyle="bold" />
@@ -163,7 +163,7 @@
             android:layout_width="18dp"
             android:layout_height="28dp"
             android:gravity="center"
-            android:text=">"
+            android:text="@string/vcs_widget_path_separator"
             android:textColor="#79D9E8"
             android:textSize="15sp"
             android:textStyle="bold" />
@@ -184,7 +184,7 @@
             android:layout_width="18dp"
             android:layout_height="28dp"
             android:gravity="center"
-            android:text=">"
+            android:text="@string/vcs_widget_path_separator"
             android:textColor="#79D9E8"
             android:textSize="15sp"
             android:textStyle="bold" />
@@ -274,7 +274,7 @@
             android:maxLines="1"
             android:text="@string/vcs_widget_vpn_router_dns_unknown"
             android:textColor="#A8BDC6"
-            android:textSize="10sp" />
+            android:textSize="11sp" />
 
         <TextView
             android:id="@+id/widget_clients"
@@ -286,7 +286,7 @@
             android:maxLines="1"
             android:text="@string/vcs_widget_vpn_router_hotspot_off"
             android:textColor="#A8BDC6"
-            android:textSize="10sp" />
+            android:textSize="11sp" />
     </LinearLayout>
 
     <TextView
@@ -301,5 +301,5 @@
         android:paddingHorizontal="8dp"
         android:text="@string/vcs_widget_vpn_router_warning_default"
         android:textColor="#A8BDC6"
-        android:textSize="10sp" />
+        android:textSize="11sp" />
 </LinearLayout>

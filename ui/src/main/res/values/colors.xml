@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="seed">#00BFA5</color>
     <color name="md_theme_light_primary">#006B5E</color>
     <color name="md_theme_light_onPrimary">#FFFFFF</color>
     <color name="md_theme_light_primaryContainer">#7CF8DE</color>
@@ -27,10 +26,6 @@
     <color name="md_theme_light_inverseOnSurface">#EFF1EE</color>
     <color name="md_theme_light_inverseSurface">#2E312F</color>
     <color name="md_theme_light_inversePrimary">#5EDBC2</color>
-    <color name="md_theme_light_shadow">#000000</color>
-    <color name="md_theme_light_surfaceTint">#006B5E</color>
-    <color name="md_theme_light_outlineVariant">#BFC9C4</color>
-    <color name="md_theme_light_scrim">#000000</color>
     <color name="md_theme_dark_primary">#5EDBC2</color>
     <color name="md_theme_dark_onPrimary">#003830</color>
     <color name="md_theme_dark_primaryContainer">#005046</color>
@@ -57,10 +52,6 @@
     <color name="md_theme_dark_inverseOnSurface">#191C1B</color>
     <color name="md_theme_dark_inverseSurface">#E1E3E0</color>
     <color name="md_theme_dark_inversePrimary">#006B5E</color>
-    <color name="md_theme_dark_shadow">#000000</color>
-    <color name="md_theme_dark_surfaceTint">#5EDBC2</color>
-    <color name="md_theme_dark_outlineVariant">#3F4945</color>
-    <color name="md_theme_dark_scrim">#000000</color>
     
     <!-- Virtu VPN custom colors -->
     <color name="vcs_top_bar">#071018</color>
@@ -68,5 +59,4 @@
     <color name="vcs_top_bar_subtitle">#AFC0CC</color>
     <color name="vpn_connected">#00BFA5</color>
     <color name="vpn_disconnected">#78909C</color>
-    <color name="vpn_connecting">#FFB74D</color>
 </resources>

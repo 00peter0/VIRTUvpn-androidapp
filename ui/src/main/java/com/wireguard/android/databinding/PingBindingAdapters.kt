@@ -7,9 +7,9 @@
  */
 package com.wireguard.android.databinding
 
-import android.graphics.Color
 import android.view.View
 import android.widget.TextView
+import androidx.core.graphics.toColorInt
 import androidx.databinding.BindingAdapter
 import com.wireguard.android.backend.Tunnel
 
@@ -35,7 +35,7 @@ object PingBindingAdapters {
     @JvmStatic
     fun setDotTint(view: View, state: Tunnel.State?, latencyMs: Long) {
         val color = if (state == Tunnel.State.UP) {
-            Color.parseColor("#00BFA5") // connected = green
+            "#00BFA5".toColorInt() // connected = green
         } else {
             latencyColor(latencyMs)
         }
@@ -43,9 +43,9 @@ object PingBindingAdapters {
     }
 
     private fun latencyColor(latencyMs: Long): Int = when {
-        latencyMs < 0 -> Color.parseColor("#667788")   // unknown/measuring
-        latencyMs < 50 -> Color.parseColor("#00BFA5")   // excellent
-        latencyMs < 100 -> Color.parseColor("#FFB300")  // medium
-        else -> Color.parseColor("#FF5252")              // poor
+        latencyMs < 0 -> "#667788".toColorInt()   // unknown/measuring
+        latencyMs < 50 -> "#00BFA5".toColorInt()   // excellent
+        latencyMs < 100 -> "#FFB300".toColorInt()  // medium
+        else -> "#FF5252".toColorInt()              // poor
     }
 }

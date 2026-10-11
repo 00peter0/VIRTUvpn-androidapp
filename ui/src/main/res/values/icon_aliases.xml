@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Pre-26 icons retain their original pixels. Adaptive icons keep their v26 XML. -->
+    <item type="mipmap" name="ic_launcher">@mipmap/ic_launcher_foreground</item>
+    <item type="mipmap" name="ic_launcher_round">@mipmap/ic_launcher_foreground</item>
+    <item type="drawable" name="shortcut_vpn_router">@drawable/virtu_vpn_router_logo</item>
+</resources>

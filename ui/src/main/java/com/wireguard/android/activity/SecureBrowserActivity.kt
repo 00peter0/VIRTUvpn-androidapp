@@ -44,6 +44,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.toColorInt
 import androidx.core.widget.addTextChangedListener
 import androidx.lifecycle.lifecycleScope
 import androidx.webkit.WebSettingsCompat
@@ -583,7 +584,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         }
         val zoomValue = TextView(this).apply {
             text = getString(R.string.vcs_secure_browser_text_zoom_value, textZoom)
-            setTextColor(Color.parseColor("#AFC0CC"))
+            setTextColor("#AFC0CC".toColorInt())
             textSize = 14f
             setTypeface(typeface, android.graphics.Typeface.BOLD)
             gravity = android.view.Gravity.CENTER
@@ -638,7 +639,7 @@ class SecureBrowserActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
             gravity = android.view.Gravity.CENTER_VERTICAL
             text = value
-            setTextColor(Color.parseColor("#E5F2F7"))
+            setTextColor("#E5F2F7".toColorInt())
             textSize = 14f
             setTypeface(typeface, android.graphics.Typeface.BOLD)
         }
@@ -901,8 +902,8 @@ class SecureBrowserActivity : AppCompatActivity() {
             hint = getString(R.string.vcs_secure_browser_paste_router_pair_hint)
             setText(clipboardText().orEmpty())
             setSelectAllOnFocus(true)
-            setTextColor(Color.parseColor("#FFFFFF"))
-            setHintTextColor(Color.parseColor("#8EA2AE"))
+            setTextColor("#FFFFFF".toColorInt())
+            setHintTextColor("#8EA2AE".toColorInt())
             setBackgroundResource(R.drawable.vcs_dialog_input_background)
             setPadding(dp(14), dp(10), dp(14), dp(10))
         }
@@ -1300,7 +1301,7 @@ class SecureBrowserActivity : AppCompatActivity() {
                 setSingleLine(true)
                 ellipsize = android.text.TextUtils.TruncateAt.END
                 text = tabLabel(tab)
-                setTextColor(if (isActive) Color.WHITE else Color.parseColor("#AFC0CC"))
+                setTextColor(if (isActive) Color.WHITE else "#AFC0CC".toColorInt())
                 textSize = 12f
                 setTypeface(typeface, if (isActive) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
             })
@@ -1315,7 +1316,7 @@ class SecureBrowserActivity : AppCompatActivity() {
                 gravity = android.view.Gravity.CENTER
                 setSingleLine(true)
                 text = "X"
-                setTextColor(Color.parseColor("#FF8A8A"))
+                setTextColor("#FF8A8A".toColorInt())
                 textSize = 11f
                 setTypeface(typeface, android.graphics.Typeface.BOLD)
                 contentDescription = getString(R.string.vcs_secure_browser_close_tab_description, tabLabel(tab))
@@ -1484,7 +1485,7 @@ class SecureBrowserActivity : AppCompatActivity() {
                 gravity = android.view.Gravity.CENTER
                 setSingleLine(true)
                 text = "X"
-                setTextColor(Color.parseColor("#FF8A8A"))
+                setTextColor("#FF8A8A".toColorInt())
                 textSize = 12f
                 setTypeface(typeface, android.graphics.Typeface.BOLD)
                 contentDescription = getString(R.string.vcs_secure_browser_delete_bookmark_description, label)
@@ -1939,7 +1940,7 @@ class SecureBrowserActivity : AppCompatActivity() {
         }
         val message = TextView(this).apply {
             text = currentEgressSummary ?: baseLabel
-            setTextColor(Color.parseColor("#E5F2F7"))
+            setTextColor("#E5F2F7".toColorInt())
             textSize = 14f
             setLineSpacing(dp(2).toFloat(), 1f)
         }
@@ -1951,7 +1952,7 @@ class SecureBrowserActivity : AppCompatActivity() {
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 ).also { it.topMargin = dp(12) }
                 text = getString(R.string.vcs_secure_browser_required_pair_flow)
-                setTextColor(Color.parseColor("#B8C8D2"))
+                setTextColor("#B8C8D2".toColorInt())
                 textSize = 13f
                 setLineSpacing(dp(2).toFloat(), 1f)
             })

@@ -31,14 +31,6 @@
         <item quantity="one">%d Included Application</item>
         <item quantity="other">%d Included Applications</item>
     </plurals>
-    <plurals name="n_excluded_applications">
-        <item quantity="one">%d excluded</item>
-        <item quantity="other">%d excluded</item>
-    </plurals>
-    <plurals name="n_included_applications">
-        <item quantity="one">%d included</item>
-        <item quantity="other">%d included</item>
-    </plurals>
     <string name="all_applications">All Applications</string>
     <string name="exclude_from_tunnel">Exclude</string>
     <string name="include_in_tunnel">Include only</string>
@@ -50,10 +42,6 @@
         <item quantity="one">Exclude %d app</item>
         <item quantity="other">Exclude %d apps</item>
     </plurals>
-    <plurals name="persistent_keepalive_seconds_unit">
-        <item quantity="one">every second</item>
-        <item quantity="other">every %d seconds</item>
-    </plurals>
     <plurals name="persistent_keepalive_seconds_suffix">
         <item quantity="one">second</item>
         <item quantity="other">seconds</item>
@@ -61,10 +49,6 @@
     <string name="use_all_applications">Use all apps</string>
     <string name="add_peer">Add peer</string>
     <string name="addresses">Addresses</string>
-    <string name="applications">Applications</string>
-    <string name="allow_remote_control_intents_summary_off">External apps may not toggle tunnels (recommended)</string>
-    <string name="allow_remote_control_intents_summary_on">External apps may toggle tunnels (advanced)</string>
-    <string name="allow_remote_control_intents_title">Allow remote control apps</string>
     <string name="allowed_ips">Allowed IPs</string>
     <string name="app_name" translatable="false">Virtu VPN</string>
     <string name="vcs_home_subtitle">Secure private access for VPN Mesh and Managed Access.</string>
@@ -85,10 +69,8 @@
     <string name="vcs_widget_vpn_router_hotspot">Hotspot</string>
     <string name="vcs_widget_vpn_router_clients">Clients</string>
     <string name="vcs_widget_vpn_router_protected">Protected</string>
-    <string name="vcs_widget_vpn_router_enabled">Enabled</string>
     <string name="vcs_widget_vpn_router_disabled">Disabled</string>
     <string name="vcs_widget_vpn_router_ready">Ready</string>
-    <string name="vcs_widget_vpn_router_blocked">Blocked</string>
     <string name="vcs_widget_vpn_router_waiting_tunnel">Start VPN</string>
     <string name="vcs_widget_vpn_router_waiting_hotspot">Hotspot off</string>
     <string name="vcs_widget_vpn_router_open_to_check">Open to check</string>
@@ -143,7 +125,7 @@
     <string name="vcs_sign_out_confirm_title">Sign out of VCS?</string>
     <string name="vcs_sign_out_confirm_message">Account session, managed assignments and update credentials will be cleared. Local VPN configs remain on this device.</string>
     <string name="vcs_vpn_status_title">VPN status</string>
-    <string name="vcs_vpn_status_checking">Checking VPN state...</string>
+    <string name="vcs_vpn_status_checking">Checking VPN state…</string>
     <string name="vcs_vpn_status_connected">VPN is ON</string>
     <string name="vcs_vpn_status_disconnected">VPN is OFF</string>
     <string name="vcs_vpn_status_tunnel">Active tunnel: %1$s</string>
@@ -168,7 +150,7 @@
     <string name="vcs_hotspot_vpn_router_active">Router protection active: hotspot clients route through the VPN tunnel.</string>
     <string name="vcs_open_vpn_settings">Open VPN settings</string>
     <string name="vcs_vpn_router_title">VPN router</string>
-    <string name="vcs_vpn_router_checking">Checking VPN router...</string>
+    <string name="vcs_vpn_router_checking">Checking VPN router…</string>
     <string name="vcs_vpn_router_on">On: %1$s routes hotspot traffic via %2$s</string>
     <string name="vcs_vpn_router_degraded">Fail-closed: no protected internet path. Hotspot clients are blocked until the router\'s VPN tunnel and upstream internet are both healthy.</string>
     <string name="vcs_vpn_router_ready">Ready: %1$s can route hotspot traffic via %2$s</string>
@@ -183,7 +165,7 @@
     <string name="vcs_vpn_router_kernel_backend_restarting">Switching to kernel backend. VirtuVPN will restart.</string>
     <string name="vcs_vpn_router_error">VPN router error: %1$s</string>
     <string name="vcs_vpn_router_no_interfaces">no hotspot interface</string>
-    <string name="vcs_vpn_router_uplink_checking">Checking uplink...</string>
+    <string name="vcs_vpn_router_uplink_checking">Checking uplink…</string>
     <string name="vcs_vpn_router_uplink_detected">Uplink: %1$s</string>
     <string name="vcs_vpn_router_uplink_none">no physical uplink detected</string>
     <string name="vcs_vpn_router_uplink_mobile">mobile data %1$s</string>
@@ -202,12 +184,6 @@
     <string name="vcs_vpn_router_page_title">VPN Router</string>
     <string name="vcs_vpn_router_open_pairing_page">Open VPN Router pairing page</string>
     <string name="vcs_vpn_router_home_actions_title">VPN Router</string>
-    <string name="vcs_vpn_router_home_actions_message">Add an external WireGuard tunnel to VPN Mesh, or open the client page. For safe hotspot browsing, use VirtuVPN Secured Browser on the client device.</string>
-    <string name="vcs_vpn_router_add_scan_qr">Scan tunnel QR into VPN Mesh</string>
-    <string name="vcs_vpn_router_add_import_config">Import tunnel config into VPN Mesh</string>
-    <string name="vcs_vpn_router_add_create_config">Create tunnel config in VPN Mesh</string>
-    <string name="vcs_vpn_router_add_open_client_page">Open router client page</string>
-    <string name="vcs_vpn_router_scan_tunnel_qr">Scan external tunnel QR</string>
     <string name="vcs_vpn_router_logo_action_client_page">Open client HTML / QR page</string>
     <string name="vcs_vpn_router_logo_action_add_tunnel">Add external tunnel to VPN Mesh</string>
     <string name="vcs_vpn_router_page_summary">Router mode sends hotspot clients through the active VPN interface and blocks direct mobile fallback. Use VirtuVPN Secured Browser on client devices for safe browsing.</string>
@@ -217,11 +193,6 @@
     <string name="vcs_vpn_router_guest_access_inactive">Client app download appears after router mode is enabled.</string>
     <string name="vcs_vpn_router_guest_download">Scan QR to install and use Secured Browser</string>
     <string name="vcs_vpn_router_guest_download_inactive">Enable VPN Router to show local install QR</string>
-    <string name="vcs_vpn_router_guest_download_description">Downloading guest APK for client devices</string>
-    <string name="vcs_vpn_router_guest_download_started">VirtuVPN guest app download started</string>
-    <string name="vcs_vpn_router_guest_download_failed">VirtuVPN guest app download failed: %1$s</string>
-    <string name="vcs_vpn_router_guest_download_with_address">Download: %1$s</string>
-    <string name="vcs_vpn_router_guest_pair_secure_browser">Scan this QR from the client VirtuVPN app to pair Secured Browser with this VPN Router. Safe browsing through router hotspot clients should use Secured Browser.</string>
     <string name="vcs_vpn_router_guest_qr">VirtuVPN router pairing QR code</string>
     <string name="vcs_vpn_router_guest_access_detail">The QR opens a VirtuVPN page with install/update and pair-key actions. Guest and enrolled clients use the same flow. For safe hotspot browsing, open pages in VirtuVPN Secured Browser.</string>
     <string name="vcs_vpn_router_mode">Router mode</string>
@@ -247,7 +218,7 @@
     <string name="vcs_vpn_router_service_channel">VPN Router protection</string>
     <string name="vcs_vpn_router_service_channel_description">Keeps VPN Router rules and client browser pairing available while router mode is active.</string>
     <string name="vcs_vpn_router_service_title">VPN Router protection active</string>
-    <string name="vcs_vpn_router_service_starting">Starting router protection...</string>
+    <string name="vcs_vpn_router_service_starting">Starting router protection…</string>
     <string name="vcs_vpn_router_service_active_detail">%1$s protects hotspot clients on %2$s</string>
     <string name="vcs_vpn_router_service_degraded">No protected internet path (VPN tunnel or upstream internet down). Hotspot clients remain fail-closed.</string>
     <string name="vcs_secure_browser_title">Secured Browser</string>
@@ -277,7 +248,7 @@
     <string name="vcs_secure_browser_blocked_webview_update">Secured Browser needs a newer Android WebView for strict WebRTC leak protection. Update Android System WebView or Google Chrome from Play Store, or install the latest Android system update, then reopen Secured Browser.</string>
     <string name="vcs_secure_browser_stopped">Secured Browser stopped because no protected connection is active</string>
     <string name="vcs_secure_browser_blocked_public_http">Only HTTPS pages are allowed in Secured Browser.</string>
-    <string name="vcs_secure_browser_egress_checking">Checking protected route...</string>
+    <string name="vcs_secure_browser_egress_checking">Checking protected route…</string>
     <string name="vcs_secure_browser_egress_checking_short">VPN Checking</string>
     <string name="vcs_secure_browser_egress_protected_short">VPN Protected</string>
     <string name="vcs_secure_browser_egress_router_protected_short">Protected by Router</string>
@@ -299,7 +270,7 @@
     <string name="vcs_secure_browser_paste_router_pair">Paste pair key</string>
     <string name="vcs_secure_browser_paste_router_pair_description">Pair Secured Browser with a VPN Router by pasting the copied pair key</string>
     <string name="vcs_secure_browser_paste_router_pair_title">Paste VPN Router pair key</string>
-    <string name="vcs_secure_browser_paste_router_pair_hint">virtuvpn://router-pair?id=...</string>
+    <string name="vcs_secure_browser_paste_router_pair_hint" translatable="false">virtuvpn://router-pair?id=…</string>
     <string name="vcs_secure_browser_paste_router_pair_clipboard">Use clipboard</string>
     <string name="vcs_secure_browser_paste_router_pair_empty">No pair key found. Copy the browser pair key from the router page first.</string>
     <string name="vcs_secure_browser_pair_router_scan_prompt">Scan VPN Router pairing QR</string>
@@ -318,7 +289,6 @@
         <item quantity="one">Remove 1 paired VPN Router from this device?</item>
         <item quantity="other">Remove %1$d paired VPN Routers from this device?</item>
     </plurals>
-    <string name="vcs_secure_browser_egress_tap_to_check">%1$s · Tap to check exit</string>
     <string name="vcs_secure_browser_egress_description">Protected route status. Tap to check exit IP and country.</string>
     <string name="vcs_secure_browser_egress_modal_title">Protected route</string>
     <string name="vcs_secure_browser_egress_modal_check">Check exit</string>
@@ -377,7 +347,6 @@
     <string name="web_terminal_browser_title">Web Terminal</string>
     <string name="web_terminal_browser_blocked_detail">Terminal traffic is stopped until the required VPN tunnel is active.</string>
     <string name="vcs_enroll_device">Enroll device</string>
-    <string name="vcs_enroll_required">Enroll this device from VCS App first.</string>
     <string name="vcs_enroll_hint">Paste VirtuVPN enrollment link</string>
     <string name="vcs_enroll_submit">Enroll</string>
     <string name="vcs_enroll_confirm_title">Enroll this device?</string>
@@ -400,7 +369,6 @@
     <string name="bad_config_reason_syntax_error">Syntax error</string>
     <string name="bad_config_reason_unknown_attribute">Unknown attribute</string>
     <string name="bad_config_reason_unknown_section">Unknown section</string>
-    <string name="bad_config_reason_value_out_of_range">Value out of range</string>
     <string name="bad_extension_error">File must be .conf or .zip</string>
     <string name="error_no_qr_found">QR code not found in image</string>
     <string name="error_qr_checksum">QR code checksum verification failed</string>
@@ -427,7 +395,6 @@
     <string name="dark_theme_summary_on">Currently using dark (night) theme</string>
     <string name="dark_theme_title">Use dark theme</string>
     <string name="delete">Delete</string>
-    <string name="close">Close</string>
     <string name="tv_delete">Select tunnel to delete</string>
     <string name="tv_select_a_storage_drive">Select a storage drive</string>
     <string name="tv_no_file_picker">Please install a file management utility to browse files</string>
@@ -438,7 +405,6 @@
     <string name="disable_config_export_title">Disable config exporting</string>
     <string name="disable_config_export_description">Disabling config exporting makes private keys less accessible</string>
     <string name="dns_servers">DNS servers</string>
-    <string name="dns_search_domains">Search domains</string>
     <string name="edit">Edit</string>
     <string name="endpoint">Endpoint</string>
     <string name="error_down">Error bringing down tunnel: %s</string>
@@ -464,27 +430,19 @@
     <string name="key_length_explanation_base64">: WireGuard base64 keys must be 44 characters (32 bytes)</string>
     <string name="key_length_explanation_binary">: WireGuard keys must be 32 bytes</string>
     <string name="key_length_explanation_hex">: WireGuard hex keys must be 64 characters (32 bytes)</string>
-    <string name="latest_handshake">Latest handshake</string>
     <string name="latest_handshake_ago">%s ago</string>
     <string name="listen_port">Listen port</string>
     <string name="log_export_error">Unable to export log: %s</string>
     <string name="log_export_subject">Virtu VPN Log File</string>
     <string name="log_export_success">Saved to “%s”</string>
     <string name="log_export_title">Export log file</string>
-    <string name="log_saver_activity_label">Save log</string>
     <string name="log_viewer_pref_summary">Logs may assist with debugging</string>
     <string name="log_viewer_pref_title">View application log</string>
     <string name="log_viewer_title">Log</string>
-    <string name="logcat_error">Unable to run logcat: </string>
     <string name="module_enabler_disabled_summary">The experimental kernel module can improve performance</string>
     <string name="module_enabler_disabled_title">Enable kernel module backend</string>
     <string name="module_enabler_enabled_summary">The slower userspace backend may improve stability</string>
     <string name="module_enabler_enabled_title">Disable kernel module backend</string>
-    <string name="module_installer_error">Something went wrong. Please try again</string>
-    <string name="module_installer_initial">The experimental kernel module can improve performance</string>
-    <string name="module_installer_not_found">No modules are available for your device</string>
-    <string name="module_installer_title">Download and install kernel module</string>
-    <string name="module_installer_working">Downloading and installing…</string>
     <string name="module_version_error">Unable to determine kernel module version</string>
     <string name="mtu">MTU</string>
     <string name="multiple_tunnels_summary_off">Turning on one tunnel will turn off others</string>
@@ -505,10 +463,8 @@
     <string name="permission_label">control VPN tunnels</string>
     <string name="persistent_keepalive">Persistent keepalive</string>
     <string name="pre_shared_key">Pre-shared key</string>
-    <string name="pre_shared_key_enabled">enabled</string>
     <string name="private_key">Private key</string>
     <string name="public_key">Public key</string>
-    <string name="qr_code_hint">Tip: generate with `qrencode -t ansiutf8 &lt; tunnel.conf`.</string>
     <string name="quick_settings_tile_add_title">Add tile to quick settings panel</string>
     <string name="quick_settings_tile_add_summary">The shortcut tile toggles the most recent tunnel</string>
     <string name="quick_settings_tile_add_failure">Unable to add shortcut tile: error %d</string>
@@ -523,7 +479,6 @@
     <string name="shell_marker_count_error">Shell expected 4 markers, received %d</string>
     <string name="shell_start_error">Shell failed to start: %d</string>
     <string name="success_application_will_restart">Success. The application will now restart…</string>
-    <string name="toggle">Connect</string>
     <string name="toggle_all">Toggle All</string>
     <string name="toggle_error">Error toggling VPN tunnel: %s</string>
     <string name="tools_installer_already">wg and wg-quick are already installed</string>
@@ -535,8 +490,6 @@
     <string name="tools_installer_success_system">wg and wg-quick installed into the system partition</string>
     <string name="tools_installer_title">Install command line tools</string>
     <string name="tools_installer_working">Installing wg and wg-quick</string>
-    <string name="tools_unavailable_error">Required tools unavailable</string>
-    <string name="transfer">Transfer</string>
     <string name="transfer_bytes">%d B</string>
     <string name="transfer_gibibytes">%.2f GiB</string>
     <string name="transfer_kibibytes">%.2f KiB</string>
@@ -550,19 +503,10 @@
     <string name="tunnel_error_already_exists">Tunnel “%s” already exists</string>
     <string name="tunnel_error_invalid_name">Invalid name</string>
     <string name="tunnel_list_title">Servers</string>
-    <string name="status_connected">Connected</string>
     <string name="status_disconnected">Not Connected</string>
-    <string name="status_connecting">Connecting…</string>
-    <string name="stat_your_ip">Your IP</string>
-    <string name="stat_server_ip">Server</string>
-    <string name="stat_wg_routes">WG routes</string>
     <string name="stat_public_ip">Public IP</string>
     <string name="status_vpn_live">VPN is live</string>
     <string name="stat_download">Download</string>
-    <string name="stat_upload">Upload</string>
-    <string name="stat_total_down">Total ↓</string>
-    <string name="stat_total_up">Total ↑</string>
-    <string name="stat_speed_format">%s/s</string>
     <string name="stat_no_data">—</string>
     <string name="stat_public_identity">Internet sees you as</string>
     <string name="stat_checking">Checking…</string>
@@ -581,8 +525,6 @@
     <string name="web_terminal_starting_tunnel">Starting %1$s for terminal…</string>
     <string name="web_terminal_tunnel_missing">Terminal tunnel not found: %1$s</string>
     <string name="web_terminal_tunnel_start_failed">Unable to start terminal tunnel: %1$s</string>
-    <string name="web_terminal_unreachable">Terminal is not reachable through the active tunnel: %1$s</string>
-    <string name="stat_duration">Duration</string>
     <string name="tunnel_list_placeholder">Add a tunnel using the button below</string>
     <string name="tunnel_name">Tunnel Name</string>
     <string name="tunnel_on_error">Unable to turn tunnel on (wgTurnOn returned %d)</string>
@@ -609,18 +551,10 @@
     <string name="connect_to_fastest">Connect to Fastest</string>
     <string name="ping_measuring">Measuring servers…</string>
     <string name="detail">Detail</string>
-    <string name="privacy_shield">Privacy Shield</string>
-    <string name="live_traffic">Live Traffic</string>
-    <string name="stat_latency">Latency</string>
-    <string name="stat_quality">Quality</string>
-    <string name="vcs_sync_managed_tunnels">Sync VCS tunnels</string>
     <string name="vcs_check_updates">Check updates</string>
     <string name="vcs_update_available">New VirtuVPN version available: %1$s</string>
     <string name="vcs_update_download_title">Update available</string>
     <string name="vcs_update_download_message">Version %1$s is available. Download the APK now?</string>
-    <string name="vcs_update_download_failed_detail">VirtuVPN update download failed: %1$s</string>
-    <string name="vcs_update_download_reason_unknown">unknown download error</string>
-    <string name="vcs_update_download_complete">VirtuVPN update downloaded to Downloads: %1$s</string>
     <string name="vcs_update_none">No update available</string>
     <string name="vcs_sync_running">Syncing VCS tunnels…</string>
     <string name="vcs_sync_no_assignments">Sync complete: no tunnels are assigned to this device</string>
@@ -630,10 +564,12 @@
     <string name="vcs_sync_skipped_running">Sync found %1$d tunnel config update(s), but the tunnel is running. Turn the tunnel off and sync again to apply safely.</string>
     <string name="vcs_sync_success">VCS sync complete: imported %1$d of %2$d assigned tunnels</string>
     <string name="vcs_sync_error">VCS sync failed: %1$s</string>
-    <string name="vcs_sync_partial">Sync partially completed: %1$d operations need a retry. Existing profiles were retained.</string>
+    <string name="vcs_sync_partial">Sync partially completed. Operations to retry: %1$d. Existing profiles were retained.</string>
     <string name="vcs_browser_shared_cookies">Shared cookies — update Android System WebView for browser isolation</string>
     <string name="vcs_device_diagnostics">Device diagnostics</string>
     <string name="vcs_sync_waiting">Managed sync: waiting for device synchronization</string>
     <string name="vcs_sync_status_summary">Managed sync: %1$s · %2$d s\n%3$s</string>
     <string name="vcs_optional_account_status">VCS not connected (optional for Secure Browser and third-party VPN Router)</string>
+    <string name="vcs_widget_path_separator" translatable="false">&gt;</string>
+    <string name="log_viewer_share_logs">Share logs</string>
 </resources>

@@ -10,7 +10,7 @@
     android:fitsSystemWindows="true"
     tools:context=".activity.TunnelCreatorActivity">
 
-    <androidx.fragment.app.FragmentContainerView xmlns:android="http://schemas.android.com/apk/res/android"
+    <androidx.fragment.app.FragmentContainerView
         android:id="@+id/editor_fragment"
         android:name="com.wireguard.android.fragment.TunnelEditorFragment"
         android:layout_width="match_parent"

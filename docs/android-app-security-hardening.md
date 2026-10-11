@@ -1,5 +1,80 @@
 # VirtuVPN Android App Security Hardening Backlog
 
+## Safe warning cleanup — October 11, 2026, version 900
+
+The owner authorized simple cleanup and explicitly required consultation before
+changes to application logic. This block preserves VPN/router operations, enrollment,
+sync, authentication, command receipts, updater persistence and signing identity.
+Build and deployment scripts are unchanged.
+
+### Completed source and resource cleanup
+
+- Removed 78 unused resource IDs and their localized/density variants after both
+  a full lint review and reference checks across tracked code/XML. The unused
+  `tunnel_detail_peer` layout has no binding consumers. Resources referenced only
+  by that deleted layout were checked again before removal. No device profiles,
+  downloads, installation records or user files were removed.
+- Removed 11 byte-identical bitmap copies. Resource aliases preserve the launcher,
+  round launcher and router-shortcut names and original pixels/density selection.
+  Pre-26 launcher aliases point to the retained foreground PNGs; adaptive v26 XML
+  continues to use those PNGs, avoiding an alias cycle.
+- Completed 82 existing string translations plus the new Share logs accessibility
+  label in German, Italian and French. Format arguments retain their existing
+  positions/types. The fixed `virtuvpn://router-pair` example is protocol syntax
+  and is explicitly non-translatable. Existing English UI remains the default;
+  historical untranslated strings are still reported, not replaced with English
+  copies to silence lint.
+- Added 20 explicit French/Italian `many` plural forms with exactly the previous
+  `other` fallback text. This changes no selected message. The partial-sync count
+  label uses a neutral count format with the existing string ID and arguments.
+- Decorative images defer to adjacent text labels; the log Share action now has
+  its own accessible label. Six 10sp labels now use 11sp. Three widget separators
+  share one non-translatable symbol resource. Fixed display ellipses and one
+  redundant XML namespace. Existing input-field accessibility labels are retained
+  pending a separate review.
+- Replaced 46 color parsing spellings with the equivalent AndroidX `toColorInt`
+  call. The installed AndroidX implementation delegates directly to the same
+  `Color.parseColor`; conditional branches, values and callbacks are unchanged.
+
+### Validation and honest warning inventory
+
+| Gate | Before | After |
+| --- | --- | --- |
+| Visible lint warnings | 135 | 33 |
+| Full lint warnings with an empty diagnostic baseline | 761 | 433 |
+| Lint errors | 0 | 0 |
+| Repository baseline entries | 643 | 400 |
+
+The baseline was pruned, never expanded; no lint rule was disabled. Full reports
+are collected using an external diagnostic init script and empty baseline, without
+changing project build scripts. The 400 remaining baseline findings remain open.
+**Ten historical launcher-shape findings stop being recognized by lint after
+bitmap aliasing. Their pixels were preserved, so shape/themed-icon design remains
+an open review item; these ten findings are not claimed as repaired designs.**
+
+Validation includes all 52 existing unit tests, full and normal lint, production
+assemble, compiled icon aliases, package/non-debuggable/signing checks and the
+APK/metadata/hash binding served by VCS App. Physical ARM VPN/router testing remains
+the separate acceptance gate described below. Version **900 /
+1.0.20261011.361-vcsinstall** uses the established updater and signing certificate.
+Evidence: `/srv/vcs/deploy/evidence/virtuvpn-safe-warnings-20261011/`.
+
+### Stop point: consult before behavioral changes
+
+| Area | Why it is deferred |
+| --- | --- |
+| Updater/managed state and router preference edits | Preserve synchronous `commit()` and its Boolean success checks. KTX `edit` returns Unit, so a mechanical replacement can lose the durability/failure contract. Router recovery snapshots, health counters and operation ordering require individual review. |
+| RecyclerView notifications | Replacing whole-list notifications requires validating item identity, moves, selection and observer ordering. |
+| Enrollment App Links and autofill | Domain verification/browser routing and credential handling are product/security policies, not cosmetic warnings. |
+| Android compatibility attributes | Newer-platform attributes are intentionally ignored on older supported devices. Do not delete them or raise minSdk just to clear warnings; decide version-qualified compatibility behavior first. |
+| URI/bitmap/Canvas and compatibility drawables | Review nullability, exception cleanup, bitmap parameters and platform/theme behavior before converting helpers. |
+| Layout consolidation and input accessibility | Compound drawables, action placement, background removal and field labels can alter layout, touch areas or screen-reader behavior. |
+| Shared `copy` resource and plural wording | Renaming an override can change dependency UI labels; quantity wording must preserve its caller's formatting semantics. |
+| Remaining localization and launcher design | 262 historical translation findings remain a separate language review. Adaptive monochrome layers and legacy icon geometry need correct branding assets and rendering checks. |
+
+Android resource reference:
+[resource aliases](https://developer.android.com/guide/topics/resources/providing-resources#AliasResources).
+
 ## GitHub Actions native checkout — October 11, 2026
 
 The **Android Secured Browser** workflow must check out recursive Git submodules.
