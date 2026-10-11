@@ -1,5 +1,26 @@
 # VirtuVPN Android App Security Hardening Backlog
 
+## GitHub Actions native checkout — October 11, 2026
+
+The **Android Secured Browser** workflow must check out recursive Git submodules.
+The WireGuard native build requires both `tunnel/tools/wireguard-tools` and
+`tunnel/tools/elf-cleaner` at the commits pinned in this repository. A fresh
+checkout without these dependencies fails CMake configuration because
+`wireguard-tools/src/wg-quick/android.c` is missing; a developer checkout with
+initialized submodules can conceal this CI failure.
+
+The workflow now initializes the pinned submodules and verifies the two required
+native source files before setting up Java/Gradle. Its existing unit-test, lint
+and build gate remains mandatory. Do not substitute unpinned dependency downloads
+or disable the native build to make CI pass. Local fresh checkouts require
+`git submodule update --init --recursive` before invoking the same Gradle gate.
+The repaired fresh checkout passes all 52 unit tests, lint (0 errors, 135 visible
+existing warnings) and `assembleVcsinstall` with Gradle build-cache reuse disabled.
+
+This changes CI checkout only. Production version 899, signing identity, updater,
+VPN behavior and access requirements are unchanged. Failure reproduction and
+verification evidence: `/srv/vcs/deploy/evidence/virtuvpn-ci-discovery-20261011/`.
+
 
 ## Device diagnostics — October 11, 2026, version 899
 
