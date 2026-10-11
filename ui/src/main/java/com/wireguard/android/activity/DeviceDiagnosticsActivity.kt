@@ -37,6 +37,7 @@ import com.wireguard.android.databinding.DeviceDiagnosticsActivityBinding
 import com.wireguard.android.vcs.DeviceDiagnosticMath
 import com.wireguard.android.vcs.DeviceDiagnosticsViewModel
 import com.wireguard.android.vcs.ManagedDiagnostics
+import com.wireguard.android.vcs.StartupAppStatus
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
@@ -85,7 +86,7 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
         binding.diagnosticsShare.setOnClickListener {
             val state = model.state.value
             state.report?.let { report ->
-                val export = ManagedDiagnostics.export(report, state.ports, state.apps.takeIf { ManagedDiagnostics.hasUsageAccess(this) }).toString(2)
+                val export = ManagedDiagnostics.export(report, state.apps?.storage.takeIf { ManagedDiagnostics.hasUsageAccess(this) }, state.startup).toString(2)
                 open(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, export), getString(R.string.vcs_diag_share_report)))
             }
         }
@@ -155,27 +156,11 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
                 note("These are observable settings, not a malware verdict. Root status, bootloader integrity and all installed apps are not verified.")
                 action(R.string.vcs_diag_security_settings) { open(Intent(Settings.ACTION_SECURITY_SETTINGS)) }
             }
-            card(R.string.vcs_diag_connection, R.drawable.ic_wifi) {
-                row("VCS account session", if (report.accountSessionPresent) "Present" else "Optional · not signed in")
-                row("Managed device session", if (report.deviceSessionPresent) "Present" else "Not enrolled")
-                row("Last synchronization state", report.syncPhase)
-                row("Update state", report.updatePhase)
-                row("Battery optimization for VirtuVPN", switch(s.batteryOptimized))
-                row("Background restricted by Android", switch(s.backgroundRestricted))
-                row("Active network has VPN transport", switch(s.vpnTransport))
-                note("Background synchronization is periodic and subject to Android battery and network scheduling. Session presence does not prove current server connectivity.")
-                if (report.tunnels.isEmpty()) note(if (report.tunnelEvidenceComplete) R.string.vcs_diag_no_tunnels else R.string.vcs_diag_partial)
-                report.tunnels.forEach { t ->
-                    row("VPN ${t.index}", t.state)
-                    row("Configured DNS servers", t.dnsCount?.toString() ?: unavailable())
-                    row("Default route · IPv4 / IPv6", "${switch(t.defaultIpv4)} / ${switch(t.defaultIpv6)}")
-                    row("Last handshake age", t.handshakeAgeSeconds?.let { "$it seconds" } ?: "No handshake evidence")
-                }
-                if (!report.tunnelEvidenceComplete && report.tunnels.isNotEmpty()) note(R.string.vcs_diag_partial)
-                note(R.string.vcs_diag_tunnel_limit)
-            }
         }
         card(R.string.vcs_diag_apps, R.drawable.ic_device, busy = state.appProgress != null) {
+            row("Other apps · live CPU / RAM", getString(R.string.vcs_diag_android_restricted))
+            note(R.string.vcs_diag_app_resources_limit)
+            action(R.string.vcs_diag_application_settings) { open(Intent(Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS)) }
             if (Build.VERSION.SDK_INT < 26) {
                 note(R.string.vcs_diag_optional_older)
                 action(R.string.vcs_diag_storage_settings) { open(Intent(Settings.ACTION_INTERNAL_STORAGE_SETTINGS)) }
@@ -183,16 +168,29 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
                 note(R.string.vcs_diag_usage_intro)
                 val access = ManagedDiagnostics.hasUsageAccess(this@DeviceDiagnosticsActivity)
                 state.appProgress?.let { progress(it) }
-                if (state.appError) note(R.string.vcs_diag_failed)
+                if (state.appError) note(R.string.vcs_diag_optional_failed)
                 if (access) state.apps?.let { sample ->
-                    note(getString(R.string.vcs_diag_app_scope, sample.measured, sample.visible,
-                        getString(if (sample.complete) R.string.vcs_diag_sample_complete else R.string.vcs_diag_partial)))
-                    note("Observed ${time(sample.collectedAt)}")
-                    sample.apps.forEachIndexed { i, app ->
-                        row("${i + 1}. ${app.label}", bytes(app.totalBytes))
+                    val storage = sample.storage
+                    note(getString(R.string.vcs_diag_app_scope, storage.measured, storage.visible,
+                        getString(if (storage.complete) R.string.vcs_diag_sample_complete else R.string.vcs_diag_partial)))
+                    note("Observed ${time(storage.collectedAt)}")
+                    row("Measured app + data storage", bytes(storage.measuredTotalBytes))
+                    note(R.string.vcs_diag_storage_share)
+                    storage.apps.forEachIndexed { i, app ->
+                        row("${i + 1}. ${app.label}", "${bytes(app.totalBytes)} · ${share(app.totalBytes, storage.measuredTotalBytes)}")
                         note("App ${bytes(app.appBytes)} · Data ${bytes(app.dataBytes)} · Cache ${bytes(app.cacheBytes)} included")
                     }
                     note(R.string.vcs_diag_apps_limit)
+                    note(R.string.vcs_diag_usage_heading)
+                    sample.usage?.let { usage ->
+                        note("Observed ${time(usage.collectedAt)}")
+                        note(getString(R.string.vcs_diag_usage_period, time(usage.recordBegin), time(usage.recordEnd)))
+                        row("Apps with foreground records", usage.usedApps.toString())
+                        note(R.string.vcs_diag_usage_share)
+                        usage.apps.forEachIndexed { i, app ->
+                            row("${i + 1}. ${app.label}", "${duration(app.foregroundMillis)} · ${share(app.foregroundMillis, usage.totalForegroundMillis)}")
+                        }
+                    } ?: note(R.string.vcs_diag_usage_missing)
                 }
                 action(if (access) R.string.vcs_diag_scan_apps else R.string.vcs_diag_usage_access, state.appProgress == null) {
                     if (ManagedDiagnostics.hasUsageAccess(this@DeviceDiagnosticsActivity)) model.scanApps()
@@ -205,19 +203,35 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
                 if (access) action(R.string.vcs_diag_usage_manage) { open(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, "package:$packageName".toUri())) }
             }
         }
-        card(R.string.vcs_diag_ports, R.drawable.ic_server, busy = state.portProgress != null) {
-            note(R.string.vcs_diag_port_intro)
-            state.portProgress?.let { progress(it) }
-            if (state.portError) note(R.string.vcs_diag_failed)
-            state.ports?.let { result ->
-                note("Observed ${time(result.collectedAt)}")
-                row("Evidence", getString(if (result.complete) R.string.vcs_diag_ports_complete else R.string.vcs_diag_partial))
-                note(getString(R.string.vcs_diag_port_scope, result.completed, result.total, result.unknown))
-                if (result.accepting.isEmpty()) note(R.string.vcs_diag_no_ports)
-                result.accepting.forEach { row("${it.family} loopback · TCP ${it.port}", "Accepting", AMBER) }
+        card(R.string.vcs_diag_startup, R.drawable.ic_power, busy = state.startupProgress != null) {
+            note(R.string.vcs_diag_startup_intro)
+            note(R.string.vcs_diag_startup_limit)
+            action(R.string.vcs_diag_scan_startup, state.startupProgress == null) { model.scanStartup() }
+            state.startupProgress?.let { progress(it) }
+            if (state.startupError) note(R.string.vcs_diag_optional_failed)
+            state.startup?.let { sample ->
+                note("Observed ${time(sample.collectedAt)}")
+                row("Visible apps checked", "${sample.checked} / ${sample.visibleApps}")
+                row("Startup entries shown / identified", "${sample.apps.size} / ${sample.identified}")
+                row("Evidence", getString(if (sample.complete) R.string.vcs_diag_startup_complete else R.string.vcs_diag_partial))
+                if (sample.apps.isEmpty()) note(R.string.vcs_diag_startup_empty)
+                sample.apps.forEach { app ->
+                    row(app.label, getString(when (app.status) {
+                        StartupAppStatus.ENABLED_RECEIVER -> R.string.vcs_diag_startup_enabled
+                        StartupAppStatus.DISABLED -> R.string.vcs_diag_startup_disabled
+                        StartupAppStatus.STOPPED -> R.string.vcs_diag_startup_stopped
+                        StartupAppStatus.PERMISSION_ONLY -> R.string.vcs_diag_startup_permission_only
+                        StartupAppStatus.PERMISSION_NOT_GRANTED -> R.string.vcs_diag_startup_permission_missing
+                        StartupAppStatus.UNVERIFIED -> R.string.vcs_diag_unavailable
+                    }))
+                    val kind = when (app.systemApp) { true -> "System app"; false -> "Installed app"; null -> unavailable() }
+                    val phases = listOfNotNull("After unlock".takeIf { app.afterUnlock }, "Before unlock".takeIf { app.beforeUnlock })
+                    note(if (phases.isEmpty()) kind else "$kind · ${phases.joinToString(" / ")}")
+                    action(getString(R.string.vcs_diag_review_app, app.label)) {
+                        open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${app.packageName}".toUri()))
+                    }
+                }
             }
-            note(R.string.vcs_diag_port_limit)
-            action(R.string.vcs_diag_scan_ports, state.portProgress == null) { model.scanPorts() }
         }
     }
     private fun card(title: Int, icon: Int, busy: Boolean = false, content: LinearLayout.() -> Unit) {
@@ -340,9 +354,10 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
             progressTintList = ColorStateList.valueOf(ACCENT); indeterminateTintList = ColorStateList.valueOf(ACCENT)
         }, LinearLayout.LayoutParams(-1, dp(6)).apply { topMargin = dp(8) })
     }
-    private fun LinearLayout.action(resource: Int, enabled: Boolean = true, callback: () -> Unit) {
+    private fun LinearLayout.action(resource: Int, enabled: Boolean = true, callback: () -> Unit) = action(getString(resource), enabled, callback)
+    private fun LinearLayout.action(label: String, enabled: Boolean = true, callback: () -> Unit) {
         addView(MaterialButton(this@DeviceDiagnosticsActivity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-            setText(resource); isEnabled = enabled; setTextColor(ACCENT); strokeColor = ColorStateList.valueOf(ACCENT); strokeWidth = dp(1); cornerRadius = dp(12)
+            text = label; isEnabled = enabled; setTextColor(ACCENT); strokeColor = ColorStateList.valueOf(ACCENT); strokeWidth = dp(1); cornerRadius = dp(12)
             backgroundTintList = ColorStateList.valueOf("#102330".toColorInt()); minHeight = dp(48)
             setOnClickListener { callback() }
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
@@ -356,6 +371,15 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
     private fun unavailable() = getString(R.string.vcs_diag_unavailable)
     private fun switch(value: Boolean?) = when (value) { true -> "Enabled"; false -> "Disabled"; null -> unavailable() }
     private fun time(value: Long) = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(value))
+    private fun share(amount: Long, total: Long) = DeviceDiagnosticMath.sharePercent(amount, total)?.let { String.format(Locale.US, "%.1f%%", it) } ?: unavailable()
+    private fun duration(millis: Long): String {
+        val seconds = millis / 1000
+        return when {
+            seconds < 60 -> "$seconds s"
+            seconds < 3600 -> "${seconds / 60} min"
+            else -> "${seconds / 3600} h ${(seconds % 3600) / 60} min"
+        }
+    }
     private fun bytes(value: Long?): String {
         if (value == null || value < 0) return unavailable()
         val gib = 1_073_741_824.0

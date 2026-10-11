@@ -1,6 +1,93 @@
 # VirtuVPN Android App Security Hardening Backlog
 
-## Current UI follow-up — collapsible Device diagnostics, October 11, 2026
+## Current UI follow-up — app resources and startup, October 11, 2026
+
+The owner chose a device resource/startup overview without root, replacing the
+limited local port probe. Current Device diagnostics has six collapsible sections:
+Performance & resources, Storage, Battery & temperature, Device security, App
+resource overview and Apps at startup. The VPN & synchronization section is removed
+along with its diagnostic-only tunnel/session collection, models and report fields.
+The TCP probe implementation, ViewModel job, strings and obsolete socket tests are
+removed from the tracked source. Do not reinstate them from the historical records
+below. No Shizuku, ADB helper, root request, external scan or antivirus claim is
+introduced into the product.
+
+App resource overview keeps an explicit Android Usage access boundary and the
+existing bounded storage check: up to 64 visible launcher apps, with a 15-second
+loop deadline and eight largest rows. Size includes app + data; cache is already
+included in data. New storage percentages divide each row by the total of *all*
+successfully measured apps, including rows outside the top eight. They do not
+represent all phone storage. Missing or invalid denominators stay unavailable.
+
+The same explicit check also reads recent Android daily foreground-usage records
+for visible launcher apps and displays the eight largest totals with durations and
+percentages. The denominator includes all visible apps with usable records, not
+just the displayed eight. Display the actual first/last record timestamps: Android
+may expand a requested day to daily bucket boundaries. Foreground time measures
+activity; it is not CPU, RAM, energy consumption or a continuous process monitor.
+Multitasking may overlap and Android may delay/omit records. No usable records
+produce an unavailable-data explanation, never a claim of zero resource use.
+
+Android does not expose other apps' live CPU/RAM to this ordinary application.
+Usage access does not remove that restriction. The resource card labels the
+limitation and offers Android app settings to review available battery, permission
+and storage details. Existing basic device RAM and VirtuVPN process CPU/PSS
+measurements retain their previous meaning; they are snapshots, not rankings of
+other apps. Do not replace unavailable process metrics with foreground-time
+percentages under a CPU/RAM label.
+
+Apps at startup is a separate explicitly initiated, local metadata check. It uses
+existing launcher visibility plus actually observed boot receivers and this app's
+own package; it does not request QUERY_ALL_PACKAGES or assume hidden packages are
+visible. Up to 512 visible packages are checked against a 10-second loop deadline,
+with at most 128 identified startup entries displayed. Show package-check and
+entry counts, collection time and partial evidence where appropriate. Display
+installed apps before system apps, then sort by label.
+
+Classify the observed app/receiver state and boot permission separately: enabled
+boot receiver, disabled app/receiver, stopped app, boot permission only, permission
+not granted or unverified evidence. Show observed before-/after-unlock boot
+handlers. An enabled handler is declared capability, not proof of execution,
+ongoing activity, safety or malware. Permission alone does not establish a handler.
+Other profiles, hidden receivers/packages and non-boot startup mechanisms remain
+outside the complete-device claim. Each entry can open that app's Android details;
+the diagnostic check never sends a boot broadcast or changes an app's enabled,
+stopped, permission or installation state.
+
+Both optional checks share the existing ViewModel state/lifecycle boundary and
+collapsible-header busy indicators. Expanding a section starts no check. Results
+survive collapse/reopen, refresh and Activity recreation while the ViewModel lives;
+explicit exit ends its jobs. Revoking Usage access cancels and clears the whole app
+resource observation through the existing generation guard. Startup metadata does
+not depend on that permission. No app inventory, activity history or new preference
+file is persisted or sent to VCS.
+
+Explicit Share report advances to schemaVersion 3: port/VPN/session fields are
+removed; storage gains its measured-total denominator, and startup exports only
+aggregate counts. App labels, package identifiers, app usage records and per-app
+startup details are not exported. The only in-tree export caller is the explicit
+sharing action. VPN, enrollment, managed sync, router, browser privacy, updater,
+parked TV/manual deletion, scripts, dependencies, manifest permissions and public
+release versions are outside this change.
+
+Validation and device acceptance are recorded in
+`/srv/vcs/deploy/evidence/virtuvpn-diagnostics-security-20261011/`. The local gate
+passed 56 unit tests with no failures/errors/skips, assemble and the established
+signer/package/non-debug checks. Three obsolete port tests were removed; seven
+percentage/boot-state tests were added. Full lint remains 38 warnings, visible lint
+13 warnings plus one baseline hint, with zero errors and no new findings or
+suppressions. The 25-entry baseline is unchanged. The connected Samsung initially
+had Usage access allowed. It then disconnected before the private upgrade; new
+screen acceptance is pending reconnection and is not counted as passed. Public
+version 903 and its immutable APK remain unchanged; batch the next public release
+under a higher versionCode.
+
+Platform references: [process memory restrictions](https://developer.android.com/reference/android/app/ActivityManager#getProcessMemoryInfo(int%5B%5D)),
+[daily usage record boundaries](https://developer.android.com/reference/android/app/usage/UsageStatsManager#queryUsageStats(int,long,long)),
+[package visibility](https://developer.android.com/training/package-visibility),
+[boot broadcasts](https://developer.android.com/reference/android/content/Intent#ACTION_BOOT_COMPLETED).
+
+## Completed UI checkpoint — collapsible Device diagnostics, October 11, 2026
 
 At the owner's request, the seven existing diagnostic sections now use collapsible
 cards: Performance & resources, Storage, Battery & temperature, Device security,

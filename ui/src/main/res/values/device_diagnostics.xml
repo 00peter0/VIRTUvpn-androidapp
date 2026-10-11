@@ -6,6 +6,7 @@
     <string name="vcs_diag_share_report" translatable="false">Share report</string>
     <string name="vcs_diag_collecting" translatable="false">Reading device status…</string>
     <string name="vcs_diag_failed" translatable="false">Some checks could not finish. Refresh to retry.</string>
+    <string name="vcs_diag_optional_failed" translatable="false">This check could not finish. Use its check button to retry.</string>
     <string name="vcs_diag_observed" translatable="false">Observed %1$s · VirtuVPN %2$s</string>
     <string name="vcs_diag_unavailable" translatable="false">Unavailable</string>
     <string name="vcs_diag_privacy" translatable="false">Checks stay on this phone. Nothing is deleted or changed. Share report exports a redacted technical report only when you choose to share it. App names, VPN keys, tokens and browsing history are excluded.</string>
@@ -16,34 +17,44 @@
     <string name="vcs_diag_storage" translatable="false">Storage</string>
     <string name="vcs_diag_battery" translatable="false">Battery &amp; temperature</string>
     <string name="vcs_diag_security" translatable="false">Device security</string>
-    <string name="vcs_diag_connection" translatable="false">VPN &amp; synchronization</string>
-    <string name="vcs_diag_apps" translatable="false">Largest measured apps</string>
-    <string name="vcs_diag_ports" translatable="false">Local TCP ports</string>
+    <string name="vcs_diag_apps" translatable="false">App resource overview</string>
+    <string name="vcs_diag_android_restricted" translatable="false">Restricted by Android</string>
+    <string name="vcs_diag_app_resources_limit" translatable="false">Without privileged access, Android does not provide live CPU or RAM rankings for other apps. The measurements below cover storage and foreground time separately. Android app settings can help you review battery use, permissions and storage for each app; options vary by phone.</string>
+    <string name="vcs_diag_application_settings" translatable="false">Open Android app settings</string>
+    <string name="vcs_diag_startup" translatable="false">Apps at startup</string>
     <string name="vcs_diag_cpu_limit" translatable="false" formatted="false">CPU is a short VirtuVPN process sample: 100% equals one logical CPU and includes diagnostic work. Android restricts live CPU and RAM rankings for other apps.</string>
     <string name="vcs_diag_memory_limit" translatable="false">Android uses RAM for caching. Low available memory alone does not prove a problem; the Android memory-pressure signal is shown separately.</string>
     <string name="vcs_diag_storage_limit" translatable="false">This is the internal data volume. Android Storage shows media and other storage categories. This screen never deletes files.</string>
-    <string name="vcs_diag_usage_intro" translatable="false">Optional: allow Usage access in Android to measure storage of visible launcher apps. App, data and cache sizes are read locally; app names stay on this screen. This does not grant access to their private files or provide live CPU/RAM rankings.</string>
-    <string name="vcs_diag_usage_access" translatable="false">Allow storage insights</string>
+    <string name="vcs_diag_usage_intro" translatable="false">Optional: allow Usage access in Android to measure storage and recent foreground time of visible launcher apps. Sizes and usage records are read locally; app names and activity records stay on this screen. This does not grant access to private files or live CPU/RAM rankings.</string>
+    <string name="vcs_diag_usage_access" translatable="false">Allow app insights</string>
     <string name="vcs_diag_usage_manage" translatable="false">Manage Usage access</string>
-    <string name="vcs_diag_scan_apps" translatable="false">Measure app storage</string>
+    <string name="vcs_diag_scan_apps" translatable="false">Measure storage &amp; usage</string>
+    <string name="vcs_diag_storage_share" translatable="false">Storage percentages use the total app + data size successfully measured in this check, including measured apps outside the top eight. They are not shares of all phone storage or CPU/RAM.</string>
+    <string name="vcs_diag_usage_heading" translatable="false">Most foreground activity · Android records</string>
+    <string name="vcs_diag_usage_period" translatable="false">Android record period: %1$s – %2$s. Recent daily records can cover a wider period than the requested day.</string>
+    <string name="vcs_diag_usage_share" translatable="false">Time percentages compare foreground time across visible apps with records, including apps outside the top eight. They are not CPU, RAM or battery consumption. Android may omit or delay records, and multitasking can overlap.</string>
+    <string name="vcs_diag_usage_missing" translatable="false">No usable foreground records were returned. This does not mean that other apps used no resources.</string>
     <string name="vcs_diag_apps_limit" translatable="false">Largest apps in this measured sample; hidden apps, other user profiles, media and system files are excluded. Up to 64 visible apps are measured per check, with a time limit. Cache is already included in app data.</string>
     <string name="vcs_diag_app_scope" translatable="false">Visible apps measured: %1$d / %2$d · %3$s</string>
     <string name="vcs_diag_partial" translatable="false">Partial evidence</string>
-    <string name="vcs_diag_ports_complete" translatable="false">Selected local checks complete</string>
     <string name="vcs_diag_sample_complete" translatable="false">Visible-app sample complete</string>
     <string name="vcs_diag_optional_older" translatable="false">App storage insights require Android 8 or later. You can use Android Storage instead.</string>
-    <string name="vcs_diag_scan_ports" translatable="false">Check local ports</string>
-    <string name="vcs_diag_port_intro" translatable="false">Check 32 selected TCP ports on this phone through IPv4 and IPv6 loopback. The check makes local connections without sending data.</string>
-    <string name="vcs_diag_port_limit" translatable="false">Loopback results do not prove LAN or internet exposure. UDP, other ports and listeners bound only to a network interface are not checked. An accepting port does not identify its app or prove a vulnerability.</string>
-    <string name="vcs_diag_port_scope" translatable="false">Checks completed: %1$d/%2$d · Inconclusive: %3$d</string>
-    <string name="vcs_diag_no_ports" translatable="false">No accepting TCP listeners observed in this sample.</string>
+    <string name="vcs_diag_scan_startup" translatable="false">Check startup apps</string>
+    <string name="vcs_diag_startup_intro" translatable="false">Review visible apps that declare the boot permission or a boot receiver. This check reads local metadata; it does not start, stop or disable apps.</string>
+    <string name="vcs_diag_startup_limit" translatable="false">An enabled boot receiver can respond to Android startup; it does not prove that the app actually ran, is still running or is harmful. Boot permission alone is weaker evidence. Android may hide apps or receivers, and other profiles are excluded. Up to 512 visible apps are checked with a time limit; up to 128 startup entries are shown. Review unfamiliar apps in Android settings; background schedules and other startup mechanisms are not fully covered.</string>
+    <string name="vcs_diag_startup_complete" translatable="false">Visible app check complete</string>
+    <string name="vcs_diag_startup_empty" translatable="false">No boot-capable apps were identified in this visible sample. Hidden apps and other startup mechanisms remain unverified.</string>
+    <string name="vcs_diag_startup_enabled" translatable="false">Enabled boot receiver</string>
+    <string name="vcs_diag_startup_disabled" translatable="false">App or receiver disabled</string>
+    <string name="vcs_diag_startup_stopped" translatable="false">App stopped</string>
+    <string name="vcs_diag_startup_permission_only" translatable="false">Boot permission · receiver unverified</string>
+    <string name="vcs_diag_startup_permission_missing" translatable="false">Boot permission not granted</string>
+    <string name="vcs_diag_review_app" translatable="false">Review %1$s</string>
     <string name="vcs_diag_progress" translatable="false">Checking %1$d of %2$d…</string>
-    <string name="vcs_diag_tunnel_limit" translatable="false">Tunnel UP, configured DNS and default routes are local evidence. They do not prove internet reachability, a hidden public IP or absence of DNS leaks. No external leak test is performed.</string>
     <string name="vcs_diag_storage_settings" translatable="false">Open Android Storage</string>
     <string name="vcs_diag_security_settings" translatable="false">Review security settings</string>
     <string name="vcs_diag_action_unavailable" translatable="false">This Android settings screen is unavailable on this device.</string>
     <string name="vcs_diag_settings_retry" translatable="false">Usage access was not granted. The basic checks remain available.</string>
-    <string name="vcs_diag_no_tunnels" translatable="false">No local VPN tunnels observed.</string>
     <style name="VcsDiagnosticsTheme" parent="AppTheme">
         <item name="windowActionBar">false</item><item name="windowNoTitle">true</item>
     </style>

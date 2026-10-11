@@ -15,16 +15,16 @@ import kotlinx.coroutines.withContext
 class DeviceDiagnosticsViewModel(application: Application) : AndroidViewModel(application) {
     data class State(
         val report: DeviceDiagnosticReport? = null, val refreshing: Boolean = false, val error: Boolean = false,
-        val ports: PhonePortReport? = null, val portProgress: Pair<Int, Int>? = null, val portError: Boolean = false,
-        val apps: AppStorageReport? = null, val appProgress: Pair<Int, Int>? = null, val appError: Boolean = false
+        val apps: AppResourceReport? = null, val appProgress: Pair<Int, Int>? = null, val appError: Boolean = false,
+        val startup: StartupAppReport? = null, val startupProgress: Pair<Int, Int>? = null, val startupError: Boolean = false
     ) {
-        val busy: Boolean get() = refreshing || portProgress != null || appProgress != null
+        val busy: Boolean get() = refreshing || appProgress != null || startupProgress != null
     }
     private val mutable = MutableStateFlow(State())
     val state = mutable.asStateFlow()
     private var refreshJob: Job? = null
-    private var portsJob: Job? = null
     private var appsJob: Job? = null
+    private var startupJob: Job? = null
     private var appGeneration = 0
     init { refresh() }
 
@@ -38,28 +38,13 @@ class DeviceDiagnosticsViewModel(application: Application) : AndroidViewModel(ap
             finally { mutable.value = mutable.value.copy(refreshing = false) }
         }
     }
-    fun scanPorts() {
-        if (portsJob?.isActive == true) return
-        portsJob = viewModelScope.launch {
-            mutable.value = mutable.value.copy(ports = null, portProgress = 0 to PhonePortScan.PORTS.size * 2, portError = false)
-            try {
-                val result = PhonePortScan.scan { done, total -> withContext(Dispatchers.Main.immediate) {
-                    val latest = mutable.value.portProgress?.first ?: 0
-                    mutable.value = mutable.value.copy(portProgress = maxOf(done, latest) to total)
-                } }
-                mutable.value = mutable.value.copy(ports = result)
-            } catch (e: CancellationException) { throw e }
-            catch (_: Exception) { mutable.value = mutable.value.copy(portError = true) }
-            finally { mutable.value = mutable.value.copy(portProgress = null) }
-        }
-    }
     fun scanApps() {
         if (appsJob?.isActive == true) return
         val generation = ++appGeneration
         appsJob = viewModelScope.launch {
             mutable.value = mutable.value.copy(apps = null, appProgress = 0 to 0, appError = false)
             try {
-                val result = ManagedDiagnostics.appStorage(getApplication()) { done, total -> withContext(Dispatchers.Main.immediate) {
+                val result = ManagedDiagnostics.appResources(getApplication()) { done, total -> withContext(Dispatchers.Main.immediate) {
                     if (generation == appGeneration) mutable.value = mutable.value.copy(appProgress = done to total)
                 } }
                 if (generation == appGeneration && ManagedDiagnostics.hasUsageAccess(getApplication()))
@@ -67,6 +52,20 @@ class DeviceDiagnosticsViewModel(application: Application) : AndroidViewModel(ap
             } catch (e: CancellationException) { throw e }
             catch (_: Exception) { if (generation == appGeneration) mutable.value = mutable.value.copy(appError = true) }
             finally { if (generation == appGeneration) mutable.value = mutable.value.copy(appProgress = null) }
+        }
+    }
+    fun scanStartup() {
+        if (startupJob?.isActive == true) return
+        startupJob = viewModelScope.launch {
+            mutable.value = mutable.value.copy(startup = null, startupProgress = 0 to 0, startupError = false)
+            try {
+                val result = StartupDiagnostics.collect(getApplication()) { done, total -> withContext(Dispatchers.Main.immediate) {
+                    mutable.value = mutable.value.copy(startupProgress = done to total)
+                } }
+                mutable.value = mutable.value.copy(startup = result)
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { mutable.value = mutable.value.copy(startupError = true) }
+            finally { mutable.value = mutable.value.copy(startupProgress = null) }
         }
     }
     fun revokeUsageObservation() {

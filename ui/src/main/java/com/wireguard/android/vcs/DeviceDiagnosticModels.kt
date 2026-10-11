@@ -15,22 +15,28 @@ data class AppStorage(val label: String, val packageName: String, val appBytes: 
     // Android includes cache in dataBytes; adding it again would overstate usage.
     val totalBytes: Long get() = appBytes + dataBytes
 }
-data class AppStorageReport(val apps: List<AppStorage>, val visible: Int, val measured: Int, val complete: Boolean, val collectedAt: Long)
+data class AppStorageReport(
+    val apps: List<AppStorage>, val visible: Int, val measured: Int, val complete: Boolean, val collectedAt: Long,
+    val measuredTotalBytes: Long = apps.sumOf { it.totalBytes }
+)
+data class AppUsage(val label: String, val foregroundMillis: Long)
+data class AppUsageReport(
+    val apps: List<AppUsage>, val usedApps: Int, val totalForegroundMillis: Long,
+    val recordBegin: Long, val recordEnd: Long, val collectedAt: Long
+)
+data class AppResourceReport(val storage: AppStorageReport, val usage: AppUsageReport?)
 data class DeviceSecurity(
     val androidVersion: String, val securityPatch: String, val patchAgeDays: Long?,
-    val screenLock: Boolean?, val usbDebugging: Boolean?, val developerOptions: Boolean?,
-    val batteryOptimized: Boolean?, val backgroundRestricted: Boolean?, val vpnTransport: Boolean?
-)
-data class TunnelDiagnostic(
-    val index: Int, val state: String, val dnsCount: Int?, val defaultIpv4: Boolean?, val defaultIpv6: Boolean?, val handshakeAgeSeconds: Long?
+    val screenLock: Boolean?, val usbDebugging: Boolean?, val developerOptions: Boolean?
 )
 data class DeviceDiagnosticReport(
-    val collectedAt: Long, val resources: DeviceResources, val security: DeviceSecurity,
-    val accountSessionPresent: Boolean, val deviceSessionPresent: Boolean, val syncPhase: String,
-    val updatePhase: String, val tunnels: List<TunnelDiagnostic>, val tunnelEvidenceComplete: Boolean
+    val collectedAt: Long, val resources: DeviceResources, val security: DeviceSecurity
 )
 
 object DeviceDiagnosticMath {
+    fun sharePercent(amount: Long?, total: Long?): Double? =
+        if (amount == null || total == null || total <= 0 || amount < 0 || amount > total) null
+        else amount.toDouble() * 100 / total
     fun usedPercent(total: Long?, available: Long?): Int? {
         if (total == null || available == null || total <= 0 || available < 0 || available > total) return null
         return ((total - available).toDouble() * 100 / total).toInt().coerceIn(0, 100)
