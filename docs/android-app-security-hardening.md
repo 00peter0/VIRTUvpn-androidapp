@@ -1,5 +1,80 @@
 # VirtuVPN Android App Security Hardening Backlog
 
+## Current discovery audit October 11 2026
+
+Current source is `9a7ceccf0672e37c9c5bec0f9fe60c103a7a291d` on `main`,
+clean and aligned with its tracked upstream before this documentation update.
+The production APK and immutable EDGE artifact have identical SHA-256
+`3e24baced44b315e4157291797442444920a19f64896f88cb4c26dbcc9fed18e`:
+package `com.virtuvpn.android`, version code 896,
+`1.0.20261004.357-vcsinstall`. Static manifest/signature inspection confirms
+`debuggable` and signer subject `C=US, O=Android, CN=Android Debug`.
+
+This is a source/integration and static artifact review. No Android build,
+device/emulator test, enrollment, VPN/router action or application-code change
+was performed. Source inspection supports the failure paths below; it does not
+claim a reproduced production exploit or a full dependency vulnerability scan.
+Detailed evidence and source hashes are retained in
+`/srv/vcs/deploy/evidence/virtuvpn-discovery-20261011/audit.json`.
+
+### Existing functionality to preserve
+
+WireGuard kernel/userspace backends, VPN mesh, Managed Access VPN/S2S clusters,
+Agent Gateway profiles, QR/deep-link enrollment, trusted-host confirmation,
+central VCS account authentication, independent device grants, single-flight
+device refresh on 401, encrypted tokens and WireGuard configs, Secure Browser,
+router pairing/attestation, router protection/restore, Web Terminal, connection
+monitoring, version-aware imports, APK version detection/download, Android TV,
+Quick Tile, router widget and biometric config export already exist.
+
+The July S1/S2/S3/R2 descriptions below are historical checkpoints. Do not
+reimplement encryption, enrollment trust or device refresh. Device access-token
+TTL is enabled by default in current VCS App for refresh-capable versions 773+;
+the distributed app is 896. Existing imports skip identical configs and defer
+replacing a running tunnel. Account logout intentionally preserves VPN profiles,
+router protection and server-side shell jobs.
+
+### Confirmed gaps and improvements
+
+| ID | Priority | Current behavior and proposed improvement |
+| --- | --- | --- |
+| VPN-01 | P1 | `VcsManagedClient.syncManagedTunnels` aborts the entire cycle on one bundle/provision/import/ACK exception. Home/manual/list sync lacks a shared operation lock, and repeated fragment resumes can leave overlapping loops. Use one coordinator, lifecycle-owned jobs and per-assignment results; preserve ownership until an authoritative complete snapshot and propagate cancellation. |
+| VPN-02 | P1 | Production distributes a debuggable APK; update JSON has no expected digest/size/signer, and Android opens the downloaded file without those checks. Make a non-debug variant while initially preserving the established signing identity, then verify package/version/size/hash and approved signer before install. Reuse the current endpoint and versionCode contract. A signing-key change requires a separate migration; never solve it by forcing reinstall/data loss. [Android signing requirements](https://developer.android.com/studio/publish/app-signing). |
+| VPN-03 | P1 | Registration uses `Build.MODEL` as deviceName and null devicePublicKey, without an installation identity. Enrollment/account restore matches the latest active tenant/user/deviceName. Two identical phone models can rotate each other's device token and assignments. Add a persistent proved installation/device identity with migration of existing grants; a display label or arbitrary submitted ID is not proof of ownership. |
+| VPN-04 | P1 | Enrollment usedAt/expiry is checked before the transaction; consumption updates by ID without an unused/valid predicate. Concurrent completion can both pass. Tenant device-count admission is also not serialized. Atomically consume the existing token in the binding transaction and serialize quota admission. Keep current QR/deep-link formats. |
+| VPN-05 | P1 | `FileConfigStore.writeEncryptedText` truncates the old profile before encryption/write can succeed. Keystore/full-disk/interruption can destroy good config. Encrypt first and atomically replace using a temporary same-directory file; no permanent backups. `loadAssignments` also needs corruption handling that does not turn broken local JSON into an authoritative empty set and delete good profiles. |
+| VPN-06 | P2 | Command execution and ACK have no durable local result journal. A lost success ACK enters the operation-failure handler; server ACK can overwrite an already terminal result. Persist and replay the same observed receipt; make terminal results immutable. Current UP/DOWN actions are desired-state operations, not evidence of arbitrary non-idempotent command execution. |
+| VPN-07 | P2 | `PrivacyChecker` treats tunnel UP as hidden IP and non-empty DNS settings as protected DNS; a split tunnel can score 100 without proof of default routes, IPv6 or DNS path. Separate configured, observed and unknown status. Add one read-only diagnostic view and a bounded sanitized support export, reusing existing ping/handshake/statistics. |
+| VPN-08 | P2 | Managed polling belongs to the visible tunnel-list fragment, with a 15-second delay after each cycle; Home has manual sync/resume heartbeat. No durable global sync outcome/scheduler or download-observer restoration is present. Show last sync, pending commands and per-assignment errors. Background sync is a product/battery decision; [WorkManager](https://developer.android.com/develop/background-work/background-tasks/persistent) can persist scheduled work but does not guarantee immediate emergency execution. Preserve independent existing router/VPN services. |
+| VPN-09 | P2 | Every foreground cycle provisions each active standalone assignment even when unchanged, though local apply already avoids duplicate writes. Reuse configVersion/conditional validation so only changed configs are provisioned. One June22 clone is a cleanup candidate of about 69 MiB; no references were found in inspected units/wrappers/current source, but compare unique Git/private state before deletion. It was not deleted. |
+| VPN-10 | P2 | Secure Browser uses process-global `CookieManager.removeAllCookies`; its existing documented limit is that this can sign out Web Terminal. Verify supported WebView profile/process isolation before changing data scopes. Preserve terminal detach-only job lifetime and its private transport. |
+
+### Finite proposed maintenance blocks
+
+1. A1: sync coordination, partial results, safe local writes and durable command
+   receipts — VPN-01/05/06. Verify concurrent sync, malformed assignment, lost
+   ACK, cancellation and full-disk/Keystore failure in isolated fixtures.
+2. A2: stable device identity and atomic enrollment — VPN-03/04. Verify two
+   identical models remain distinct, existing grants survive, concurrent token
+   consumption succeeds once and quotas hold across concurrent requests.
+3. A3: production APK lifecycle — VPN-02. First prove same-key upgrade over the
+   current APK retains accounts, Keystore, profiles and enrollment. Verify
+   tampered/stale/wrong-package/wrong-signer packages are rejected.
+4. A4: accurate diagnostics, progress, conditional sync and WebView separation
+   — VPN-07/08/09/10. Decide background-sync expectations first; verify supported
+   real Android devices with screen off, process death, reboot, Doze and network
+   changes. Static source review cannot substitute for this acceptance.
+
+The repo currently has five UI unit-test files and two tunnel unit-test files;
+no instrumentation tests were found. Direct managed-sync/enrollment/updater
+coverage was not found. Those suites were not executed during discovery.
+Android and VCS App must share the existing Auth/device/assignment/update
+contracts; no second auth, mailer, poller or VPN implementation is proposed.
+Managed Access removes a device's assignment rather than globally revoking VPN.
+Guardian, Rust and Fahrkonto remain outside these proposed blocks.
+
+## Historical hardening backlog
+
 This document is the application-level security and reliability backlog for
 `/srv/vcs/src/mobile/VIRTUvpn-androidapp`.
 
