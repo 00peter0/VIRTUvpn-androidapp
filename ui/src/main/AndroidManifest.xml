@@ -118,6 +118,7 @@
             android:name=".activity.WebTerminalBrowserActivity"
             android:exported="false"
             android:label="@string/web_terminal_browser_title"
+            android:theme="@style/WebTerminalTheme"
             android:parentActivityName=".activity.MainActivity"
             android:windowSoftInputMode="adjustNothing" />
 

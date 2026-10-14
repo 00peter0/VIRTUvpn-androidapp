@@ -20,9 +20,14 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
-import androidx.lifecycle.lifecycleScope
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.databinding.WebTerminalBrowserActivityBinding
@@ -34,28 +39,38 @@ import java.io.ByteArrayInputStream
 class WebTerminalBrowserActivity : AppCompatActivity() {
     private lateinit var binding: WebTerminalBrowserActivityBinding
     private var terminalUrl: String? = null
+    private var terminalFullscreen = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark("#05070A".toColorInt()),
+            navigationBarStyle = SystemBarStyle.dark("#05070A".toColorInt()))
         super.onCreate(savedInstanceState)
         if (!VcsAuthGate.requireSignedIn(this)) return
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
         binding = WebTerminalBrowserActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        supportActionBar?.apply {
-            setDisplayHomeAsUpEnabled(true)
-            setDisplayShowHomeEnabled(true)
-            setIcon(R.drawable.ic_logo)
-            title = "  ${getString(R.string.web_terminal_browser_title)}"
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
+            val safe = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            // This host owns system-bar/cutout padding. The web page handles
+            // the overlay keyboard; reserving it here would apply it twice.
+            view.setPadding(safe.left, safe.top, safe.right, safe.bottom)
+            insets
         }
 
         terminalUrl = intent.getStringExtra(EXTRA_INITIAL_URL)
             ?.takeIf { it.isNotBlank() }
             ?.let { normalizeUrl(it) }
+            ?.let { it.toUri().buildUpon().appendQueryParameter("vcsNative", "android").build().toString() }
 
         configureWebView(binding.terminalWebview)
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                if (terminalFullscreen) {
+                    setTerminalFullscreen(false)
+                    binding.terminalWebview.evaluateJavascript("window.vcsExitFullscreen && window.vcsExitFullscreen();", null)
+                    return
+                }
                 Log.i(TAG, "Back requested; canGoBack=${binding.terminalWebview.canGoBack()}")
                 if (binding.terminalWebview.canGoBack()) {
                     binding.terminalWebview.goBack()
@@ -85,11 +100,6 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
             binding.terminalWebview.destroy()
         }
         super.onDestroy()
-    }
-
-    override fun onSupportNavigateUp(): Boolean {
-        finish()
-        return true
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -179,8 +189,19 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
         when (uri.host?.lowercase()) {
             "reload" -> reloadTerminal()
             "close" -> finish()
+            "fullscreen" -> setTerminalFullscreen(uri.getQueryParameter("enabled") == "1")
         }
         return true
+    }
+
+    private fun setTerminalFullscreen(enabled: Boolean) {
+        terminalFullscreen = enabled
+        WindowInsetsControllerCompat(window, binding.root).apply {
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            if (enabled) hide(WindowInsetsCompat.Type.systemBars())
+            else show(WindowInsetsCompat.Type.systemBars())
+        }
+        ViewCompat.requestApplyInsets(binding.root)
     }
 
     private fun normalizeUrl(value: String): String? {

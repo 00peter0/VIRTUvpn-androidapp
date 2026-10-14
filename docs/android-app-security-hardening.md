@@ -1,5 +1,42 @@
 # VirtuVPN Android App Security Hardening Backlog
 
+## Current terminal UI — compact workspace release 905, October 14, 2026
+
+Version 905 / 1.0.20261014.366-vcsinstall removes only the redundant native Web
+Terminal title/action bar through a scoped Activity theme. Its WebView now uses
+one explicit system-bar/display-cutout inset owner. Native IME padding is not
+added: keyboard, terminal fitting and touch selection remain owned by the served
+page. Existing terminal URLs are normalized by the same policy, with only the
+`vcsNative=android` presentation marker appended. Authentication, host credentials,
+allowed navigation, anonymous browser/router access, VPN and managed sync remain
+unchanged. No permissions, SDK levels, dependencies or build scripts change.
+
+The coordinated VCS terminal page places compact server identity/connection state
+and Keyboard, Paste, Copy selection, Full screen and More tools above the existing
+persistent tabs/`+`. More includes rename, font, reload, close and confirmed end;
+the bottom strip is reserved for special terminal keys. Full screen uses the
+existing private terminal-command scheme to hide system bars and page controls
+without navigating or replacing the live socket. Its floating exit button or
+Android Back restores controls; a later Back retains the normal exit/history
+behavior. The Activity owns safe insets, so the native-host page must not reserve
+them again. No session-ending action is added to ordinary navigation.
+
+Evidence is recorded in `/srv/vcs/deploy/evidence/vcs-terminal-layout-20261014/`.
+The unchanged `build.sh` gates pass 60 unit tests, lint and signed non-debuggable
+APK assembly with the established signer. Visible lint remains 13 warnings plus
+its baseline hint and zero errors; the baseline is unchanged. The served page
+passes 86 isolated cases, actual private PTY/tmux application touch/selection
+checks and compact/full-screen browser checks at three viewport sizes. Physical
+phone acceptance and exact installed APK hash are separate receipts; browser
+fixtures alone do not establish handset acceptance. An update restarts the app
+and may briefly interrupt an active phone tunnel, while remote tmux jobs remain
+independent. Preserve app data with an in-place signed upgrade; never uninstall
+or clear app data for this UI release.
+
+Promotion still requires successful CI and a matched atomic APK/metadata/integrity
+publication through vRack. The server-side UI template and deployed standalone
+runtime must match; no Rust/Guardian or VPN configuration release is required.
+
 ## Current UI — searchable startup list and consolidated release 904, October 11, 2026
 
 Apps at startup now exposes every entry collected by the existing read-only
