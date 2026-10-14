@@ -1,6 +1,29 @@
 # VirtuVPN Android App Security Hardening Backlog
 
-## Current terminal UI — compact workspace release 905, October 14, 2026
+## Current device identity — release 906, October 14, 2026
+
+906 / 1.0.20261014.367-vcsinstall retains the 905 terminal UI. It closes the
+legacy-device migration gap when a user signs out and signs in after changing
+email: before clearing active grants, the app stores a Keystore-encrypted,
+non-bearer installation continuity proof. Logout remains local and immediate,
+even offline; no account or device grant is retained as a migration token.
+The proof can only bind the original device after fresh account authentication
+(or a valid one-use enrollment) within the same user/tenant. It is scoped to the
+original API base, installation ID/secret and exact legacy device ID. It is
+removed only after that original device is confirmed installation-bound.
+
+The message is `vcs.android.installation-handoff.v1`, device ID, installation ID
+and SHA256_HEX(installation secret), separated by newline. HMAC-SHA256 uses the
+UTF-8 hex SHA-256 of the old refresh token as key. The server uses its stored
+verifier, never a transmitted raw refresh grant. The fixed cross-language vector
+and negative cases are covered by JVM/server tests. Deploy the VCS App receiver
+before publishing 906. Modern installations already keep their original ID across
+email changes; no name/model matching or automatic cross-account merge is used.
+Assignments, VPN keys, sync behavior, account logout and independent device grant
+rules are unchanged. App data reset without continuity proof requires explicit
+verified recovery. Evidence: `/srv/vcs/deploy/evidence/vcs-managed-access-handoff-20261014`.
+
+## Terminal UI — compact workspace release 905, October 14, 2026
 
 Version 905 / 1.0.20261014.366-vcsinstall removes only the redundant native Web
 Terminal title/action bar through a scoped Activity theme. Its WebView now uses

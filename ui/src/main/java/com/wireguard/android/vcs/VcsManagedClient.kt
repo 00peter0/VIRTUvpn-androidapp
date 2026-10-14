@@ -56,6 +56,9 @@ object VcsManagedClient {
     private const val KEY_ACCESS_TOKEN = "access_token"
     private const val KEY_DEVICE_REFRESH_TOKEN = "device_refresh_token"
     private const val KEY_DEVICE_ID = "device_id"
+    private const val KEY_LEGACY_DEVICE_ID = "legacy_handoff_device_id"
+    private const val KEY_LEGACY_PROOF = "legacy_handoff_proof"
+    private const val KEY_LEGACY_API_BASE = "legacy_handoff_api_base"
     private const val KEY_ASSIGNMENTS = "assignments"
     private const val KEY_MANAGED_TUNNEL_OWNERS = "managed_tunnel_owners"
     private const val KEY_PENDING_BUNDLE_ASSIGNMENTS = "pending_bundle_assignments"
@@ -161,7 +164,7 @@ object VcsManagedClient {
 
     suspend fun signInAccount(context: Context, apiBaseUrl: String, email: String, password: String): AccountInfo = withContext(Dispatchers.IO) {
         val normalizedBase = normalizeApiBase(apiBaseUrl)
-        val body = deviceRegistrationBody(context)
+        val body = deviceRegistrationBody(context, normalizedBase)
             .put("email", email.trim())
             .put("password", password)
         val response = requestJson("POST", "$normalizedBase/api/mobile/android/auth/login", body, null)
@@ -173,6 +176,10 @@ object VcsManagedClient {
         val refreshToken = managedPrefs(context).getSecretString(KEY_ACCOUNT_REFRESH_TOKEN)
         // Clear local state immediately even if central Auth is unavailable.
         // Existing WireGuard profiles, router protection and shells are untouched.
+        // Save only a context-bound continuity proof before removing grants.
+        // This is local and works offline; logout never waits for a migration API.
+        runCatching { rememberLegacyInstallationForSignOut(context) }
+            .onFailure { android.util.Log.w("VirtuVcs", "Legacy installation continuity unavailable: ${it.javaClass.simpleName}") }
         clearAllVcsState(context)
         withContext(Dispatchers.Main.immediate) { onLocalSignOut() }
         if (account != null && refreshToken != null) {
@@ -470,7 +477,7 @@ object VcsManagedClient {
     suspend fun reportDeviceHeartbeat(context: Context) = withContext(Dispatchers.IO) {
         verifyAccountSessionIfPresent(context)
         val session = requireSession(context)
-        requestDeviceJson(context, session, "POST", "${session.apiBase}/api/mobile/android/device/heartbeat", deviceRegistrationBody(context))
+        requestDeviceJson(context, session, "POST", "${session.apiBase}/api/mobile/android/device/heartbeat", deviceRegistrationBody(context, session.apiBase))
         Unit
     }
 
@@ -1075,7 +1082,7 @@ object VcsManagedClient {
     }
 
     private fun completeEnrollment(context: Context, request: EnrollmentRequest): EnrollResult {
-        val body = deviceRegistrationBody(context)
+        val body = deviceRegistrationBody(context, request.apiBaseUrl)
             .put("enrollmentToken", request.enrollmentToken)
             .put("devicePublicKey", JSONObject.NULL)
         val response = requestJson("POST", "${request.apiBaseUrl}/api/mobile/android/enroll/complete", body, null)
@@ -1187,7 +1194,7 @@ object VcsManagedClient {
             ?: restoreManagedSessionForUnauthorized(context)
             ?: error("Sign in to VCS to use Virtu VPN.")
 
-    private fun deviceRegistrationBody(context: Context): JSONObject {
+    private fun deviceRegistrationBody(context: Context, apiBase: String): JSONObject {
         val prefs = managedPrefs(context)
         val (id, secret) = synchronized(deviceSessionRefreshLock) {
             val storedId = prefs.getString("installation_id")
@@ -1202,6 +1209,12 @@ object VcsManagedClient {
             }
         }
         return JSONObject()
+            .apply {
+                if (prefs.getString(KEY_LEGACY_API_BASE) == apiBase) {
+                    prefs.getString(KEY_LEGACY_DEVICE_ID)?.let { put("legacyDeviceId", it) }
+                    prefs.getSecretString(KEY_LEGACY_PROOF)?.let { put("legacyInstallationProof", it) }
+                }
+            }
             .put("installationId", id)
             .put("installationSecret", secret)
             .put("deviceRefreshToken", prefs.getSecretString(KEY_DEVICE_REFRESH_TOKEN))
@@ -1212,6 +1225,22 @@ object VcsManagedClient {
             .put("devicePublicKey", JSONObject.NULL)
             .put("deviceModel", Build.MODEL ?: "Android device")
             .put("metadata", JSONObject().put("manufacturer", Build.MANUFACTURER).put("sdk", Build.VERSION.SDK_INT))
+    }
+
+    @android.annotation.SuppressLint("ApplySharedPref") // Must survive process death immediately after logout.
+    private fun rememberLegacyInstallationForSignOut(context: Context) {
+        val prefs = managedPrefs(context)
+        if (prefs.getInt("installation_bound", 0) != 0) return
+        val session = loadSession(context) ?: return
+        val deviceId = session.deviceId ?: return
+        val refreshToken = prefs.getSecretString(KEY_DEVICE_REFRESH_TOKEN) ?: return
+        val body = deviceRegistrationBody(context, session.apiBase)
+        val proof = LegacyInstallationHandoff.proof(deviceId, body.getString("installationId"),
+            body.getString("installationSecret"), refreshToken)
+        val editor = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putString(KEY_LEGACY_DEVICE_ID, deviceId).putString(KEY_LEGACY_API_BASE, session.apiBase)
+        prefs.putSecretString(editor, KEY_LEGACY_PROOF, proof)
+        check(editor.commit()) { "Cannot persist installation continuity" }
     }
 
     private fun normalizeApiBase(value: String): String {
@@ -1281,7 +1310,7 @@ object VcsManagedClient {
 
     private fun restoreManagedSessionFromAccount(context: Context): Session? {
         val account = loadAccountSession(context) ?: return null
-        val response = requestJson("POST", "${account.apiBase}/api/mobile/android/auth/device", deviceRegistrationBody(context), account.token)
+        val response = requestJson("POST", "${account.apiBase}/api/mobile/android/auth/device", deviceRegistrationBody(context, account.apiBase), account.token)
         return storeManagedDeviceSessionFromResponse(context, account.apiBase, response)
     }
 
@@ -1289,7 +1318,7 @@ object VcsManagedClient {
         val prefs = managedPrefs(context)
         val apiBase = prefs.getString(KEY_API_BASE, null) ?: return null
         val refreshToken = prefs.getSecretString(KEY_DEVICE_REFRESH_TOKEN) ?: return null
-        val body = deviceRegistrationBody(context)
+        val body = deviceRegistrationBody(context, apiBase)
             .put("grantType", "device_refresh_token")
             .put("deviceRefreshToken", refreshToken)
         val response = try {
@@ -1311,7 +1340,16 @@ object VcsManagedClient {
         val refreshToken = response.optString("deviceRefreshToken").takeIf { it.isNotBlank() }
         val deviceId = response.optJSONObject("device")?.optString("id")?.takeIf { it.isNotBlank() }
         storeManagedDeviceSession(context, apiBase, accessToken, refreshToken, deviceId)
-        managedPrefs(context).edit { putInt("installation_bound", if (response.optBoolean("installationBound")) 1 else 0) }
+        val prefs = managedPrefs(context)
+        prefs.edit {
+            putInt("installation_bound", if (response.optBoolean("installationBound")) 1 else 0)
+            if (response.optBoolean("installationBound") && deviceId == prefs.getString(KEY_LEGACY_DEVICE_ID) &&
+                apiBase == prefs.getString(KEY_LEGACY_API_BASE)) {
+                remove(KEY_LEGACY_DEVICE_ID)
+                remove(KEY_LEGACY_PROOF)
+                remove(KEY_LEGACY_API_BASE)
+            }
+        }
         return Session(apiBase, accessToken, deviceId)
     }
 
