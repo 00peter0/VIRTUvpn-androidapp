@@ -134,3 +134,38 @@ release atomically. The private preparation-status file was not published.
 Publication manifest and private evidence:
 `/srv/vcs/deploy/manifests/virtuvpn-907-secured-dns-681a464578f8.json` and
 `/srv/vcs/deploy/evidence/virtuvpn-907-publication-20261016/`.
+
+## Tablet installation recovery
+
+The separately connected SM-T860 (Android 12L) remained on version 906 while its
+native updater displayed installation at 90%. Its own PackageInstaller session
+was committed, user confirmation had been accepted, and Android had not returned
+a terminal installation result. The system logged an integrity-check pass and a
+verification timeout followed by continuation. Those observations do not identify
+the exact cause of the subsequent stall. Backgrounding and restarting VirtuVPN
+did not complete the installation.
+
+The tablet had approximately 854 MiB available and about 86 days of uptime. With
+explicit user approval, the tablet was rebooted. Available space increased to
+about 2.5 GiB, but the installed app remained 906. Android retained the old owned
+session as sealed and uncommitted, while the app still displayed installation in
+progress. A shell attempt to abandon that exact session was denied by Android's
+ownership check; it was not bypassed. No other installer sessions were modified.
+
+Recovery used an in-place ADB installation through Mac Studio of the unchanged,
+signed production APK 907. Installation succeeded. The installed APK SHA-256
+matched the published artifact, and the UID, original installation date and all
+three existing tunnel entries were preserved. The normal authenticated
+`Check updates` screen subsequently displayed `No update available`. The VPN was
+left off, matching its initial state. App data was not cleared and no uninstall,
+verifier-policy change or unrelated app maintenance was performed. Owned APK
+transfer and UI-dump temporary files were removed.
+
+This verifies tablet recovery, not a repair of the native updater's stalled-session
+handling. A follow-up must offer safe recovery for an interrupted owned session
+without cancelling an active system installation or weakening APK verification.
+Low storage was observed but was not proved to cause the original stall.
+No application code or production release changed during this recovery.
+Private evidence is retained under
+`/srv/vcs/deploy/evidence/virtuvpn-tablet-update-stall-20261016/`, including
+`tablet-recovery-result.json` and the actual update-result screenshot.
