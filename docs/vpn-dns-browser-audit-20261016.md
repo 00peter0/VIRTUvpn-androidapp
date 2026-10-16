@@ -8,8 +8,9 @@ firewall rules, DNS settings, managed synchronization and VPN Router behavior.
 Secured Browser remains available without a VCS account. No third-party browser
 settings are changed.
 
-The user requested a prepared build first; installation and final acceptance of
-the changed build on the phone wait for the device to be reconnected.
+The user requested a prepared build first, then reconnected the phone and
+authorized installation and physical acceptance. Version 907 was subsequently
+installed and verified only on the connected SM-S948B.
 
 ## Physical investigation before the change
 
@@ -71,21 +72,37 @@ locales and confirmed removal of obsolete status keys. The WireGuard GoBackend
 hash is unchanged. Results and before/after lint comparison are retained under
 `/srv/vcs/deploy/evidence/virtuvpn-secured-dns-20261016/`.
 
-Prepared candidate: version code **907**, version name
-**1.0.20261016.368-vcsinstall**. The mobile update catalog and connected devices
-are not updated as part of preparation. No VPN Maker or Rust release is needed.
+Verified version code **907**, version name
+**1.0.20261016.368-vcsinstall**, APK source commit
+`681a464578f83dc3965bc6c647a00547004e35be`. The mobile update catalog is unchanged;
+the tablet and other devices were not updated. No VPN Maker or Rust release was
+needed.
 
-When the phone is reconnected, verify:
+## Physical acceptance after reconnection
 
-1. The signed in-place update preserves enrollment, tunnel assignments and app
-   data; reconnect the existing tunnel after Android replaces the application.
-2. Tapping the tunnel DNS card stays in VirtuVPN and loads dnscheck.tools without
-   a second Go tap, including with an existing browser session.
-3. Configured DNS and inconclusive IPv6 lookup messages are accurate and the
-   browser scope explanation is visible.
-4. The test does not disclose the phone's original IPv6 or private interface
-   addresses in Secured Browser on the same protected route.
-5. Returning from the browser preserves tunnel connectivity and handshakes.
+The physical comparison of browsers above describes version 906 before the
+implementation. The following acceptance was performed separately on version 907:
 
-The physical comparison of browsers above was performed on version 906 before
-the implementation. It must not be described as acceptance of the new 907 build.
+1. The signed in-place update succeeded. Installed APK SHA-256 matches the
+   prepared artifact. UID, original installation date, English app locale and
+   usage-access permission are unchanged. All five existing tunnel entries are
+   preserved; app data was not cleared.
+2. A single tap on `Test ↗ Secured Browser` opened dnscheck.tools in VirtuVPN
+   automatically, without a browser chooser or a second Go tap.
+3. A second run first navigated to a different protected HTTPS page with
+   `Sessions On`, left the browser, and reopened the test from tunnel details.
+   The retained session navigated to dnscheck.tools correctly without a Go tap.
+4. Both test runs showed the Canadian VPS IPv4 in the client-IP section and
+   Cloudflare DNS resolvers in Toronto. Neither run exposed the phone's original
+   Wi-Fi IPv6 or the private interface addresses observed in Samsung Internet.
+5. The configured-DNS message, browser scope explanation and
+   `IPv6 not confirmed` label were checked in the actual UI and screenshots.
+6. After returning from Secured Browser, the original VPN remained connected;
+   Android retained both default routes, DNS 1.1.1.1 and `bypassable=false`.
+   A fresh in-app IPv4 echo still returned the Canadian VPS address, confirming
+   that data transfer continued after the browser's process binding was removed.
+
+The phone was left on the Vancouver tunnel detail screen with its VPN active.
+Acceptance JSON, UI XML, screenshots and sanitized before/after state are retained
+in the private evidence directory as `phone-acceptance.json` and related files.
+This targeted check does not certify every protocol or third-party browser.
