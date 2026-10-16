@@ -17,6 +17,11 @@
         android:accessibilityLiveRegion="polite" />
     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp"
         android:text="@string/vcs_update_flow_note" android:textSize="12sp" android:textColor="#8899AA" />
+    <TextView android:id="@+id/update_storage_info" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="12dp" android:textSize="12sp" android:textColor="#B8C8D2" android:visibility="gone" />
+    <TextView android:id="@+id/update_storage" style="@style/VcsUpdateButton" android:layout_marginTop="8dp"
+        android:background="@drawable/vcs_dialog_secondary_button" android:textColor="#E5F2F7"
+        android:text="@string/vcs_update_storage_settings" android:visibility="gone" />
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal"
         android:layout_marginTop="18dp">
         <TextView android:id="@+id/update_close" style="@style/VcsUpdateAction" android:background="@drawable/vcs_dialog_secondary_button"

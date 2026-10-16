@@ -7,7 +7,10 @@ import android.content.Intent
 import android.content.IntentSender
 import android.content.pm.PackageInstaller
 import android.os.Build
+import android.os.SystemClock
+import android.provider.Settings
 import com.wireguard.android.BuildConfig
+import com.wireguard.android.R
 import androidx.core.net.toUri
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -37,7 +40,7 @@ object ManagedUpdateFlow {
     }
     fun hasPendingWork(context: Context) = ManagedApkUpdates.pendingId(context) > 0 ||
         state.value.phase in setOf(UpdatePhase.DOWNLOADING, UpdatePhase.PAUSED, UpdatePhase.VERIFYING,
-            UpdatePhase.READY, UpdatePhase.STAGING, UpdatePhase.CONFIRMING, UpdatePhase.INSTALLING)
+            UpdatePhase.READY, UpdatePhase.STAGING, UpdatePhase.CONFIRMING, UpdatePhase.INSTALLING, UpdatePhase.INSTALLATION_DELAYED)
     fun summary(): String? = when (state.value.phase) {
         UpdatePhase.CHECKING -> null
         UpdatePhase.DOWNLOADING -> "Downloading update${state.value.percent?.let { ": $it%" } ?: ""}"
@@ -47,12 +50,16 @@ object ManagedUpdateFlow {
         UpdatePhase.STAGING -> "Preparing update for Android${state.value.percent?.let { ": $it%" } ?: ""}"
         UpdatePhase.CONFIRMING -> "Update is waiting for Android installation confirmation"
         UpdatePhase.INSTALLING -> "Android is installing the update${state.value.percent?.let { ": $it%" } ?: ""}"
+        UpdatePhase.INSTALLATION_DELAYED -> "Android has not confirmed installation — reopen Check updates to check its status"
         UpdatePhase.COMPLETED -> "Update installed successfully"
         UpdatePhase.UP_TO_DATE -> "VirtuVPN is up to date"
         UpdatePhase.FAILED -> "Update interrupted — reopen Check updates to retry"
     }
     private fun save(context: Context, value: UpdateFlowState) {
-        commit(context) { putString("phase", value.phase.name); putString("version_name", value.versionName); putString("message", value.message) }
+        commit(context) {
+            putString("phase", value.phase.name); putString("version_name", value.versionName); putString("message", value.message)
+            putBoolean("storage_help", value.storageHelp)
+        }
         mutableState.value = value
     }
     fun restore(context: Context) {
@@ -60,14 +67,18 @@ object ManagedUpdateFlow {
         val target = p.getLong("version_code", 0)
         val phase = if (UpdateFlowState.installed(BuildConfig.VERSION_CODE.toLong(), target)) UpdatePhase.COMPLETED
             else runCatching { UpdatePhase.valueOf(p.getString("phase", "CHECKING") ?: "CHECKING") }.getOrDefault(UpdatePhase.CHECKING)
-        mutableState.value = UpdateFlowState(phase, p.getString("version_name", null), message = p.getString("message", null))
+        mutableState.value = UpdateFlowState(phase, p.getString("version_name", null),
+            message = if (phase == UpdatePhase.COMPLETED) null else p.getString("message", null),
+            storageHelp = phase != UpdatePhase.COMPLETED && p.getBoolean("storage_help", false))
     }
     @Synchronized
     fun start(context: Context, retry: Boolean = false) {
         if (job?.isActive == true) return
         val app = context.applicationContext
         restore(app)
-        if (mutableState.value.phase in setOf(UpdatePhase.CONFIRMING, UpdatePhase.INSTALLING)) { refreshInstallation(app); return }
+        if (mutableState.value.phase in setOf(UpdatePhase.CONFIRMING, UpdatePhase.INSTALLING, UpdatePhase.INSTALLATION_DELAYED)) {
+            refreshInstallation(app); return
+        }
         if (!retry && mutableState.value.phase == UpdatePhase.FAILED) return
         job = scope.launch {
             try {
@@ -133,17 +144,30 @@ object ManagedUpdateFlow {
                 val file = verified ?: error("Reopen the update to verify the download")
                 val installer = app.packageManager.packageInstaller
                 // Remove only our recorded stale session, never another package's/session's work.
-                val old = installer.mySessions.firstOrNull { it.sessionId == sessionId(app) }
+                val old = ownedSession(app)
                 if (old != null) {
-                    check(!old.isActive) { "An installation is already active" }
-                    installer.abandonSession(old.sessionId)
+                    if (!replaceable(app, old)) {
+                        save(app, state.value.copy(phase = UpdatePhase.INSTALLATION_DELAYED, percent = null,
+                            message = app.getString(R.string.vcs_update_install_busy)))
+                        return@launch
+                    }
+                    // Retire its callback identity before abandon can deliver an aborted result.
+                    commit(app) { remove("session_id") }
+                    try { installer.abandonSession(old.sessionId) }
+                    catch (error: Exception) {
+                        commit(app) { putInt("session_id", old.sessionId) }
+                        throw error
+                    }
                 }
                 val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
                     setAppPackageName(app.packageName); setSize(file.length())
                     if (Build.VERSION.SDK_INT >= 31) setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_REQUIRED)
                 }
                 created = installer.createSession(params)
-                commit(app) { putInt("session_id", created) }
+                commit(app) {
+                    putInt("session_id", created); putBoolean("commit_attempted", false)
+                    remove("watch_session"); remove("watch_boot"); remove("watch_since"); remove("watch_progress")
+                }
                 confirmation = null
                 save(app, state.value.copy(phase = UpdatePhase.STAGING, percent = 0))
                 installer.openSession(created).use { session ->
@@ -161,11 +185,16 @@ object ManagedUpdateFlow {
                     } }
                     check(hash.digest().joinToString("") { "%02x".format(it) } == manifest.getJSONObject("integrity").getString("sha256")) { "Verified APK changed" }
                     save(app, state.value.copy(phase = UpdatePhase.CONFIRMING, percent = null))
+                    commit(app) { putBoolean("commit_attempted", true) }
                     session.commit(sender(app, created))
                 }
             } catch (error: Exception) {
                 if (error is CancellationException) throw error
-                if (created >= 0) runCatching { app.packageManager.packageInstaller.abandonSession(created) }
+                // A thrown commit may still have reached Android. Never cancel it based on the exception alone.
+                val current = runCatching { ownedSession(app) }.getOrNull()
+                if (created >= 0 && current?.sessionId == created &&
+                    !prefs(app).getBoolean("commit_attempted", true) && replaceable(app, current))
+                    runCatching { app.packageManager.packageInstaller.abandonSession(created) }
                 fail(app, "Android could not prepare this installation. Your downloaded update is retained; retry to verify it again.")
             }
         }
@@ -177,7 +206,11 @@ object ManagedUpdateFlow {
         if (job?.isActive == true || state.value.phase != UpdatePhase.CONFIRMING) return
         val app = context.applicationContext; val id = sessionId(app)
         job = scope.launch {
-            try { app.packageManager.packageInstaller.openSession(id).use { it.commit(sender(app, id)) } }
+            try {
+                check(ownedSession(app)?.sessionId == id) { "Installation session unavailable" }
+                commit(app) { putBoolean("commit_attempted", true) }
+                app.packageManager.packageInstaller.openSession(id).use { it.commit(sender(app, id)) }
+            }
             catch (error: Exception) {
                 if (error is CancellationException) throw error
                 fail(app, "Installation confirmation could not resume. Retry to prepare the retained download again.")
@@ -189,40 +222,96 @@ object ManagedUpdateFlow {
             save(context, state.value.copy(phase = UpdatePhase.INSTALLING, percent = null))
         refreshInstallation(context)
     }
+    private fun ownedSession(context: Context): PackageInstaller.SessionInfo? =
+        context.packageManager.packageInstaller.mySessions.firstOrNull {
+            it.sessionId == sessionId(context) && it.installerPackageName == context.packageName &&
+                (it.appPackageName == null || it.appPackageName == context.packageName)
+        }
+    private fun committed(info: PackageInstaller.SessionInfo): Boolean? =
+        if (Build.VERSION.SDK_INT >= 29) info.isCommitted else null
+    private fun replaceable(context: Context, info: PackageInstaller.SessionInfo): Boolean {
+        val p = prefs(context)
+        return UpdateInstallSafety.canReplace(info.isActive, committed(info),
+            if (Build.VERSION.SDK_INT >= 26) info.isSealed else null,
+            if (p.contains("commit_attempted")) p.getBoolean("commit_attempted", true) else null)
+    }
+    private fun watch(context: Context, info: PackageInstaller.SessionInfo): UpdateInstallWatch {
+        val p = prefs(context)
+        val now = SystemClock.elapsedRealtime()
+        val boot = runCatching { Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT, -1) }.getOrDefault(-1)
+        val percent = (info.progress * 100).toInt().coerceIn(0, 99)
+        val previous = UpdateInstallWatch(p.getInt("watch_session", -1), p.getInt("watch_boot", -1),
+            p.getLong("watch_since", now), p.getInt("watch_progress", -1))
+        val next = previous.observe(info.sessionId, boot, now, percent)
+        if (next != previous) commit(context) {
+            putInt("watch_session", next.sessionId); putInt("watch_boot", next.boot)
+            putLong("watch_since", next.since); putInt("watch_progress", next.progress)
+        }
+        return next
+    }
+    @Synchronized
     @Suppress("DEPRECATION")
     fun refreshInstallation(context: Context) {
-        if (state.value.phase !in setOf(UpdatePhase.CONFIRMING, UpdatePhase.INSTALLING)) return
+        if (job?.isActive == true || state.value.phase !in
+            setOf(UpdatePhase.CONFIRMING, UpdatePhase.INSTALLING, UpdatePhase.INSTALLATION_DELAYED)) return
         val installed = context.packageManager.getPackageInfo(context.packageName, 0)
         val code = if (Build.VERSION.SDK_INT >= 28) installed.longVersionCode else installed.versionCode.toLong()
         if (UpdateFlowState.installed(code, prefs(context).getLong("version_code", 0))) {
-            save(context, state.value.copy(phase = UpdatePhase.COMPLETED, percent = 100)); return
+            save(context, state.value.copy(phase = UpdatePhase.COMPLETED, percent = 100, message = null, storageHelp = false)); return
         }
-        val info = context.packageManager.packageInstaller.getSessionInfo(sessionId(context))
+        val info = try { ownedSession(context) }
+        catch (_: Exception) {
+            if (state.value.phase != UpdatePhase.INSTALLATION_DELAYED)
+                save(context, state.value.copy(phase = UpdatePhase.INSTALLATION_DELAYED, percent = null,
+                    message = context.getString(R.string.vcs_update_install_status_unavailable)))
+            return // An unavailable query does not prove that the session is absent or safe to replace.
+        }
         if (info == null) { fail(context, "Installation was cancelled or interrupted. Retry to use the retained download."); return }
-        if (state.value.phase == UpdatePhase.INSTALLING) mutableState.value = state.value.copy(percent = (info.progress * 100).toInt().coerceIn(0, 99))
+        if (UpdateInstallSafety.interrupted(state.value.phase, info.isActive, committed(info))) {
+            confirmation = null
+            fail(context, context.getString(R.string.vcs_update_install_interrupted)); return
+        }
+        if (state.value.phase != UpdatePhase.CONFIRMING) {
+            val observation = watch(context, info)
+            val phase = if (observation.delayed(SystemClock.elapsedRealtime())) UpdatePhase.INSTALLATION_DELAYED else UpdatePhase.INSTALLING
+            val value = state.value.copy(phase = phase,
+                percent = if (phase == UpdatePhase.INSTALLATION_DELAYED) null else (info.progress * 100).toInt().coerceIn(0, 99), message = null)
+            if (phase != state.value.phase) save(context, value) else mutableState.value = value
+        }
     }
     @Suppress("DEPRECATION")
     fun result(context: Context, intent: Intent) {
         if (intent.action != context.packageName + ".UPDATE_RESULT" ||
             !UpdateFlowState.acceptsResult(sessionId(context), intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1))) return
         restore(context)
+        if (state.value.phase == UpdatePhase.COMPLETED) {
+            confirmation = null
+            save(context, state.value.copy(percent = 100, message = null, storageHelp = false))
+            return
+        }
         when (intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)) {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                 confirmation = if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java) else intent.getParcelableExtra(Intent.EXTRA_INTENT)
                 if (confirmation == null) fail(context, "Android installation confirmation is unavailable. Retry the update.")
                 else save(context, state.value.copy(phase = UpdatePhase.CONFIRMING, percent = null))
             }
-            PackageInstaller.STATUS_SUCCESS -> save(context, state.value.copy(phase = UpdatePhase.COMPLETED, percent = 100))
+            PackageInstaller.STATUS_SUCCESS -> {
+                // The installed package version, not a callback or a progress percentage, proves completion.
+                save(context, state.value.copy(phase = UpdatePhase.INSTALLING, percent = null, message = null, storageHelp = false))
+                refreshInstallation(context)
+            }
             else -> {
                 confirmation = null
-                fail(context, when (intent.getIntExtra(PackageInstaller.EXTRA_STATUS, -1)) {
+                val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, -1)
+                fail(context, when (status) {
                     PackageInstaller.STATUS_FAILURE_ABORTED -> "Installation was cancelled. Your verified download is retained."
                     PackageInstaller.STATUS_FAILURE_STORAGE -> "Android needs more free storage to install the update."
                     PackageInstaller.STATUS_FAILURE_BLOCKED -> "Android blocked installation. Check device installation permissions or policy."
                     else -> "Android could not install the update. Your downloaded update is retained; retry."
-                })
+                }, storageHelp = status == PackageInstaller.STATUS_FAILURE_STORAGE)
             }
         }
     }
-    private fun fail(context: Context, message: String) = save(context, state.value.copy(phase = UpdatePhase.FAILED, percent = null, message = message))
+    private fun fail(context: Context, message: String, storageHelp: Boolean = false) =
+        save(context, state.value.copy(phase = UpdatePhase.FAILED, percent = null, message = message, storageHelp = storageHelp))
 }

@@ -25,11 +25,13 @@ android {
         targetSdk = 36
         versionCode = providers.gradleProperty("wireguardVersionCode").get().toInt()
         versionName = providers.gradleProperty("wireguardVersionName").get()
+        testInstrumentationRunner = "com.wireguard.android.vcs.UpdateRecoveryInstrumentation"
         buildConfigField("int", "MIN_SDK_VERSION", minSdk.toString())
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
     }
+    testBuildType = "vcsinstall"
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

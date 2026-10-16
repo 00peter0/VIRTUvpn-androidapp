@@ -3,7 +3,9 @@ package com.wireguard.android.activity
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.os.StatFs
 import android.provider.Settings
+import android.text.format.Formatter
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -43,11 +45,18 @@ class ManagedUpdateActivity : AppCompatActivity() {
         systemUiOpen = savedInstanceState?.getBoolean("system_ui_open") ?: false
         binding = VcsUpdateProgressBinding.inflate(layoutInflater)
         binding.updateClose.setOnClickListener { finish() }
+        binding.updateStorage.setOnClickListener {
+            try { startActivity(Intent(Settings.ACTION_INTERNAL_STORAGE_SETTINGS)) }
+            catch (_: Exception) {
+                binding.updateStatus.setText(R.string.vcs_update_storage_unavailable)
+            }
+        }
         binding.updateAction.setOnClickListener {
             when (ManagedUpdateFlow.state.value.phase) {
                 UpdatePhase.FAILED -> ManagedUpdateFlow.start(this, retry = true)
                 UpdatePhase.READY -> if (ManagedUpdateFlow.canInstall(this)) ManagedUpdateFlow.install(this) else openPermission()
                 UpdatePhase.CONFIRMING -> ManagedUpdateFlow.continueInstallation(this)
+                UpdatePhase.INSTALLATION_DELAYED -> ManagedUpdateFlow.refreshInstallation(this)
                 UpdatePhase.COMPLETED, UpdatePhase.UP_TO_DATE -> finish()
                 else -> Unit
             }
@@ -101,12 +110,14 @@ class ManagedUpdateActivity : AppCompatActivity() {
             UpdatePhase.STAGING -> R.string.vcs_update_phase_staging
             UpdatePhase.CONFIRMING -> R.string.vcs_update_phase_confirming
             UpdatePhase.INSTALLING -> R.string.vcs_update_phase_installing
+            UpdatePhase.INSTALLATION_DELAYED -> R.string.vcs_update_phase_delayed
             UpdatePhase.COMPLETED -> R.string.vcs_update_phase_completed
             UpdatePhase.UP_TO_DATE -> R.string.vcs_update_none
             UpdatePhase.FAILED -> R.string.vcs_update_phase_failed
         })
+        binding.updateStatus.setTextColor((if (state.phase == UpdatePhase.INSTALLATION_DELAYED) "#FBBF24" else "#FFFFFF").toColorInt())
         val terminal = state.phase in setOf(UpdatePhase.FAILED, UpdatePhase.UP_TO_DATE, UpdatePhase.COMPLETED)
-        binding.updateProgress.visibility = if (terminal) View.GONE else View.VISIBLE
+        binding.updateProgress.visibility = if (terminal || state.phase == UpdatePhase.INSTALLATION_DELAYED) View.GONE else View.VISIBLE
         binding.updateProgress.isIndeterminate = state.percent == null
         state.percent?.let { binding.updateProgress.progress = it }
         binding.updateBytes.text = if (state.total > 0) String.format(Locale.US, "%.1f / %.1f MiB%s", state.bytes / 1_048_576.0, state.total / 1_048_576.0,
@@ -115,12 +126,19 @@ class ManagedUpdateActivity : AppCompatActivity() {
             UpdatePhase.FAILED -> R.string.vcs_update_retry
             UpdatePhase.READY -> if (ManagedUpdateFlow.canInstall(this)) R.string.vcs_update_step_install else R.string.vcs_update_allow_install
             UpdatePhase.CONFIRMING -> R.string.vcs_update_continue_install
+            UpdatePhase.INSTALLATION_DELAYED -> R.string.vcs_update_check_installation
             UpdatePhase.COMPLETED, UpdatePhase.UP_TO_DATE -> R.string.vcs_update_done
             else -> null
         }
         binding.updateAction.visibility = if (action == null) View.GONE else View.VISIBLE
         action?.let { binding.updateAction.setText(it) }
         binding.updateClose.setText(if (terminal) android.R.string.cancel else R.string.vcs_update_hide)
+        val storageHelp = state.storageHelp || state.phase == UpdatePhase.INSTALLATION_DELAYED
+        binding.updateStorage.visibility = if (storageHelp) View.VISIBLE else View.GONE
+        binding.updateStorageInfo.visibility = if (storageHelp) View.VISIBLE else View.GONE
+        if (storageHelp) binding.updateStorageInfo.text = runCatching {
+            getString(R.string.vcs_update_storage_available, Formatter.formatShortFileSize(this, StatFs(filesDir.absolutePath).availableBytes))
+        }.getOrElse { getString(R.string.vcs_update_storage_check) }
     }
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putBoolean("permission_prompted", permissionPrompted)

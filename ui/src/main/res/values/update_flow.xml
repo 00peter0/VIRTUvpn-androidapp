@@ -16,6 +16,15 @@
     <string name="vcs_update_phase_staging" translatable="false">Preparing the verified update for Android…</string>
     <string name="vcs_update_phase_confirming" translatable="false">Confirm the update in the Android installer.</string>
     <string name="vcs_update_phase_installing" translatable="false">Android is installing the update…</string>
+    <string name="vcs_update_phase_delayed" translatable="false">Android has not reported installation progress for a while. The result is not confirmed. Check storage, then check installation again. If it remains stuck, restart your device when convenient and reopen Check updates. Your download is retained; the active installation will not be cancelled.</string>
+    <string name="vcs_update_install_interrupted" translatable="false">Android no longer has a committed installation for this update. Retry to verify the retained download and request installation again. Your app data and VPN tunnels are preserved.</string>
+    <string name="vcs_update_install_busy" translatable="false">Android is still handling the previous installation. Check its status before starting another update. Your download is retained.</string>
+    <string name="vcs_update_install_status_unavailable" translatable="false">Android installation status is temporarily unavailable. Check again before retrying. The existing installation has not been cancelled.</string>
+    <string name="vcs_update_check_installation" translatable="false">Check installation</string>
+    <string name="vcs_update_storage_settings" translatable="false">Open storage settings</string>
+    <string name="vcs_update_storage_available" translatable="false">Available on app storage: %s. Remove only cache or files you no longer need.</string>
+    <string name="vcs_update_storage_check" translatable="false">Check available space in Android storage settings.</string>
+    <string name="vcs_update_storage_unavailable" translatable="false">Open Android Settings → Storage to check available space.</string>
     <string name="vcs_update_phase_completed" translatable="false">Update installed successfully.</string>
     <string name="vcs_update_phase_failed" translatable="false">Update interrupted. You can retry here.</string>
     <string name="vcs_update_allow_install" translatable="false">Allow installation</string>
@@ -29,9 +38,12 @@
         <item name="android:paddingTop">6dp</item><item name="android:paddingBottom">6dp</item>
         <item name="android:textSize">15sp</item><item name="android:textStyle">bold</item><item name="android:textColor">#8899AA</item>
     </style>
-    <style name="VcsUpdateAction">
-        <item name="android:layout_width">0dp</item><item name="android:layout_height">wrap_content</item><item name="android:layout_weight">1</item>
+    <style name="VcsUpdateButton">
+        <item name="android:layout_width">match_parent</item><item name="android:layout_height">wrap_content</item>
         <item name="android:minHeight">48dp</item><item name="android:gravity">center</item><item name="android:textSize">14sp</item>
         <item name="android:textStyle">bold</item><item name="android:padding">8dp</item><item name="android:clickable">true</item><item name="android:focusable">true</item>
+    </style>
+    <style name="VcsUpdateAction" parent="VcsUpdateButton">
+        <item name="android:layout_width">0dp</item><item name="android:layout_weight">1</item>
     </style>
 </resources>
