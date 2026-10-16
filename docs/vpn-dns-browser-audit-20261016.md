@@ -74,9 +74,9 @@ hash is unchanged. Results and before/after lint comparison are retained under
 
 Verified version code **907**, version name
 **1.0.20261016.368-vcsinstall**, APK source commit
-`681a464578f83dc3965bc6c647a00547004e35be`. The mobile update catalog is unchanged;
-the tablet and other devices were not updated. No VPN Maker or Rust release was
-needed.
+`681a464578f83dc3965bc6c647a00547004e35be`. After physical acceptance, the user
+requested publication to the production update channel; see the publication
+record below. No VPN Maker or Rust release was needed.
 
 ## Physical acceptance after reconnection
 
@@ -106,3 +106,31 @@ The phone was left on the Vancouver tunnel detail screen with its VPN active.
 Acceptance JSON, UI XML, screenshots and sanitized before/after state are retained
 in the private evidence directory as `phone-acceptance.json` and related files.
 This targeted check does not certify every protocol or third-party browser.
+
+## Production update channel publication
+
+Version 907 replaced 906 on prod1 under `/opt/vcs-mobile/android/vcsinstall/`.
+The verified APK, build metadata, integrity manifest, checksums and release notes
+were transferred from EDGE over vRack. A directory exchange activated the complete
+release atomically. The private preparation-status file was not published.
+
+- Source-bound GitHub CI passed for the APK commit and the documentation-only
+  acceptance commit.
+- Production version/integrity readers returned 907 and the expected signed APK
+  SHA-256. The APK serving function returned the complete matching bytes and
+  version/checksum headers with `Cache-Control: no-store`.
+- Actual unauthenticated HTTP requests to the download/update endpoints remained
+  rejected with 401.
+- The production version comparison offers the update for 906 and correctly
+  reports no newer update for 907.
+- The connected phone's normal `Check updates` flow completed with
+  `No update available` on installed 907; its VPN remained active.
+- App/Gateway process identities, private environment, Next build, Gateway
+  artifact and Rust binary/catalog were preserved. No runtime restart, server
+  configuration change or tablet installation was required.
+- Temporary transfer and rollback directories were verified and removed after
+  the serving checks. The tested immutable EDGE artifact is retained.
+
+Publication manifest and private evidence:
+`/srv/vcs/deploy/manifests/virtuvpn-907-secured-dns-681a464578f8.json` and
+`/srv/vcs/deploy/evidence/virtuvpn-907-publication-20261016/`.
