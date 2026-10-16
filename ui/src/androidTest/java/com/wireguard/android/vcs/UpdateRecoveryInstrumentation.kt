@@ -5,6 +5,7 @@ import android.app.Activity
 import android.app.Instrumentation
 import android.content.Intent
 import android.content.pm.PackageInstaller
+import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.os.SystemClock
 import android.provider.Settings
@@ -99,6 +100,15 @@ class UpdateRecoveryInstrumentation : Instrumentation() {
         error("UI node unavailable: $id")
     }
 
+    private fun storageSystemUi(): Boolean {
+        val packageName = uiAutomation.rootInActiveWindow?.packageName?.toString() ?: return false
+        if (packageName == targetContext.packageName) return false
+        return runCatching {
+            val info = targetContext.packageManager.getApplicationInfo(packageName, 0)
+            info.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
+        }.getOrDefault(false)
+    }
+
     private fun exerciseRecovery() {
         check(!backup.exists()) { "Restore the previous test snapshot with restoreOnly before rerunning" }
         check(targetContext.packageName == "com.virtuvpn.android")
@@ -140,9 +150,10 @@ class UpdateRecoveryInstrumentation : Instrumentation() {
             record("checking again does not abandon the session", installer.getSessionInfo(id)?.isActive == true)
             check(node("update_storage").performAction(AccessibilityNodeInfo.ACTION_CLICK))
             val deadline = SystemClock.elapsedRealtime() + 8000
-            while (uiAutomation.rootInActiveWindow?.packageName?.toString() != "com.android.settings" && SystemClock.elapsedRealtime() < deadline)
+            while (!storageSystemUi() && SystemClock.elapsedRealtime() < deadline)
                 Thread.sleep(100)
-            record("storage action opens Android Settings", uiAutomation.rootInActiveWindow?.packageName?.toString() == "com.android.settings")
+            // Samsung may delegate this system action to My Files / Analyze Storage.
+            record("storage action opens a system storage handler", storageSystemUi())
             runOnMainSync { activity?.finish() }
             activity = null
 
@@ -152,6 +163,8 @@ class UpdateRecoveryInstrumentation : Instrumentation() {
             record("inactive uncommitted installation offers retry", ManagedUpdateFlow.state.value.phase == UpdatePhase.FAILED)
             record("interruption explains retained data", ManagedUpdateFlow.state.value.message?.contains("app data and VPN tunnels are preserved") == true)
             record("observation alone does not remove the stale session", installer.getSessionInfo(id) != null)
+            activity = startActivitySync(Intent(targetContext, ManagedUpdateActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            record("interrupted UI exposes Retry", node("update_action").text.toString() == "Retry")
 
             ManagedUpdateFlow.result(targetContext, result(id, PackageInstaller.STATUS_FAILURE_STORAGE))
             record("storage failure offers storage help", ManagedUpdateFlow.state.value.phase == UpdatePhase.FAILED && ManagedUpdateFlow.state.value.storageHelp)
