@@ -209,7 +209,11 @@ class SecureBrowserActivity : AppCompatActivity() {
             true
         }
         intent.getStringExtra(EXTRA_INITIAL_URL)?.takeIf { it.isNotBlank() }?.let {
+            intent.removeExtra(EXTRA_INITIAL_URL)
             binding.urlInput.setText(it)
+            // Explicit in-app navigation uses the same protection gate as Go,
+            // including when a previous browser session was retained.
+            openTypedUrl()
         }
     }
 

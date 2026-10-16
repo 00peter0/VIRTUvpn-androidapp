@@ -68,9 +68,8 @@ class TunnelDetailFragment : BaseFragment(), MenuProvider {
         }
         binding?.publicIdentityCard?.setOnClickListener { refreshPublicIdentity() }
         binding?.dnsCard?.setOnClickListener {
-            try {
-                startActivity(Intent(Intent.ACTION_VIEW, "https://dnscheck.tools".toUri()))
-            } catch (_: Throwable) {}
+            startActivity(Intent(requireContext(), SecureBrowserActivity::class.java)
+                .putExtra(SecureBrowserActivity.EXTRA_INITIAL_URL, "https://dnscheck.tools/"))
         }
     }
 
@@ -124,15 +123,15 @@ class TunnelDetailFragment : BaseFragment(), MenuProvider {
             endpoint.get().host
         } else getString(R.string.stat_no_data)
 
-        // DNS check: are queries pinned to a VPN DNS (no leak) or unset (leak risk)?
+        // Configuration alone does not verify DNS egress or browser-side IP privacy.
         val dnsServers = config.`interface`.dnsServers
         if (dnsServers.isNotEmpty()) {
             binding.dnsValue.text = dnsServers.joinToString(", ") { it.hostAddress ?: it.toString() }
-            binding.dnsStatus.text = getString(R.string.dns_protected)
-            binding.dnsStatus.setTextColor("#86EFAC".toColorInt())
+            binding.dnsStatus.text = getString(R.string.dns_configured)
+            binding.dnsStatus.setTextColor("#AFC0CC".toColorInt())
         } else {
             binding.dnsValue.text = getString(R.string.dns_not_set)
-            binding.dnsStatus.text = getString(R.string.dns_leak_risk)
+            binding.dnsStatus.text = getString(R.string.dns_not_configured)
             binding.dnsStatus.setTextColor("#FBBF24".toColorInt())
         }
 
@@ -159,7 +158,7 @@ class TunnelDetailFragment : BaseFragment(), MenuProvider {
                 return@launch
             }
             b.publicIdentityIp.text = ip4?.takeIf { it.isNotBlank() } ?: getString(R.string.stat_no_data)
-            b.publicIdentityIpv6.text = if (!ip6.isNullOrBlank()) "IPv6  $ip6" else getString(R.string.stat_no_ipv6)
+            b.publicIdentityIpv6.text = if (!ip6.isNullOrBlank()) "IPv6  $ip6" else getString(R.string.stat_ipv6_not_confirmed)
 
             // Geo + ISP for the primary egress IP, as the internet sees you.
             val geoIp = ip4?.takeIf { it.isNotBlank() } ?: ip6

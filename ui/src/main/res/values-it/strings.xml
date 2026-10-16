@@ -545,12 +545,13 @@
     <string name="stat_public_identity">Internet ti vede come</string>
     <string name="stat_checking">Verifica in corso…</string>
     <string name="stat_tap_recheck">Tocca per verificare di nuovo</string>
-    <string name="stat_no_ipv6">Nessun IPv6</string>
+    <string name="stat_ipv6_not_confirmed">IPv6 non confermato</string>
     <string name="stat_dns">DNS</string>
-    <string name="dns_protected">Protetto — le richieste passano attraverso la VPN</string>
-    <string name="dns_leak_risk">Rischio di fuga — nessun DNS VPN impostato</string>
+    <string name="dns_configured">DNS VPN configurato — usare il test per verificare</string>
+    <string name="dns_not_configured">DNS VPN non configurato — verificare la risoluzione DNS</string>
     <string name="dns_not_set">Non impostato</string>
-    <string name="dns_test_link">Test ↗ dnscheck.tools</string>
+    <string name="dns_test_link">Test ↗ Secured Browser</string>
+    <string name="dns_test_scope">Il test riguarda solo Secured Browser. Altri browser possono esporre indirizzi IP tramite WebRTC.</string>
     <string name="web_terminal">Terminale web</string>
     <string name="open_terminal">Apri terminale</string>
     <string name="terminal_url_copied">URL del terminale copiato</string>

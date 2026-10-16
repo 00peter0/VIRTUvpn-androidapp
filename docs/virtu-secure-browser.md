@@ -269,6 +269,32 @@ Strict requirement:
 VPN binding is still the primary network protection. WebRTC blocking is
 defense-in-depth for local IP privacy.
 
+### DNS test from tunnel details
+
+The tunnel detail DNS card opens `https://dnscheck.tools/` explicitly in
+`SecureBrowserActivity` using `EXTRA_INITIAL_URL`. It must not delegate the test
+to the default external browser. The initial URL uses the same URL policy and
+protected-navigation gate as the Go button, including when a previous browser
+session was retained. No unprotected fallback is allowed if VPN/router protection
+is unavailable.
+
+The card reports configured VPN DNS, not a verified absence of leaks. An
+unsuccessful IPv6 echo lookup is shown as `IPv6 not confirmed`: a timeout or
+endpoint failure alone cannot prove that the device has no IPv6 or that IPv6 is
+blocked. The card also explains that the browser test covers Secured Browser;
+other browsers may expose addresses through their own WebRTC implementation.
+
+`dnscheck.tools` combines HTTP source addresses and WebRTC ICE candidate addresses
+under `Your IP addresses`. A device interface address in that list is a privacy
+disclosure, but the list alone does not establish that ordinary HTTP traffic
+bypassed the VPN. DNS resolver addresses belong to a separate section.
+
+The physical Android investigation and implementation limits are recorded in
+[the October 16 DNS/browser audit](vpn-dns-browser-audit-20261016.md). Changing the
+diagnostic entry point does not modify third-party browser settings or establish
+that every other browser leaks. VPN Maker, WireGuard routing and firewall rules
+are outside this change.
+
 ## Ephemeral Session
 
 Secure Browser is ephemeral by default. On pause and destroy it clears:

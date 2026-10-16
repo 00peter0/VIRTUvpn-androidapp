@@ -518,12 +518,13 @@
     <string name="stat_public_identity">Internet sees you as</string>
     <string name="stat_checking">Checking…</string>
     <string name="stat_tap_recheck">Tap to re-check</string>
-    <string name="stat_no_ipv6">No IPv6</string>
+    <string name="stat_ipv6_not_confirmed">IPv6 not confirmed</string>
     <string name="stat_dns">DNS</string>
-    <string name="dns_protected">Protected — queries tunnel through the VPN</string>
-    <string name="dns_leak_risk">Leak risk — no VPN DNS set</string>
+    <string name="dns_configured">VPN DNS configured — use the test to verify</string>
+    <string name="dns_not_configured">VPN DNS not configured — verify DNS resolution</string>
     <string name="dns_not_set">Not set</string>
-    <string name="dns_test_link">Test ↗ dnscheck.tools</string>
+    <string name="dns_test_link">Test ↗ Secured Browser</string>
+    <string name="dns_test_scope">Tests Secured Browser only. Other browsers may expose IP addresses through WebRTC.</string>
     <string name="web_terminal">Web Terminal</string>
     <string name="open_terminal">Open terminal</string>
     <string name="terminal_url_copied">Terminal URL copied</string>

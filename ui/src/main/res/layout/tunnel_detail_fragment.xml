@@ -280,9 +280,17 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="3dp"
-                        android:textColor="#86EFAC"
+                        android:textColor="#AFC0CC"
                         android:textSize="12sp"
-                        tools:text="Protected — queries tunnel through the VPN" />
+                        tools:text="VPN DNS configured — use the test to verify" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="@string/dns_test_scope"
+                        android:textColor="#AFC0CC"
+                        android:textSize="12sp" />
                 </LinearLayout>
 
                 <LinearLayout

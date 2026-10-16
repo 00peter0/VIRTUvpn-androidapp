@@ -533,12 +533,13 @@
     <string name="stat_public_identity">Im Internet sichtbar als</string>
     <string name="stat_checking">Wird geprüft…</string>
     <string name="stat_tap_recheck">Zum erneuten Prüfen tippen</string>
-    <string name="stat_no_ipv6">Kein IPv6</string>
+    <string name="stat_ipv6_not_confirmed">IPv6 nicht bestätigt</string>
     <string name="stat_dns">DNS</string>
-    <string name="dns_protected">Geschützt — Anfragen laufen durch den VPN-Tunnel</string>
-    <string name="dns_leak_risk">Leckrisiko — kein VPN-DNS festgelegt</string>
+    <string name="dns_configured">VPN-DNS konfiguriert — mit dem Test überprüfen</string>
+    <string name="dns_not_configured">VPN-DNS nicht konfiguriert — DNS-Auflösung überprüfen</string>
     <string name="dns_not_set">Nicht festgelegt</string>
-    <string name="dns_test_link">Test ↗ dnscheck.tools</string>
+    <string name="dns_test_link">Test ↗ Secured Browser</string>
+    <string name="dns_test_scope">Der Test gilt nur für den Secured Browser. Andere Browser können IP-Adressen über WebRTC offenlegen.</string>
     <string name="web_terminal">Webterminal</string>
     <string name="open_terminal">Terminal öffnen</string>
     <string name="terminal_url_copied">Terminal-URL kopiert</string>
