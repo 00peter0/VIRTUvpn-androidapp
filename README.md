@@ -24,6 +24,8 @@ to the source commit. Never overwrite only one file in a live release.
 
 See [maintenance and security evidence](docs/android-app-security-hardening.md)
 for enrollment compatibility, sync, command receipts and acceptance limits.
+See [Android update recovery](docs/android-update-recovery-20261016.md) for
+stalled installation handling, safe retry boundaries and physical-device tests.
 For physical Android testing from EDGE, use the
 [verified MacBook SSH/ADB connection](docs/android-app-security-hardening.md#physical-android-device-access-from-edge--october-11-2026).
 

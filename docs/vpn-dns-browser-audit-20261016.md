@@ -166,6 +166,9 @@ handling. A follow-up must offer safe recovery for an interrupted owned session
 without cancelling an active system installation or weakening APK verification.
 Low storage was observed but was not proved to cause the original stall.
 No application code or production release changed during this recovery.
+The subsequent [version 908 maintenance](android-update-recovery-20261016.md)
+implements safe interrupted-session recovery and an explicit unconfirmed state,
+with separate unit and physical Android acceptance.
 Private evidence is retained under
 `/srv/vcs/deploy/evidence/virtuvpn-tablet-update-stall-20261016/`, including
 `tablet-recovery-result.json` and the actual update-result screenshot.
