@@ -1,4 +1,4 @@
-# Terminal access and Home navigation (version 917)
+# Terminal access and Home navigation (versions 917–918)
 
 ## Direct terminal access
 
@@ -97,3 +97,40 @@ checks the overflow actions, the private Single server detail, the internet
 VPN Mesh detail, and opening the current account's terminal. The existing
 negative account-isolation instrumentation also checks that a foreign retained
 profile cannot offer account-scoped internet diagnostics.
+
+### Final phone acceptance: version 918
+
+The published APK is built from `5782c6f46b48aef1b091064a4718cf2c2bb363cd`,
+SHA-256 `e50aef7b874f8c0d1320bc15f795007badfc6a2542e50eebee4f14c1ec020284`.
+The signed in-place phone update preserved the application UID, original install
+time and account data. The tablet was not updated in this task.
+
+- 98 JVM tests passed; lint reported 0 errors, 13 existing warnings and no new
+  warnings. CI run `39051696238` succeeded.
+- Version 917 completed 20 physical navigation checks and exposed the Router
+  overview overlap described above. Version 918 then passed five targeted checks:
+  the overview information control is visible and opens, the bottom Router DNS
+  help is reachable, and the DNS dialog explains public IP/DNS measurements and
+  WebRTC protection using the new wording.
+- The version 917 physical security test allowed all 430 allocated terminal
+  gateway exceptions while rejecting arbitrary cleartext destinations. Secured
+  Browser independently rejected cleartext, including platform loopback
+  exceptions. Four retained foreign profiles were rejected for activation,
+  direct/cached configuration reads, export inputs and account-scoped internet
+  diagnostics; the two current-account profiles remained available. Version 918
+  changes only resources, layout, release metadata and this document, so the
+  tested Kotlin, Java, native runtime and network policies are unchanged.
+- The current account's existing Terminal 1 connected successfully. The harmless
+  commands `echo VCS_WEB_TERMINAL_918_OK` and `uptime` returned visible output;
+  earlier version 916 history remained present. The server shell was left open.
+- Read-only identity checks found 20 device records, four active records, no new
+  devices and unchanged canonical/installation IDs and assignments.
+- Publication and HTTP serving checks verified the exact APK bytes. VCS App,
+  terminal gateway and Rust processes/configuration were preserved. Owned phone
+  transfer files and the temporary UI dump were removed after acceptance.
+
+Final evidence: `/srv/vcs/deploy/evidence/virtuvpn-dns-wording-918-20261017`.
+Earlier navigation and negative security evidence remains in the version 917
+directory above. The physical checks cover the profiles available to this
+account; other assigned-profile shortcut sections use the shared implementation
+and were not separately connected on the phone.
