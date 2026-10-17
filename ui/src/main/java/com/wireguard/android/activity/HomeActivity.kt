@@ -1077,15 +1077,15 @@ class HomeActivity : AppCompatActivity() {
         ) { which ->
                 when (which) {
                     0 -> openRouterPairingPage()
-                    1 -> openVpnMeshAddTunnelFlow()
+                    1 -> openOtherTunnelsAddFlow()
                 }
         }
     }
 
-    private fun openVpnMeshAddTunnelFlow() {
+    private fun openOtherTunnelsAddFlow() {
         startActivity(
             Intent(this, MainActivity::class.java)
-                .putExtra(MainActivity.EXTRA_TUNNEL_SECTION, MainActivity.TUNNEL_SECTION_VPN_MESH)
+                .putExtra(MainActivity.EXTRA_TUNNEL_SECTION, MainActivity.TUNNEL_SECTION_AGENT_GATEWAY)
                 .putExtra(MainActivity.EXTRA_SHOW_ADD_TUNNEL_FLOW, true)
         )
     }

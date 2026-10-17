@@ -5,6 +5,7 @@
 package com.wireguard.android.fragment
 
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.net.Uri
 import android.os.Bundle
@@ -43,6 +44,7 @@ import com.wireguard.android.util.PingManager
 import com.wireguard.android.util.QrCodeFromFileScanner
 import com.wireguard.android.util.TunnelImporter
 import com.wireguard.android.util.TunnelUiPolicy
+import com.wireguard.android.util.VcsDialogs
 import com.wireguard.android.util.VpnRouterAttestation
 import com.wireguard.android.vcs.VcsManagedClient
 import com.wireguard.android.vcs.ManagedWebTerminalLauncher
@@ -183,17 +185,6 @@ class TunnelListFragment : BaseFragment() {
         binding = TunnelListFragmentBinding.inflate(inflater, container, false)
         binding?.apply {
             fastestButton.setOnClickListener { onFastestButtonClicked() }
-            parentFragmentManager.setFragmentResultListener(AddTunnelsSheet.REQUEST_KEY_NEW_TUNNEL, viewLifecycleOwner) { _, bundle ->
-                if (!isOtherTunnelsSection()) return@setFragmentResultListener
-                when (bundle.getString(AddTunnelsSheet.REQUEST_METHOD)) {
-                    AddTunnelsSheet.REQUEST_CREATE -> startActivity(
-                        Intent(requireContext(), TunnelCreatorActivity::class.java)
-                            .putExtra(MainActivity.EXTRA_TUNNEL_SECTION, currentTunnelSection())
-                    )
-                    AddTunnelsSheet.REQUEST_IMPORT -> tunnelFileImportResultLauncher.launch("*/*")
-                    AddTunnelsSheet.REQUEST_SCAN -> scanTunnelQr()
-                }
-            }
             parentFragmentManager.setFragmentResultListener(ConfigNamingDialogFragment.RESULT_IMPORTED, viewLifecycleOwner) { _, _ ->
                 refreshTunnelFilter()
             }
@@ -201,7 +192,7 @@ class TunnelListFragment : BaseFragment() {
             // Local imports are available only in Other tunnels; managed sections keep sync.
             createFab.setOnClickListener {
                 if (isOtherTunnelsSection()) {
-                    showAddTunnelSheet()
+                    showAddTunnelChoices()
                     return@setOnClickListener
                 }
                 val ctx = requireContext()
@@ -239,9 +230,20 @@ class TunnelListFragment : BaseFragment() {
     private fun isOtherTunnelsSection(): Boolean =
         currentTunnelSection() == MainActivity.TUNNEL_SECTION_AGENT_GATEWAY
 
-    private fun showAddTunnelSheet() {
+    private fun showAddTunnelChoices() {
         if (!isOtherTunnelsSection()) return
-        AddTunnelsSheet().show(parentFragmentManager, "add_tunnels")
+        val choices = mutableListOf(getString(R.string.create_empty), getString(R.string.create_from_file))
+        if (requireActivity().packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY))
+            choices += getString(R.string.create_from_qr_code)
+        VcsDialogs.showChoice(requireContext(), getString(R.string.create_tunnel), choices) { choice ->
+            if (!isOtherTunnelsSection()) return@showChoice
+            when (choice) {
+                0 -> startActivity(Intent(requireContext(), TunnelCreatorActivity::class.java)
+                    .putExtra(MainActivity.EXTRA_TUNNEL_SECTION, MainActivity.TUNNEL_SECTION_AGENT_GATEWAY))
+                1 -> tunnelFileImportResultLauncher.launch("*/*")
+                2 -> scanTunnelQr()
+            }
+        }
     }
 
     private fun scanTunnelQr() {
@@ -400,7 +402,7 @@ class TunnelListFragment : BaseFragment() {
         lifecycleScope.launch { refreshTunnelFilter() }
         if (requireActivity().intent?.getBooleanExtra(MainActivity.EXTRA_SHOW_ADD_TUNNEL_FLOW, false) == true) {
             requireActivity().intent?.removeExtra(MainActivity.EXTRA_SHOW_ADD_TUNNEL_FLOW)
-            binding!!.root.post { showAddTunnelSheet() }
+            binding!!.root.post { showAddTunnelChoices() }
         }
         binding!!.rowConfigurationHandler = object : RowConfigurationHandler<TunnelListItemBinding, ObservableTunnel> {
             override fun onConfigureRow(binding: TunnelListItemBinding, item: ObservableTunnel, position: Int) {

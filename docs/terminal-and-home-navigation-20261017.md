@@ -144,7 +144,7 @@ and were not separately connected on the phone.
 ## Independent WireGuard VPNs in Other tunnels (919)
 
 The existing round logo button is visually unchanged. In Other tunnels it opens
-all three native choices: create manually, import a configuration file (.conf,
+a shared dark VCS choice dialog with all three actions: create manually, import a configuration file (.conf,
 .zip or QR image), or scan a QR code. The rest of the managed sections retain
 their existing synchronization button. No second WireGuard engine is added.
 The provider must supply WireGuard configuration; provider apps, password-only
@@ -171,3 +171,9 @@ the ownership lock at the actual file mutation. Managed sync reserves its name
 under the same lock and cannot claim an existing independent configuration; it
 uses the existing device suffix fallback or reports a conflict without replacing
 that profile. Independent renaming cannot take a managed reserved name.
+
+The choice dialog reuses `VcsDialogs.showChoice`, including its dark rounded
+controls, rather than the retired light native bottom sheet. The former sheet
+class and layout were removed once unreferenced. The explanatory text names the
+round logo instead of a plus symbol. VPN Router's existing Add tunnel action
+also opens these choices in Other tunnels; its pairing action is unchanged.
