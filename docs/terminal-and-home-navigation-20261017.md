@@ -461,3 +461,25 @@ Evidence: `/srv/vcs/deploy/evidence/virtuvpn-qr-camera-923-20261017`.
 Do not label separate account enrollments as duplicates or combine their profiles
 to make an empty section appear populated. A bundle's assignment count is not its
 number of local WireGuard profiles.
+
+## Release 924 — VPN-scoped public IP card
+
+See [the measurement contract and physical acceptance](vpn-public-identity-20261017.md).
+The card now measures through the selected active VPN network, clears obsolete
+results and never substitutes the physical uplink when a VPN check fails. The shared
+i control explains the observation scope. Routing, account/sync rules, browser
+protection and terminal runtime are unchanged.
+
+All three connected devices received signed in-place 924 upgrades. Their cards and
+Secured Browser confirmed the same Canadian IPv4; the final concurrent ping had
+0% loss on each client. One older phone required reconnecting its existing tunnel
+after an observed transfer outage; that failed state and the recovery are documented,
+not treated as a general reconnect repair. IPv6 remains unconfirmed.
+
+Gate: 125 passing tests, zero lint errors/new warnings (13 existing warnings),
+GitHub CI 39073493293 passed. Exact updater bytes and authenticated-route guards
+were verified after atomic vRack publication; no App/Gateway/Rust restart or change.
+Owned release transfers were cleaned. The older tablet 923 instrumentation package
+was not changed by this task; its previously documented cleanup remains separate.
+
+Evidence: /srv/vcs/deploy/evidence/virtuvpn-ip-identity-924-20261017.
