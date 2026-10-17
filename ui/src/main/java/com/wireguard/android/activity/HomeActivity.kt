@@ -91,6 +91,7 @@ class HomeActivity : AppCompatActivity() {
         binding.secureBrowserButton.setOnClickListener { startActivity(Intent(this, SecureBrowserActivity::class.java)) }
         binding.managedAccessVpnClusterButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_MANAGED_ACCESS_VPN_CLUSTER) }
         binding.managedAccessS2sClusterButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_MANAGED_ACCESS_S2S_CLUSTER) }
+        binding.singleServerButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_AGENT_GATEWAY) }
         binding.enrollButton.setOnClickListener { showEnrollDialog() }
         binding.syncButton.setOnClickListener { syncManagedAccess() }
         binding.deviceDiagnosticsButton.setOnClickListener { startActivity(Intent(this, DeviceDiagnosticsActivity::class.java)) }
@@ -595,7 +596,8 @@ class HomeActivity : AppCompatActivity() {
         listOf(
             binding.vpnMeshButton,
             binding.managedAccessVpnClusterButton,
-            binding.managedAccessS2sClusterButton
+            binding.managedAccessS2sClusterButton,
+            binding.singleServerButton
         ).forEach { setProtectedButtonState(it, signedIn) }
         setProtectedButtonState(binding.secureBrowserButton, true)
         listOf(
