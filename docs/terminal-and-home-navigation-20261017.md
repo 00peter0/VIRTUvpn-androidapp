@@ -384,3 +384,29 @@ failure evidence and the passing regression proof are retained. Live provider
 VPN activation and camera decoding were not part of this UI release.
 
 Evidence: `/srv/vcs/deploy/evidence/virtuvpn-home-icons-921-20261017`.
+
+## Release 922 acceptance
+
+Published source `daec34247cfebaa255e2cdf6a4c281cd80060a53`, APK SHA-256
+`f05c300b59b4d085dc00c4fc0f3cbeddbbbe22eddd51e77d6e30ba600498388d`. CI `39060700455` succeeded.
+
+- 108 JVM tests passed; lint: 0 errors, 13 existing warnings, no new warnings.
+- Eight physical phone checks passed: immediate native camera prompt, cancel
+  without scanner/relaunch, new QR retry after cancel, native foreground camera
+  consent, direct scanner continuation, active camera operation, back without
+  import and direct scanning when permission is already granted.
+- Only camera consent was granted through Android's own prompt. No ADB permission
+  grant or AppOps bypass was used. Camera preview frames were not captured; no
+  claim is made about a live QR decode. QR-image decoding/import was verified
+  separately by the existing native check.
+- Native ownership, import, network and focused permission tests passed. Website
+  camera/microphone denial and WebRTC protection remain unchanged. Original
+  profile files, active VPN, UID, install time and data were preserved.
+- Read-only DB checks retained the same 20 devices, four active records, IDs and
+  assignments with no new devices. The tablet was not updated.
+- APK serving, metadata, update-offer and protected-route checks passed over vRack.
+  App/Gateway/Rust and private environment were preserved without restart. Owned
+  test, transfer and rollback files were removed.
+
+Evidence: `/srv/vcs/deploy/evidence/virtuvpn-qr-permission-20261017`. Physical UI evidence is from API 37; rotation/reboot were not
+physically exercised. Saved request state prevents automatic re-entry in code.
