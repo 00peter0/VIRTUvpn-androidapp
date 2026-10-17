@@ -410,3 +410,54 @@ Published source `daec34247cfebaa255e2cdf6a4c281cd80060a53`, APK SHA-256
 
 Evidence: `/srv/vcs/deploy/evidence/virtuvpn-qr-permission-20261017`. Physical UI evidence is from API 37; rotation/reboot were not
 physically exercised. Saved request state prevents automatic re-entry in code.
+
+## Release 923 acceptance
+
+Published source `908acc16e12ced7d767d83d85828c5b8768324a8`, APK SHA-256
+`2209fa5b099ae1048093bd5390bd1c7977fc75c2d2756f82af1c7267691f494c`.
+CI `39063850655` succeeded. See `qr-camera-compatibility-20261017.md` for the
+legacy camera comparisons and shared CameraX implementation.
+
+- 115 JVM tests passed, including seven camera-frame/QR regressions. Lint:
+  0 errors, 13 existing warnings, no new warnings. Package permissions, optional
+  hardware features and signing identity match 922.
+- The signed APK was installed in place on the API 37 SM-S948B phone and API 32
+  SM-T860 tablet. UID, original install time, app data and camera/notification
+  grants were preserved; no permission was granted through ADB.
+- Phone native checks passed for account isolation, independent imports,
+  protected network policy, focused permissions, the internal QR result contract
+  and cancellation during camera initialization. Tablet native network,
+  permission and scanner-contract/cancellation checks passed. Its first attempt
+  at the two-account check lacked the required second-account fixture and is
+  retained as an unmet precondition, not a passing isolation test.
+- The user confirmed a live camera QR read on the final phone APK. The newly
+  imported `frankfurt` profile was subsequently visible in Other tunnels. The
+  tablet's final scanner UI opened successfully; a live read on tablet 923 was
+  not confirmed. Diagnostic prototype reads are not substituted for this limit.
+- The subsequent reported sync/profile loss was checked on the phone: the active
+  account was Peter, with two active server assignments intentionally bundled
+  into one VPN Cluster profile. Manual synchronization succeeded; `vancouver`
+  and its Open terminal action were visible in VPN Cluster, while `frankfurt`
+  remained in Other tunnels. The main account's separately retained Edge profiles
+  are not entitled to appear under Peter. No logout, account reset, assignment
+  reassignment or user-profile deletion was used to obtain these observations.
+  Clarification of which additional profiles the user expected remained pending.
+- Read-only DB comparisons retained all 20 device records, four active records,
+  canonical IDs, installation IDs and assignments, with no new devices.
+  Installed-version metadata remains specific to the account/device that reports
+  it; updating one account never fabricates a heartbeat for another account.
+- 923 was initially installed locally while its CI gate was running; the central
+  updater still offered 922 at that point. After CI success it was published
+  atomically over vRack. Exact served bytes, integrity/version metadata, update
+  offers for older clients and unauthenticated-route rejection passed.
+  App/Gateway/Rust, private configuration and process identities were preserved;
+  no production restart was required.
+- Temporary release transfers/rollback and the phone's owned test package,
+  transfer and UI dump were removed. The tablet disconnected before device-side
+  cleanup; its test package/UI dump remain pending, and its Mac transfer was
+  removed. Main app data was never cleared or uninstalled.
+
+Evidence: `/srv/vcs/deploy/evidence/virtuvpn-qr-camera-923-20261017`.
+Do not label separate account enrollments as duplicates or combine their profiles
+to make an empty section appear populated. A bundle's assignment count is not its
+number of local WireGuard profiles.
