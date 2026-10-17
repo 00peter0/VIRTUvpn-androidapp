@@ -1,5 +1,10 @@
 # Terminal access and Home navigation (versions 917–920)
 
+Pending next APK after 920: the independent tunnel detail exposes Delete as the
+existing trash icon directly in the toolbar instead of hiding it in the
+three-dot overflow. The action still opens the existing confirmation dialog and
+remains limited to independent profiles. Published APK 920 is unchanged.
+
 ## Direct terminal access
 
 All tunnel list sections now use the same direct **Open terminal** action that
