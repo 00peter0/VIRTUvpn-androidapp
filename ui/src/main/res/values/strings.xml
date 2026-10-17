@@ -59,6 +59,7 @@
     <string name="vcs_home_vpn_mesh">VPN Mesh</string>
     <string name="vcs_home_agent_gateway">Connections</string>
     <string name="vcs_home_single_server" translatable="false">Single server</string>
+    <string name="vcs_single_server_empty" translatable="false">Assign a Single server profile in VCS Managed Access, then sync here. Open terminal appears when its server terminal is installed.</string>
     <string name="vcs_home_managed_access">Managed Access</string>
     <string name="vcs_home_managed_access_vpn_cluster">VPN Cluster</string>
     <string name="vcs_home_managed_access_s2s_cluster">S2S Cluster</string>

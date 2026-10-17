@@ -6,6 +6,7 @@
     <data>
         <import type="com.wireguard.android.model.ObservableTunnel" />
         <import type="com.wireguard.android.backend.Tunnel.State" />
+        <import type="android.view.View" />
         <variable name="collection"
             type="com.wireguard.android.databinding.ObservableKeyedArrayList&lt;String, ObservableTunnel&gt;" />
         <variable name="key" type="String" />
@@ -57,23 +58,45 @@
             android:textStyle="bold"
             tools:text="warsaw" />
 
+        <LinearLayout
+            android:id="@+id/row_actions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/single_server_terminal"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:minWidth="0dp"
+            android:paddingHorizontal="8dp"
+            android:background="@drawable/fastest_button_background"
+            android:visibility="@{fragment.hasSingleServerTerminal(item) ? View.VISIBLE : View.GONE}"
+            android:onClick="@{view -> fragment.onWebTerminalClick(view, item)}"
+            android:text="@string/open_terminal"
+            android:textAllCaps="false"
+            android:textSize="12sp"
+            android:textColor="#7DE8F4" />
+
         <!-- Chevron -->
         <ImageView
             android:id="@+id/chevron"
             android:layout_width="20dp"
             android:layout_height="20dp"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
             android:src="@drawable/ic_chevron_right"
             android:alpha="0.4"
             android:contentDescription="@string/detail" />
+        </LinearLayout>
 
         <!-- Latency text -->
         <TextView
             android:id="@+id/latency_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_toStartOf="@id/chevron"
+            android:layout_toStartOf="@id/row_actions"
             android:layout_centerVertical="true"
             android:layout_marginEnd="16dp"
             android:textSize="13sp"

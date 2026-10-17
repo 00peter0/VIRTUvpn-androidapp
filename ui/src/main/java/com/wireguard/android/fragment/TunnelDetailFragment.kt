@@ -28,7 +28,7 @@ import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.activity.HomeActivity
 import com.wireguard.android.activity.SecureBrowserActivity
-import com.wireguard.android.activity.WebTerminalBrowserActivity
+import com.wireguard.android.vcs.ManagedWebTerminalLauncher
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.databinding.TunnelDetailFragmentBinding
 import com.wireguard.android.model.ObservableTunnel
@@ -234,26 +234,8 @@ class TunnelDetailFragment : BaseFragment(), MenuProvider {
                 val activeBinding = binding ?: return@launch
                 activeBinding.webTerminalOpen.isEnabled = false
                 activeBinding.webTerminalOpen.text = getString(R.string.web_terminal_checking)
-                Toast.makeText(requireContext(), R.string.web_terminal_opening, Toast.LENGTH_SHORT).show()
                 try {
-                    val requiredTunnelName = terminal.requiredTunnelName
-                    if (!requiredTunnelName.isNullOrBlank()) {
-                        val requiredTunnel = Application.getTunnelManager().getTunnels()[requiredTunnelName]
-                        if (requiredTunnel == null) {
-                            Toast.makeText(requireContext(), getString(R.string.web_terminal_tunnel_missing, requiredTunnelName), Toast.LENGTH_LONG).show()
-                            return@launch
-                        }
-                        if (requiredTunnel.state != Tunnel.State.UP) {
-                            Toast.makeText(requireContext(), getString(R.string.web_terminal_starting_tunnel, requiredTunnelName), Toast.LENGTH_SHORT).show()
-                            try {
-                                requiredTunnel.setStateAsync(Tunnel.State.UP)
-                            } catch (e: Throwable) {
-                                Toast.makeText(requireContext(), getString(R.string.web_terminal_tunnel_start_failed, e.message ?: getString(R.string.unknown_error)), Toast.LENGTH_LONG).show()
-                                return@launch
-                            }
-                        }
-                    }
-                    openWebTerminalUrl(terminal.url)
+                    ManagedWebTerminalLauncher.open(requireContext(), terminal)
                 } finally {
                     binding?.webTerminalOpen?.isEnabled = true
                     binding?.webTerminalOpen?.text = getString(R.string.open_terminal)
@@ -285,9 +267,5 @@ class TunnelDetailFragment : BaseFragment(), MenuProvider {
         }.getOrDefault(false)
     }
 
-    private fun openWebTerminalUrl(url: String) {
-        val intent = Intent(requireContext(), WebTerminalBrowserActivity::class.java)
-            .putExtra(WebTerminalBrowserActivity.EXTRA_INITIAL_URL, url)
-        startActivity(intent)
-    }
+
 }

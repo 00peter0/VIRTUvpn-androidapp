@@ -4,6 +4,8 @@
  */
 package com.wireguard.android.activity
 
+import com.wireguard.android.vcs.ManagedAccessSections
+
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -92,6 +94,7 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
     fun titleForTunnelSection(section: String?): String {
         return when (section) {
             TUNNEL_SECTION_VPN_MESH -> getString(R.string.vcs_home_vpn_mesh)
+            TUNNEL_SECTION_SINGLE_SERVER -> getString(R.string.vcs_home_single_server)
             TUNNEL_SECTION_AGENT_GATEWAY -> getString(R.string.vcs_home_agent_gateway)
             TUNNEL_SECTION_MANAGED_ACCESS -> getString(R.string.vcs_home_managed_access)
             TUNNEL_SECTION_MANAGED_ACCESS_VPN_CLUSTER -> getString(R.string.vcs_home_managed_access_vpn_cluster)
@@ -257,6 +260,7 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
         const val EXTRA_TUNNEL_SECTION = "com.wireguard.android.extra.TUNNEL_SECTION"
         const val EXTRA_SHOW_ADD_TUNNEL_FLOW = "com.wireguard.android.extra.SHOW_ADD_TUNNEL_FLOW"
         const val TUNNEL_SECTION_VPN_MESH = "vpn_mesh"
+        const val TUNNEL_SECTION_SINGLE_SERVER = ManagedAccessSections.SINGLE_SERVER
         const val TUNNEL_SECTION_AGENT_GATEWAY = "agent_gateway"
         const val TUNNEL_SECTION_MANAGED_ACCESS = "managed_access"
         const val TUNNEL_SECTION_MANAGED_ACCESS_VPN_CLUSTER = "managed_access_vpn_cluster"

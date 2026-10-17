@@ -45,6 +45,7 @@ import com.wireguard.android.util.TunnelImporter
 import com.wireguard.android.util.TunnelUiPolicy
 import com.wireguard.android.util.VpnRouterAttestation
 import com.wireguard.android.vcs.VcsManagedClient
+import com.wireguard.android.vcs.ManagedWebTerminalLauncher
 import com.wireguard.android.widget.MultiselectableRelativeLayout
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
@@ -62,6 +63,25 @@ class TunnelListFragment : BaseFragment() {
     private var managedSyncJob: kotlinx.coroutines.Job? = null
     private var pingLoopJob: kotlinx.coroutines.Job? = null
     private var managedSyncActive = false
+
+    fun hasSingleServerTerminal(tunnel: ObservableTunnel?): Boolean {
+        if (tunnel == null) return false
+        val ctx = context ?: return false
+        return currentTunnelSection() == MainActivity.TUNNEL_SECTION_SINGLE_SERVER &&
+            VcsManagedClient.webTerminalForTunnel(ctx, tunnel.name) != null
+    }
+
+    fun onWebTerminalClick(view: View, tunnel: ObservableTunnel?) {
+        if (tunnel == null) return
+        val ctx = context ?: return
+        if (!hasSingleServerTerminal(tunnel)) return
+        val terminal = VcsManagedClient.webTerminalForTunnel(ctx, tunnel.name) ?: return
+        view.isEnabled = false
+        viewLifecycleOwner.lifecycleScope.launch {
+            try { ManagedWebTerminalLauncher.open(ctx, terminal) }
+            finally { view.isEnabled = true }
+        }
+    }
 
     private val tunnelFileImportResultLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { data ->
         if (data == null) return@registerForActivityResult
@@ -442,6 +462,8 @@ class TunnelListFragment : BaseFragment() {
             }
             activeBinding.emptyStateText.text = if (pendingManagedAccess > 0 && filtered.isEmpty()) {
                 getString(R.string.vcs_managed_access_pending_empty)
+            } else if (section == MainActivity.TUNNEL_SECTION_SINGLE_SERVER) {
+                getString(R.string.vcs_single_server_empty)
             } else {
                 getString(R.string.tunnel_list_placeholder)
             }

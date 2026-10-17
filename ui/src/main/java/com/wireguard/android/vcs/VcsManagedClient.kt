@@ -498,7 +498,7 @@ object VcsManagedClient {
                             assignment.optString("bundleLocalTunnelName").takeIf { it.isNotBlank() }?.let { names.add(it) }
                             if (localTunnelName == bundleName) names.add(localTunnelName)
                         }
-                        "s2s_cluster" -> names.add(localTunnelName)
+                        "s2s_cluster", "single_server" -> names.add(localTunnelName)
                     }
                 }
                 MainActivity.TUNNEL_SECTION_MANAGED_ACCESS_VPN_CLUSTER -> if (managedAccessMode(assignment, bundleName) == "vpn_cluster") {
@@ -507,7 +507,8 @@ object VcsManagedClient {
                 }
                 MainActivity.TUNNEL_SECTION_MANAGED_ACCESS_S2S_CLUSTER -> if (managedAccessMode(assignment, bundleName) == "s2s_cluster") names.add(localTunnelName)
                 MainActivity.TUNNEL_SECTION_VPN_MESH -> if (assignment.optString("kind") == "VPN_ROUTE" && localTunnelName != bundleName) names.add(localTunnelName)
-                MainActivity.TUNNEL_SECTION_AGENT_GATEWAY -> if (assignment.optString("kind") == "AGENT_GATEWAY_PROFILE" && localTunnelName != bundleName && managedAccessMode(assignment, bundleName) != "s2s_cluster") names.add(localTunnelName)
+                MainActivity.TUNNEL_SECTION_SINGLE_SERVER -> if (managedAccessMode(assignment, bundleName) == "single_server" && localTunnelName != bundleName) names.add(localTunnelName)
+                MainActivity.TUNNEL_SECTION_AGENT_GATEWAY -> if (assignment.optString("kind") == "AGENT_GATEWAY_PROFILE" && localTunnelName != bundleName && managedAccessMode(assignment, bundleName) !in setOf("s2s_cluster", "single_server")) names.add(localTunnelName)
             }
         }
         if (section == MainActivity.TUNNEL_SECTION_VPN_MESH) {
@@ -537,18 +538,15 @@ object VcsManagedClient {
 
     private fun managedAccessMode(assignment: JSONObject, bundleName: String?): String? {
         val explicitMode = assignment.optString("managedAccessMode").takeIf { it.isNotBlank() && it != "null" }
-        if (explicitMode != null) return explicitMode
         val localName = assignment.optString("localTunnelName").takeIf { it.isNotBlank() }
         val assignmentBundleName = assignment.optString("bundleLocalTunnelName").takeIf { it.isNotBlank() }
-        if (assignmentBundleName != null || (bundleName != null && localName == bundleName)) return "vpn_cluster"
-        val profileType = assignment.optJSONObject("agentGatewayTunnel")
-            ?.optString("profileType")
-            ?.takeIf { it.isNotBlank() }
-        return when (profileType) {
-            "server_to_server_cli" -> "s2s_cluster"
-            "local_pc_cli" -> "standalone_pc"
-            else -> null
-        }
+        val connection = assignment.optJSONObject("agentGatewayTunnel")
+        return ManagedAccessSections.mode(
+            explicitMode,
+            connection?.optString("profileType")?.takeIf { it.isNotBlank() },
+            connection?.optJSONObject("metadata")?.optString("capability"),
+            assignmentBundleName != null || (bundleName != null && localName == bundleName)
+        )
     }
 
     fun rememberExternalVpnMeshTunnels(context: Context, tunnelNames: Collection<String>) {
@@ -587,9 +585,11 @@ object VcsManagedClient {
             if (status != "ACTIVE" && status != "REISSUE_REQUIRED") continue
             val localName = assignment.optString("localTunnelName")
             val terminal = assignment.optJSONObject("webTerminal") ?: continue
-            val bundleName = assignment.optString("bundleLocalTunnelName")
-                .takeIf { it.isNotBlank() }
-                ?: fallbackBundleName
+            val bundleName = ManagedAccessSections.terminalBundle(
+                managedAccessMode(assignment, fallbackBundleName),
+                assignment.optString("bundleLocalTunnelName").takeIf { it.isNotBlank() },
+                fallbackBundleName
+            )
             if (localName != tunnelName && bundleName != tunnelName) continue
             val url = terminal.optString("url").takeIf { it.startsWith("http://") || it.startsWith("https://") } ?: continue
             return WebTerminalLink(
