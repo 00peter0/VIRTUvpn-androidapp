@@ -216,7 +216,7 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
                         catch (_: Exception) { awaitingUsageAccess = false; unavailableAction() }
                     }
                 }
-                if (access) action(R.string.vcs_diag_usage_manage) { open(PermissionsActivity.intent(this@DeviceDiagnosticsActivity, PermissionsActivity.USAGE)) }
+                if (access) action(R.string.vcs_diag_usage_manage) { open(PermissionsActivity.intent(this@DeviceDiagnosticsActivity, PermissionsActivity.USAGE, resumeAction = false)) }
             }
         }
         card(R.string.vcs_diag_startup, R.drawable.ic_power, busy = state.startupProgress != null, rebuild = false) {

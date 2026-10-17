@@ -1,24 +1,44 @@
 package com.wireguard.android.util
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AppPermissionPolicyTest {
-    @Test fun legacyStorageIsRequestedOnlyOnSupportedOlderAndroid() {
-        assertEquals(listOf("android.permission.CAMERA", "android.permission.WRITE_EXTERNAL_STORAGE"), AppPermissionPolicy.runtimePermissions(24))
-        assertFalse(AppPermissionPolicy.runtimePermissions(29).contains("android.permission.WRITE_EXTERNAL_STORAGE"))
+    @Test fun everyFeatureShowsOnlyItsOwnAccessAcrossSupportedAndroidVersions() {
+        for (sdk in 24..37) for (capability in AppPermissionPolicy.capabilities(sdk, null)) {
+            assertEquals(listOf(capability), AppPermissionPolicy.capabilities(sdk, capability))
+        }
     }
-    @Test fun notificationRuntimeGrantStartsOnAndroid13() {
-        assertEquals(listOf("android.permission.CAMERA"), AppPermissionPolicy.runtimePermissions(32))
-        assertEquals(listOf("android.permission.CAMERA", "android.permission.POST_NOTIFICATIONS"), AppPermissionPolicy.runtimePermissions(33))
+
+    @Test fun invalidAndUnsupportedRequestsCannotOpenTheFullOverview() {
+        for (sdk in 24..37) {
+            assertTrue(AppPermissionPolicy.capabilities(sdk, "unknown").isEmpty())
+            assertTrue(AppPermissionPolicy.capabilities(sdk, "").isEmpty())
+        }
+        assertTrue(AppPermissionPolicy.capabilities(25, AppPermissionPolicy.INSTALL).isEmpty())
+        assertTrue(AppPermissionPolicy.capabilities(33, AppPermissionPolicy.OVERLAY).isEmpty())
     }
-    @Test fun specialAccessIsNeverIncludedInTheBulkRuntimeGrant() {
-        for (sdk in 24..37) assertFalse(AppPermissionPolicy.runtimePermissions(sdk).any {
-            it.contains("INSTALL") || it.contains("OVERLAY") || it.contains("USAGE") || it.contains("VPN")
-        })
+
+    @Test fun qrScanCannotRequestNotificationsStorageOrSpecialAccess() {
+        for (sdk in 24..37) {
+            assertEquals("android.permission.CAMERA", AppPermissionPolicy.runtimePermission(AppPermissionPolicy.CAMERA, sdk))
+            assertNull(AppPermissionPolicy.runtimePermission(AppPermissionPolicy.CAMERA, sdk, cameraAvailable = false))
+        }
     }
-    @Test fun devicesWithoutCamerasDoNotRequestCameraAccess() {
-        assertEquals(listOf("android.permission.POST_NOTIFICATIONS"), AppPermissionPolicy.runtimePermissions(37, cameraAvailable = false))
+
+    @Test fun storageAndNotificationsRespectAndroidVersionBoundaries() {
+        assertEquals("android.permission.WRITE_EXTERNAL_STORAGE", AppPermissionPolicy.runtimePermission(AppPermissionPolicy.FILES, 28))
+        assertNull(AppPermissionPolicy.runtimePermission(AppPermissionPolicy.FILES, 29))
+        assertNull(AppPermissionPolicy.runtimePermission(AppPermissionPolicy.NOTIFICATIONS, 32))
+        assertEquals("android.permission.POST_NOTIFICATIONS", AppPermissionPolicy.runtimePermission(AppPermissionPolicy.NOTIFICATIONS, 33))
+    }
+
+    @Test fun specialSettingsAndUnknownRequestsNeverLaunchARuntimeGrant() {
+        for (sdk in 24..37) for (capability in listOf(AppPermissionPolicy.VPN, AppPermissionPolicy.KILL_SWITCH,
+            AppPermissionPolicy.INSTALL, AppPermissionPolicy.USAGE, AppPermissionPolicy.OVERLAY, AppPermissionPolicy.BATTERY, "unknown")) {
+            assertNull(AppPermissionPolicy.runtimePermission(capability, sdk))
+        }
     }
 }

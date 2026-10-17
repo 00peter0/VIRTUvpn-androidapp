@@ -1,4 +1,4 @@
-# Terminal access and Home navigation (versions 917–919)
+# Terminal access and Home navigation (versions 917–920)
 
 ## Direct terminal access
 
@@ -179,7 +179,43 @@ class and layout were removed once unreferenced. The explanatory text names the
 round logo instead of a plus symbol. VPN Router's existing Add tunnel action
 also opens these choices in Other tunnels; its pairing action is unchanged.
 
-## Permissions and protection overview (919)
+## Permissions for the requested action (920 — current)
+
+Permission requests reuse `PermissionsActivity` in a focused mode: only the
+requested capability, a short reason, its observed status, one action and the
+shared information control. A QR scan asks for camera only. Usage diagnostics,
+APK installation, initial VPN consent, legacy download storage and Quick Settings
+overlay access each keep their own request. No unrelated rows or bulk runtime
+request are shown. Unsupported or unknown capability requests close without a
+grant; they never fall back to the complete overview.
+
+Camera, notifications and legacy storage use a single Android runtime request
+for that selected capability. If Android no longer offers a prompt, or camera
+AppOps still blocks an otherwise granted permission, the action opens Android
+settings. Actual access is rechecked on return; a successful settings activity
+result alone does not count as permission. A granted request returns to its
+original caller without a separate Continue step. Denial and cancellation do not
+start the protected action or request another permission.
+
+The full overview is available only when explicitly opened from Home →
+Permissions. It retains individual management actions without an “allow all”
+button. Kill switch and background restrictions remain optional settings, with
+no automatic enabling or routing changes. Managing an existing diagnostic usage
+grant uses focused management mode, so it stays open instead of immediately
+returning as an already completed request. Import on current Android versions
+retains the system file picker and scoped storage without broad storage grants.
+
+Secured Browser website camera/microphone denial, WebRTC protection, managed
+profile ownership, VPN routing, terminal sessions and updater verification are
+unchanged. Contextual permission guidance follows Android's
+[runtime permission workflow](https://developer.android.com/training/permissions/requesting).
+
+Verification and release evidence:
+`/srv/vcs/deploy/evidence/virtuvpn-context-permissions-920-20261017`.
+The dated 919 results below describe that release's previous behavior and are
+superseded by the focused flow above.
+
+## Permissions and protection overview (919 — historical)
 
 Home overflow now exposes **Permissions** without requiring a VCS account.
 Camera QR scans, the Secured Browser native router-pairing scanner, initial VPN

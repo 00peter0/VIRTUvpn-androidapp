@@ -608,10 +608,12 @@
     <string name="log_viewer_share_logs">Share logs</string>
     <string name="web_terminal_current_account_required" translatable="false">Sync your current VCS account before opening its Web Terminal.</string>
     <string name="vcs_permissions_intro" translatable="false">Review access for the features you use.</string>
-    <string name="vcs_permissions_help" translatable="false">Allow app permissions groups camera, notifications and storage on older Android versions. Android may still show separate prompts. VPN consent, Kill switch, APK installation, usage access and overlay access require their own Android screens. You choose which access to enable.\n\nOpening this overview does not grant anything, activate a VPN, change routing or change browser protections. Camera access is for native QR scanning; websites in Secured Browser still cannot access the camera or microphone.\n\nInternet, network state, boot delivery and foreground service permissions are declared at installation and do not have individual runtime prompts. Root access for VPN Router is separate from Android permissions and is not granted here.</string>
-    <string name="vcs_permissions_allow_apps" translatable="false">Allow app permissions</string>
+    <string name="vcs_permissions_help" translatable="false">Each feature asks only for the access it needs when you use it. This overview lets you manage individual settings; there is no request to enable everything. You can go back without granting access.\n\nOpening this overview does not grant anything, activate a VPN, change routing or change browser protections. Camera access is for native QR scanning; websites in Secured Browser still cannot access the camera or microphone.\n\nInternet, network state, boot delivery and foreground service permissions are declared at installation and do not have individual runtime prompts. Root access for VPN Router is separate from Android permissions and is not granted here.</string>
+    <string name="vcs_permissions_allow_camera" translatable="false">Allow camera for QR scanning</string>
+    <string name="vcs_permissions_allow_notifications" translatable="false">Allow app notifications</string>
+    <string name="vcs_permissions_allow_downloads" translatable="false">Allow saving downloads</string>
+    <string name="vcs_permissions_allow_vpn" translatable="false">Allow VPN connection</string>
     <string name="vcs_permissions_open_settings" translatable="false">Open Android settings</string>
-    <string name="vcs_permissions_continue" translatable="false">Continue</string>
     <string name="vcs_permissions_enabled" translatable="false">Enabled</string>
     <string name="vcs_permissions_not_enabled" translatable="false">Not enabled</string>
     <string name="vcs_permissions_check_settings" translatable="false">Check in Android settings</string>
@@ -625,7 +627,7 @@
     <string name="vcs_permission_kill_switch" translatable="false">Kill switch</string>
     <string name="vcs_permission_kill_switch_help" translatable="false">In Android VPN settings, select VirtuVPN, enable Always-on VPN and then Block connections without VPN. Android may require connecting a tunnel once before showing these settings.\n\nBlocking connections without VPN can prevent internet access while the VPN is stopped. Private-only tunnels can also block normal internet browsing under this setting; enable it only when that matches your intended routing. Android VPN protection does not by itself protect hotspot clients or replace VPN Router protection. If the VPN service is stopped or a different backend is used, the exact state may be unavailable here; inspect Android VPN settings.</string>
     <string name="vcs_permission_camera" translatable="false">Camera · QR scanning</string>
-    <string name="vcs_permission_camera_help" translatable="false">Optional. Needed only for native QR scanning. Open Android settings, choose Permissions, then Camera, and allow access while using the app. Also check the Android Camera access privacy switch if scanning is still blocked.\n\nReturn to this overview and choose Continue to resume the scan. Importing a QR image from a file does not require camera access. Websites in Secured Browser remain blocked from using the camera and microphone.</string>
+    <string name="vcs_permission_camera_help" translatable="false">Optional. Needed only for native QR scanning. Allow access while using the app. If Android no longer shows a permission prompt, open Android settings, choose Permissions, then Camera. Also check the Android Camera access privacy switch if scanning is still blocked.\n\nReturn to VirtuVPN after enabling access to resume the requested scan. Importing a QR image from a file does not require camera access. Websites in Secured Browser remain blocked from using the camera and microphone.</string>
     <string name="vcs_permission_notifications" translatable="false">Notifications</string>
     <string name="vcs_permission_notifications_help" translatable="false">Optional. Controls visible app and foreground-service notifications. Android 13 and newer require a runtime notification grant; Android also has app and notification-channel settings. This does not grant access to notifications from other apps.</string>
     <string name="vcs_permission_install" translatable="false">App updates · APK installation</string>
@@ -639,5 +641,13 @@
     <string name="vcs_permission_battery" translatable="false">Background activity</string>
     <string name="vcs_permission_battery_help" translatable="false">Optional device setting for long-running work. Open the VirtuVPN app page and review Battery or Background usage if Android repeatedly restricts the app. Labels differ by manufacturer. No battery exemption is applied automatically.</string>
     <string name="vcs_permissions_title">Permissions</string>
-    <string name="vcs_permissions_for_action" translatable="false">For this action: %1$s</string>
+    <string name="vcs_permission_vpn_reason" translatable="false">Allow VirtuVPN to start the tunnel you selected.</string>
+    <string name="vcs_permission_kill_switch_reason" translatable="false">Review Always-on VPN and Block connections without VPN in Android settings.</string>
+    <string name="vcs_permission_camera_reason" translatable="false">Camera access is needed to scan this QR code.</string>
+    <string name="vcs_permission_notifications_reason" translatable="false">Allow notifications from VirtuVPN.</string>
+    <string name="vcs_permission_install_reason" translatable="false">Allow VirtuVPN to open the Android installer for this update.</string>
+    <string name="vcs_permission_usage_reason" translatable="false">Allow usage access to measure app activity in Device Diagnostics.</string>
+    <string name="vcs_permission_overlay_reason" translatable="false">Allow the Quick Settings tile to open Android VPN consent.</string>
+    <string name="vcs_permission_files_reason" translatable="false">Allow saving this download on older Android versions.</string>
+    <string name="vcs_permission_battery_reason" translatable="false">Review background restrictions only if Android interrupts long-running work.</string>
 </resources>
