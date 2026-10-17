@@ -54,9 +54,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
-import com.journeyapps.barcodescanner.CaptureActivity
-import com.journeyapps.barcodescanner.ScanContract
-import com.journeyapps.barcodescanner.ScanOptions
+import com.wireguard.android.util.NativeQrScanContract
 import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.backend.WgQuickBackend
@@ -130,8 +128,8 @@ class SecureBrowserActivity : AppCompatActivity() {
     // over a router hotspot).
     private val protectionMutex = Mutex()
 
-    private val pairRouterResultLauncher = registerForActivityResult(ScanContract()) { result ->
-        val qrCode = result.contents ?: return@registerForActivityResult
+    private val pairRouterResultLauncher = registerForActivityResult(NativeQrScanContract()) { result ->
+        val qrCode = result ?: return@registerForActivityResult
         val pairing = VpnRouterAttestation.parsePairingValue(qrCode)
         if (pairing == null) {
             Toast.makeText(this, R.string.vcs_secure_browser_router_pair_error, Toast.LENGTH_LONG).show()
@@ -894,13 +892,7 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun launchRouterPairingScanner() {
-        val options = ScanOptions()
-            .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-            .setPrompt(getString(R.string.vcs_secure_browser_pair_router_scan_prompt))
-            .setBeepEnabled(false)
-            .setOrientationLocked(false)
-            .setCaptureActivity(CaptureActivity::class.java)
-        pairRouterResultLauncher.launch(options)
+        pairRouterResultLauncher.launch(getString(R.string.vcs_secure_browser_pair_router_scan_prompt))
     }
 
     private fun showPasteRouterPairingDialog() {

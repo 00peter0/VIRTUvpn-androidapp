@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vcs_qr_title" translatable="false">Scan QR code</string>
+    <string name="vcs_qr_opening" translatable="false">Opening camera…</string>
+    <string name="vcs_qr_hint" translatable="false">Keep the whole QR in view. Tap the preview to focus.</string>
+    <string name="vcs_qr_camera_error" translatable="false">Camera unavailable. Close other camera apps, then retry.</string>
+    <string name="vcs_qr_permission_needed" translatable="false">Allow camera access to scan a QR code.</string>
+    <string name="vcs_qr_retry" translatable="false">Retry camera</string>
+    <string name="vcs_qr_light_on" translatable="false">Light on</string>
+    <string name="vcs_qr_light_off" translatable="false">Light off</string>
+    <string name="vcs_qr_focus" translatable="false">Camera preview. Tap to focus.</string>
+    <string name="vcs_qr_help" translatable="false">Scanning happens on this device. Camera frames and QR contents are not uploaded or saved by the scanner. After recognition, the existing import or pairing step opens. Back cancels scanning.\n\nKeep the entire code visible. If it is blurred, move the phone farther away, enlarge the displayed code, or tap the preview to refocus. Use the light when needed.</string>
+</resources>

@@ -23,7 +23,10 @@ google-material = "com.google.android.material:material:1.13.0"
 jsr305 = "com.google.code.findbugs:jsr305:3.0.2"
 junit = "junit:junit:4.13.2"
 kotlinx-coroutines-android = "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2"
-zxing-android-embedded = "com.journeyapps:zxing-android-embedded:4.3.0"
+zxing-core = "com.google.zxing:core:3.4.1"
+androidx-camera-camera2 = "androidx.camera:camera-camera2:1.6.2"
+androidx-camera-lifecycle = "androidx.camera:camera-lifecycle:1.6.2"
+androidx-camera-view = "androidx.camera:camera-view:1.6.2"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

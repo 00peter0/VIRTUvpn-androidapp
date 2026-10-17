@@ -36,6 +36,12 @@
     <uses-feature
         android:name="android.hardware.camera"
         android:required="false" />
+    <!-- Preserve optional hardware declarations previously supplied by the scanner wrapper. -->
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.flash" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.front" android:required="false" />
+    <uses-feature android:name="android.hardware.screen.landscape" android:required="false" />
+    <uses-feature android:name="android.hardware.wifi" android:required="false" />
 
     <queries>
         <intent>
@@ -190,10 +196,9 @@
             android:parentActivityName=".activity.MainActivity" />
 
         <activity
-            android:name="com.journeyapps.barcodescanner.CaptureActivity"
-            android:screenOrientation="fullSensor"
-            tools:ignore="DiscouragedApi"
-            tools:replace="screenOrientation" />
+            android:name=".activity.QrScannerActivity"
+            android:exported="false"
+            android:theme="@style/VcsDiagnosticsTheme" />
 
         <activity
             android:name=".activity.LogViewerActivity"

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical"
+    android:background="@drawable/dashboard_gradient">
+    <com.google.android.material.appbar.MaterialToolbar android:id="@+id/qr_toolbar"
+        android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp"
+        android:background="@color/vcs_top_bar" app:title="@string/vcs_qr_title" app:titleTextColor="#FFFFFF"
+        app:navigationIcon="@drawable/ic_arrow_back" app:navigationIconTint="#FFFFFF" app:navigationContentDescription="@string/vcs_diag_back" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal"
+        android:gravity="center_vertical" android:paddingStart="16dp" android:paddingEnd="8dp">
+        <TextView android:id="@+id/qr_prompt" android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="wrap_content" android:textColor="#AFC0CC" android:textSize="14sp" />
+        <com.wireguard.android.widget.VcsInfoButton android:id="@+id/qr_info" android:layout_width="48dp" android:layout_height="48dp"
+            app:infoTitle="@string/vcs_qr_title" app:infoMessage="@string/vcs_qr_help" />
+    </LinearLayout>
+    <androidx.camera.view.PreviewView android:id="@+id/qr_preview" android:layout_width="match_parent"
+        android:layout_height="0dp" android:layout_weight="1" android:background="#000000"
+        android:clickable="true" android:focusable="true" android:contentDescription="@string/vcs_qr_focus" />
+    <TextView android:id="@+id/qr_status" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:padding="16dp" android:gravity="center" android:textColor="#AFC0CC" android:textSize="14sp"
+        android:text="@string/vcs_qr_opening" android:accessibilityLiveRegion="polite" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:gravity="center" android:paddingHorizontal="16dp" android:paddingBottom="12dp">
+        <com.google.android.material.button.MaterialButton android:id="@+id/qr_retry" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:text="@string/vcs_qr_retry" android:visibility="gone"
+            android:textColor="#BFF6EA" app:backgroundTint="#153E42" app:cornerRadius="12dp" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/qr_light" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:text="@string/vcs_qr_light_on" android:visibility="gone"
+            android:textColor="#BFF6EA" app:backgroundTint="#153E42" app:cornerRadius="12dp" />
+    </LinearLayout>
+</LinearLayout>

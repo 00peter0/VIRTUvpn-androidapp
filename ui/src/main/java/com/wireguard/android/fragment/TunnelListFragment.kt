@@ -27,8 +27,7 @@ import androidx.appcompat.view.ActionMode
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.snackbar.Snackbar
 import com.google.zxing.qrcode.QRCodeReader
-import com.journeyapps.barcodescanner.ScanContract
-import com.journeyapps.barcodescanner.ScanOptions
+import com.wireguard.android.util.NativeQrScanContract
 import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.activity.MainActivity
@@ -117,9 +116,9 @@ class TunnelListFragment : BaseFragment() {
         else if (isOtherTunnelsSection()) showSnackbar(getString(R.string.vcs_permissions_requested_missing))
     }
 
-    private val qrImportResultLauncher = registerForActivityResult(ScanContract()) { result ->
+    private val qrImportResultLauncher = registerForActivityResult(NativeQrScanContract()) { result ->
         if (!isOtherTunnelsSection()) return@registerForActivityResult
-        val qrCode = result.contents
+        val qrCode = result
         val activity = activity
         if (qrCode != null && activity != null) {
             activity.lifecycleScope.launch {
@@ -258,12 +257,7 @@ class TunnelListFragment : BaseFragment() {
             cameraPermissionLauncher.launch(PermissionsActivity.intent(requireContext(), PermissionsActivity.CAMERA, requestOnOpen = true))
             return
         }
-        qrImportResultLauncher.launch(
-            ScanOptions()
-                .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                .setPrompt(getString(R.string.import_from_qr_code))
-                .setBeepEnabled(false)
-        )
+        qrImportResultLauncher.launch(getString(R.string.import_from_qr_code))
     }
 
     // ── Smart Server Picker ──
