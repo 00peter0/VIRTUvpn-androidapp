@@ -4,6 +4,30 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class UpdateInstallSafetyTest {
+    @Test fun newerWorkflowMustNotRetargetAnAlreadyInstalledSession() {
+        assertTrue(UpdateInstallSafety.installedSession(910, 910, 911))
+    }
+
+    @Test fun installedWorkflowMustNotAuthorizeRetiringAFutureSession() {
+        assertFalse(UpdateInstallSafety.installedSession(910, 911, 910))
+    }
+
+    @Test fun invalidExplicitTargetCannotFallBackToCompletedWorkflow() {
+        assertFalse(UpdateInstallSafety.installedSession(910, 0, 910))
+        assertFalse(UpdateInstallSafety.installedSession(910, -1, 910))
+    }
+
+    @Test fun legacySessionCanRetireOnlyAfterItsRecordedWorkflowTargetIsInstalled() {
+        assertTrue(UpdateInstallSafety.installedSession(911, null, 911))
+        assertTrue(UpdateInstallSafety.installedSession(912, null, 911))
+        assertFalse(UpdateInstallSafety.installedSession(910, null, 911))
+    }
+
+    @Test fun missingLegacyTargetCannotAuthorizeCleanup() {
+        assertFalse(UpdateInstallSafety.installedSession(912, null, 0))
+        assertFalse(UpdateInstallSafety.installedSession(912, null, -1))
+    }
+
     @Test fun committedInstallationCannotBeReplacedEvenWhenInactiveOrMarkedNotAttempted() {
         for (active in listOf(false, true)) for (sealed in listOf(null, false, true))
             assertFalse(UpdateInstallSafety.canReplace(active, true, sealed, false))

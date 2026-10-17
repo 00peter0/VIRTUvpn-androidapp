@@ -4,6 +4,10 @@ package com.wireguard.android.vcs
 object UpdateInstallSafety {
     const val DELAY_MILLIS = 180_000L
 
+    /** A newer download must never change the identity of an older installer session. */
+    fun installedSession(installed: Long, sessionTarget: Long?, legacyWorkflowTarget: Long): Boolean =
+        UpdateFlowState.installed(installed, sessionTarget ?: legacyWorkflowTarget)
+
     fun canReplace(active: Boolean, committed: Boolean?, sealed: Boolean?, commitAttempted: Boolean?): Boolean =
         !active && when {
             committed != null -> !committed

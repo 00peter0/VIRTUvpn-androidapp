@@ -82,6 +82,15 @@ object ManagedUpdateFlow {
         if (!retry && mutableState.value.phase == UpdatePhase.FAILED) return
         job = scope.launch {
             try {
+                // A recovered APK can already be installed while Android retains its old
+                // committed confirmation session. Retire it before replacing version_code
+                // with the next download's target, not on a timeout or progress percentage.
+                try { retireInstalledSession(app) }
+                catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                    fail(app, app.getString(R.string.vcs_update_previous_session_unavailable))
+                    return@launch
+                }
                 var manifest = ManagedApkUpdates.manifest(app)
                 val download = ManagedApkUpdates.download(app)
                 if (manifest == null || !ManagedApkUpdates.validManifest(manifest) || download == null || download.status == DownloadManager.STATUS_FAILED) {
@@ -165,7 +174,9 @@ object ManagedUpdateFlow {
                 }
                 created = installer.createSession(params)
                 commit(app) {
-                    putInt("session_id", created); putBoolean("commit_attempted", false)
+                    putInt("session_id", created)
+                    putLong("session_version_code", manifest.getLong("latestVersionCode"))
+                    putBoolean("commit_attempted", false)
                     remove("watch_session"); remove("watch_boot"); remove("watch_since"); remove("watch_progress")
                 }
                 confirmation = null
@@ -227,6 +238,38 @@ object ManagedUpdateFlow {
             it.sessionId == sessionId(context) && it.installerPackageName == context.packageName &&
                 (it.appPackageName == null || it.appPackageName == context.packageName)
         }
+
+    /** Only our recorded session, whose own target is already installed, may be retired. */
+    @Synchronized
+    internal fun retireInstalledSession(context: Context): Boolean {
+        val p = prefs(context)
+        val id = sessionId(context)
+        if (id < 0 || !UpdateInstallSafety.installedSession(BuildConfig.VERSION_CODE.toLong(),
+                if (p.contains("session_version_code")) p.getLong("session_version_code", 0) else null,
+                p.getLong("version_code", 0))) return false
+        val info = ownedSession(context) // A failed query is not evidence of a missing session.
+        val target = p.getLong("session_version_code", p.getLong("version_code", 0))
+        val attempted = if (p.contains("commit_attempted")) p.getBoolean("commit_attempted", true) else null
+        // Retire callback identity before Android can send STATUS_FAILURE_ABORTED.
+        commit(context) {
+            remove("session_id"); remove("session_version_code"); remove("commit_attempted")
+        }
+        confirmation = null
+        try {
+            if (info != null) context.packageManager.packageInstaller.abandonSession(info.sessionId)
+        } catch (error: Exception) {
+            // Keep the verified target binding so the next explicit retry can finish cleanup.
+            commit(context) {
+                putInt("session_id", id); putLong("session_version_code", target)
+                attempted?.let { putBoolean("commit_attempted", it) }
+            }
+            throw error
+        }
+        commit(context) {
+            remove("watch_session"); remove("watch_boot"); remove("watch_since"); remove("watch_progress")
+        }
+        return true
+    }
     private fun committed(info: PackageInstaller.SessionInfo): Boolean? =
         if (Build.VERSION.SDK_INT >= 29) info.isCommitted else null
     private fun replaceable(context: Context, info: PackageInstaller.SessionInfo): Boolean {

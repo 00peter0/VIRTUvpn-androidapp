@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="vcs_update_previous_session_unavailable">Android could not release the previous, already installed update. Your data and verified download are retained. Tap Retry to check again.</string>
     <string name="vcs_update_flow_title" translatable="false">VirtuVPN update</string>
     <string name="vcs_update_flow_subtitle" translatable="false">One secure flow, from download to installation.</string>
     <string name="vcs_update_step_check" translatable="false">Check version</string>

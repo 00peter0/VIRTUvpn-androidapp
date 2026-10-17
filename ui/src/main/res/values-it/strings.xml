@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="vcs_update_previous_session_unavailable">Android non riesce a liberare il precedente aggiornamento già installato. I dati e il download verificato vengono conservati. Tocca Riprova.</string>
     <string name="vcs_manual_tunnel_delete_disabled">L\'eliminazione manuale dei tunnel non è disponibile. Gestisci i tunnel assegnati in Managed Access e sincronizza questo dispositivo.</string>
     <string name="vcs_home_language">Lingua</string>
     <string name="vcs_language_system">Lingua del sistema</string>

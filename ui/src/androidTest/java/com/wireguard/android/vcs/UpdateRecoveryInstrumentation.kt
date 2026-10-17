@@ -180,6 +180,37 @@ class UpdateRecoveryInstrumentation : Instrumentation() {
             record("late failure cannot undo confirmed installed version", ManagedUpdateFlow.state.value.phase == UpdatePhase.COMPLETED)
             record("retained update download identity is unchanged", ManagedApkUpdates.pendingId(targetContext) == originalDownload)
             record("existing app data survives", canary.readText() == contents)
+            runOnMainSync { activity?.finish() }
+            activity = null
+
+            // The old installer target is independent of the next workflow's version.
+            fixture(id, UpdatePhase.FAILED, target = BuildConfig.VERSION_CODE.toLong() + 1)
+            check(prefs.edit().putLong("session_version_code", BuildConfig.VERSION_CODE.toLong()).commit())
+            record("installed old target retires before a newer workflow", ManagedUpdateFlow.retireInstalledSession(targetContext))
+            record("retired callback identity is removed", !prefs.contains("session_id") && !prefs.contains("session_version_code"))
+            val retired = ManagedUpdateFlow.state.value
+            ManagedUpdateFlow.result(targetContext, result(id, PackageInstaller.STATUS_FAILURE_ABORTED))
+            record("obsolete aborted callback cannot fail the next update", ManagedUpdateFlow.state.value == retired)
+            val retiredId = id
+            val deadlineCleanup = SystemClock.elapsedRealtime() + 8000
+            while (installer.mySessions.any { it.sessionId == retiredId } && SystemClock.elapsedRealtime() < deadlineCleanup)
+                Thread.sleep(100)
+            record("completed owned session is released in Android", installer.mySessions.none { it.sessionId == retiredId })
+
+            id = installer.createSession(PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+                setAppPackageName(targetContext.packageName)
+            })
+            fixture(id, UpdatePhase.COMPLETED, target = BuildConfig.VERSION_CODE.toLong())
+            check(prefs.edit().putLong("session_version_code", BuildConfig.VERSION_CODE.toLong() + 1).commit())
+            record("completed workflow cannot cancel a future session", !ManagedUpdateFlow.retireInstalledSession(targetContext) && installer.getSessionInfo(id) != null)
+            check(prefs.edit().putLong("session_version_code", 0).commit())
+            record("invalid explicit target cannot authorize cleanup", !ManagedUpdateFlow.retireInstalledSession(targetContext) && installer.getSessionInfo(id) != null)
+            check(prefs.edit().remove("session_version_code").putLong("version_code", 0).commit())
+            record("unknown legacy target is retained", !ManagedUpdateFlow.retireInstalledSession(targetContext) && installer.getSessionInfo(id) != null)
+            check(prefs.edit().putLong("version_code", BuildConfig.VERSION_CODE.toLong()).commit())
+            record("installed legacy workflow target can retire its recorded session", ManagedUpdateFlow.retireInstalledSession(targetContext))
+            record("retirement preserves the verified download", ManagedApkUpdates.pendingId(targetContext) == originalDownload)
+            record("retirement preserves existing app data", canary.readText() == contents)
         } finally {
             try {
                 runOnMainSync { activity?.finish() }
@@ -190,6 +221,9 @@ class UpdateRecoveryInstrumentation : Instrumentation() {
                 check(canary.delete())
             }
             check(prefs.all == original) { "Update state was not restored exactly" }
+            val deadlineRestore = SystemClock.elapsedRealtime() + 8000
+            while (installer.mySessions.map { it.sessionId }.toSet() != originalSessions && SystemClock.elapsedRealtime() < deadlineRestore)
+                Thread.sleep(100)
             check(installer.mySessions.map { it.sessionId }.toSet() == originalSessions) { "Original installer sessions changed" }
         }
         checks += "original preferences and installer sessions restored exactly"
