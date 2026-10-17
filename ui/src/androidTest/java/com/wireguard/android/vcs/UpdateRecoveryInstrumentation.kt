@@ -34,7 +34,9 @@ class UpdateRecoveryInstrumentation : Instrumentation() {
         super.onStart()
         val result = Bundle()
         try {
-            if (arguments.getString("restoreOnly") == "true") restoreBackup()
+            if (arguments.getString("networkPolicyOnly") == "true")
+                checks += TerminalNetworkPolicyChecks.verify()
+            else if (arguments.getString("restoreOnly") == "true") restoreBackup()
             else exerciseRecovery()
             result.putString("checks", checks.joinToString("\n"))
             result.putString("result", "PASS")

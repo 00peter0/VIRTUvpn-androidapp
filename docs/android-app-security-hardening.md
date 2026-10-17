@@ -1814,12 +1814,26 @@ No expected server change.
 
 ## Web Terminal cleartext scope
 
-- Android cleartext remains denied by default and for the VCS API.
-- The network security config permits HTTP only to the fixed private Web
-  Terminal host `10.77.1.1`. The activity additionally accepts HTTP only for
-  addresses classified as private/local, and reachability requires the
-  assignment's active WireGuard tunnel.
-- Public HTTP browsing and arbitrary LAN cleartext remain blocked.
+- Android cleartext is explicitly denied by default, including Android 7–8,
+  and remains denied for the certificate-pinned VCS API.
+- The network security config permits HTTP only to exact VCS terminal gateway
+  addresses: Single server `10.75.N.1` for N=2..253, and S2S source `10.N.1.1`
+  for N=77..254. This includes the original `10.77.1.1` endpoint. It does not
+  permit arbitrary LAN hosts, whole private subnets, public HTTP or Local PC
+  addresses. Android's domain configuration does not support CIDR entries.
+- The existing launcher selects the assignment's WireGuard tunnel and the
+  terminal activity applies its private/local URL checks. No changes to VPN
+  allocation, enrollment, server installation, authentication or shell sessions.
+- Secured Browser keeps its own HTTPS-only navigation and subresource policy;
+  terminal exceptions do not permit HTTP browsing in Secured Browser.
+- Regression tests verify the complete allocation contract, explicit default
+  denial and unchanged VCS certificate pins. A read-only on-device test verifies
+  the installed Android `NetworkSecurityPolicy`, not just URL classification.
+- When changing VCS gateway pools in `connection-capability.ts` or
+  `stage-config.ts`, update this exact-host resource and its allocation tests
+  together. Never fix a newly allocated terminal by allowing all cleartext.
+
+See [the phone terminal audit](web-terminal-android-network-policy-20261017.md).
 
 ## R1 - One failed provision stops whole sync
 
