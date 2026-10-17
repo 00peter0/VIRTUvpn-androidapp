@@ -20,7 +20,7 @@ The public IP/location card and the DNS/WebRTC check through Secured Browser
 are shown for profiles in VPN Mesh or VPN Cluster and independent third-party
 profiles. Third-party configurations may route only a private subnet, so these
 checks describe the actual current connection rather than certify VPN coverage. Private Single server,
-S2S and standalone Other tunnels do not display these cards and do not initiate
+S2S and assigned private Other tunnels connections do not display these cards and do not initiate
 the public identity HTTP probes. DNS and routing in the actual tunnel config
 remain unchanged. The check continues to describe Secured Browser's evidence
 observed through the current browser connection; it does not certify every
@@ -91,7 +91,8 @@ and [action-bar overlays](https://developer.android.com/reference/androidx/core/
 | Web Terminal | Existing compact toolbar and actions require no extra paragraph | Required-tunnel blocking reason and connection state remain visible |
 | Account, enrollment and updater | Existing confirmation dialogs and short field hints retained | Consent, sign-in errors, installation progress, system approval and recovery errors remain visible |
 
-Disabled TV entry points and legacy editors are unchanged. No VPN routing,
+Disabled TV entry points remain unchanged. The native editor is reused for
+independent Other tunnels profiles from version 919. No VPN routing,
 security setting, Android permission, measurement collector, browser policy or
 server component is changed by moving explanatory text.
 
@@ -214,3 +215,37 @@ The first permission overview opens at the top so the grouped runtime action and
 requested-feature label remain visible. Continue stays visibly disabled until
 the requested actual access is observed; unrelated optional access is not a
 condition for continuing.
+
+### Final phone acceptance: version 919
+
+Published source `e3e1becb0a197f1896957e8503e0497302dc434c`, APK SHA-256
+`ecce3bd69f5618034100b3a63aca32bd184c917af1ecb93c1f4337ef4b118831`.
+
+- 107 JVM tests passed. Lint: 0 errors, 13 existing warnings, no new warnings.
+  CI run `39055460481` succeeded.
+- Seventeen final phone UI checks passed: Home placement, centered message,
+  styled choices, native editor navigation, blocked-camera permission guidance,
+  real Android app/VPN settings navigation, return/cancel behavior, grouped
+  action visibility, Kill switch guidance and scoped file access.
+- Final-APK instrumentation verified encrypted inactive local creation, exact
+  canonical configuration preservation through actual content:// file import
+  and QR-image decoding, duplicate-name rejection and local deletion. All
+  original profile files and the active VPN were preserved. Managed profiles
+  rejected manual deletion; four foreign retained profiles rejected activation,
+  configuration reads and internet diagnostics. All 430 terminal gateway
+  network exceptions and the negative browser policy checks passed.
+- Camera access remained blocked by Android. Live camera decoding and accepting
+  the bulk runtime prompts were not performed; guidance, settings navigation and
+  blocked/cancelled continuation were verified without changing those settings.
+  No real third-party provider VPN was connected. Earlier manual editor creation
+  and confirmed/cancelled deletion evidence remains available from an unpublished
+  919 candidate; its partial navigation report is retained as partial.
+- UID and original install time were preserved. Read-only identity checks found
+  20 device records, four active records, unchanged IDs/assignments and no new
+  devices. The tablet was not updated. Owned test/transfer files were removed.
+- Publication and authenticated-route guards passed with App, Gateway, Rust and
+  production configuration preserved. No production app restart was required.
+
+Evidence: `/srv/vcs/deploy/evidence/virtuvpn-other-tunnels-919-20261017`.
+Physical testing used the API 37 phone. Older runtime-permission group selection
+is unit tested; this does not claim physical acceptance on every older Android.
