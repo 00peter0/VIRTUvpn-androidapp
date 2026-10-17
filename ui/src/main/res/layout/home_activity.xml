@@ -226,6 +226,13 @@
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
+                <com.wireguard.android.widget.VcsInfoButton
+                    android:id="@+id/kill_switch_info"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    app:infoTitle="@string/vcs_kill_switch_title"
+                    app:infoMessage="@string/vcs_kill_switch_browser_hint" />
+
                 <ImageView
                     android:id="@+id/kill_switch_chevron"
                     android:layout_width="18dp"
@@ -296,13 +303,6 @@
                         android:textStyle="bold" />
                 </LinearLayout>
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="9dp"
-                    android:text="@string/vcs_kill_switch_browser_hint"
-                    android:textColor="#AFC0CC"
-                    android:textSize="11sp" />
             </LinearLayout>
         </LinearLayout>
 
@@ -589,8 +589,6 @@
                 android:src="@drawable/ic_chevron_right"
                 app:tint="#FFFFFF" />
         </LinearLayout>
-
-
 
         <TextView
             android:id="@+id/app_version_code"

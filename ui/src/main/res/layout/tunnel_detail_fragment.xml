@@ -83,14 +83,12 @@
                             tools:text="Connected" />
                     </LinearLayout>
 
-                    <ImageButton
+                    <com.wireguard.android.widget.VcsInfoButton
                         android:id="@+id/connection_scope_info"
                         android:layout_width="48dp"
                         android:layout_height="48dp"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="@string/vcs_private_connection_info_title"
-                        android:padding="12dp"
-                        android:src="@drawable/ic_info_outline"
+                        app:infoTitle="@string/vcs_private_connection_info_title"
+                        app:infoMessage="@string/vcs_private_connection_info"
                         android:visibility="gone" />
 
                     <com.wireguard.android.widget.ToggleSwitch
@@ -274,6 +272,12 @@
                             android:textColor="#7FA8B8"
                             android:textSize="11sp"
                             android:textStyle="bold" />
+                        <com.wireguard.android.widget.VcsInfoButton
+                            android:id="@+id/dns_scope_info"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:infoTitle="@string/stat_dns"
+                            app:infoMessage="@string/dns_test_scope" />
                     </LinearLayout>
 
                     <TextView
@@ -298,13 +302,6 @@
                         android:textSize="12sp"
                         tools:text="VPN DNS configured — use the test to verify" />
 
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="@string/dns_test_scope"
-                        android:textColor="#AFC0CC"
-                        android:textSize="12sp" />
                 </LinearLayout>
 
                 <LinearLayout

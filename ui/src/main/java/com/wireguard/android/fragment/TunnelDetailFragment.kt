@@ -33,7 +33,6 @@ import com.wireguard.android.vcs.ManagedWebTerminalLauncher
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.databinding.TunnelDetailFragmentBinding
 import com.wireguard.android.model.ObservableTunnel
-import com.wireguard.android.util.VcsDialogs
 import com.wireguard.android.vcs.VcsManagedClient
 import com.wireguard.config.Config
 import kotlinx.coroutines.Dispatchers
@@ -71,14 +70,6 @@ class TunnelDetailFragment : BaseFragment(), MenuProvider {
             startActivity(Intent(requireContext(), SecureBrowserActivity::class.java))
         }
         binding?.publicIdentityCard?.setOnClickListener { refreshPublicIdentity() }
-        binding?.connectionScopeInfo?.setOnClickListener {
-            VcsDialogs.show(
-                context = requireContext(),
-                title = getString(R.string.vcs_private_connection_info_title),
-                message = getString(R.string.vcs_private_connection_info),
-                positive = VcsDialogs.action(requireContext(), android.R.string.ok, primary = true)
-            )
-        }
         binding?.dnsCard?.setOnClickListener {
             if (VcsManagedClient.supportsInternetDiagnostics(requireContext(), selectedTunnel?.name)) {
                 startActivity(Intent(requireContext(), SecureBrowserActivity::class.java)

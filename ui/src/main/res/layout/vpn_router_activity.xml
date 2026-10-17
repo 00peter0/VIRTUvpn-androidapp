@@ -28,15 +28,28 @@
             android:paddingTop="28dp"
             android:paddingBottom="96dp">
 
-            <TextView
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginHorizontal="4dp"
                 android:layout_marginBottom="16dp"
-                android:text="@string/vcs_vpn_router_page_title"
-                android:textColor="#FFFFFF"
-                android:textSize="24sp"
-                android:textStyle="bold" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="4dp"
+                    android:text="@string/vcs_vpn_router_page_title"
+                    android:textColor="#FFFFFF"
+                    android:textSize="24sp"
+                    android:textStyle="bold" />
+                <com.wireguard.android.widget.VcsInfoButton
+                    android:id="@+id/router_overview_info"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    app:infoTitle="@string/vcs_vpn_router_page_title"
+                    app:infoMessage="@string/vcs_vpn_router_page_summary" />
+            </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/router_status_card"
@@ -103,13 +116,26 @@
                 android:orientation="vertical"
                 android:padding="14dp">
 
-                <TextView
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/vcs_vpn_router_uplink_preference"
-                    android:textColor="#AFC0CC"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="@string/vcs_vpn_router_uplink_preference"
+                        android:textColor="#AFC0CC"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                    <com.wireguard.android.widget.VcsInfoButton
+                        android:id="@+id/router_uplink_info"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        app:infoTitle="@string/vcs_vpn_router_uplink_preference"
+                        app:infoMessage="@string/vcs_vpn_router_uplink_preference_detail" />
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/router_uplink_selector"
@@ -128,13 +154,6 @@
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="@string/vcs_vpn_router_uplink_preference_detail"
-                    android:textColor="#7D8B99"
-                    android:textSize="13sp" />
             </LinearLayout>
 
             <LinearLayout
@@ -147,17 +166,30 @@
                 android:orientation="vertical"
                 android:padding="14dp">
 
-                <TextView
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:drawablePadding="8dp"
-                    android:gravity="center_vertical"
-                    android:text="@string/vcs_vpn_router_router_protection"
-                    android:textColor="#AFC0CC"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    app:drawableStartCompat="@drawable/ic_router_header_server"
-                    app:drawableTint="#AFC0CC" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:drawablePadding="8dp"
+                        android:gravity="center_vertical"
+                        android:text="@string/vcs_vpn_router_router_protection"
+                        android:textColor="#AFC0CC"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        app:drawableStartCompat="@drawable/ic_router_header_server"
+                        app:drawableTint="#AFC0CC" />
+                    <com.wireguard.android.widget.VcsInfoButton
+                        android:id="@+id/router_protection_info"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        app:infoTitle="@string/vcs_vpn_router_router_protection"
+                        app:infoMessage="@string/vcs_vpn_router_router_protection_detail" />
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/router_protection_status"
@@ -169,13 +201,6 @@
                     android:textSize="15sp"
                     android:textStyle="bold" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="@string/vcs_vpn_router_router_protection_detail"
-                    android:textColor="#7D8B99"
-                    android:textSize="13sp" />
             </LinearLayout>
 
             <LinearLayout
@@ -236,17 +261,30 @@
                 android:orientation="vertical"
                 android:padding="14dp">
 
-                <TextView
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:drawablePadding="8dp"
-                    android:gravity="center_vertical"
-                    android:text="@string/vcs_vpn_router_guest_access"
-                    android:textColor="#AFC0CC"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    app:drawableStartCompat="@drawable/ic_router_header_web"
-                    app:drawableTint="#AFC0CC" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:drawablePadding="8dp"
+                        android:gravity="center_vertical"
+                        android:text="@string/vcs_vpn_router_guest_access"
+                        android:textColor="#AFC0CC"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        app:drawableStartCompat="@drawable/ic_router_header_web"
+                        app:drawableTint="#AFC0CC" />
+                    <com.wireguard.android.widget.VcsInfoButton
+                        android:id="@+id/router_client_info"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        app:infoTitle="@string/vcs_vpn_router_guest_access"
+                        app:infoMessage="@string/vcs_vpn_router_guest_access_detail" />
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/router_guest_access_status"
@@ -277,13 +315,6 @@
                     android:contentDescription="@string/vcs_vpn_router_guest_qr"
                     android:padding="8dp" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="@string/vcs_vpn_router_guest_access_detail"
-                    android:textColor="#7D8B99"
-                    android:textSize="13sp" />
             </LinearLayout>
 
             <LinearLayout
@@ -296,17 +327,30 @@
                 android:orientation="vertical"
                 android:padding="14dp">
 
-                <TextView
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:drawablePadding="8dp"
-                    android:gravity="center_vertical"
-                    android:text="@string/vcs_vpn_router_dns"
-                    android:textColor="#AFC0CC"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    app:drawableStartCompat="@drawable/ic_router_header_web"
-                    app:drawableTint="#AFC0CC" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:drawablePadding="8dp"
+                        android:gravity="center_vertical"
+                        android:text="@string/vcs_vpn_router_dns"
+                        android:textColor="#AFC0CC"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        app:drawableStartCompat="@drawable/ic_router_header_web"
+                        app:drawableTint="#AFC0CC" />
+                    <com.wireguard.android.widget.VcsInfoButton
+                        android:id="@+id/router_dns_info"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        app:infoTitle="@string/vcs_vpn_router_dns"
+                        app:infoMessage="@string/vcs_vpn_router_dns_detail" />
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/router_dns_selector"
@@ -325,23 +369,8 @@
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="@string/vcs_vpn_router_dns_detail"
-                    android:textColor="#7D8B99"
-                    android:textSize="13sp" />
             </LinearLayout>
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="4dp"
-                android:layout_marginTop="14dp"
-                android:text="@string/vcs_vpn_router_page_summary"
-                android:textColor="#7D8B99"
-                android:textSize="13sp" />
         </LinearLayout>
     </ScrollView>
 </FrameLayout>

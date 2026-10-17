@@ -59,6 +59,7 @@
     <string name="vcs_home_vpn_mesh">VPN Mesh</string>
     <string name="vcs_home_agent_gateway">Connections</string>
     <string name="vcs_home_single_server" translatable="false">Single server</string>
+    <string name="vcs_information_about" translatable="false">Information: %1$s</string>
     <string name="vcs_private_connection_info_title" translatable="false">About this private connection</string>
     <string name="vcs_private_connection_info" translatable="false">Only server/private network traffic uses this tunnel. Internet browsing uses your Wi-Fi or mobile connection, so its public IPv4/IPv6 can remain visible.\n\nOther browsers may also expose addresses through WebRTC. Secured Browser blocks WebRTC and adds browser privacy protections. To route browsing through your VPN, select VPN Mesh or VPN Cluster with an internet exit.</string>
     <string name="vcs_single_server_empty" translatable="false">Assign a Single server profile in VCS Managed Access, then sync here. Open terminal appears when its server terminal is installed.</string>

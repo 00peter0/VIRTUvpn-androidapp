@@ -52,6 +52,7 @@ import com.wireguard.android.vcs.StartupAppFilter
 import com.wireguard.android.vcs.StartupAppList
 import com.wireguard.android.vcs.StartupAppPage
 import com.wireguard.android.vcs.StartupAppReport
+import com.wireguard.android.widget.VcsInfoButton
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
@@ -145,12 +146,10 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
                 row("Logical CPUs available to VirtuVPN", r.logicalCpus.toString())
                 row("VirtuVPN CPU · one-core basis", r.appCpuOneCorePercent?.let { String.format(Locale.US, "%.1f%%", it) } ?: unavailable())
                 row("CPU sample", "${r.cpuSampleMillis} ms")
-                note(R.string.vcs_diag_cpu_limit)
                 row("Available RAM / total", "${bytes(r.memoryAvailable)} / ${bytes(r.memoryTotal)}")
                 gauge("Occupied RAM", DeviceDiagnosticMath.usedPercent(r.memoryTotal, r.memoryAvailable), false)
                 row("Android memory pressure", when (r.memoryLow) { true -> "Low memory reported"; false -> "Not reported"; null -> unavailable() }, if (r.memoryLow == true) AMBER else TEXT)
                 row("VirtuVPN process RAM · PSS", bytes(r.appMemoryPss))
-                note(R.string.vcs_diag_memory_limit)
             }
             card(R.string.vcs_diag_storage, R.drawable.ic_device) {
                 row("Free internal storage / total", "${bytes(r.storageAvailable)} / ${bytes(r.storageTotal)}")
@@ -158,7 +157,6 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
                 gauge("Used internal storage", storagePercent, (storagePercent ?: 0) >= 90 || (r.storageAvailable != null && r.storageAvailable < 1_073_741_824))
                 row("VirtuVPN app + data", bytes(r.ownStorage?.totalBytes))
                 row("VirtuVPN cache · included in data", bytes(r.ownStorage?.cacheBytes))
-                note(R.string.vcs_diag_storage_limit)
                 action(R.string.vcs_diag_storage_settings) { open(Intent(Settings.ACTION_INTERNAL_STORAGE_SETTINGS)) }
             }
             card(R.string.vcs_diag_battery, R.drawable.ic_power) {
@@ -181,14 +179,13 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
         }
         card(R.string.vcs_diag_apps, R.drawable.ic_device, busy = state.appProgress != null) {
             row("Other apps · live CPU / RAM", getString(R.string.vcs_diag_android_restricted))
-            note(R.string.vcs_diag_app_resources_limit)
             action(R.string.vcs_diag_application_settings) { open(Intent(Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS)) }
             if (Build.VERSION.SDK_INT < 26) {
                 note(R.string.vcs_diag_optional_older)
                 action(R.string.vcs_diag_storage_settings) { open(Intent(Settings.ACTION_INTERNAL_STORAGE_SETTINGS)) }
             } else {
-                note(R.string.vcs_diag_usage_intro)
                 val access = ManagedDiagnostics.hasUsageAccess(this@DeviceDiagnosticsActivity)
+                if (!access) note(R.string.vcs_diag_usage_intro)
                 state.appProgress?.let { progress(it) }
                 if (state.appError) note(R.string.vcs_diag_optional_failed)
                 if (access) state.apps?.let { sample ->
@@ -197,18 +194,15 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
                         getString(if (storage.complete) R.string.vcs_diag_sample_complete else R.string.vcs_diag_partial)))
                     note("Observed ${time(storage.collectedAt)}")
                     row("Measured app + data storage", bytes(storage.measuredTotalBytes))
-                    note(R.string.vcs_diag_storage_share)
                     storage.apps.forEachIndexed { i, app ->
                         row("${i + 1}. ${app.label}", "${bytes(app.totalBytes)} · ${share(app.totalBytes, storage.measuredTotalBytes)}")
                         note("App ${bytes(app.appBytes)} · Data ${bytes(app.dataBytes)} · Cache ${bytes(app.cacheBytes)} included")
                     }
-                    note(R.string.vcs_diag_apps_limit)
                     note(R.string.vcs_diag_usage_heading)
                     sample.usage?.let { usage ->
                         note("Observed ${time(usage.collectedAt)}")
                         note(getString(R.string.vcs_diag_usage_period, time(usage.recordBegin), time(usage.recordEnd)))
                         row("Apps with foreground records", usage.usedApps.toString())
-                        note(R.string.vcs_diag_usage_share)
                         usage.apps.forEachIndexed { i, app ->
                             row("${i + 1}. ${app.label}", "${duration(app.foregroundMillis)} · ${share(app.foregroundMillis, usage.totalForegroundMillis)}")
                         }
@@ -243,8 +237,7 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
     }
 
     private fun LinearLayout.createStartupPanel(): StartupPanel {
-        note(R.string.vcs_diag_startup_intro)
-        note(R.string.vcs_diag_startup_limit)
+        note(R.string.vcs_diag_startup_summary)
         val check = action(R.string.vcs_diag_scan_startup) { model.scanStartup() }
         val progress = column()
         val observations = column()
@@ -404,6 +397,19 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
         heading.addView(text(getString(title), 18f, TEXT, true).apply {
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }, LinearLayout.LayoutParams(0, -2, 1f))
+        val explanations = when (title) {
+            R.string.vcs_diag_resources -> listOf(R.string.vcs_diag_cpu_limit, R.string.vcs_diag_memory_limit)
+            R.string.vcs_diag_storage -> listOf(R.string.vcs_diag_storage_limit)
+            R.string.vcs_diag_apps -> listOf(R.string.vcs_diag_app_resources_limit, R.string.vcs_diag_storage_share,
+                R.string.vcs_diag_apps_limit, R.string.vcs_diag_usage_share)
+            R.string.vcs_diag_startup -> listOf(R.string.vcs_diag_startup_intro, R.string.vcs_diag_startup_limit)
+            else -> emptyList()
+        }
+        if (explanations.isNotEmpty()) {
+            heading.addView(VcsInfoButton(this).apply {
+                setInfo(getString(title), explanations.joinToString("\n\n") { getString(it) })
+            }, LinearLayout.LayoutParams(dp(48), dp(48)))
+        }
         val busy = ProgressBar(this).apply {
             isIndeterminate = true
             indeterminateTintList = ColorStateList.valueOf(ACCENT)

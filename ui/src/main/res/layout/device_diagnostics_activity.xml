@@ -23,6 +23,9 @@
                         android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="24sp" />
                     <TextView style="@style/VcsDiagnosticNote" android:text="@string/vcs_diag_subtitle" />
                 </LinearLayout>
+                <com.wireguard.android.widget.VcsInfoButton android:id="@+id/diagnostics_privacy_info"
+                    android:layout_width="48dp" android:layout_height="48dp"
+                    app:infoTitle="@string/vcs_diag_privacy_title" app:infoMessage="@string/vcs_diag_privacy" />
             </LinearLayout>
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:orientation="horizontal">
                 <com.google.android.material.button.MaterialButton android:id="@+id/diagnostics_refresh"
@@ -36,7 +39,7 @@
             <ProgressBar android:id="@+id/diagnostics_loading" style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="match_parent" android:layout_height="4dp" android:layout_marginTop="8dp" android:indeterminate="true" android:indeterminateTint="#5EEAD4" />
             <LinearLayout android:id="@+id/diagnostics_sections" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
-            <TextView style="@style/VcsDiagnosticNote" android:layout_marginTop="20dp" android:text="@string/vcs_diag_privacy" />
+
         </LinearLayout>
     </ScrollView>
     </FrameLayout>

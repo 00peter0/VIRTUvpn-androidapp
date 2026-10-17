@@ -35,9 +35,9 @@ view is destroyed, and stale results cannot update the next profile's detail.
 
 ## Home overflow menu
 
-The last three Home cards, **Enroll device**, **Synchronize** and **Check
+The last three Home cards, **Enroll device**, **Sync now** and **Check
 updates**, move into the three-dot menu beside **Connections**. Their existing
-enrollment, authentication, sync and update flows are reused. Synchronize is
+enrollment, authentication, sync and update flows are reused. Sync now is
 disabled while a managed sync is in progress. The signed-out actions continue
 to use their existing sign-in prompts. Secured Browser and the independent VPN
 Router remain available without a VCS account.
@@ -46,6 +46,35 @@ Connections is the existing standalone agent-gateway/PC/GPU profile section,
 not another unfiltered list of all local tunnels. Its profile filtering is
 unchanged. Home keeps VPN Mesh, Single server, VPN Cluster and S2S Cluster as
 the main navigation, with the version number at the bottom.
+
+The Home overflow was also inheriting a light popup theme, producing a white
+Connections box over the dark application. The shared action-bar popup theme now
+uses the existing dark gradient, rounded border, readable light text and muted
+disabled states. This styling also covers the newly moved overflow actions.
+
+## Contextual information audit
+
+`widget.VcsInfoButton` is the shared help control for XML and dynamically built
+sections. It uses the existing VCS message dialog, a 48 dp touch target,
+accessible information labels and tooltips compatible with older supported
+Android versions. Help clicks only open explanatory text; they do not change a
+setting, collect a measurement or expand/collapse the containing section.
+New help should reuse this control (`app:infoTitle` and `app:infoMessage`) instead
+of introducing another popup or repeating a long paragraph on the main screen.
+
+| Area reviewed | Information moved to contextual help | Kept directly visible |
+| --- | --- | --- |
+| Home | Secured Browser / protection explanation | VPN state, Android protection state, hotspot warning, main actions |
+| Tunnel details | Private connection IPv4/IPv6 explanation; DNS/WebRTC test scope | Connection state, endpoint, terminal action, DNS measurement and test action on internet profiles |
+| VPN Router | Overview, uplink preference, protection mechanism, client pairing explanation, DNS scope | Current statuses, QR/action, selectors, Strict/Nested DNS filtering warning |
+| Device Diagnostics | Privacy/report sharing; CPU/RAM interpretation; storage scope; app measurement denominators and limitations; startup detection scope | Measurements, unavailable/restricted states, observation times, partial/failed results, Usage access explanation before permission, actionable security warnings |
+| Secured Browser | Existing compact controls and explanatory dialogs already cover their context | Blocked-page reason, protection state and controls remain visible |
+| Web Terminal | Existing compact toolbar and actions require no extra paragraph | Required-tunnel blocking reason and connection state remain visible |
+| Account, enrollment and updater | Existing confirmation dialogs and short field hints retained | Consent, sign-in errors, installation progress, system approval and recovery errors remain visible |
+
+Disabled TV entry points and legacy editors are unchanged. No VPN routing,
+security setting, Android permission, measurement collector, browser policy or
+server component is changed by moving explanatory text.
 
 ## Validation
 

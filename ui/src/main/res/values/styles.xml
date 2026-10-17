@@ -44,12 +44,28 @@
         <item name="colorControlNormal">@color/vcs_top_bar_text</item>
     </style>
 
+    <style name="VirtuVpnTheme.PopupOverlay" parent="ThemeOverlay.AppCompat.Dark">
+        <item name="android:textColorPrimary">@color/vcs_menu_text</item>
+        <item name="android:textColorSecondary">#AFC0CC</item>
+        <item name="android:colorBackground">#071016</item>
+        <item name="colorControlNormal">#5EEAD4</item>
+        <item name="colorControlHighlight">#335EEAD4</item>
+        <item name="popupMenuStyle">@style/VirtuVpnTheme.PopupMenu</item>
+        <item name="actionOverflowMenuStyle">@style/VirtuVpnTheme.PopupMenu</item>
+    </style>
+
+    <style name="VirtuVpnTheme.PopupMenu" parent="Widget.AppCompat.PopupMenu.Overflow">
+        <item name="android:popupBackground">@drawable/vcs_dialog_background</item>
+        <item name="android:popupElevation">8dp</item>
+    </style>
+
     <style name="AppThemeBase" parent="WireGuardTheme">
         <item name="materialCardViewStyle">@style/WireGuardTheme.MaterialCardView</item>
         <item name="toolbarStyle">@style/WireGuardTheme.Toolbar</item>
         <item name="actionBarStyle">@style/VirtuVpnTheme.ActionBar</item>
         <item name="android:actionBarStyle">@style/VirtuVpnTheme.ActionBar</item>
         <item name="actionBarTheme">@style/VirtuVpnTheme.ActionBarOverlay</item>
+        <item name="actionBarPopupTheme">@style/VirtuVpnTheme.PopupOverlay</item>
         <item name="alertDialogTheme">@style/VirtuVpnTheme.AlertDialog</item>
         <item name="materialAlertDialogTheme">@style/VirtuVpnTheme.MaterialAlertDialog</item>
         <item name="bottomSheetDialogTheme">@style/WireGuardTheme.BottomSheetDialog</item>
