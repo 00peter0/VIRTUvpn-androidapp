@@ -36,7 +36,6 @@ import kotlinx.coroutines.launch
 class PermissionsActivity : AppCompatActivity() {
     private lateinit var binding: PermissionsActivityBinding
     private val rows = linkedMapOf<String, PermissionItemBinding>()
-    private var focused = false
     private val requested get() = intent.getStringExtra(EXTRA_CAPABILITY)
     private val settings = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { refresh() }
     private val runtime = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { refresh() }
@@ -44,7 +43,6 @@ class PermissionsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark("#071018".toColorInt()), navigationBarStyle = SystemBarStyle.dark("#071018".toColorInt()))
         super.onCreate(savedInstanceState)
-        focused = savedInstanceState?.getBoolean("focused") ?: false
         binding = PermissionsActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
@@ -85,7 +83,6 @@ class PermissionsActivity : AppCompatActivity() {
     }
 
     override fun onResume() { super.onResume(); if (::binding.isInitialized) refresh() }
-    override fun onSaveInstanceState(outState: Bundle) { outState.putBoolean("focused", focused); super.onSaveInstanceState(outState) }
 
     private fun add(key: String, title: Int, help: Int, action: () -> Unit) {
         val row = PermissionItemBinding.inflate(layoutInflater, binding.permissionsRows, false)
@@ -135,9 +132,7 @@ class PermissionsActivity : AppCompatActivity() {
             }
         }
         binding.permissionsContinue.isEnabled = granted(requested) == true
-        if (!focused && requested != null) rows[requested]?.let { row ->
-            focused = true; binding.permissionsScroll.post { binding.permissionsScroll.smoothScrollTo(0, row.root.top) }
-        }
+        binding.permissionsContinue.alpha = if (binding.permissionsContinue.isEnabled) 1f else 0.45f
     }
 
     private fun openAppSettings() = open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:$packageName".toUri()))

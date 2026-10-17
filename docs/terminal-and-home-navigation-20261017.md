@@ -209,3 +209,8 @@ request broad storage access.
 
 Android reference: [permission and app-op checking](https://developer.android.com/reference/androidx/core/content/PermissionChecker)
 and [application settings intents](https://developer.android.com/reference/android/provider/Settings#ACTION_APPLICATION_DETAILS_SETTINGS).
+
+The first permission overview opens at the top so the grouped runtime action and
+requested-feature label remain visible. Continue stays visibly disabled until
+the requested actual access is observed; unrelated optional access is not a
+condition for continuing.
