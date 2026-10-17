@@ -62,7 +62,7 @@ internal object IndependentTunnelChecks {
             check(manualName !in original)
             val manual = manager.create(manualName, config, independentOnly = true).also { names += it.name }
             check(VcsManagedClient.tunnelAccountScope(context).isIndependent(manual.name))
-            check(manual.state == Tunnel.State.DOWN && manual.getConfigAsync() == config)
+            check(manual.state == Tunnel.State.DOWN && manual.getConfigAsync().toWgQuickString() == config.toWgQuickString())
             check(!context.getFileStreamPath(manual.name + ".conf").readText().contains(privateKey))
             val manualHash = inventory()[manual.name + ".conf"]
             check(runCatching { manager.create(manual.name, config, independentOnly = true) }.isFailure)
@@ -73,7 +73,8 @@ internal object IndependentTunnelChecks {
             context.contentResolver.openOutputStream(uri)!!.use { it.write(configText.toByteArray()) }
             var imported = emptyList<ObservableTunnel>()
             TunnelImporter.importTunnel(context.contentResolver, uri, {}) { imported = it.toList(); names += it.map { t -> t.name } }
-            check(imported.single().name == fileName && imported.single().getConfigAsync() == config)
+            check(imported.single().name == fileName) { "Imported file name changed" }
+            check(imported.single().getConfigAsync().toWgQuickString() == config.toWgQuickString()) { "Imported configuration values changed" }
 
             val qrUri = fixtureUri(prefix + ".png", "image/png", MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
             val matrix = QRCodeWriter().encode(configText, BarcodeFormat.QR_CODE, 768, 768)
