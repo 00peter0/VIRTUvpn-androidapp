@@ -112,8 +112,8 @@ class TunnelListFragment : BaseFragment() {
         }
     }
 
-    private val cameraPermissionLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        if (isOtherTunnelsSection() && AppPermissionAccess.cameraAllowed(requireContext())) scanTunnelQr()
+    private val cameraPermissionLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK && isOtherTunnelsSection() && AppPermissionAccess.cameraAllowed(requireContext())) scanTunnelQr()
         else if (isOtherTunnelsSection()) showSnackbar(getString(R.string.vcs_permissions_requested_missing))
     }
 
@@ -255,7 +255,7 @@ class TunnelListFragment : BaseFragment() {
 
     private fun scanTunnelQr() {
         if (!AppPermissionAccess.cameraAllowed(requireContext())) {
-            cameraPermissionLauncher.launch(PermissionsActivity.intent(requireContext(), PermissionsActivity.CAMERA))
+            cameraPermissionLauncher.launch(PermissionsActivity.intent(requireContext(), PermissionsActivity.CAMERA, requestOnOpen = true))
             return
         }
         qrImportResultLauncher.launch(

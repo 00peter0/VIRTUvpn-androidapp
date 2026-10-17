@@ -16,7 +16,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.edit
 import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
 import androidx.core.view.ViewCompat
@@ -39,13 +38,22 @@ class PermissionsActivity : AppCompatActivity() {
     private lateinit var binding: PermissionsActivityBinding
     private val rows = linkedMapOf<String, PermissionItemBinding>()
     private val requested get() = intent.getStringExtra(EXTRA_CAPABILITY)
-    private val prompts by lazy { getSharedPreferences("permission_requests", Context.MODE_PRIVATE) }
+    private val settingsFallback = mutableSetOf<String>()
+    private var pendingRuntimePermission: String? = null
+    private var initialRequestStarted = false
     private val settings = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { refreshAndResume() }
-    private val runtime = registerForActivityResult(ActivityResultContracts.RequestPermission()) { refreshAndResume() }
+    private val runtime = registerForActivityResult(ActivityResultContracts.RequestPermission()) { allowed ->
+        pendingRuntimePermission?.let { if (!allowed) settingsFallback.add(it) }
+        pendingRuntimePermission = null
+        refreshAndResume()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark("#071018".toColorInt()), navigationBarStyle = SystemBarStyle.dark("#071018".toColorInt()))
         super.onCreate(savedInstanceState)
+        initialRequestStarted = savedInstanceState?.getBoolean(STATE_INITIAL_REQUEST_STARTED) ?: false
+        pendingRuntimePermission = savedInstanceState?.getString(STATE_PENDING_RUNTIME_PERMISSION)
+        settingsFallback.addAll(savedInstanceState?.getStringArrayList(STATE_SETTINGS_FALLBACK).orEmpty())
         binding = PermissionsActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
@@ -78,6 +86,23 @@ class PermissionsActivity : AppCompatActivity() {
 
     override fun onResume() { super.onResume(); if (::binding.isInitialized && !isFinishing) refreshAndResume() }
 
+    override fun onPostResume() {
+        super.onPostResume()
+        // A fresh QR action may ask again after a dismissed dialog. Never infer a permanent
+        // Android denial from a preference written by an earlier request or app version.
+        if (!isFinishing && requested == CAMERA && intent.getBooleanExtra(EXTRA_REQUEST_ON_OPEN, false) && !initialRequestStarted) {
+            initialRequestStarted = true
+            rows[CAMERA]?.permissionAction?.takeIf { it.isEnabled }?.performClick()
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean(STATE_INITIAL_REQUEST_STARTED, initialRequestStarted)
+        outState.putString(STATE_PENDING_RUNTIME_PERMISSION, pendingRuntimePermission)
+        outState.putStringArrayList(STATE_SETTINGS_FALLBACK, ArrayList(settingsFallback))
+        super.onSaveInstanceState(outState)
+    }
+
     private fun add(key: String, title: Int, help: Int, reason: Int, action: () -> Unit) {
         if (key !in AppPermissionPolicy.capabilities(Build.VERSION.SDK_INT, requested)) return
         val row = PermissionItemBinding.inflate(layoutInflater, binding.permissionsRows, false)
@@ -86,7 +111,7 @@ class PermissionsActivity : AppCompatActivity() {
         row.permissionAction.setOnClickListener {
             val permission = requestableRuntimePermission(key)
             if (permission != null) {
-                prompts.edit { putBoolean(permission, true) }
+                pendingRuntimePermission = permission
                 runtime.launch(permission)
             } else action()
         }
@@ -102,7 +127,7 @@ class PermissionsActivity : AppCompatActivity() {
         val permission = AppPermissionPolicy.runtimePermission(key, Build.VERSION.SDK_INT,
             packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)) ?: return null
         if (AppPermissionAccess.runtimeGranted(this, permission)) return null
-        return permission.takeIf { !prompts.getBoolean(it, false) || shouldShowRequestPermissionRationale(it) }
+        return permission.takeIf { it !in settingsFallback || shouldShowRequestPermissionRationale(it) }
     }
 
     private fun refreshAndResume() {
@@ -138,6 +163,9 @@ class PermissionsActivity : AppCompatActivity() {
             row.permissionStatus.setText(if (allowed == true) R.string.vcs_permissions_enabled else if (allowed == false) R.string.vcs_permissions_not_enabled else R.string.vcs_permissions_check_settings)
             row.permissionStatus.setTextColor((if (allowed == true) "#86EFAC" else if (allowed == false) "#FBBF24" else "#AFC0CC").toColorInt())
             val runtimePermission = requestableRuntimePermission(key)
+            if (requested == CAMERA) binding.permissionsIntro.setText(
+                if (runtimePermission == null && allowed != true) R.string.vcs_permission_camera_settings_reason
+                else R.string.vcs_permission_camera_reason)
             row.permissionAction.setText(when {
                 runtimePermission != null && key == CAMERA -> R.string.vcs_permissions_allow_camera
                 runtimePermission != null && key == NOTIFICATIONS -> R.string.vcs_permissions_allow_notifications
@@ -176,6 +204,10 @@ class PermissionsActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_CAPABILITY = "permission_capability"
         private const val EXTRA_RESUME_ACTION = "permission_resume_action"
+        private const val EXTRA_REQUEST_ON_OPEN = "permission_request_on_open"
+        private const val STATE_INITIAL_REQUEST_STARTED = "initial_request_started"
+        private const val STATE_PENDING_RUNTIME_PERMISSION = "pending_runtime_permission"
+        private const val STATE_SETTINGS_FALLBACK = "settings_fallback"
         const val VPN = AppPermissionPolicy.VPN
         const val KILL_SWITCH = AppPermissionPolicy.KILL_SWITCH
         const val CAMERA = AppPermissionPolicy.CAMERA
@@ -185,9 +217,10 @@ class PermissionsActivity : AppCompatActivity() {
         const val OVERLAY = AppPermissionPolicy.OVERLAY
         const val FILES = AppPermissionPolicy.FILES
         const val BATTERY = AppPermissionPolicy.BATTERY
-        fun intent(context: Context, capability: String? = null, resumeAction: Boolean = true): Intent = Intent(context, PermissionsActivity::class.java).apply {
+        fun intent(context: Context, capability: String? = null, resumeAction: Boolean = true, requestOnOpen: Boolean = false): Intent = Intent(context, PermissionsActivity::class.java).apply {
             capability?.let { putExtra(EXTRA_CAPABILITY, it) }
             putExtra(EXTRA_RESUME_ACTION, resumeAction)
+            putExtra(EXTRA_REQUEST_ON_OPEN, requestOnOpen)
         }
     }
 }

@@ -1,4 +1,23 @@
-# Terminal access and Home navigation (versions 917–921)
+# Terminal access and Home navigation (versions 917–922)
+
+## QR camera permission correction (922)
+
+A cancelled Android prompt was previously persisted as “already requested”.
+Combining that flag with a false rationale result could bypass a still available
+camera prompt. QR actions now start only the camera request immediately. Native
+Android decides whether a prompt is still available; fallback to settings is
+local to the current permission flow, so reopening a QR action can retry after
+cancellation. A saved per-activity flag prevents relaunch on rotation or return
+from Android. Already granted camera access bypasses the permission screen.
+
+The required settings path (Permissions → Camera → allow while using VirtuVPN)
+is visible when a prompt is unavailable. Returning to the scanner requires both
+RESULT_OK and observed camera/AppOps access. Cancelling does not open the camera.
+Both Other tunnels QR import and native Router pairing reuse this flow. Secured
+Browser website camera/microphone denial and WebRTC protection remain unchanged.
+Home's explicit Permissions overview still grants nothing merely by opening it.
+
+This follows Android's [contextual permission workflow](https://developer.android.com/training/permissions/requesting).
 
 Version 921: the independent tunnel detail exposes Delete as the
 existing trash icon directly in the toolbar instead of hiding it in the

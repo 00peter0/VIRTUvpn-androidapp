@@ -644,6 +644,7 @@
     <string name="vcs_permission_vpn_reason" translatable="false">Allow VirtuVPN to start the tunnel you selected.</string>
     <string name="vcs_permission_kill_switch_reason" translatable="false">Review Always-on VPN and Block connections without VPN in Android settings.</string>
     <string name="vcs_permission_camera_reason" translatable="false">Camera access is needed to scan this QR code.</string>
+    <string name="vcs_permission_camera_settings_reason" translatable="false">Open Android settings → Permissions → Camera, allow access while using VirtuVPN, then return to the scan.</string>
     <string name="vcs_permission_notifications_reason" translatable="false">Allow notifications from VirtuVPN.</string>
     <string name="vcs_permission_install_reason" translatable="false">Allow VirtuVPN to open the Android installer for this update.</string>
     <string name="vcs_permission_usage_reason" translatable="false">Allow usage access to measure app activity in Device Diagnostics.</string>
