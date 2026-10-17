@@ -80,6 +80,7 @@ object VcsDialogs {
         binding.dialogTitle.isVisible = !title.isNullOrBlank()
         binding.dialogMessage.text = message ?: ""
         binding.dialogMessage.isVisible = !message.isNullOrBlank()
+        binding.dialogMessageScroll.isVisible = !message.isNullOrBlank()
         binding.dialogCustomContent.isVisible = customView != null
         customView?.let { binding.dialogCustomContent.addView(it) }
 

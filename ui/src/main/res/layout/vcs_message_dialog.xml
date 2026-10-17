@@ -23,14 +23,22 @@
         android:textSize="22sp"
         android:textStyle="bold" />
 
-    <TextView
-        android:id="@+id/dialog_message"
+    <ScrollView
+        android:id="@+id/dialog_message_scroll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="14dp"
-        android:lineSpacingExtra="3dp"
-        android:textColor="#B8C8D2"
-        android:textSize="14sp" />
+        android:layout_weight="1"
+        android:fadeScrollbars="false">
+
+        <TextView
+            android:id="@+id/dialog_message"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:lineSpacingExtra="3dp"
+            android:textColor="#B8C8D2"
+            android:textSize="14sp" />
+    </ScrollView>
 
     <FrameLayout
         android:id="@+id/dialog_custom_content"

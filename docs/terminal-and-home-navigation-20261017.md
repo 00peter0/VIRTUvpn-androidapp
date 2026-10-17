@@ -59,6 +59,8 @@ sections. It uses the existing VCS message dialog, a 48 dp touch target,
 accessible information labels and tooltips compatible with older supported
 Android versions. Help clicks only open explanatory text; they do not change a
 setting, collect a measurement or expand/collapse the containing section.
+Long messages scroll inside the shared dialog while its action buttons stay
+available; the same layout remains suitable for larger Android font settings.
 New help should reuse this control (`app:infoTitle` and `app:infoMessage`) instead
 of introducing another popup or repeating a long paragraph on the main screen.
 
