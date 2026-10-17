@@ -35,6 +35,7 @@ import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.wireguard.android.Application
+import com.wireguard.android.BuildConfig
 import com.wireguard.android.R
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.databinding.HomeActivityBinding
@@ -82,6 +83,7 @@ class HomeActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = HomeActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.appVersionCode.text = String.format(Locale.ROOT, "%d", BuildConfig.VERSION_CODE)
 
         supportActionBar?.apply {
             setDisplayShowHomeEnabled(true)
