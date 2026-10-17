@@ -533,6 +533,8 @@
     <string name="stat_download">Download</string>
     <string name="stat_no_data" translatable="false">—</string>
     <string name="stat_public_identity">Internet sees you as</string>
+    <string name="stat_identity_unverified">VPN IP not confirmed</string>
+    <string name="stat_identity_scope">This check uses the selected VPN while it is connected. A failed check does not fall back to Wi-Fi or mobile data. Location is an estimate from a public IP database. This does not verify routing, DNS or IPv6 exposure in other apps.</string>
     <string name="stat_checking">Checking…</string>
     <string name="stat_tap_recheck">Tap to re-check</string>
     <string name="stat_ipv6_not_confirmed">IPv6 not confirmed</string>

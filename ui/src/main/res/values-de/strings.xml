@@ -584,4 +584,6 @@
     <string name="vcs_reconnect_new_title">Weiteres Gerät registrieren?</string>
     <string name="vcs_reconnect_new_message">Dadurch wird ein zusätzliches Gerät angelegt und ein weiterer Geräteplatz belegt. Bisherige VPN-Zuweisungen bleiben beim bestehenden Gerät.</string>
     <string name="vcs_permissions_title">Berechtigungen</string>
+    <string name="stat_identity_unverified">VPN-IP nicht bestätigt</string>
+    <string name="stat_identity_scope">Diese Prüfung verwendet das ausgewählte VPN, solange es verbunden ist. Bei einem Fehler wird nicht auf WLAN oder mobile Daten ausgewichen. Der Standort ist eine Schätzung aus einer öffentlichen IP-Datenbank. Die Prüfung bestätigt weder Routing noch DNS- oder IPv6-Datenschutz in anderen Apps.</string>
 </resources>

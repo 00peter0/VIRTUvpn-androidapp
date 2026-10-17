@@ -599,4 +599,6 @@
     <string name="vcs_reconnect_new_title">Enregistrer un autre appareil ?</string>
     <string name="vcs_reconnect_new_message">Cela crée un appareil supplémentaire et utilise une autre place. Les attributions VPN précédentes restent sur l’appareil existant.</string>
     <string name="vcs_permissions_title">Autorisations</string>
+    <string name="stat_identity_unverified">IP du VPN non confirmée</string>
+    <string name="stat_identity_scope">Ce contrôle utilise le VPN sélectionné tant qu’il est connecté. En cas d’échec, il ne bascule pas vers le Wi-Fi ou les données mobiles. La localisation est une estimation issue d’une base publique d’adresses IP. Ce contrôle ne vérifie pas le routage ni la protection DNS ou IPv6 dans les autres applications.</string>
 </resources>

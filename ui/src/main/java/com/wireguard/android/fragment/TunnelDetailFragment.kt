@@ -11,7 +11,14 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.LinkProperties
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuInflater
@@ -22,9 +29,10 @@ import android.widget.Toast
 import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
 import androidx.core.view.MenuProvider
+import androidx.databinding.Observable
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import com.wireguard.android.Application
+import com.wireguard.android.BR
 import com.wireguard.android.R
 import com.wireguard.android.activity.HomeActivity
 import com.wireguard.android.activity.MainActivity
@@ -35,6 +43,8 @@ import com.wireguard.android.databinding.TunnelDetailFragmentBinding
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.vcs.VcsManagedClient
 import com.wireguard.android.util.VcsDialogs
+import com.wireguard.android.util.VpnIdentityPath
+import com.wireguard.android.util.PublicIdentityProbe
 import com.wireguard.config.Config
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -48,6 +58,82 @@ import java.net.URL
 class TunnelDetailFragment : BaseFragment(), MenuProvider {
     private var binding: TunnelDetailFragmentBinding? = null
     private var publicIdentityJob: Job? = null
+    private var identityGeneration = 0L
+    private var identityPath: VpnIdentityPath? = null
+    private var identityTunnel: ObservableTunnel? = null
+    private var observedTunnel: ObservableTunnel? = null
+    private var identityNetworkCallback: ConnectivityManager.NetworkCallback? = null
+    private val identityHandler = Handler(Looper.getMainLooper())
+    private val refreshIdentityAfterNetworkChange = Runnable {
+        if (isResumed) refreshPublicIdentity(force = false)
+    }
+    private val tunnelIdentityObserver = object : Observable.OnPropertyChangedCallback() {
+        override fun onPropertyChanged(sender: Observable?, propertyId: Int) {
+            if (propertyId != 0 && propertyId != BR.state && propertyId != BR.config && propertyId != BR.name) return
+            identityHandler.post {
+                if (isResumed && sender === selectedTunnel) {
+                    if (propertyId == BR.config || propertyId == 0) {
+                        onSelectedTunnelChanged(selectedTunnel, selectedTunnel)
+                    } else refreshPublicIdentity()
+                }
+            }
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val manager = requireContext().getSystemService(ConnectivityManager::class.java)
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            private fun changed() {
+                // Query the complete snapshot on the main thread, outside framework callbacks.
+                identityHandler.removeCallbacks(refreshIdentityAfterNetworkChange)
+                identityHandler.post(refreshIdentityAfterNetworkChange)
+            }
+            override fun onAvailable(network: Network) = changed()
+            override fun onLost(network: Network) = changed()
+            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) = changed()
+            override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) = changed()
+        }
+        try {
+            manager?.registerNetworkCallback(NetworkRequest.Builder()
+                .removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+                .addTransportType(NetworkCapabilities.TRANSPORT_VPN).build(), callback)
+            if (manager != null) identityNetworkCallback = callback
+        } catch (_: SecurityException) {
+            // Resume and explicit re-check still work if the system refuses observation.
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Configuration or tunnel state may have changed while another activity was open.
+        onSelectedTunnelChanged(selectedTunnel, selectedTunnel)
+    }
+
+    override fun onPause() {
+        invalidatePublicIdentity()
+        super.onPause()
+    }
+
+    override fun onStop() {
+        identityNetworkCallback?.let {
+            requireContext().getSystemService(ConnectivityManager::class.java)?.unregisterNetworkCallback(it)
+        }
+        identityNetworkCallback = null
+        identityHandler.removeCallbacksAndMessages(null)
+        super.onStop()
+    }
+
+    private fun invalidatePublicIdentity() {
+        identityGeneration++
+        publicIdentityJob?.cancel()
+        publicIdentityJob = null
+        identityPath = null
+        identityTunnel = null
+        binding?.publicIdentityIp?.setText(R.string.stat_identity_unverified)
+        binding?.publicIdentityIpv6?.text = ""
+        binding?.publicIdentityGeo?.text = ""
+    }
 
     override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
         if (menuItem.itemId != R.id.menu_action_delete_local) return false
@@ -106,17 +192,22 @@ class TunnelDetailFragment : BaseFragment(), MenuProvider {
     }
 
     override fun onDestroyView() {
-        publicIdentityJob?.cancel()
-        publicIdentityJob = null
+        invalidatePublicIdentity()
+        observedTunnel?.removeOnPropertyChangedCallback(tunnelIdentityObserver)
+        observedTunnel = null
         binding = null
         super.onDestroyView()
     }
 
     override fun onSelectedTunnelChanged(oldTunnel: ObservableTunnel?, newTunnel: ObservableTunnel?) {
         val binding = binding ?: return
+        observedTunnel?.removeOnPropertyChangedCallback(tunnelIdentityObserver)
+        observedTunnel = newTunnel
+        observedTunnel?.addOnPropertyChangedCallback(tunnelIdentityObserver)
         binding.tunnel = newTunnel
+        binding.config = null
         requireActivity().invalidateOptionsMenu()
-        publicIdentityJob?.cancel()
+        invalidatePublicIdentity()
         val internetDiagnostics = VcsManagedClient.supportsInternetDiagnostics(requireContext(), newTunnel?.name)
         binding.publicIdentityCard.visibility = if (internetDiagnostics) View.VISIBLE else View.GONE
         binding.dnsCard.visibility = if (internetDiagnostics) View.VISIBLE else View.GONE
@@ -184,64 +275,48 @@ class TunnelDetailFragment : BaseFragment(), MenuProvider {
         refreshPublicIdentity()
     }
 
-    // "Internet sees you as" — the apparent public identity as seen from the
-    // public internet through the current tunnel (egress IP + geo). Reflects the
-    // VPN exit for full-tunnel routes, or the device's own connection otherwise.
-    private fun refreshPublicIdentity() {
-        val tunnelName = selectedTunnel?.name ?: return
-        if (!VcsManagedClient.supportsInternetDiagnostics(requireContext(), tunnelName)) return
-        val binding = binding ?: return
-        publicIdentityJob?.cancel()
-        binding.publicIdentityIp.text = getString(R.string.stat_checking)
-        binding.publicIdentityIpv6.text = ""
-        binding.publicIdentityGeo.text = ""
+    // This is a VPN-scoped observation, not a device-wide privacy guarantee.
+    private fun refreshPublicIdentity(force: Boolean = true) {
+        val b = binding ?: return
+        val tunnel = selectedTunnel
+        val context = context ?: return
+        val manager = context.getSystemService(ConnectivityManager::class.java)
+        val config = b.config
+        val eligible = isResumed && tunnel != null && tunnel.state == Tunnel.State.UP &&
+            VcsManagedClient.supportsInternetDiagnostics(context, tunnel.name)
+        val path = if (eligible && config != null && manager != null) VpnIdentityPath.find(manager, config) else null
+        if (!force && identityTunnel === tunnel && identityPath == path) return
+        invalidatePublicIdentity()
+        identityTunnel = tunnel
+        identityPath = path
+        if (tunnel == null || !eligible || path == null || config == null || manager == null) return
+        val generation = identityGeneration
+        fun current(): Boolean = isResumed && identityGeneration == generation &&
+            this@TunnelDetailFragment.binding === b && b.tunnel === tunnel && b.config === config &&
+            tunnel.state == Tunnel.State.UP && VpnIdentityPath.find(manager, config) == path
+
+        b.publicIdentityIp.setText(R.string.stat_checking)
         publicIdentityJob = viewLifecycleOwner.lifecycleScope.launch {
-            // Force IPv4 and IPv6 egress separately (plain-text echo endpoints).
-            val ip4 = withContext(Dispatchers.IO) { fetchText("https://ipv4.icanhazip.com") }
-            val ip6 = withContext(Dispatchers.IO) { fetchText("https://ipv6.icanhazip.com") }
-            val b = this@TunnelDetailFragment.binding?.takeIf { it.tunnel?.name == tunnelName } ?: return@launch
-            if (ip4.isNullOrBlank() && ip6.isNullOrBlank()) {
-                b.publicIdentityIp.text = getString(R.string.stat_no_data)
-                b.publicIdentityIpv6.text = ""
-                b.publicIdentityGeo.text = ""
+            val result = PublicIdentityProbe.read(path.supports(false), path.supports(true), ::current, path::fetch)
+            if (!current()) {
+                if (identityGeneration == generation) refreshPublicIdentity(force = false)
                 return@launch
             }
-            b.publicIdentityIp.text = ip4?.takeIf { it.isNotBlank() } ?: getString(R.string.stat_no_data)
-            b.publicIdentityIpv6.text = if (!ip6.isNullOrBlank()) "IPv6  $ip6" else getString(R.string.stat_ipv6_not_confirmed)
-
-            // Geo + ISP for the primary egress IP, as the internet sees you.
-            val geoIp = ip4?.takeIf { it.isNotBlank() } ?: ip6
-            if (!geoIp.isNullOrBlank()) {
-                val geo = withContext(Dispatchers.IO) { fetchText("https://ipwho.is/$geoIp") }
-                val b2 = this@TunnelDetailFragment.binding?.takeIf { it.tunnel?.name == tunnelName } ?: return@launch
-                if (geo != null) {
-                    try {
-                        val json = JSONObject(geo)
-                        if (json.optBoolean("success", false)) {
-                            val country = json.optString("country")
-                            val iso = json.optString("country_code")
-                            val city = json.optString("city")
-                            val isp = json.optJSONObject("connection")?.optString("isp") ?: ""
-                            b2.publicIdentityGeo.text = listOf("${flagEmoji(iso)} $country".trim(), city, isp)
-                                .filter { it.isNotBlank() }
-                                .joinToString(" · ")
-                        }
-                    } catch (_: Throwable) {}
-                }
+            b.publicIdentityIp.text = result?.ipv4 ?: getString(R.string.stat_identity_unverified)
+            b.publicIdentityIpv6.text = result?.ipv6?.let { "IPv6  $it" }
+                ?: getString(R.string.stat_ipv6_not_confirmed)
+            result?.geo?.let { geo ->
+                try {
+                    val json = JSONObject(geo)
+                    if (json.optBoolean("success", false)) {
+                        b.publicIdentityGeo.text = listOf(
+                            "${flagEmoji(json.optString("country_code"))} ${json.optString("country")}".trim(),
+                            json.optString("city"), json.optJSONObject("connection")?.optString("isp") ?: ""
+                        ).filter { it.isNotBlank() }.joinToString(" · ")
+                    }
+                } catch (_: org.json.JSONException) {}
             }
         }
-    }
-
-    private fun fetchText(url: String): String? = try {
-        val conn = (URL(url).openConnection() as HttpURLConnection).apply {
-            connectTimeout = 6000
-            readTimeout = 6000
-            setRequestProperty("Accept", "application/json")
-            setRequestProperty("User-Agent", "VirtuVPN")
-        }
-        conn.inputStream.bufferedReader().use { it.readText() }.trim()
-    } catch (_: Throwable) {
-        null
     }
 
     private fun flagEmoji(iso2: String): String {

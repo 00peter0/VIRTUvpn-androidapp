@@ -144,6 +144,13 @@
                             android:text="@string/stat_tap_recheck"
                             android:textColor="#7FA8B8"
                             android:textSize="11sp" />
+
+                        <com.wireguard.android.widget.VcsInfoButton
+                            android:id="@+id/public_identity_scope_info"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:infoTitle="@string/stat_public_identity"
+                            app:infoMessage="@string/stat_identity_scope" />
                     </LinearLayout>
 
                     <TextView

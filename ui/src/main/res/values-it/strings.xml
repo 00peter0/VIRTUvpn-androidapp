@@ -599,4 +599,6 @@
     <string name="vcs_reconnect_new_title">Registrare un altro dispositivo?</string>
     <string name="vcs_reconnect_new_message">Questa operazione crea un dispositivo aggiuntivo e occupa un altro posto. Le assegnazioni VPN precedenti restano sul dispositivo esistente.</string>
     <string name="vcs_permissions_title">Autorizzazioni</string>
+    <string name="stat_identity_unverified">IP VPN non confermato</string>
+    <string name="stat_identity_scope">Questo controllo usa la VPN selezionata mentre è connessa. Se il controllo non riesce, non passa al Wi-Fi o ai dati mobili. La posizione è una stima da un database pubblico di indirizzi IP. Il controllo non verifica il routing né la protezione DNS o IPv6 nelle altre app.</string>
 </resources>
