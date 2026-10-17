@@ -5,6 +5,12 @@ existing trash icon directly in the toolbar instead of hiding it in the
 three-dot overflow. The action still opens the existing confirmation dialog and
 remains limited to independent profiles. Published APK 920 is unchanged.
 
+The same pending UI update keeps the existing VPN Mesh and VPN Router icons on
+Home. Single server, S2S Cluster and Other tunnels replace the repeated device
+symbol with one shared terminal icon. VPN Cluster uses a terminal window with a
+globe badge to represent infrastructure access together with internet VPN. These
+are vector resources; card sizes, order, labels, routing and actions are unchanged.
+
 ## Direct terminal access
 
 All tunnel list sections now use the same direct **Open terminal** action that
