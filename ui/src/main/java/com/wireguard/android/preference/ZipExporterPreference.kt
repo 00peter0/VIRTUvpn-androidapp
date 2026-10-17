@@ -36,7 +36,9 @@ class ZipExporterPreference(context: Context, attrs: AttributeSet?) : Preference
 
     private fun exportZip() {
         lifecycleScope.launch {
-            val tunnels = Application.getTunnelManager().getTunnels()
+            val tunnels = Application.getTunnelManager().getTunnels().filter {
+                com.wireguard.android.vcs.VcsManagedClient.canUseLocalTunnel(context, it.name)
+            }
             try {
                 exportedFilePath = withContext(Dispatchers.IO) {
                     val configs = tunnels.map { async(SupervisorJob()) { it.getConfigAsync() } }.awaitAll()
@@ -54,7 +56,9 @@ class ZipExporterPreference(context: Context, attrs: AttributeSet?) : Preference
                         ZipOutputStream(outputFile.outputStream).use { zip ->
                             for (i in configs.indices) {
                                 zip.putNextEntry(ZipEntry(tunnels[i].name + ".conf"))
-                                zip.write(configs[i].toWgQuickString().toByteArray(StandardCharsets.UTF_8))
+                                com.wireguard.android.vcs.VcsManagedClient.withTunnelAuthorization(context, tunnels[i].name) {
+                                    zip.write(configs[i].toWgQuickString().toByteArray(StandardCharsets.UTF_8))
+                                }
                             }
                             zip.closeEntry()
                         }

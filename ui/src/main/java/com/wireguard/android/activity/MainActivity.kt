@@ -73,6 +73,7 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
     override fun onResume() {
         super.onResume()
         if (!enrollmentIntentPending) VcsAuthGate.requireSignedIn(this)
+        if (selectedTunnel?.let { !VcsManagedClient.canUseLocalTunnel(this, it.name) } == true) selectedTunnel = null
     }
 
     override fun onNewIntent(intent: Intent) {

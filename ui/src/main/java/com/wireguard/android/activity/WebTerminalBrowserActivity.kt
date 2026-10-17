@@ -23,6 +23,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
 import androidx.core.view.ViewCompat
@@ -34,18 +35,26 @@ import com.wireguard.android.databinding.WebTerminalBrowserActivityBinding
 import com.wireguard.android.util.PrivateAddressClassifier
 import com.wireguard.android.util.SecureBrowserUrlPolicy
 import com.wireguard.android.vcs.VcsAuthGate
+import com.wireguard.android.vcs.VcsManagedClient
+import kotlinx.coroutines.launch
 import java.io.ByteArrayInputStream
 
 class WebTerminalBrowserActivity : AppCompatActivity() {
     private lateinit var binding: WebTerminalBrowserActivityBinding
     private var terminalUrl: String? = null
     private var terminalFullscreen = false
+    private var terminalOwnerDeviceId: String? = null
+    private var sourceTerminalUrl: String? = null
+    private var accessClosed = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark("#05070A".toColorInt()),
             navigationBarStyle = SystemBarStyle.dark("#05070A".toColorInt()))
         super.onCreate(savedInstanceState)
         if (!VcsAuthGate.requireSignedIn(this)) return
+        sourceTerminalUrl = intent.getStringExtra(EXTRA_INITIAL_URL)
+        terminalOwnerDeviceId = VcsManagedClient.sessionInfo(this)?.deviceId
+        if (!hasCurrentTerminalAccess()) { closeOutOfAccountTerminal(); return }
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
         binding = WebTerminalBrowserActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -64,6 +73,11 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
             ?.let { it.toUri().buildUpon().appendQueryParameter("vcsNative", "android").build().toString() }
 
         configureWebView(binding.terminalWebview)
+        lifecycleScope.launch {
+            VcsManagedClient.tunnelAccountChanges.collect {
+                if (!hasCurrentTerminalAccess()) closeOutOfAccountTerminal()
+            }
+        }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (terminalFullscreen) {
@@ -86,7 +100,23 @@ class WebTerminalBrowserActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (!VcsAuthGate.requireSignedIn(this) || !::binding.isInitialized) return
+        if (!hasCurrentTerminalAccess()) { closeOutOfAccountTerminal(); return }
         if (binding.terminalWebview.url.isNullOrBlank() || binding.terminalWebview.url == "about:blank") loadTerminal()
+    }
+
+    private fun hasCurrentTerminalAccess(): Boolean = terminalOwnerDeviceId != null &&
+        VcsManagedClient.sessionInfo(this)?.deviceId == terminalOwnerDeviceId &&
+        VcsManagedClient.isCurrentWebTerminalUrl(this, sourceTerminalUrl)
+
+    private fun closeOutOfAccountTerminal() {
+        if (accessClosed) return
+        accessClosed = true
+        if (::binding.isInitialized) {
+            binding.terminalWebview.stopLoading()
+            binding.terminalWebview.loadUrl("about:blank")
+        }
+        Toast.makeText(this, R.string.web_terminal_current_account_required, Toast.LENGTH_LONG).show()
+        finish()
     }
 
     override fun onPause() {

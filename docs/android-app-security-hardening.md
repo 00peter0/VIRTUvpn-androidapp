@@ -1755,10 +1755,11 @@ Implemented:
   network calls.
 - `network_security_config` pins `vcs.virtucomputing.com` and subdomains to the
   observed Let's Encrypt chain and forbids cleartext for that domain.
-- The config intentionally does not set a global cleartext deny because
-  VirtuVPN Router attestation uses a local, non-public
-  `http://<wifi-gateway>:8788` endpoint. Blocking all cleartext at the platform
-  layer would break verified router pairing/browser compatibility.
+- Historical note: the original transport policy omitted an explicit base rule.
+  The current terminal policy explicitly denies default platform HTTP and permits
+  exact allocated VCS terminal gateways. Router attestation uses its existing
+  nonce/HMAC-authenticated native socket path (`VpnRouterAttestation.fetchAttestation`),
+  independent of WebView HTTP policy. This correction does not change that path.
 - The router-local cleartext endpoint is not a managed API path. It is exposed
   only while VPN Router is enabled, restricted by router firewall rules to the
   hotspot downstream interface, and served through a root-owned persistent
@@ -1832,6 +1833,11 @@ No expected server change.
 - When changing VCS gateway pools in `connection-capability.ts` or
   `stage-config.ts`, update this exact-host resource and its allocation tests
   together. Never fix a newly allocated terminal by allowing all cleartext.
+
+- Android 17 adds a platform loopback exception independently of the base
+  rule. The acceptance test records that OS behavior and separately requires
+  Secured Browser to reject loopback HTTP. It does not mistake loopback for an
+  allocated server gateway. See [Android network security configuration](https://developer.android.com/privacy-and-security/security-config#Localhost).
 
 See [the phone terminal audit](web-terminal-android-network-policy-20261017.md).
 
@@ -2059,3 +2065,14 @@ Implemented:
 
 Outside-Android impact:
 No expected server change.
+
+## Managed VPN account isolation (version 916)
+
+Retained managed WireGuard files are not authorization for another VCS account.
+The shared TunnelManager checks stable managed device ownership for activation,
+TOGGLE, restore, reconnect, private configuration reads and export. Logout and
+context changes stop managed VPN access outside the current device identity,
+without revoking server assignments or deleting stored profiles. Independent
+third-party VPN imports remain local and usable without VCS registration.
+
+See [the account isolation audit](managed-vpn-account-isolation-20261017.md).

@@ -11,6 +11,7 @@ import androidx.databinding.CallbackRegistry.NotifierCallback
 import androidx.lifecycle.lifecycleScope
 import com.wireguard.android.Application
 import com.wireguard.android.model.ObservableTunnel
+import com.wireguard.android.vcs.VcsManagedClient
 import kotlinx.coroutines.launch
 
 /**
@@ -21,6 +22,7 @@ abstract class BaseActivity : AppCompatActivity() {
     private var created = false
     var selectedTunnel: ObservableTunnel? = null
         set(value) {
+            if (value != null && !VcsManagedClient.canUseLocalTunnel(this, value.name)) return
             val oldTunnel = field
             if (oldTunnel == value) return
             field = value

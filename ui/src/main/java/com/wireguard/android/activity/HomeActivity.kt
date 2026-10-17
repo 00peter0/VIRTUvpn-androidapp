@@ -232,7 +232,7 @@ class HomeActivity : AppCompatActivity() {
 
     private suspend fun refreshVpnStatus() {
         val manager = Application.getTunnelManager()
-        val tunnels = runCatching { manager.getTunnels().toList() }.getOrDefault(emptyList())
+        val tunnels = runCatching { manager.getTunnels().filter { VcsManagedClient.canUseLocalTunnel(this, it.name) } }.getOrDefault(emptyList())
         val selectableTunnels = filterHomeSelectableTunnels(tunnels)
         val runningTunnels = tunnels.filter { tunnel -> tunnel.state == Tunnel.State.UP }
         hasActiveVirtuTunnel = runningTunnels.isNotEmpty()

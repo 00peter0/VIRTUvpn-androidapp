@@ -15,6 +15,7 @@ import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.databinding.Keyed
 import com.wireguard.android.util.TunnelUiPolicy
 import com.wireguard.android.util.applicationScope
+import com.wireguard.android.vcs.VcsManagedClient
 import com.wireguard.config.Config
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -65,6 +66,7 @@ class ObservableTunnel internal constructor(
     }
 
     suspend fun setStateAsync(state: Tunnel.State): Tunnel.State = withContext(Dispatchers.Main.immediate) {
+        if (state != Tunnel.State.DOWN) VcsManagedClient.tunnelAccountScope(Application.get()).requireAccess(name)
         if (state != this@ObservableTunnel.state)
             manager.setTunnelState(this@ObservableTunnel, state)
         else {
@@ -77,6 +79,7 @@ class ObservableTunnel internal constructor(
     @get:Bindable
     var config = config
         get() {
+            if (!VcsManagedClient.canUseLocalTunnel(Application.get(), name)) return null
             if (field == null)
             // Opportunistically fetch this if we don't have a cached one, and rely on data bindings to update it eventually
                 applicationScope.launch {
@@ -91,7 +94,10 @@ class ObservableTunnel internal constructor(
         private set
 
     suspend fun getConfigAsync(): Config = withContext(Dispatchers.Main.immediate) {
-        config ?: manager.getTunnelConfig(this@ObservableTunnel)
+        val cached = withContext(Dispatchers.IO) {
+            VcsManagedClient.withTunnelAuthorization(Application.get(), name) { config }
+        }
+        cached ?: manager.getTunnelConfig(this@ObservableTunnel)
     }
 
     suspend fun setConfigAsync(config: Config): Config = withContext(Dispatchers.Main.immediate) {

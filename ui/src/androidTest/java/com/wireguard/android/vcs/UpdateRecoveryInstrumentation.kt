@@ -34,8 +34,10 @@ class UpdateRecoveryInstrumentation : Instrumentation() {
         super.onStart()
         val result = Bundle()
         try {
-            if (arguments.getString("networkPolicyOnly") == "true")
-                checks += TerminalNetworkPolicyChecks.verify()
+            if (arguments.getString("networkPolicyOnly") == "true" || arguments.getString("accountScopeOnly") == "true") {
+                if (arguments.getString("networkPolicyOnly") == "true") checks += TerminalNetworkPolicyChecks.verify()
+                if (arguments.getString("accountScopeOnly") == "true") checks += ManagedTunnelAccountChecks.verify(targetContext)
+            }
             else if (arguments.getString("restoreOnly") == "true") restoreBackup()
             else exerciseRecovery()
             result.putString("checks", checks.joinToString("\n"))

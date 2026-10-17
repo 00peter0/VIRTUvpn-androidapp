@@ -26,6 +26,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.withTimeout
 import com.wireguard.android.util.SingleFlight
+import com.wireguard.android.util.applicationScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -67,6 +68,11 @@ object VcsManagedClient {
     private const val KEY_LAST_UPDATE_URL = "last_update_url"
     private const val TIMEOUT_MS = 15_000
     private val deviceSessionRefreshLock = Any()
+    private val tunnelAccountLock = Any()
+    private val mutableTunnelAccountChanges = kotlinx.coroutines.flow.MutableStateFlow(0L)
+    val tunnelAccountChanges: kotlinx.coroutines.flow.StateFlow<Long> = mutableTunnelAccountChanges
+    private const val KEY_ASSIGNMENTS_DEVICE = "assignments_device_id"
+    private const val KEY_CONTEXT_GENERATION = "managed_context_generation"
     private val syncFlight = SingleFlight<SyncResult>(CoroutineScope(SupervisorJob() + Dispatchers.IO))
     private const val KEY_SYNC_STATUS = "sync_status"
     private const val KEY_COMMAND_RECEIPTS = "command_receipts"
@@ -165,6 +171,7 @@ object VcsManagedClient {
 
     suspend fun signInAccount(context: Context, apiBaseUrl: String, email: String, password: String,
         choice: DeviceRegistrationChoice = DeviceRegistrationChoice()): AccountInfo = withContext(Dispatchers.IO) {
+        val generation = tunnelContextGeneration(context)
         val normalizedBase = normalizeApiBase(apiBaseUrl)
         val body = deviceRegistrationBody(context, normalizedBase)
             .put("email", email.trim())
@@ -172,19 +179,25 @@ object VcsManagedClient {
         choice.reconnectDeviceId?.let { body.put("reconnectDeviceId", it) }
         if (choice.registerNewDevice) body.put("registerNewDevice", true)
         val response = requestJson("POST", "$normalizedBase/api/mobile/android/auth/login", body, null)
-        storeAccountSession(context, normalizedBase, response)
+        val nextDeviceId = response.optJSONObject("device")?.optString("id")?.takeIf { it.isNotBlank() }
+            ?: error("The account did not return a managed device identity")
+        val info = storeAccountSession(context, normalizedBase, response, generation)
+        Application.getTunnelManager().enforceManagedTunnelAccount()
+        check(sessionInfo(context)?.deviceId == nextDeviceId) { "Device session changed" }
+        info
     }
 
     suspend fun signOutAccount(context: Context, onLocalSignOut: () -> Unit) = withContext(Dispatchers.IO) {
         val account = loadAccountSession(context)
         val refreshToken = managedPrefs(context).getSecretString(KEY_ACCOUNT_REFRESH_TOKEN)
         // Clear local state immediately even if central Auth is unavailable.
-        // Existing WireGuard profiles, router protection and shells are untouched.
+        // Retain profile files and server assignments; stop managed VPN access on logout.
         // Save only a context-bound continuity proof before removing grants.
         // This is local and works offline; logout never waits for a migration API.
         runCatching { rememberLegacyInstallationForSignOut(context) }
             .onFailure { android.util.Log.w("VirtuVcs", "Legacy installation continuity unavailable: ${it.javaClass.simpleName}") }
         clearAllVcsState(context)
+        Application.getTunnelManager().enforceManagedTunnelAccount()
         withContext(Dispatchers.Main.immediate) { onLocalSignOut() }
         if (account != null && refreshToken != null) {
             runCatching {
@@ -222,17 +235,32 @@ object VcsManagedClient {
     }
 
     fun clearSession(context: Context) {
-        managedPrefs(context).edit {
-            remove(KEY_API_BASE)
-            remove(KEY_ACCESS_TOKEN)
-            remove(KEY_DEVICE_REFRESH_TOKEN)
-            remove(KEY_DEVICE_ID)
-            remove(KEY_ASSIGNMENTS)
-            remove(KEY_PENDING_BUNDLE_ASSIGNMENTS)
-            remove(KEY_LAST_UPDATE_PROMPT)
-            remove(KEY_LAST_UPDATE_URL)
+        synchronized(tunnelAccountLock) {
+            val prefs = managedPrefs(context)
+            prefs.edit {
+                putLong(KEY_CONTEXT_GENERATION, prefs.getLong(KEY_CONTEXT_GENERATION) + 1)
+                remove(KEY_API_BASE)
+                remove(KEY_ACCESS_TOKEN)
+                remove(KEY_DEVICE_REFRESH_TOKEN)
+                remove(KEY_DEVICE_ID)
+                remove(KEY_ASSIGNMENTS)
+                remove(KEY_ASSIGNMENTS_DEVICE)
+                remove(KEY_PENDING_BUNDLE_ASSIGNMENTS)
+                remove(KEY_LAST_UPDATE_PROMPT)
+                remove(KEY_LAST_UPDATE_URL)
+            }
+        }
+        mutableTunnelAccountChanges.value += 1
+        enforceTunnelAccountScope()
+    }
+
+    private fun enforceTunnelAccountScope() {
+        Application.get().applicationScope.launch {
+            runCatching { Application.getTunnelManager().enforceManagedTunnelAccount() }
+                .onFailure { android.util.Log.e("VirtuVcs", "Could not stop an out-of-account VPN", it) }
         }
     }
+
 
     fun isEnrollmentUri(uri: Uri?): Boolean {
         if (uri == null) return false
@@ -278,7 +306,16 @@ object VcsManagedClient {
         val prefs = managedPrefs(context)
         val deviceId = sessionInfo(context)?.deviceId
         if (deviceId != null && prefs.getString("legacy_ownership_device") == null) {
-            prefs.edit { putString("legacy_ownership_device", deviceId) }
+            // An old unscoped ledger is not proof that its profiles belong to today's login.
+            prefs.edit { putString("legacy_ownership_device", "unverified-legacy-owner") }
+        }
+        if (deviceId != null && prefs.getString(KEY_ASSIGNMENTS_DEVICE) == null) {
+            val legacy = runCatching { JSONArray(prefs.getString(KEY_ASSIGNMENTS, "[]")) }.getOrElse { JSONArray() }
+            val owned = loadManagedTunnelOwnership(context)
+            prefs.edit {
+                if (managedTunnelNames(legacy).all { it in owned }) putString(KEY_ASSIGNMENTS_DEVICE, deviceId)
+                else remove(KEY_ASSIGNMENTS)
+            }
         }
         val status = syncStatus(context)
         if (status.optString("phase") == "Synchronizing") {
@@ -321,8 +358,8 @@ object VcsManagedClient {
             val cachedName = prefs.getString("confirmed_bundle_name").orEmpty()
             val alreadyConfirmed = prefs.getString("confirmed_bundle_device") == session.deviceId && prefs.getString("confirmed_bundle_id") == bundle.optString("bundleId") &&
                 prefs.getLong("confirmed_bundle_version", 0L) == bundle.optLong("configVersion", -1L) &&
-                cachedName.isNotBlank() && Application.getTunnelManager().hasExistingConfig(cachedName)
-            val bundleImport = if (alreadyConfirmed) ImportResult(cachedName, false, true) else importManagedBundle(context, bundle)
+                cachedName.isNotBlank() && canUseLocalTunnel(context, cachedName) && Application.getTunnelManager().hasExistingConfig(cachedName)
+            val bundleImport = if (alreadyConfirmed) ImportResult(cachedName, false, true) else importManagedBundle(context, session, bundle)
             val localTunnelName = bundleImport.localTunnelName
             bundleLocalTunnelName = localTunnelName
             val ids = bundle.optJSONArray("assignmentIds") ?: JSONArray()
@@ -372,7 +409,7 @@ object VcsManagedClient {
             }
             if (knownVersion > 0L && knownVersion == assignment.optLong("configVersion", -1L) &&
                 assignment.optString("status") == "ACTIVE" && localName.isNotBlank() &&
-                Application.getTunnelManager().hasExistingConfig(localName)) {
+                canUseLocalTunnel(context, localName) && Application.getTunnelManager().hasExistingConfig(localName)) {
                 assignment.put("confirmedConfigVersion", knownVersion)
                 continue
             }
@@ -413,9 +450,9 @@ object VcsManagedClient {
         }
         check(loadSession(context)?.deviceId == session.deviceId) { "Device session changed during synchronization" }
         if (importsComplete) removeExplicitlyInactiveManagedTunnels(previousAssignments, storedAssignments)
-        storeAssignments(context, storedAssignments)
+        storeAssignments(context, session.deviceId, storedAssignments)
         val activeManagedTunnelNames = managedTunnelNames(storedAssignments)
-        if (importsComplete) reconcileManagedTunnelOwnership(context, previouslyAssignedTunnelNames, activeManagedTunnelNames)
+        if (importsComplete) reconcileManagedTunnelOwnership(context, session.deviceId, previouslyAssignedTunnelNames, activeManagedTunnelNames)
         prunePendingTunnelActivations(context, activeManagedTunnelNames)
         storePendingBundleAssignments(context, pendingBundleAssignments)
         failures += processCommands(context, session, commands, storedAssignments, bundleLocalTunnelName ?: managedBundleTunnelName(storedAssignments))
@@ -605,6 +642,14 @@ object VcsManagedClient {
             )
         }
         return null
+    }
+
+    fun isCurrentWebTerminalUrl(context: Context, value: String?): Boolean {
+        if (value.isNullOrBlank()) return false
+        val scope = tunnelAccountScope(context)
+        return managedTunnelNames(loadAssignments(context)).any { name ->
+            scope.permits(name) && webTerminalForTunnel(context, name)?.url == value
+        }
     }
 
     private fun managedBundleTunnelName(assignments: JSONArray): String? {
@@ -926,10 +971,12 @@ object VcsManagedClient {
 
     private suspend fun reconcileManagedTunnelOwnership(
         context: Context,
+        deviceId: String?,
         previouslyAssignedTunnelNames: Set<String>,
         activeManagedTunnelNames: Set<String>
     ) {
-        val knownManagedTunnelNames = loadManagedTunnelOwnership(context) + previouslyAssignedTunnelNames
+        check(deviceId != null && sessionInfo(context)?.deviceId == deviceId) { "Device session changed" }
+        val knownManagedTunnelNames = tunnelAccountScope(context, deviceId).owners.filterValues { it == setOf(deviceId) }.keys + previouslyAssignedTunnelNames
         val staleManagedTunnelNames = knownManagedTunnelNames - activeManagedTunnelNames
         val failedCleanupNames = mutableSetOf<String>()
         if (staleManagedTunnelNames.isNotEmpty()) {
@@ -941,7 +988,7 @@ object VcsManagedClient {
                 if (!deleted) failedCleanupNames.add(name)
             }
         }
-        storeManagedTunnelOwnership(context, activeManagedTunnelNames + failedCleanupNames)
+        storeManagedTunnelOwnership(context, activeManagedTunnelNames + failedCleanupNames, deviceId)
     }
 
     private suspend fun removeExplicitlyInactiveManagedTunnels(previous: JSONArray, current: JSONArray) {
@@ -1027,11 +1074,11 @@ object VcsManagedClient {
         return activeSession
     }
 
-    private suspend fun importManagedBundle(context: Context, bundle: JSONObject): ImportResult {
+    private suspend fun importManagedBundle(context: Context, session: Session, bundle: JSONObject): ImportResult {
         val configText = bundle.getString("config")
         val preferredName = sanitizeTunnelName(bundle.optString("configFilename", bundle.optString("displayName", "VCS Managed Access")))
         val config = Config.parse(ByteArrayInputStream(configText.toByteArray(StandardCharsets.UTF_8)))
-        return applyImportedConfig(preferredName, config)
+        return applyImportedConfig(context, session.deviceId, preferredName, config)
     }
 
     private suspend fun importManagedConfig(context: Context, session: Session, provision: JSONObject): ImportResult {
@@ -1041,7 +1088,7 @@ object VcsManagedClient {
         val preferredName = sanitizeTunnelName(provision.optString("configFilename", provision.optString("displayName", "vcs-$assignmentId")))
         val config = Config.parse(ByteArrayInputStream(configText.toByteArray(StandardCharsets.UTF_8)))
         removeSupersededCaseVariant(context, assignmentId, preferredName)
-        val applied = applyImportedConfig(preferredName, config)
+        val applied = applyImportedConfig(context, session.deviceId, preferredName, config)
         if (applied.current) {
             ackTunnelImported(context, session, assignmentId, applied.localTunnelName, configVersion)
         }
@@ -1065,15 +1112,27 @@ object VcsManagedClient {
         runCatching { manager.delete(legacy) }
     }
 
-    private suspend fun applyImportedConfig(preferredName: String, config: Config): ImportResult {
+    private suspend fun applyImportedConfig(context: Context, deviceId: String?, preferredName: String, config: Config): ImportResult {
+        check(!deviceId.isNullOrBlank() && sessionInfo(context)?.deviceId == deviceId) { "Device session changed" }
+        val safeName = if (tunnelAccountScope(context).permits(preferredName)) preferredName else {
+            val suffix = java.security.MessageDigest.getInstance("SHA-256").digest(deviceId.toByteArray())
+                .take(3).joinToString("") { "%02x".format(it) }
+            preferredName.take(8) + "-" + suffix
+        }
+        check(tunnelAccountScope(context).permits(safeName)) { "This managed VPN name is already owned by another account" }
+        // Claim before touching a file, even when the surrounding sync later fails.
+        synchronized(tunnelAccountLock) {
+            check(sessionInfo(context)?.deviceId == deviceId) { "Device session changed" }
+            storeManagedTunnelOwnership(context, loadManagedTunnelOwnership(context) + safeName, deviceId)
+        }
         return withContext(Dispatchers.Main.immediate) {
             val manager = Application.getTunnelManager()
             val tunnels = manager.getTunnels()
-            val existing = tunnels[preferredName]
-                ?: runCatching { manager.adoptExisting(preferredName) }.getOrNull()
+            val existing = tunnels[safeName]
+                ?: runCatching { manager.adoptExisting(safeName) }.getOrNull()
             if (existing == null) {
-                manager.create(preferredName, config)
-                ImportResult(preferredName, applied = true, current = true)
+                manager.create(safeName, config)
+                ImportResult(safeName, applied = true, current = true)
             } else if (existing.getConfigAsync() == config) {
                 ImportResult(existing.name, applied = false, current = true)
             } else if (existing.state == Tunnel.State.UP) {
@@ -1086,12 +1145,13 @@ object VcsManagedClient {
     }
 
     private fun completeEnrollment(context: Context, request: EnrollmentRequest): EnrollResult {
+        val generation = tunnelContextGeneration(context)
         val body = deviceRegistrationBody(context, request.apiBaseUrl)
             .put("enrollmentToken", request.enrollmentToken)
             .put("devicePublicKey", JSONObject.NULL)
         val response = requestJson("POST", "${request.apiBaseUrl}/api/mobile/android/enroll/complete", body, null)
         val device = response.getJSONObject("device")
-        storeManagedDeviceSessionFromResponse(context, request.apiBaseUrl, response)
+        storeManagedDeviceSessionFromResponse(context, request.apiBaseUrl, response, generation)
         return EnrollResult(device.optString("deviceName").ifBlank { null })
     }
 
@@ -1170,23 +1230,29 @@ object VcsManagedClient {
     }
 
     private fun requestDeviceJson(context: Context, session: Session, method: String, url: String, body: JSONObject?): DeviceJsonResponse {
+        check(loadSession(context)?.deviceId == session.deviceId) { "Device session changed" }
         return try {
-            DeviceJsonResponse(requestJson(method, url, body, session.token), session)
+            val response = requestJson(method, url, body, session.token)
+            check(loadSession(context)?.deviceId == session.deviceId) { "Device session changed" }
+            DeviceJsonResponse(response, session)
         } catch (e: MobileHttpException) {
             if (e.status != HttpURLConnection.HTTP_UNAUTHORIZED) throw e
             val refreshed = refreshDeviceSessionAfterUnauthorized(context, session, e)
-            DeviceJsonResponse(requestJson(method, url, body, refreshed.token), refreshed)
+            val response = requestJson(method, url, body, refreshed.token)
+            check(loadSession(context)?.deviceId == refreshed.deviceId) { "Device session changed" }
+            DeviceJsonResponse(response, refreshed)
         }
     }
 
     private fun refreshDeviceSessionAfterUnauthorized(context: Context, failedSession: Session, cause: MobileHttpException): Session {
         return synchronized(deviceSessionRefreshLock) {
             val stored = loadSession(context)
-            if (stored != null && stored.apiBase == failedSession.apiBase && stored.token != failedSession.token) {
+            check(stored != null && stored.deviceId == failedSession.deviceId && stored.apiBase == failedSession.apiBase) { "Device session changed" }
+            if (stored.token != failedSession.token) {
                 return@synchronized stored
             }
             val refreshed = restoreManagedSessionForUnauthorized(context) ?: throw cause
-            if (refreshed.apiBase != failedSession.apiBase) throw cause
+            if (refreshed.apiBase != failedSession.apiBase || refreshed.deviceId != failedSession.deviceId) throw cause
             refreshed
         }
     }
@@ -1265,7 +1331,8 @@ object VcsManagedClient {
         return withScheme.trimEnd('/')
     }
 
-    private fun storeAccountSession(context: Context, apiBase: String, response: JSONObject): AccountInfo {
+    private fun storeAccountSession(context: Context, apiBase: String, response: JSONObject, generation: Long): AccountInfo = synchronized(tunnelAccountLock) {
+        check(tunnelContextGeneration(context) == generation) { "Account context changed; sign in again" }
         val user = response.optJSONObject("user")
         val tenant = response.optJSONObject("tenant")
         val expiresIn = response.optLong("expiresIn", 60 * 60 * 24).coerceAtLeast(60)
@@ -1290,8 +1357,8 @@ object VcsManagedClient {
             putString(KEY_ACCOUNT_ROLE, account.role)
             putString(KEY_ACCOUNT_TENANT_NAME, account.tenantName)
         }
-        storeManagedDeviceSessionFromResponse(context, apiBase, response)
-        return account.toInfo()
+        storeManagedDeviceSessionFromResponse(context, apiBase, response, generation)
+        account.toInfo()
     }
 
     private fun AccountSession.toInfo(): AccountInfo {
@@ -1325,12 +1392,14 @@ object VcsManagedClient {
     }
 
     private fun restoreManagedSessionFromAccount(context: Context): Session? {
+        val generation = tunnelContextGeneration(context)
         val account = loadAccountSession(context) ?: return null
         val response = requestJson("POST", "${account.apiBase}/api/mobile/android/auth/device", deviceRegistrationBody(context, account.apiBase), account.token)
-        return storeManagedDeviceSessionFromResponse(context, account.apiBase, response)
+        return storeManagedDeviceSessionFromResponse(context, account.apiBase, response, generation)
     }
 
     private fun restoreManagedSessionFromDeviceRefreshToken(context: Context): Session? {
+        val generation = tunnelContextGeneration(context)
         val prefs = managedPrefs(context)
         val apiBase = prefs.getString(KEY_API_BASE, null) ?: return null
         val refreshToken = prefs.getSecretString(KEY_DEVICE_REFRESH_TOKEN) ?: return null
@@ -1341,18 +1410,22 @@ object VcsManagedClient {
             requestJson("POST", "$apiBase/api/mobile/android/auth/device", body, null)
         } catch (e: MobileHttpException) {
             if (e.status == HttpURLConnection.HTTP_UNAUTHORIZED) {
-                clearSession(context)
+                synchronized(tunnelAccountLock) {
+                    check(tunnelContextGeneration(context) == generation) { "Device session changed" }
+                    clearSession(context)
+                }
                 return null
             }
             throw e
         }
-        return storeManagedDeviceSessionFromResponse(context, apiBase, response)
+        return storeManagedDeviceSessionFromResponse(context, apiBase, response, generation)
     }
 
-    private fun storeManagedDeviceSessionFromResponse(context: Context, apiBase: String, response: JSONObject): Session? {
+    private fun storeManagedDeviceSessionFromResponse(context: Context, apiBase: String, response: JSONObject, generation: Long): Session? = synchronized(tunnelAccountLock) {
+        check(tunnelContextGeneration(context) == generation) { "Device session changed" }
         val accessToken = response.optString("deviceAccessToken").takeIf { it.isNotBlank() }
             ?: response.optString("accessToken").takeIf { it.isNotBlank() }
-            ?: return null
+            ?: return@synchronized null
         val refreshToken = response.optString("deviceRefreshToken").takeIf { it.isNotBlank() }
         val deviceId = response.optJSONObject("device")?.optString("id")?.takeIf { it.isNotBlank() }
         storeManagedDeviceSession(context, apiBase, accessToken, refreshToken, deviceId)
@@ -1366,23 +1439,86 @@ object VcsManagedClient {
                 remove(KEY_LEGACY_API_BASE)
             }
         }
-        return Session(apiBase, accessToken, deviceId)
+        Session(apiBase, accessToken, deviceId)
     }
 
     private fun storeManagedDeviceSession(context: Context, apiBase: String, accessToken: String, refreshToken: String?, deviceId: String?) {
-        val prefs = managedPrefs(context)
-        prefs.edit {
-            putString(KEY_API_BASE, apiBase.trimEnd('/'))
-            prefs.putSecretString(this, KEY_ACCESS_TOKEN, accessToken)
-            if (refreshToken != null) prefs.putSecretString(this, KEY_DEVICE_REFRESH_TOKEN, refreshToken)
-            putString(KEY_DEVICE_ID, deviceId)
+        synchronized(tunnelAccountLock) {
+            val prefs = managedPrefs(context)
+            val changed = prefs.getString(KEY_DEVICE_ID) != deviceId || prefs.getString(KEY_API_BASE) != apiBase.trimEnd('/')
+            prefs.edit {
+                if (changed) {
+                    putLong(KEY_CONTEXT_GENERATION, prefs.getLong(KEY_CONTEXT_GENERATION) + 1)
+                    remove(KEY_ASSIGNMENTS)
+                    remove(KEY_ASSIGNMENTS_DEVICE)
+                    remove(KEY_DEVICE_REFRESH_TOKEN)
+                    remove(KEY_PENDING_BUNDLE_ASSIGNMENTS)
+                }
+                putString(KEY_API_BASE, apiBase.trimEnd('/'))
+                prefs.putSecretString(this, KEY_ACCESS_TOKEN, accessToken)
+                if (refreshToken != null) prefs.putSecretString(this, KEY_DEVICE_REFRESH_TOKEN, refreshToken)
+                putString(KEY_DEVICE_ID, deviceId)
+            }
         }
+        mutableTunnelAccountChanges.value += 1
+        enforceTunnelAccountScope()
     }
 
-    private fun storeAssignments(context: Context, assignments: JSONArray) {
+    private fun storeAssignments(context: Context, deviceId: String?, assignments: JSONArray) = synchronized(tunnelAccountLock) {
+        check(deviceId != null && sessionInfo(context)?.deviceId == deviceId) { "Device session changed during synchronization" }
         managedPrefs(context).edit {
             putString(KEY_ASSIGNMENTS, assignments.toString())
+            putString(KEY_ASSIGNMENTS_DEVICE, deviceId)
         }
+        mutableTunnelAccountChanges.value += 1
+    }
+
+    // Presentation snapshots do not hold the backend activation lock on the UI thread.
+    // All private reads/mutations and activation decisions use the locked authorization helpers.
+    fun tunnelAccountScope(context: Context, deviceId: String? = sessionInfo(context)?.deviceId): ManagedTunnelAccountScope {
+        val raw = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).all
+        val owners = mutableMapOf<String, MutableSet<String>>()
+        fun add(device: String, value: Any?) {
+            check(device.isNotBlank())
+            val names = JSONArray(value as? String ?: error("Invalid managed profile ownership"))
+            for (i in 0 until names.length()) {
+                val name = names.getString(i)
+                check(name.isNotBlank())
+                owners.getOrPut(name) { mutableSetOf() }.add(device)
+            }
+        }
+        val valid = runCatching {
+            raw.forEach { (key, value) ->
+                if (key.startsWith("$KEY_MANAGED_TUNNEL_OWNERS:")) add(key.substringAfter(':'), value)
+            }
+            val legacyDevice = raw["legacy_ownership_device"] as? String
+            if (legacyDevice != null && raw["$KEY_MANAGED_TUNNEL_OWNERS:$legacyDevice"] == null) {
+                raw[KEY_MANAGED_TUNNEL_OWNERS]?.let { add(legacyDevice, it) }
+            }
+        }.isSuccess
+        return ManagedTunnelAccountScope(deviceId, owners, valid)
+    }
+
+    fun claimManagedTunnelRename(context: Context, oldName: String, newName: String) = synchronized(tunnelAccountLock) {
+        val scope = tunnelAccountScope(context)
+        scope.requireAccess(oldName)
+        scope.requireAccess(newName)
+        if (oldName in scope.owners) storeManagedTunnelOwnership(context, loadManagedTunnelOwnership(context) + newName)
+    }
+
+    private fun tunnelContextGeneration(context: Context): Long = synchronized(tunnelAccountLock) {
+        managedPrefs(context).getLong(KEY_CONTEXT_GENERATION)
+    }
+
+    fun <T> withTunnelAccountScope(context: Context, action: (ManagedTunnelAccountScope) -> T): T = synchronized(tunnelAccountLock) {
+        action(tunnelAccountScope(context))
+    }
+
+    fun canUseLocalTunnel(context: Context, name: String): Boolean = tunnelAccountScope(context).permits(name)
+
+    fun <T> withTunnelAuthorization(context: Context, name: String, action: () -> T): T = synchronized(tunnelAccountLock) {
+        tunnelAccountScope(context).requireAccess(name)
+        action()
     }
 
     private fun loadManagedTunnelOwnership(context: Context): Set<String> {
@@ -1395,9 +1531,10 @@ object VcsManagedClient {
         return jsonStringSet(names)
     }
 
-    private fun storeManagedTunnelOwnership(context: Context, names: Set<String>) {
+    private fun storeManagedTunnelOwnership(context: Context, names: Set<String>, deviceId: String? = sessionInfo(context)?.deviceId) = synchronized(tunnelAccountLock) {
+        check(deviceId != null && sessionInfo(context)?.deviceId == deviceId) { "Device session changed" }
         val sortedNames = names.filter { it.isNotBlank() }.sorted()
-        val key = "$KEY_MANAGED_TUNNEL_OWNERS:${sessionInfo(context)?.deviceId ?: return}"
+        val key = "$KEY_MANAGED_TUNNEL_OWNERS:$deviceId"
         managedPrefs(context).edit {
             if (sortedNames.isEmpty()) {
                 remove(key)
@@ -1414,7 +1551,10 @@ object VcsManagedClient {
     }
 
     private fun loadAssignments(context: Context): JSONArray {
-        val raw = managedPrefs(context).getString(KEY_ASSIGNMENTS, "[]") ?: "[]"
+        val prefs = managedPrefs(context)
+        val deviceId = sessionInfo(context)?.deviceId ?: return JSONArray()
+        if (prefs.getString(KEY_ASSIGNMENTS_DEVICE) != deviceId) return JSONArray()
+        val raw = prefs.getString(KEY_ASSIGNMENTS, "[]") ?: "[]"
         return runCatching { JSONArray(raw).also { entries ->
             check((0 until entries.length()).all { entries.optJSONObject(it) != null })
         } }.getOrElse { JSONArray() }

@@ -51,9 +51,40 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
         return tunnel
     }
 
+    private suspend fun setBackendState(tunnel: ObservableTunnel, state: Tunnel.State, config: Config?): Tunnel.State {
+        val backend = getBackend()
+        return withContext(Dispatchers.IO) {
+            if (state == Tunnel.State.DOWN) backend.setState(tunnel, state, config)
+            else VcsManagedClient.withTunnelAuthorization(context, tunnel.name) { backend.setState(tunnel, state, config) }
+        }
+    }
+
+    suspend fun enforceManagedTunnelAccount() = withContext(Dispatchers.Main.immediate) {
+        if (!haveLoaded) return@withContext
+        val backend = getBackend()
+        for (tunnel in tunnelMap.toList()) {
+            if (tunnel.state != Tunnel.State.UP) continue
+            val stopped = withContext(Dispatchers.IO) {
+                VcsManagedClient.withTunnelAccountScope(context) { scope ->
+                    if (scope.permits(tunnel.name)) null else backend.setState(tunnel, Tunnel.State.DOWN, null)
+                }
+            }
+            if (stopped != null) {
+                tunnel.onStateChanged(stopped)
+                check(stopped == Tunnel.State.DOWN) { "Could not stop an out-of-account VPN" }
+            }
+        }
+        val scope = VcsManagedClient.tunnelAccountScope(context)
+        if (lastUsedTunnel?.let { !scope.permits(it.name) } == true) lastUsedTunnel = null
+        val remembered = UserKnobs.runningTunnels.first()
+        val permitted = remembered.filter { scope.permits(it) }.toSet()
+        if (permitted != remembered) UserKnobs.setRunningTunnels(permitted)
+    }
+
     suspend fun getTunnels(): ObservableSortedKeyedArrayList<String, ObservableTunnel> = tunnels.await()
 
     suspend fun create(name: String, config: Config?): ObservableTunnel = withContext(Dispatchers.Main.immediate) {
+        VcsManagedClient.tunnelAccountScope(context).requireAccess(name)
         if (Tunnel.isNameInvalid(name))
             throw IllegalArgumentException(context.getString(R.string.tunnel_error_invalid_name))
         if (tunnelMap.containsKey(name))
@@ -65,7 +96,7 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
         tunnelMap[name]?.let { return@withContext it }
         val config = withContext(Dispatchers.IO) {
             if (name !in configStore.enumerate()) throw IllegalArgumentException("Tunnel configuration does not exist: $name")
-            configStore.load(name)
+            VcsManagedClient.withTunnelAuthorization(context, name) { configStore.load(name) }
         }
         addToList(name, config, Tunnel.State.DOWN)
     }
@@ -75,6 +106,7 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
     }
 
     suspend fun delete(tunnel: ObservableTunnel) = withContext(Dispatchers.Main.immediate) {
+        VcsManagedClient.tunnelAccountScope(context).requireAccess(tunnel.name)
         val originalState = tunnel.state
         val wasLastUsed = tunnel == lastUsedTunnel
         // Make sure nothing touches the tunnel.
@@ -83,12 +115,12 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
         tunnelMap.remove(tunnel)
         try {
             if (originalState == Tunnel.State.UP)
-                withContext(Dispatchers.IO) { getBackend().setState(tunnel, Tunnel.State.DOWN, null) }
+                setBackendState(tunnel, Tunnel.State.DOWN, null)
             try {
-                withContext(Dispatchers.IO) { configStore.delete(tunnel.name) }
+                withContext(Dispatchers.IO) { VcsManagedClient.withTunnelAuthorization(context, tunnel.name) { configStore.delete(tunnel.name) } }
             } catch (e: Throwable) {
                 if (originalState == Tunnel.State.UP)
-                    withContext(Dispatchers.IO) { getBackend().setState(tunnel, Tunnel.State.UP, tunnel.config) }
+                    setBackendState(tunnel, Tunnel.State.UP, tunnel.config)
                 throw e
             }
         } catch (e: Throwable) {
@@ -104,13 +136,15 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
     var lastUsedTunnel: ObservableTunnel? = null
         private set(value) {
             if (value == field) return
-            field = value
+            field = value?.takeIf { VcsManagedClient.canUseLocalTunnel(context, it.name) }
             notifyPropertyChanged(BR.lastUsedTunnel)
-            applicationScope.launch { UserKnobs.setLastUsedTunnel(value?.name) }
+            applicationScope.launch { UserKnobs.setLastUsedTunnel(field?.name) }
         }
 
     suspend fun getTunnelConfig(tunnel: ObservableTunnel): Config = withContext(Dispatchers.Main.immediate) {
-        tunnel.onConfigChanged(withContext(Dispatchers.IO) { configStore.load(tunnel.name) })!!
+        tunnel.onConfigChanged(withContext(Dispatchers.IO) {
+            VcsManagedClient.withTunnelAuthorization(context, tunnel.name) { configStore.load(tunnel.name) }
+        })!!
     }
 
     fun onCreate() {
@@ -131,6 +165,8 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
             if (lastUsedName != null)
                 lastUsedTunnel = tunnelMap[lastUsedName]
             haveLoaded = true
+            runCatching { enforceManagedTunnelAccount() }
+                .onFailure { Log.e(TAG, "Could not stop an out-of-account VPN on startup", it) }
             restoreState(true)
             tunnels.complete(tunnelMap)
         }
@@ -155,7 +191,7 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
         if (previouslyRunning.isEmpty()) return
         withContext(Dispatchers.IO) {
             try {
-                tunnelMap.filter { previouslyRunning.contains(it.name) }.map { async(Dispatchers.IO + SupervisorJob()) { setTunnelState(it, Tunnel.State.UP) } }
+                tunnelMap.filter { previouslyRunning.contains(it.name) && VcsManagedClient.canUseLocalTunnel(context, it.name) }.map { async(Dispatchers.IO + SupervisorJob()) { setTunnelState(it, Tunnel.State.UP) } }
                     .awaitAll()
             } catch (e: Throwable) {
                 Log.e(TAG, Log.getStackTraceString(e))
@@ -169,17 +205,22 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
 
     suspend fun setTunnelConfig(tunnel: ObservableTunnel, config: Config): Config = withContext(Dispatchers.Main.immediate) {
         tunnel.onConfigChanged(withContext(Dispatchers.IO) {
-            getBackend().setState(tunnel, tunnel.state, config)
-            configStore.save(tunnel.name, config)
+            val backend = getBackend()
+            VcsManagedClient.withTunnelAuthorization(context, tunnel.name) {
+                backend.setState(tunnel, tunnel.state, config)
+                configStore.save(tunnel.name, config)
+            }
         })!!
     }
 
     suspend fun setTunnelName(tunnel: ObservableTunnel, name: String): String = withContext(Dispatchers.Main.immediate) {
+        VcsManagedClient.tunnelAccountScope(context).requireAccess(name)
         if (Tunnel.isNameInvalid(name))
             throw IllegalArgumentException(context.getString(R.string.tunnel_error_invalid_name))
         if (tunnelMap.containsKey(name)) {
             throw IllegalArgumentException(context.getString(R.string.tunnel_error_already_exists, name))
         }
+        VcsManagedClient.tunnelAccountScope(context).requireAccess(tunnel.name)
         val originalState = tunnel.state
         val wasLastUsed = tunnel == lastUsedTunnel
         // Make sure nothing touches the tunnel.
@@ -190,11 +231,16 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
         var newName: String? = null
         try {
             if (originalState == Tunnel.State.UP)
-                withContext(Dispatchers.IO) { getBackend().setState(tunnel, Tunnel.State.DOWN, null) }
-            withContext(Dispatchers.IO) { configStore.rename(tunnel.name, name) }
+                setBackendState(tunnel, Tunnel.State.DOWN, null)
+            withContext(Dispatchers.IO) {
+                VcsManagedClient.withTunnelAuthorization(context, tunnel.name) {
+                    VcsManagedClient.claimManagedTunnelRename(context, tunnel.name, name)
+                    configStore.rename(tunnel.name, name)
+                }
+            }
             newName = tunnel.onNameChanged(name)
             if (originalState == Tunnel.State.UP)
-                withContext(Dispatchers.IO) { getBackend().setState(tunnel, Tunnel.State.UP, tunnel.config) }
+                setBackendState(tunnel, Tunnel.State.UP, tunnel.config)
         } catch (e: Throwable) {
             throwable = e
             // On failure, we don't know what state the tunnel might be in. Fix that.
@@ -213,7 +259,8 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
         var newState = tunnel.state
         var throwable: Throwable? = null
         try {
-            newState = withContext(Dispatchers.IO) { getBackend().setState(tunnel, state, tunnel.getConfigAsync()) }
+            val config = if (state == Tunnel.State.DOWN) null else tunnel.getConfigAsync()
+            newState = setBackendState(tunnel, state, config)
             if (newState == Tunnel.State.UP)
                 lastUsedTunnel = tunnel
         } catch (e: Throwable) {
@@ -250,12 +297,11 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
         if (targets.isEmpty()) return@withContext
 
         Log.i(TAG, "Restarting ${targets.size} running tunnel(s) after internet connectivity restored")
-        val backend = getBackend()
         for ((tunnel, config) in targets) {
             try {
-                withContext(Dispatchers.IO) { backend.setState(tunnel, Tunnel.State.DOWN, null) }
+                setBackendState(tunnel, Tunnel.State.DOWN, null)
                 delay(350)
-                val newState = withContext(Dispatchers.IO) { backend.setState(tunnel, Tunnel.State.UP, config) }
+                val newState = setBackendState(tunnel, Tunnel.State.UP, config)
                 tunnel.onStateChanged(newState)
                 if (newState == Tunnel.State.UP) lastUsedTunnel = tunnel
             } catch (e: Throwable) {

@@ -11,6 +11,11 @@ import com.wireguard.android.backend.Tunnel
 /** The same VPN activation and private terminal activity for list and detail. */
 object ManagedWebTerminalLauncher {
     suspend fun open(context: Context, terminal: VcsManagedClient.WebTerminalLink) {
+        if (!VcsManagedClient.isCurrentWebTerminalUrl(context, terminal.url) ||
+            terminal.requiredTunnelName?.let { !VcsManagedClient.canUseLocalTunnel(context, it) } == true) {
+            Toast.makeText(context, R.string.web_terminal_current_account_required, Toast.LENGTH_LONG).show()
+            return
+        }
         Toast.makeText(context, R.string.web_terminal_opening, Toast.LENGTH_SHORT).show()
         val requiredTunnelName = terminal.requiredTunnelName
         if (!requiredTunnelName.isNullOrBlank()) {

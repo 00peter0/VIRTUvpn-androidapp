@@ -445,12 +445,9 @@ class TunnelListFragment : BaseFragment() {
             val sectionTitle = (requireActivity() as? MainActivity)?.titleForTunnelSection(section)
                 ?: getString(R.string.vcs_tunnels_title)
             val names = VcsManagedClient.localTunnelNamesForSection(requireContext(), section)
-            val filtered = if (section.isNullOrBlank()) {
-                allTunnels
-            } else {
-                ObservableKeyedArrayList<String, ObservableTunnel>().apply {
-                    addAll(allTunnels.filter { names.contains(it.name) })
-                }
+            val scope = VcsManagedClient.tunnelAccountScope(requireContext())
+            val filtered = ObservableKeyedArrayList<String, ObservableTunnel>().apply {
+                addAll(allTunnels.filter { scope.permits(it.name) && (section.isNullOrBlank() || it.name in names) })
             }
             displayedTunnels = filtered
             activeBinding.tunnels = filtered

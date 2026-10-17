@@ -157,6 +157,7 @@ class QuickTileService : TileService() {
     private fun updateTile() {
         // Update the tunnel.
         val newTunnel = Application.getTunnelManager().lastUsedTunnel
+            ?.takeIf { VcsManagedClient.canUseLocalTunnel(this, it.name) }
         if (newTunnel != tunnel) {
             tunnel?.removeOnPropertyChangedCallback(onStateChangedCallback)
             tunnel = newTunnel

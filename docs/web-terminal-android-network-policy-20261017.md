@@ -52,3 +52,19 @@ alone is not proof of terminal connectivity.
 
 Future VCS address pool changes must update the exact-host resource and tests
 in this same release path. Never enable global cleartext as a workaround.
+
+## Phone acceptance and account-isolation follow-up
+
+Version 915 was installed through the real signed in-app update on the phone,
+retaining its UID, first-install date and the Single server tunnel. The user
+confirmed that the previously blocked terminal connects. The actual Android
+policy accepted all 430 allocated gateways. An additional assertion about
+loopback was invalid on this phone's Android 17: the OS adds an implicit local
+loopback exception. The corrected test records that behavior and verifies that
+Secured Browser still rejects loopback HTTP. No HTTP browser restriction was
+removed to accommodate the test.
+
+A technical launch of the legacy unfiltered tunnel list exposed a separate
+account-isolation defect: retained profiles from a previous account could be
+activated. This is addressed in version 916 with a shared ownership boundary;
+see [the account isolation audit](managed-vpn-account-isolation-20261017.md).

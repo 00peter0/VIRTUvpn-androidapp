@@ -128,7 +128,11 @@ class TvMainActivity : AppCompatActivity() {
         if (!VcsAuthGate.requireSignedIn(this)) return
         binding = TvActivityBinding.inflate(layoutInflater)
         lifecycleScope.launch {
-            binding.tunnels = Application.getTunnelManager().getTunnels()
+            binding.tunnels = Application.getTunnelManager().getTunnels().let { tunnels ->
+                com.wireguard.android.databinding.ObservableKeyedArrayList<String, com.wireguard.android.model.ObservableTunnel>().apply {
+                    addAll(tunnels.filter { com.wireguard.android.vcs.VcsManagedClient.canUseLocalTunnel(this@TvMainActivity, it.name) })
+                }
+            }
             if (binding.tunnels?.isEmpty() == true)
                 binding.importButton.requestFocus()
             else

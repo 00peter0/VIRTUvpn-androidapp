@@ -599,4 +599,5 @@
     <string name="vcs_optional_account_status">VCS not connected (optional for Secure Browser and third-party VPN Router)</string>
     <string name="vcs_widget_path_separator" translatable="false">&gt;</string>
     <string name="log_viewer_share_logs">Share logs</string>
+    <string name="web_terminal_current_account_required" translatable="false">Sync your current VCS account before opening its Web Terminal.</string>
 </resources>
