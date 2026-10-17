@@ -27,14 +27,17 @@ import androidx.lifecycle.lifecycleScope
 import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.activity.HomeActivity
+import com.wireguard.android.activity.MainActivity
 import com.wireguard.android.activity.SecureBrowserActivity
 import com.wireguard.android.vcs.ManagedWebTerminalLauncher
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.databinding.TunnelDetailFragmentBinding
 import com.wireguard.android.model.ObservableTunnel
+import com.wireguard.android.util.VcsDialogs
 import com.wireguard.android.vcs.VcsManagedClient
 import com.wireguard.config.Config
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -44,6 +47,7 @@ import java.net.URL
 
 class TunnelDetailFragment : BaseFragment(), MenuProvider {
     private var binding: TunnelDetailFragmentBinding? = null
+    private var publicIdentityJob: Job? = null
 
     override fun onMenuItemSelected(menuItem: MenuItem): Boolean = false
     override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
@@ -67,13 +71,25 @@ class TunnelDetailFragment : BaseFragment(), MenuProvider {
             startActivity(Intent(requireContext(), SecureBrowserActivity::class.java))
         }
         binding?.publicIdentityCard?.setOnClickListener { refreshPublicIdentity() }
+        binding?.connectionScopeInfo?.setOnClickListener {
+            VcsDialogs.show(
+                context = requireContext(),
+                title = getString(R.string.vcs_private_connection_info_title),
+                message = getString(R.string.vcs_private_connection_info),
+                positive = VcsDialogs.action(requireContext(), android.R.string.ok, primary = true)
+            )
+        }
         binding?.dnsCard?.setOnClickListener {
-            startActivity(Intent(requireContext(), SecureBrowserActivity::class.java)
-                .putExtra(SecureBrowserActivity.EXTRA_INITIAL_URL, "https://dnscheck.tools/"))
+            if (VcsManagedClient.supportsInternetDiagnostics(requireContext(), selectedTunnel?.name)) {
+                startActivity(Intent(requireContext(), SecureBrowserActivity::class.java)
+                    .putExtra(SecureBrowserActivity.EXTRA_INITIAL_URL, "https://dnscheck.tools/"))
+            }
         }
     }
 
     override fun onDestroyView() {
+        publicIdentityJob?.cancel()
+        publicIdentityJob = null
         binding = null
         super.onDestroyView()
     }
@@ -81,18 +97,29 @@ class TunnelDetailFragment : BaseFragment(), MenuProvider {
     override fun onSelectedTunnelChanged(oldTunnel: ObservableTunnel?, newTunnel: ObservableTunnel?) {
         val binding = binding ?: return
         binding.tunnel = newTunnel
+        publicIdentityJob?.cancel()
+        val internetDiagnostics = VcsManagedClient.supportsInternetDiagnostics(requireContext(), newTunnel?.name)
+        binding.publicIdentityCard.visibility = if (internetDiagnostics) View.VISIBLE else View.GONE
+        binding.dnsCard.visibility = if (internetDiagnostics) View.VISIBLE else View.GONE
+        val privateAccess = !internetDiagnostics && newTunnel != null && listOf(
+            MainActivity.TUNNEL_SECTION_SINGLE_SERVER,
+            MainActivity.TUNNEL_SECTION_MANAGED_ACCESS_S2S_CLUSTER,
+            MainActivity.TUNNEL_SECTION_AGENT_GATEWAY
+        ).any { newTunnel.name in VcsManagedClient.localTunnelNamesForSection(requireContext(), it) }
+        binding.connectionScopeInfo.visibility = if (privateAccess) View.VISIBLE else View.GONE
         if (newTunnel == null) {
             binding.config = null
             updateWebTerminalInfo(null)
         } else {
             updateWebTerminalInfo(newTunnel.name)
-            lifecycleScope.launch {
+            viewLifecycleOwner.lifecycleScope.launch {
                 try {
                     val config = newTunnel.getConfigAsync()
+                    if (this@TunnelDetailFragment.binding !== binding || binding.tunnel !== newTunnel) return@launch
                     binding.config = config
                     updateIpInfo(config)
                 } catch (_: Throwable) {
-                    binding.config = null
+                    if (this@TunnelDetailFragment.binding === binding && binding.tunnel === newTunnel) binding.config = null
                 }
             }
         }
@@ -142,15 +169,18 @@ class TunnelDetailFragment : BaseFragment(), MenuProvider {
     // public internet through the current tunnel (egress IP + geo). Reflects the
     // VPN exit for full-tunnel routes, or the device's own connection otherwise.
     private fun refreshPublicIdentity() {
+        val tunnelName = selectedTunnel?.name ?: return
+        if (!VcsManagedClient.supportsInternetDiagnostics(requireContext(), tunnelName)) return
         val binding = binding ?: return
+        publicIdentityJob?.cancel()
         binding.publicIdentityIp.text = getString(R.string.stat_checking)
         binding.publicIdentityIpv6.text = ""
         binding.publicIdentityGeo.text = ""
-        lifecycleScope.launch {
+        publicIdentityJob = viewLifecycleOwner.lifecycleScope.launch {
             // Force IPv4 and IPv6 egress separately (plain-text echo endpoints).
             val ip4 = withContext(Dispatchers.IO) { fetchText("https://ipv4.icanhazip.com") }
             val ip6 = withContext(Dispatchers.IO) { fetchText("https://ipv6.icanhazip.com") }
-            val b = binding ?: return@launch
+            val b = this@TunnelDetailFragment.binding?.takeIf { it.tunnel?.name == tunnelName } ?: return@launch
             if (ip4.isNullOrBlank() && ip6.isNullOrBlank()) {
                 b.publicIdentityIp.text = getString(R.string.stat_no_data)
                 b.publicIdentityIpv6.text = ""
@@ -164,7 +194,7 @@ class TunnelDetailFragment : BaseFragment(), MenuProvider {
             val geoIp = ip4?.takeIf { it.isNotBlank() } ?: ip6
             if (!geoIp.isNullOrBlank()) {
                 val geo = withContext(Dispatchers.IO) { fetchText("https://ipwho.is/$geoIp") }
-                val b2 = binding ?: return@launch
+                val b2 = this@TunnelDetailFragment.binding?.takeIf { it.tunnel?.name == tunnelName } ?: return@launch
                 if (geo != null) {
                     try {
                         val json = JSONObject(geo)

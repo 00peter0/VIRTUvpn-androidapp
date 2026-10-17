@@ -7,6 +7,21 @@
         android:title="@string/vcs_home_agent_gateway"
         app:showAsAction="never" />
     <item
+        android:id="@+id/menu_vcs_enroll"
+        android:orderInCategory="30"
+        android:title="@string/vcs_enroll_device"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/menu_vcs_sync"
+        android:orderInCategory="40"
+        android:title="@string/vcs_sync_now"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/menu_vcs_updates"
+        android:orderInCategory="50"
+        android:title="@string/vcs_check_updates"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/menu_vcs_language"
         android:icon="@drawable/ic_language"
         android:orderInCategory="5"

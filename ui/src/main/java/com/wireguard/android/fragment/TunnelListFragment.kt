@@ -64,17 +64,17 @@ class TunnelListFragment : BaseFragment() {
     private var pingLoopJob: kotlinx.coroutines.Job? = null
     private var managedSyncActive = false
 
-    fun hasSingleServerTerminal(tunnel: ObservableTunnel?): Boolean {
+    fun hasWebTerminal(tunnel: ObservableTunnel?): Boolean {
         if (tunnel == null) return false
         val ctx = context ?: return false
-        return currentTunnelSection() == MainActivity.TUNNEL_SECTION_SINGLE_SERVER &&
+        return VcsManagedClient.canUseLocalTunnel(ctx, tunnel.name) &&
             VcsManagedClient.webTerminalForTunnel(ctx, tunnel.name) != null
     }
 
     fun onWebTerminalClick(view: View, tunnel: ObservableTunnel?) {
         if (tunnel == null) return
         val ctx = context ?: return
-        if (!hasSingleServerTerminal(tunnel)) return
+        if (!hasWebTerminal(tunnel)) return
         val terminal = VcsManagedClient.webTerminalForTunnel(ctx, tunnel.name) ?: return
         view.isEnabled = false
         viewLifecycleOwner.lifecycleScope.launch {

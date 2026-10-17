@@ -25,6 +25,9 @@ internal object ManagedTunnelAccountChecks {
             }
         }
         for (tunnel in foreign) {
+            check(!VcsManagedClient.supportsInternetDiagnostics(context, tunnel.name)) {
+                "Foreign profile offered account-scoped internet diagnostics"
+            }
             blocked { manager.setTunnelState(tunnel, Tunnel.State.UP) }
             blocked { manager.setTunnelState(tunnel, Tunnel.State.TOGGLE) }
             blocked { tunnel.setStateAsync(Tunnel.State.UP) }
@@ -38,6 +41,7 @@ internal object ManagedTunnelAccountChecks {
             "Retained foreign profiles: ${foreign.size}; current managed profiles: ${own.size}",
             "Foreign UP, TOGGLE and observable activation rejected before backend activation",
             "Foreign direct/cached configuration reads and export inputs rejected",
+            "Foreign profiles cannot offer internet diagnostics under the current account",
             "All retained configuration files preserved; active VPN unchanged by negative tests"
         )
     }

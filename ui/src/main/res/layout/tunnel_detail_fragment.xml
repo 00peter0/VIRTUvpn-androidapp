@@ -83,6 +83,16 @@
                             tools:text="Connected" />
                     </LinearLayout>
 
+                    <ImageButton
+                        android:id="@+id/connection_scope_info"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/vcs_private_connection_info_title"
+                        android:padding="12dp"
+                        android:src="@drawable/ic_info_outline"
+                        android:visibility="gone" />
+
                     <com.wireguard.android.widget.ToggleSwitch
                         android:id="@+id/tunnel_detail_switch"
                         android:layout_width="wrap_content"
@@ -94,6 +104,8 @@
 
                 <LinearLayout
                     android:id="@+id/public_identity_card"
+                    android:visibility="gone"
+                    tools:visibility="visible"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
@@ -219,6 +231,8 @@
 
                 <LinearLayout
                     android:id="@+id/dns_card"
+                    android:visibility="gone"
+                    tools:visibility="visible"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"

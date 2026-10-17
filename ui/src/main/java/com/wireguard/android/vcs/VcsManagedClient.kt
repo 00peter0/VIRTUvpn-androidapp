@@ -558,6 +558,13 @@ object VcsManagedClient {
         return names
     }
 
+    /** Internet checks belong to internet-capable sections, never private-only access profiles. */
+    fun supportsInternetDiagnostics(context: Context, tunnelName: String?): Boolean {
+        if (tunnelName.isNullOrBlank() || !canUseLocalTunnel(context, tunnelName)) return false
+        return tunnelName in localTunnelNamesForSection(context, MainActivity.TUNNEL_SECTION_VPN_MESH) ||
+            tunnelName in localTunnelNamesForSection(context, MainActivity.TUNNEL_SECTION_MANAGED_ACCESS_VPN_CLUSTER)
+    }
+
     fun displayNameForLocalTunnel(context: Context, localTunnelName: String): String? {
         if (localTunnelName.isBlank()) return null
         val assignments = loadAssignments(context)

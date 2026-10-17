@@ -96,10 +96,7 @@ class HomeActivity : AppCompatActivity() {
         binding.managedAccessVpnClusterButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_MANAGED_ACCESS_VPN_CLUSTER) }
         binding.managedAccessS2sClusterButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_MANAGED_ACCESS_S2S_CLUSTER) }
         binding.singleServerButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_SINGLE_SERVER) }
-        binding.enrollButton.setOnClickListener { showEnrollDialog() }
-        binding.syncButton.setOnClickListener { syncManagedAccess() }
         binding.deviceDiagnosticsButton.setOnClickListener { startActivity(Intent(this, DeviceDiagnosticsActivity::class.java)) }
-        binding.checkUpdatesButton.setOnClickListener { checkUpdates() }
         lifecycleScope.launch {
             lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
                 while (isActive) {
@@ -110,7 +107,6 @@ class HomeActivity : AppCompatActivity() {
                     val elapsed = if (started > 0) ((status.optLong("finishedAt", System.currentTimeMillis()) - started) / 1000).coerceAtLeast(0) else 0
                     val update = com.wireguard.android.vcs.ManagedApkUpdates.progress(this@HomeActivity)
                     binding.managedSyncStatus.text = getString(R.string.vcs_sync_status_summary, phase, elapsed, update)
-                    binding.syncButton.isEnabled = phase != "Synchronizing"
                     delay(1000)
                 }
             }
@@ -387,6 +383,8 @@ class HomeActivity : AppCompatActivity() {
         menu.findItem(R.id.menu_vcs_account)?.setTitle(
             if (VcsManagedClient.hasAccountSession(this)) R.string.vcs_account_title else R.string.vcs_home_account
         )
+        menu.findItem(R.id.menu_vcs_sync)?.isEnabled =
+            VcsManagedClient.syncStatus(this).optString("phase") != "Synchronizing"
         return super.onPrepareOptionsMenu(menu)
     }
 
@@ -394,6 +392,18 @@ class HomeActivity : AppCompatActivity() {
         return when (item.itemId) {
             R.id.menu_vcs_connections -> {
                 if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_AGENT_GATEWAY)
+                true
+            }
+            R.id.menu_vcs_enroll -> {
+                showEnrollDialog()
+                true
+            }
+            R.id.menu_vcs_sync -> {
+                if (VcsManagedClient.syncStatus(this).optString("phase") != "Synchronizing") syncManagedAccess()
+                true
+            }
+            R.id.menu_vcs_updates -> {
+                checkUpdates()
                 true
             }
             R.id.menu_vcs_language -> {
@@ -600,7 +610,6 @@ class HomeActivity : AppCompatActivity() {
 
     private fun updateSignedInState() {
         val signedIn = VcsManagedClient.hasAccountSession(this)
-        val enrolled = VcsManagedClient.hasSession(this)
         listOf(
             binding.vpnMeshButton,
             binding.managedAccessVpnClusterButton,
@@ -608,12 +617,7 @@ class HomeActivity : AppCompatActivity() {
             binding.singleServerButton
         ).forEach { setProtectedButtonState(it, signedIn) }
         setProtectedButtonState(binding.secureBrowserButton, true)
-        listOf(
-            binding.syncButton,
-            binding.checkUpdatesButton
-        ).forEach { setProtectedButtonState(it, signedIn || enrolled) }
         updateVpnRouterButtonState(lastVpnRouterStatus)
-        binding.enrollButtonLabel.setText(R.string.vcs_enroll_device)
         invalidateOptionsMenu()
     }
 
