@@ -16,6 +16,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.edit
 import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
 import androidx.core.view.ViewCompat
@@ -85,7 +86,7 @@ class PermissionsActivity : AppCompatActivity() {
         row.permissionAction.setOnClickListener {
             val permission = requestableRuntimePermission(key)
             if (permission != null) {
-                prompts.edit().putBoolean(permission, true).apply()
+                prompts.edit { putBoolean(permission, true) }
                 runtime.launch(permission)
             } else action()
         }
