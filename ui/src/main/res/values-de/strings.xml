@@ -540,7 +540,7 @@
     <string name="dns_not_configured">VPN-DNS nicht konfiguriert — DNS-Auflösung überprüfen</string>
     <string name="dns_not_set">Nicht festgelegt</string>
     <string name="dns_test_link">Test ↗ Secured Browser</string>
-    <string name="dns_test_scope">Der Test gilt nur für den Secured Browser. Andere Browser können IP-Adressen über WebRTC offenlegen.</string>
+    <string name="dns_test_scope">Prüfe die öffentlichen IPv4-/IPv6-Adressen und DNS-Resolver, die dnscheck.tools erkennt. Der Test öffnet sich im Secured Browser, der die Adressweitergabe über WebRTC blockiert.</string>
     <string name="web_terminal">Webterminal</string>
     <string name="open_terminal">Terminal öffnen</string>
     <string name="terminal_url_copied">Terminal-URL kopiert</string>

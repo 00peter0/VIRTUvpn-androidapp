@@ -552,7 +552,7 @@
     <string name="dns_not_configured">DNS VPN non configurato — verificare la risoluzione DNS</string>
     <string name="dns_not_set">Non impostato</string>
     <string name="dns_test_link">Test ↗ Secured Browser</string>
-    <string name="dns_test_scope">Il test riguarda solo Secured Browser. Altri browser possono esporre indirizzi IP tramite WebRTC.</string>
+    <string name="dns_test_scope">Controlla gli indirizzi IPv4/IPv6 pubblici e i resolver DNS visibili a dnscheck.tools. Il test si apre in Secured Browser, che blocca la divulgazione degli indirizzi tramite WebRTC.</string>
     <string name="web_terminal">Terminale web</string>
     <string name="open_terminal">Apri terminale</string>
     <string name="terminal_url_copied">URL del terminale copiato</string>

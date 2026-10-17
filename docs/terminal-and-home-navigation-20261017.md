@@ -21,7 +21,11 @@ are shown only for profiles in VPN Mesh or VPN Cluster. Private Single server,
 S2S and standalone Connections do not display these cards and do not initiate
 the public identity HTTP probes. DNS and routing in the actual tunnel config
 remain unchanged. The check continues to describe Secured Browser's evidence
-only; it does not certify every browser or application on Android.
+observed through the current browser connection; it does not certify every
+application on Android. The version 918 wording clarifies that dnscheck.tools
+shows public IPv4/IPv6 and DNS resolvers, and that Secured Browser blocks WebRTC
+address exposure. The previous blanket phrase about testing only Secured Browser
+was unclear and is removed from English, German, French and Italian resources.
 
 Private server/infrastructure profiles have a compact information icon explaining
 split routing: public internet IPv4/IPv6 still uses the phone's Wi-Fi/mobile
