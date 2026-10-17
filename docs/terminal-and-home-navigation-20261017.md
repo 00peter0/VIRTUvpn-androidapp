@@ -68,6 +68,13 @@ available; the same layout remains suitable for larger Android font settings.
 New help should reuse this control (`app:infoTitle` and `app:infoMessage`) instead
 of introducing another popup or repeating a long paragraph on the main screen.
 
+Phone acceptance also found that the Router root did not consume system/action-bar
+insets. Its overview help could sit under the action bar on Android API 37.
+Version 918 makes the Router root fit system windows, matching the existing Home
+and main tunnel screens. This changes layout only. Android documents inset
+handling for [edge-to-edge views](https://developer.android.com/develop/ui/views/layout/edge-to-edge)
+and [action-bar overlays](https://developer.android.com/reference/androidx/core/view/WindowCompat#FEATURE_ACTION_BAR_OVERLAY).
+
 | Area reviewed | Information moved to contextual help | Kept directly visible |
 | --- | --- | --- |
 | Home | Secured Browser / protection explanation | VPN state, Android protection state, hotspot warning, main actions |
