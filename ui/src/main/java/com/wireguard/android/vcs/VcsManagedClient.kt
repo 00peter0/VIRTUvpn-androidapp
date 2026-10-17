@@ -96,6 +96,7 @@ object VcsManagedClient {
     private data class ValidatedUpdateUrl(val value: String)
     private data class DeviceJsonResponse(val json: JSONObject, val session: Session)
     private class MobileHttpException(val status: Int, override val message: String) : IllegalStateException(message)
+    class DeviceChoiceRequired(val devices: List<DeviceReconnectOption>) : IllegalStateException("Choose an existing device to reconnect, or explicitly register another device.")
     private data class AccountSession(
         val apiBase: String,
         val token: String,
@@ -162,11 +163,14 @@ object VcsManagedClient {
         return loadSession(context)?.let { SessionInfo(it.apiBase, it.deviceId) }
     }
 
-    suspend fun signInAccount(context: Context, apiBaseUrl: String, email: String, password: String): AccountInfo = withContext(Dispatchers.IO) {
+    suspend fun signInAccount(context: Context, apiBaseUrl: String, email: String, password: String,
+        choice: DeviceRegistrationChoice = DeviceRegistrationChoice()): AccountInfo = withContext(Dispatchers.IO) {
         val normalizedBase = normalizeApiBase(apiBaseUrl)
         val body = deviceRegistrationBody(context, normalizedBase)
             .put("email", email.trim())
             .put("password", password)
+        choice.reconnectDeviceId?.let { body.put("reconnectDeviceId", it) }
+        if (choice.registerNewDevice) body.put("registerNewDevice", true)
         val response = requestJson("POST", "$normalizedBase/api/mobile/android/auth/login", body, null)
         storeAccountSession(context, normalizedBase, response)
     }
@@ -1147,7 +1151,19 @@ object VcsManagedClient {
         val stream = if (status in 200..299) connection.inputStream else connection.errorStream
         val text = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
         if (status !in 200..299) {
-            val message = runCatching { JSONObject(text).optString("error") }.getOrNull()?.takeIf { it.isNotBlank() } ?: "HTTP $status"
+            val error = runCatching { JSONObject(text) }.getOrNull()
+            if (status == HttpURLConnection.HTTP_CONFLICT && error?.optString("code") == "ANDROID_DEVICE_CHOICE_REQUIRED") {
+                val devices = runCatching {
+                    val list = error.getJSONArray("devices")
+                    check(list.length() in 1..20)
+                    (0 until list.length()).map { index ->
+                        val device = list.getJSONObject(index)
+                        DeviceReconnectOption(device.getString("id"), device.getString("name"), device.getInt("assignedTunnels"))
+                    }
+                }.getOrNull()
+                if (devices != null) throw DeviceChoiceRequired(devices)
+            }
+            val message = error?.optString("error")?.takeIf { it.isNotBlank() } ?: "HTTP $status"
             throw MobileHttpException(status, message)
         }
         return if (text.isBlank()) JSONObject() else JSONObject(text)

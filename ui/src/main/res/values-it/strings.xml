@@ -589,4 +589,12 @@
     </plurals>
     <string name="vcs_sync_error">Sincronizzazione VCS non riuscita: %1$s</string>
     <string name="vcs_copy_label">Copia</string>
+    <string name="vcs_reconnect_choose_title">Ricollegare un dispositivo esistente?</string>
+    <string name="vcs_reconnect_device_option">%1$s · Profili VPN: %2$d</string>
+    <string name="vcs_reconnect_add_another">Aggiungi un altro dispositivo</string>
+    <string name="vcs_reconnect_confirm_title">Ricollega questa installazione</string>
+    <string name="vcs_reconnect_confirm_message">Ricollegare %1$s? I profili VPN assegnati vengono mantenuti. Le credenziali del dispositivo saranno rinnovate per questa installazione. I profili VPN esistenti e le attività del server non vengono eliminati.</string>
+    <string name="vcs_reconnect_confirm">Ricollega dispositivo</string>
+    <string name="vcs_reconnect_new_title">Registrare un altro dispositivo?</string>
+    <string name="vcs_reconnect_new_message">Questa operazione crea un dispositivo aggiuntivo e occupa un altro posto. Le assegnazioni VPN precedenti restano sul dispositivo esistente.</string>
 </resources>

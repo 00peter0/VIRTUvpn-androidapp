@@ -45,6 +45,8 @@ import com.wireguard.android.util.VpnRouterAttestation
 import com.wireguard.android.util.VpnRouterManager
 import com.wireguard.android.util.VpnRouterOperationFormatter
 import com.wireguard.android.vcs.VcsManagedClient
+import com.wireguard.android.vcs.DeviceRegistrationChoice
+import com.wireguard.android.vcs.DeviceReconnectOption
 import com.wireguard.android.widget.ToggleSwitch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -640,7 +642,8 @@ class HomeActivity : AppCompatActivity() {
         val dialog = AlertDialog.Builder(this)
             .setView(dialogBinding.root)
             .create()
-        val submit = {
+        fun submit(choice: DeviceRegistrationChoice = DeviceRegistrationChoice()) {
+            if (!dialog.isShowing) return
             val email = dialogBinding.emailInput.text?.toString().orEmpty()
             val password = dialogBinding.passwordInput.text?.toString().orEmpty()
             if (email.isBlank() || password.isBlank()) {
@@ -650,7 +653,11 @@ class HomeActivity : AppCompatActivity() {
                 signIn(
                     email,
                     password,
+                    choice,
                     onSuccess = { dialog.dismiss() },
+                    onChoiceRequired = { devices ->
+                        if (dialog.isShowing) showDeviceReconnectChoice(devices) { submit(it) }
+                    },
                     onFinished = { setSignInDialogBusy(dialogBinding, false) }
                 )
             }
@@ -681,10 +688,28 @@ class HomeActivity : AppCompatActivity() {
         dialogBinding.signInButton.setText(if (busy) R.string.vcs_sign_in_running else R.string.vcs_sign_in)
     }
 
-    private fun signIn(email: String, password: String, onSuccess: () -> Unit = {}, onFinished: () -> Unit = {}) {
+    private fun showDeviceReconnectChoice(devices: List<DeviceReconnectOption>, onChoice: (DeviceRegistrationChoice) -> Unit) {
+        VcsDialogs.showChoice(this, getString(R.string.vcs_reconnect_choose_title),
+            devices.map { getString(R.string.vcs_reconnect_device_option, it.name, it.assignedTunnels) } +
+                getString(R.string.vcs_reconnect_add_another)) { index ->
+            val selected = devices.getOrNull(index)
+            VcsDialogs.show(this,
+                title = getString(if (selected != null) R.string.vcs_reconnect_confirm_title else R.string.vcs_reconnect_new_title),
+                message = if (selected != null) getString(R.string.vcs_reconnect_confirm_message, selected.name)
+                    else getString(R.string.vcs_reconnect_new_message),
+                negative = VcsDialogs.action(this, android.R.string.cancel),
+                positive = VcsDialogs.action(this, if (selected != null) R.string.vcs_reconnect_confirm else R.string.vcs_reconnect_add_another, primary = true) {
+                    onChoice(if (selected != null) DeviceRegistrationChoice(reconnectDeviceId = selected.id)
+                        else DeviceRegistrationChoice(registerNewDevice = true))
+                })
+        }
+    }
+
+    private fun signIn(email: String, password: String, choice: DeviceRegistrationChoice,
+        onSuccess: () -> Unit = {}, onChoiceRequired: (List<DeviceReconnectOption>) -> Unit = {}, onFinished: () -> Unit = {}) {
         lifecycleScope.launch {
             try {
-                val account = VcsManagedClient.signInAccount(this@HomeActivity, baseUrl, email, password)
+                val account = VcsManagedClient.signInAccount(this@HomeActivity, baseUrl, email, password, choice)
                 updateSignedInState()
                 Toast.makeText(
                     this@HomeActivity,
@@ -692,6 +717,8 @@ class HomeActivity : AppCompatActivity() {
                     Toast.LENGTH_LONG
                 ).show()
                 onSuccess()
+            } catch (e: VcsManagedClient.DeviceChoiceRequired) {
+                onChoiceRequired(e.devices)
             } catch (e: Throwable) {
                 Toast.makeText(this@HomeActivity, getString(R.string.vcs_sign_in_failed, e.message ?: e.javaClass.simpleName), Toast.LENGTH_LONG).show()
             } finally {

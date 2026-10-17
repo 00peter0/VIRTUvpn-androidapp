@@ -574,4 +574,12 @@
     </plurals>
     <string name="vcs_sync_error">VCS-Synchronisierung fehlgeschlagen: %1$s</string>
     <string name="vcs_copy_label">Kopieren</string>
+    <string name="vcs_reconnect_choose_title">Bestehendes Gerät erneut verbinden?</string>
+    <string name="vcs_reconnect_device_option">%1$s · VPN-Profile: %2$d</string>
+    <string name="vcs_reconnect_add_another">Weiteres Gerät hinzufügen</string>
+    <string name="vcs_reconnect_confirm_title">Diese Installation erneut verbinden</string>
+    <string name="vcs_reconnect_confirm_message">%1$s erneut verbinden? Die zugewiesenen VPN-Profile bleiben erhalten. Die Gerätezugangsdaten werden für diese Installation erneuert. Bestehende VPN-Profile und Serveraufgaben werden nicht gelöscht.</string>
+    <string name="vcs_reconnect_confirm">Gerät erneut verbinden</string>
+    <string name="vcs_reconnect_new_title">Weiteres Gerät registrieren?</string>
+    <string name="vcs_reconnect_new_message">Dadurch wird ein zusätzliches Gerät angelegt und ein weiterer Geräteplatz belegt. Bisherige VPN-Zuweisungen bleiben beim bestehenden Gerät.</string>
 </resources>
