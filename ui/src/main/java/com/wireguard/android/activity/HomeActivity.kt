@@ -24,6 +24,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -78,6 +79,14 @@ class HomeActivity : AppCompatActivity() {
     private var vpnRouterExpanded = false
     private var routerOperationDialog: AlertDialog? = null
     private var routerOperationDialogMessage: TextView? = null
+    private var pendingHomeVpnName: String? = null
+    private val vpnPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val name = pendingHomeVpnName
+        pendingHomeVpnName = null
+        if (result.resultCode == android.app.Activity.RESULT_OK && name != null && name == vpnStatusToggleTargetName)
+            toggleHomeVpnStatus(true)
+        else updateVpnStatus()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -342,6 +351,12 @@ class HomeActivity : AppCompatActivity() {
                     refreshVpnStatus()
                     return@launch
                 }
+                if (checked && Application.getBackend() is com.wireguard.android.backend.GoBackend &&
+                    android.net.VpnService.prepare(this@HomeActivity) != null) {
+                    pendingHomeVpnName = target.name
+                    vpnPermission.launch(PermissionsActivity.intent(this@HomeActivity, PermissionsActivity.VPN))
+                    return@launch
+                }
                 val requestedState = if (checked) Tunnel.State.UP else Tunnel.State.DOWN
                 val actualState = target.setStateAsync(requestedState)
                 VcsManagedClient.reportTunnelTransition(this@HomeActivity, target.name, requestedState, actualState)
@@ -391,6 +406,10 @@ class HomeActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
+            R.id.menu_vcs_permissions -> {
+                startActivity(PermissionsActivity.intent(this))
+                true
+            }
             R.id.menu_vcs_enroll -> {
                 showEnrollDialog()
                 true
@@ -1058,7 +1077,7 @@ class HomeActivity : AppCompatActivity() {
         hasActiveVirtuTunnel || lastVpnRouterStatus?.routerActive == true
 
     private fun openVpnSettings() {
-        startActivity(Intent(Settings.ACTION_VPN_SETTINGS))
+        startActivity(PermissionsActivity.intent(this, PermissionsActivity.KILL_SWITCH))
     }
 
     private fun openVpnApp(section: String) {

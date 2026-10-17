@@ -4,6 +4,7 @@
  */
 package com.wireguard.android.fragment
 
+import android.app.Activity
 import android.content.Context
 import android.util.Log
 import android.view.View
@@ -17,6 +18,7 @@ import com.google.android.material.snackbar.Snackbar
 import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.activity.BaseActivity
+import com.wireguard.android.activity.PermissionsActivity
 import com.wireguard.android.activity.BaseActivity.OnSelectedTunnelChangedListener
 import com.wireguard.android.backend.GoBackend
 import com.wireguard.android.backend.Tunnel
@@ -33,10 +35,10 @@ import kotlinx.coroutines.launch
 abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
     private var pendingTunnel: ObservableTunnel? = null
     private var pendingTunnelUp: Boolean? = null
-    private val permissionActivityResultLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+    private val permissionActivityResultLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val tunnel = pendingTunnel
         val checked = pendingTunnelUp
-        if (tunnel != null && checked != null)
+        if (result.resultCode == Activity.RESULT_OK && tunnel != null && checked != null)
             setTunnelStateWithPermissionsResult(tunnel, checked)
         pendingTunnel = null
         pendingTunnelUp = null
@@ -67,13 +69,13 @@ abstract class BaseFragment : Fragment(), OnSelectedTunnelChangedListener {
         selectedTunnel = tunnel
         val activity = activity ?: return
         activity.lifecycleScope.launch {
-            if (Application.getBackend() is GoBackend) {
+            if (checked && Application.getBackend() is GoBackend) {
                 try {
                     val intent = GoBackend.VpnService.prepare(activity)
                     if (intent != null) {
                         pendingTunnel = tunnel
                         pendingTunnelUp = checked
-                        permissionActivityResultLauncher.launch(intent)
+                        permissionActivityResultLauncher.launch(PermissionsActivity.intent(activity, PermissionsActivity.VPN))
                         return@launch
                     }
                 } catch (e: Throwable) {

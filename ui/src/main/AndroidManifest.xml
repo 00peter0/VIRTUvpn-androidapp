@@ -78,6 +78,9 @@
         <activity android:name=".activity.DeviceDiagnosticsActivity" android:exported="false"
             android:label="@string/vcs_device_diagnostics" android:theme="@style/VcsDiagnosticsTheme" android:parentActivityName=".activity.HomeActivity" />
 
+        <activity android:name=".activity.PermissionsActivity" android:exported="false"
+            android:label="@string/vcs_permissions_title" android:theme="@style/VcsDiagnosticsTheme" android:parentActivityName=".activity.HomeActivity" />
+
         <activity android:name=".activity.ManagedUpdateActivity" android:exported="false"
             android:theme="@style/NoBackgroundTheme" />
         <receiver android:name=".vcs.UpdateInstallReceiver" android:exported="false" />

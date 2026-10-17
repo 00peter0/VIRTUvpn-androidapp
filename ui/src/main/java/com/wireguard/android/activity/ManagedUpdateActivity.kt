@@ -88,7 +88,7 @@ class ManagedUpdateActivity : AppCompatActivity() {
         permissionPrompted = true
         try {
             systemUiOpen = true
-            permission.launch(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, "package:$packageName".toUri()))
+            permission.launch(PermissionsActivity.intent(this, PermissionsActivity.INSTALL))
         } catch (_: Exception) { systemUiOpen = false }
     }
     private fun render(state: UpdateFlowState) {

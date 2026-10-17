@@ -32,6 +32,8 @@ import com.journeyapps.barcodescanner.ScanOptions
 import com.wireguard.android.Application
 import com.wireguard.android.R
 import com.wireguard.android.activity.MainActivity
+import com.wireguard.android.activity.PermissionsActivity
+import com.wireguard.android.util.AppPermissionAccess
 import com.wireguard.android.activity.TunnelCreatorActivity
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.databinding.ObservableKeyedArrayList
@@ -108,6 +110,11 @@ class TunnelListFragment : BaseFragment() {
                 }
             }
         }
+    }
+
+    private val cameraPermissionLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (isOtherTunnelsSection() && AppPermissionAccess.cameraAllowed(requireContext())) scanTunnelQr()
+        else if (isOtherTunnelsSection()) showSnackbar(getString(R.string.vcs_permissions_requested_missing))
     }
 
     private val qrImportResultLauncher = registerForActivityResult(ScanContract()) { result ->
@@ -247,6 +254,10 @@ class TunnelListFragment : BaseFragment() {
     }
 
     private fun scanTunnelQr() {
+        if (!AppPermissionAccess.cameraAllowed(requireContext())) {
+            cameraPermissionLauncher.launch(PermissionsActivity.intent(requireContext(), PermissionsActivity.CAMERA))
+            return
+        }
         qrImportResultLauncher.launch(
             ScanOptions()
                 .setDesiredBarcodeFormats(ScanOptions.QR_CODE)

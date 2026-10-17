@@ -4,6 +4,7 @@
  */
 package com.wireguard.android.activity
 
+import com.wireguard.android.util.AppPermissionAccess
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ClipData
@@ -138,8 +139,8 @@ class SecureBrowserActivity : AppCompatActivity() {
         confirmRouterPairing(pairing)
     }
 
-    private val cameraPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) {
+    private val cameraPermissionLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (AppPermissionAccess.cameraAllowed(this)) {
             launchRouterPairingScanner()
         } else {
             Toast.makeText(this, R.string.vcs_secure_browser_camera_permission_required, Toast.LENGTH_LONG).show()
@@ -884,10 +885,10 @@ class SecureBrowserActivity : AppCompatActivity() {
     }
 
     private fun scanRouterPairingQr() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+        if (AppPermissionAccess.cameraAllowed(this)) {
             launchRouterPairingScanner()
         } else {
-            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            cameraPermissionLauncher.launch(PermissionsActivity.intent(this, PermissionsActivity.CAMERA))
         }
     }
 

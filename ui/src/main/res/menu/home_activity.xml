@@ -17,6 +17,11 @@
         android:title="@string/vcs_check_updates"
         app:showAsAction="never" />
     <item
+        android:id="@+id/menu_vcs_permissions"
+        android:orderInCategory="25"
+        android:title="@string/vcs_permissions_title"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/menu_vcs_language"
         android:icon="@drawable/ic_language"
         android:orderInCategory="5"

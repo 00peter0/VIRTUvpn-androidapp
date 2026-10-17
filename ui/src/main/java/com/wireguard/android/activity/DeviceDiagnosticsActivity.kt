@@ -212,11 +212,11 @@ class DeviceDiagnosticsActivity : AppCompatActivity() {
                     if (ManagedDiagnostics.hasUsageAccess(this@DeviceDiagnosticsActivity)) model.scanApps()
                     else {
                         awaitingUsageAccess = true
-                        try { settings.launch(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, "package:$packageName".toUri())) }
+                        try { settings.launch(PermissionsActivity.intent(this@DeviceDiagnosticsActivity, PermissionsActivity.USAGE)) }
                         catch (_: Exception) { awaitingUsageAccess = false; unavailableAction() }
                     }
                 }
-                if (access) action(R.string.vcs_diag_usage_manage) { open(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, "package:$packageName".toUri())) }
+                if (access) action(R.string.vcs_diag_usage_manage) { open(PermissionsActivity.intent(this@DeviceDiagnosticsActivity, PermissionsActivity.USAGE)) }
             }
         }
         card(R.string.vcs_diag_startup, R.drawable.ic_power, busy = state.startupProgress != null, rebuild = false) {

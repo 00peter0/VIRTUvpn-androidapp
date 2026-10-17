@@ -7,6 +7,7 @@ package com.wireguard.android.util
 import android.Manifest
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -18,6 +19,7 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.wireguard.android.R
+import com.wireguard.android.activity.PermissionsActivity
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -27,13 +29,15 @@ import java.io.IOException
 import java.io.OutputStream
 
 class DownloadsFileSaver(private val context: ComponentActivity) {
-    private lateinit var activityResult: ActivityResultLauncher<String>
+    private lateinit var activityResult: ActivityResultLauncher<Intent>
     private lateinit var futureGrant: CompletableDeferred<Boolean>
 
     init {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             futureGrant = CompletableDeferred()
-            activityResult = context.registerForActivityResult(ActivityResultContracts.RequestPermission()) { ret -> futureGrant.complete(ret) }
+            activityResult = context.registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+                futureGrant.complete(ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED)
+            }
         }
     }
 
@@ -76,7 +80,7 @@ class DownloadsFileSaver(private val context: ComponentActivity) {
     } else {
         withContext(Dispatchers.Main.immediate) {
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                activityResult.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                activityResult.launch(PermissionsActivity.intent(context, PermissionsActivity.FILES))
                 val granted = futureGrant.await()
                 if (!granted) {
                     futureGrant = CompletableDeferred()

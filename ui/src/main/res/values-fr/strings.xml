@@ -598,4 +598,5 @@
     <string name="vcs_reconnect_confirm">Reconnecter l’appareil</string>
     <string name="vcs_reconnect_new_title">Enregistrer un autre appareil ?</string>
     <string name="vcs_reconnect_new_message">Cela crée un appareil supplémentaire et utilise une autre place. Les attributions VPN précédentes restent sur l’appareil existant.</string>
+    <string name="vcs_permissions_title">Autorisations</string>
 </resources>

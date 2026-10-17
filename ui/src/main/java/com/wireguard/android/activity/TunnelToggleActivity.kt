@@ -21,11 +21,12 @@ import com.wireguard.android.backend.GoBackend
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.util.ErrorMessages
 import com.wireguard.android.vcs.VcsAuthGate
+import com.wireguard.android.vcs.VcsManagedClient
 import kotlinx.coroutines.launch
 
 class TunnelToggleActivity : AppCompatActivity() {
     private val permissionActivityResultLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { toggleTunnelWithPermissionsResult() }
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { if (it.resultCode == android.app.Activity.RESULT_OK) toggleTunnelWithPermissionsResult() else finish() }
 
     private fun toggleTunnelWithPermissionsResult() {
         val tunnel = Application.getTunnelManager().lastUsedTunnel ?: return
@@ -55,13 +56,16 @@ class TunnelToggleActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (!VcsAuthGate.requireSignedIn(this)) return
         lifecycleScope.launch {
+            val manager = Application.getTunnelManager()
+            manager.getTunnels()
+            if (!VcsManagedClient.tunnelAccountScope(this@TunnelToggleActivity).isIndependent(manager.lastUsedTunnel?.name.orEmpty()) &&
+                !VcsAuthGate.requireSignedIn(this@TunnelToggleActivity)) return@launch
             if (Application.getBackend() is GoBackend) {
                 try {
                     val intent = GoBackend.VpnService.prepare(this@TunnelToggleActivity)
                     if (intent != null) {
-                        permissionActivityResultLauncher.launch(intent)
+                        permissionActivityResultLauncher.launch(PermissionsActivity.intent(this@TunnelToggleActivity, PermissionsActivity.VPN))
                         return@launch
                     }
                 } catch (e: Exception) {

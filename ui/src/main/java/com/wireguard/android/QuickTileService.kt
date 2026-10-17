@@ -28,6 +28,7 @@ import com.wireguard.android.activity.TunnelToggleActivity
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.util.applicationScope
+import com.wireguard.android.activity.PermissionsActivity
 import com.wireguard.android.vcs.VcsAuthGate
 import com.wireguard.android.vcs.VcsManagedClient
 import com.wireguard.android.widget.SlashDrawable
@@ -57,14 +58,13 @@ class QuickTileService : TileService() {
     }
 
     override fun onClick() {
-        if (!VcsManagedClient.hasAccountSession(this)) {
-            launchSignInFromTile()
-            return
-        }
         applicationScope.launch {
-            if (tunnel == null) {
-                Application.getTunnelManager().getTunnels()
-                updateTile()
+            Application.getTunnelManager().getTunnels()
+            updateTile()
+            if (!VcsManagedClient.hasAccountSession(this@QuickTileService) &&
+                !VcsManagedClient.tunnelAccountScope(this@QuickTileService).isIndependent(tunnel?.name.orEmpty())) {
+                launchSignInFromTile()
+                return@launch
             }
             when (val tunnel = tunnel) {
                 null -> {
@@ -84,7 +84,7 @@ class QuickTileService : TileService() {
                                 Log.d(TAG, "Failed to set state, so falling back", e)
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && !Settings.canDrawOverlays(this@QuickTileService)) {
                                     Log.d(TAG, "Need overlay permissions")
-                                    val permissionIntent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, "package:$packageName".toUri())
+                                    val permissionIntent = PermissionsActivity.intent(this@QuickTileService, PermissionsActivity.OVERLAY)
                                     permissionIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                     startActivityAndCollapse(
                                         PendingIntent.getActivity(
@@ -165,7 +165,7 @@ class QuickTileService : TileService() {
         }
         // Update the tile contents.
         val tile = qsTile ?: return
-        if (!VcsManagedClient.hasAccountSession(this)) {
+        if (!VcsManagedClient.hasAccountSession(this) && !VcsManagedClient.tunnelAccountScope(this).isIndependent(tunnel?.name.orEmpty())) {
             tile.label = getString(R.string.vcs_home_account)
             tile.state = Tile.STATE_INACTIVE
             tile.icon = iconOff

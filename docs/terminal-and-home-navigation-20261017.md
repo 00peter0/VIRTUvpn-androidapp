@@ -177,3 +177,35 @@ controls, rather than the retired light native bottom sheet. The former sheet
 class and layout were removed once unreferenced. The explanatory text names the
 round logo instead of a plus symbol. VPN Router's existing Add tunnel action
 also opens these choices in Other tunnels; its pairing action is unchanged.
+
+## Permissions and protection overview (919)
+
+Home overflow now exposes **Permissions** without requiring a VCS account.
+Camera QR scans, the Secured Browser native router-pairing scanner, initial VPN
+consent from the list/Home/quick tile, app-usage access, APK-source installation
+access, Quick Settings overlay access and legacy download storage requests open
+the same overview. Existing action-specific system confirmations and grant
+checks remain mandatory. Secured Browser website camera/microphone denial and
+WebRTC protection are unchanged.
+
+The overview lists VPN consent, Kill switch (Always-on and Block connections
+without VPN), native camera QR access, notifications, APK installation, diagnostic
+usage access, Quick Settings overlay access where applicable, files and background
+activity. Each row explains its purpose through the shared information control
+and opens the relevant Android screen. Camera help explicitly points to App
+settings → Permissions → Camera and the Android Camera access privacy switch.
+After enabling the requested access, Continue returns to the requesting feature;
+only that actual grant is required. Back/cancellation does not claim a grant.
+
+**Allow app permissions** explicitly requests the supported runtime group:
+camera when hardware is present, notifications on API 33+, and legacy write
+storage only on API 24–28. Special access and Kill switch are never part of this
+group and still require their separate Android settings. Opening the overview
+grants nothing and changes no VPN, route, installation, battery exemption or
+managed identity. Current access is re-read on return from settings; unavailable
+Kill switch observations are labelled as requiring a check in Android settings.
+Modern file import/download uses the existing scoped mechanisms and does not
+request broad storage access.
+
+Android reference: [permission and app-op checking](https://developer.android.com/reference/androidx/core/content/PermissionChecker)
+and [application settings intents](https://developer.android.com/reference/android/provider/Settings#ACTION_APPLICATION_DETAILS_SETTINGS).

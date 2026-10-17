@@ -598,4 +598,5 @@
     <string name="vcs_reconnect_confirm">Ricollega dispositivo</string>
     <string name="vcs_reconnect_new_title">Registrare un altro dispositivo?</string>
     <string name="vcs_reconnect_new_message">Questa operazione crea un dispositivo aggiuntivo e occupa un altro posto. Le assegnazioni VPN precedenti restano sul dispositivo esistente.</string>
+    <string name="vcs_permissions_title">Autorizzazioni</string>
 </resources>
