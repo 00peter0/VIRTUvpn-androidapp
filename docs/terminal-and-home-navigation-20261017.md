@@ -1,11 +1,11 @@
-# Terminal access and Home navigation (versions 917–920)
+# Terminal access and Home navigation (versions 917–921)
 
-Pending next APK after 920: the independent tunnel detail exposes Delete as the
+Version 921: the independent tunnel detail exposes Delete as the
 existing trash icon directly in the toolbar instead of hiding it in the
 three-dot overflow. The action still opens the existing confirmation dialog and
-remains limited to independent profiles. Published APK 920 is unchanged.
+remains limited to independent profiles.
 
-The same pending UI update keeps the existing VPN Mesh and VPN Router icons on
+The same UI update keeps the existing VPN Mesh and VPN Router icons on
 Home. Single server, S2S Cluster and Other tunnels replace the repeated device
 symbol with one shared terminal icon. VPN Cluster uses a terminal window with a
 globe badge to represent infrastructure access together with internet VPN. These
