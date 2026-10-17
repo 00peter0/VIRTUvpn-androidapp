@@ -85,6 +85,7 @@ class TunnelListFragment : BaseFragment() {
 
     private val tunnelFileImportResultLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { data ->
         if (data == null) return@registerForActivityResult
+        if (!isOtherTunnelsSection()) return@registerForActivityResult
         val activity = activity ?: return@registerForActivityResult
         val contentResolver = activity.contentResolver ?: return@registerForActivityResult
         activity.lifecycleScope.launch {
@@ -92,7 +93,7 @@ class TunnelListFragment : BaseFragment() {
                 try {
                     val qrCodeFromFileScanner = QrCodeFromFileScanner(contentResolver, QRCodeReader())
                     val result = qrCodeFromFileScanner.scan(data)
-                    TunnelImporter.importTunnel(parentFragmentManager, result.text, { showSnackbar(it) }, markExternalVpnMesh = isVpnMeshSection())
+                    TunnelImporter.importTunnel(parentFragmentManager, result.text, { showSnackbar(it) })
                 } catch (e: Exception) {
                     val error = ErrorMessages[e]
                     val message = Application.get().resources.getString(R.string.import_error, error)
@@ -100,14 +101,15 @@ class TunnelListFragment : BaseFragment() {
                     showSnackbar(message)
                 }
             } else {
-                TunnelImporter.importTunnel(contentResolver, data, { showSnackbar(it) }) { tunnels ->
-                    if (isVpnMeshSection()) VcsManagedClient.rememberExternalVpnMeshTunnels(requireContext(), tunnels.map { it.name })
+                TunnelImporter.importTunnel(contentResolver, data, { showSnackbar(it) }) {
+                    refreshTunnelFilter()
                 }
             }
         }
     }
 
     private val qrImportResultLauncher = registerForActivityResult(ScanContract()) { result ->
+        if (!isOtherTunnelsSection()) return@registerForActivityResult
         val qrCode = result.contents
         val activity = activity
         if (qrCode != null && activity != null) {
@@ -127,7 +129,7 @@ class TunnelListFragment : BaseFragment() {
                         showSnackbar(getString(R.string.vcs_enroll_error, e.message ?: e.javaClass.simpleName))
                     }
                 } else {
-                    TunnelImporter.importTunnel(parentFragmentManager, qrCode, { showSnackbar(it) }, markExternalVpnMesh = isVpnMeshSection())
+                    TunnelImporter.importTunnel(parentFragmentManager, qrCode, { showSnackbar(it) })
                 }
             }
         }
@@ -182,6 +184,7 @@ class TunnelListFragment : BaseFragment() {
         binding?.apply {
             fastestButton.setOnClickListener { onFastestButtonClicked() }
             parentFragmentManager.setFragmentResultListener(AddTunnelsSheet.REQUEST_KEY_NEW_TUNNEL, viewLifecycleOwner) { _, bundle ->
+                if (!isOtherTunnelsSection()) return@setFragmentResultListener
                 when (bundle.getString(AddTunnelsSheet.REQUEST_METHOD)) {
                     AddTunnelsSheet.REQUEST_CREATE -> startActivity(
                         Intent(requireContext(), TunnelCreatorActivity::class.java)
@@ -191,9 +194,16 @@ class TunnelListFragment : BaseFragment() {
                     AddTunnelsSheet.REQUEST_SCAN -> scanTunnelQr()
                 }
             }
+            parentFragmentManager.setFragmentResultListener(ConfigNamingDialogFragment.RESULT_IMPORTED, viewLifecycleOwner) { _, _ ->
+                refreshTunnelFilter()
+            }
 
-            // Adding tunnels is locked to VCS sync — the FAB (VCS logo) runs a sync.
+            // Local imports are available only in Other tunnels; managed sections keep sync.
             createFab.setOnClickListener {
+                if (isOtherTunnelsSection()) {
+                    showAddTunnelSheet()
+                    return@setOnClickListener
+                }
                 val ctx = requireContext()
                 showSnackbar(getString(R.string.vcs_sync_running))
                 lifecycleScope.launch {
@@ -226,11 +236,11 @@ class TunnelListFragment : BaseFragment() {
         return requireActivity().intent?.getStringExtra(MainActivity.EXTRA_TUNNEL_SECTION)
     }
 
-    private fun isVpnMeshSection(): Boolean {
-        return currentTunnelSection() == MainActivity.TUNNEL_SECTION_VPN_MESH
-    }
+    private fun isOtherTunnelsSection(): Boolean =
+        currentTunnelSection() == MainActivity.TUNNEL_SECTION_AGENT_GATEWAY
 
     private fun showAddTunnelSheet() {
+        if (!isOtherTunnelsSection()) return
         AddTunnelsSheet().show(parentFragmentManager, "add_tunnels")
     }
 
@@ -283,6 +293,7 @@ class TunnelListFragment : BaseFragment() {
         super.onResume()
         pingActive = true
         managedSyncActive = true
+        refreshTunnelFilter()
         // Initial ping immediately
         startPingTest()
         startManagedSyncLoop()
@@ -309,8 +320,10 @@ class TunnelListFragment : BaseFragment() {
         managedSyncJob = lifecycleScope.launch {
             while (managedSyncActive) {
                 try {
-                    VcsManagedClient.syncManagedTunnels(requireContext())
-                    VcsManagedClient.reportCurrentStates(requireContext())
+                    if (VcsManagedClient.hasAccountSession(requireContext())) {
+                        VcsManagedClient.syncManagedTunnels(requireContext())
+                        VcsManagedClient.reportCurrentStates(requireContext())
+                    }
                     refreshTunnelFilter()
                 } catch (e: Throwable) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
@@ -446,12 +459,19 @@ class TunnelListFragment : BaseFragment() {
                 ?: getString(R.string.vcs_tunnels_title)
             val names = VcsManagedClient.localTunnelNamesForSection(requireContext(), section)
             val scope = VcsManagedClient.tunnelAccountScope(requireContext())
+            val otherTunnels = section == MainActivity.TUNNEL_SECTION_AGENT_GATEWAY
+            val signedIn = VcsManagedClient.hasAccountSession(requireContext())
             val filtered = ObservableKeyedArrayList<String, ObservableTunnel>().apply {
-                addAll(allTunnels.filter { scope.permits(it.name) && (section.isNullOrBlank() || it.name in names) })
+                addAll(allTunnels.filter {
+                    scope.permits(it.name) && (if (otherTunnels) scope.isIndependent(it.name) || (signedIn && it.name in names)
+                        else section.isNullOrBlank() || it.name in names)
+                })
             }
             displayedTunnels = filtered
             activeBinding.tunnels = filtered
             activeBinding.sectionTitle.text = sectionTitle
+            activeBinding.otherTunnelsInfo.visibility = if (otherTunnels) View.VISIBLE else View.GONE
+            activeBinding.createFab.contentDescription = getString(if (otherTunnels) R.string.create_tunnel else R.string.vcs_sync_now)
             val pendingManagedAccess = if (section == MainActivity.TUNNEL_SECTION_MANAGED_ACCESS || section == MainActivity.TUNNEL_SECTION_MANAGED_ACCESS_VPN_CLUSTER) {
                 VcsManagedClient.pendingManagedAccessAssignments(requireContext())
             } else {
@@ -461,6 +481,8 @@ class TunnelListFragment : BaseFragment() {
                 getString(R.string.vcs_managed_access_pending_empty)
             } else if (section == MainActivity.TUNNEL_SECTION_SINGLE_SERVER) {
                 getString(R.string.vcs_single_server_empty)
+            } else if (otherTunnels) {
+                getString(R.string.vcs_other_tunnels_empty)
             } else {
                 getString(R.string.tunnel_list_placeholder)
             }

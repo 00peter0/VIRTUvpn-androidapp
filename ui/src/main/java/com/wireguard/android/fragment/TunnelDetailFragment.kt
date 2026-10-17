@@ -34,6 +34,7 @@ import com.wireguard.android.backend.Tunnel
 import com.wireguard.android.databinding.TunnelDetailFragmentBinding
 import com.wireguard.android.model.ObservableTunnel
 import com.wireguard.android.vcs.VcsManagedClient
+import com.wireguard.android.util.VcsDialogs
 import com.wireguard.config.Config
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -48,9 +49,35 @@ class TunnelDetailFragment : BaseFragment(), MenuProvider {
     private var binding: TunnelDetailFragmentBinding? = null
     private var publicIdentityJob: Job? = null
 
-    override fun onMenuItemSelected(menuItem: MenuItem): Boolean = false
+    override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
+        if (menuItem.itemId != R.id.menu_action_delete_local) return false
+        val tunnel = selectedTunnel ?: return true
+        if (!VcsManagedClient.tunnelAccountScope(requireContext()).isIndependent(tunnel.name)) return true
+        VcsDialogs.show(
+            requireContext(),
+            title = getString(R.string.delete),
+            message = getString(R.string.vcs_other_tunnel_delete_confirm, tunnel.name),
+            negative = VcsDialogs.action(requireContext(), android.R.string.cancel),
+            positive = VcsDialogs.action(requireContext(), R.string.delete, primary = true) {
+                viewLifecycleOwner.lifecycleScope.launch {
+                    try {
+                        tunnel.deleteAsync()
+                        selectedTunnel = null
+                    } catch (error: Throwable) {
+                        Toast.makeText(context, error.message, Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        )
+        return true
+    }
     override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
         menuInflater.inflate(R.menu.tunnel_detail, menu)
+    }
+
+    override fun onPrepareMenu(menu: Menu) {
+        menu.findItem(R.id.menu_action_delete_local)?.isVisible =
+            selectedTunnel?.let { VcsManagedClient.tunnelAccountScope(requireContext()).isIndependent(it.name) } == true
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
@@ -88,6 +115,7 @@ class TunnelDetailFragment : BaseFragment(), MenuProvider {
     override fun onSelectedTunnelChanged(oldTunnel: ObservableTunnel?, newTunnel: ObservableTunnel?) {
         val binding = binding ?: return
         binding.tunnel = newTunnel
+        requireActivity().invalidateOptionsMenu()
         publicIdentityJob?.cancel()
         val internetDiagnostics = VcsManagedClient.supportsInternetDiagnostics(requireContext(), newTunnel?.name)
         binding.publicIdentityCard.visibility = if (internetDiagnostics) View.VISIBLE else View.GONE

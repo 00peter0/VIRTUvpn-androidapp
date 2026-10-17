@@ -92,12 +92,12 @@ object TunnelImporter {
                             null
                         }?.let {
                             val nameCopy = name
-                            futureTunnels.add(async(SupervisorJob()) { Application.getTunnelManager().create(nameCopy, it) })
+                            futureTunnels.add(async(SupervisorJob()) { Application.getTunnelManager().create(nameCopy, it, independentOnly = true) })
                         }
                     }
                 }
             } else {
-                futureTunnels.add(async(SupervisorJob()) { Application.getTunnelManager().create(name, Config.parse(contentResolver.openInputStream(uri)!!)) })
+                futureTunnels.add(async(SupervisorJob()) { Application.getTunnelManager().create(name, Config.parse(contentResolver.openInputStream(uri)!!), independentOnly = true) })
             }
 
             if (futureTunnels.isEmpty()) {

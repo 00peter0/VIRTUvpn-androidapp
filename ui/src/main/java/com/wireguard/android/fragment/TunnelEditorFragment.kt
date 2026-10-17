@@ -132,7 +132,7 @@ class TunnelEditorFragment : BaseFragment(), MenuProvider {
                         Log.d(TAG, "Attempting to create new tunnel " + binding!!.name)
                         val manager = Application.getTunnelManager()
                         try {
-                            onTunnelCreated(manager.create(binding!!.name!!, newConfig), null)
+                            onTunnelCreated(manager.create(binding!!.name!!, newConfig, independentOnly = true), null)
                         } catch (e: Throwable) {
                             onTunnelCreated(null, e)
                         }

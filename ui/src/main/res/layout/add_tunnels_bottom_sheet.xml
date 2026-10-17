@@ -29,7 +29,7 @@
         app:layout_constraintBottom_toTopOf="@+id/create_from_qrcode"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
         app:rippleColor="?attr/colorSecondary" />
 
     <com.google.android.material.button.MaterialButton
@@ -50,7 +50,7 @@
         app:icon="@drawable/ic_action_scan_qr_code"
         app:iconPadding="@dimen/bottom_sheet_icon_padding"
         app:iconTint="?attr/colorSecondary"
-        app:layout_constraintBottom_toBottomOf="@+id/create_empty"
+        app:layout_constraintBottom_toTopOf="@+id/create_empty"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/create_from_file"

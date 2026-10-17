@@ -23,6 +23,8 @@ abstract class BaseActivity : AppCompatActivity() {
     var selectedTunnel: ObservableTunnel? = null
         set(value) {
             if (value != null && !VcsManagedClient.canUseLocalTunnel(this, value.name)) return
+            if (value != null && !VcsManagedClient.hasAccountSession(this) &&
+                !VcsManagedClient.tunnelAccountScope(this).isIndependent(value.name)) return
             val oldTunnel = field
             if (oldTunnel == value) return
             field = value

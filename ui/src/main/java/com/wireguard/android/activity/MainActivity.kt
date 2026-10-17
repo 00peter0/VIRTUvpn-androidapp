@@ -52,7 +52,7 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (!allowsUnsignedEnrollment(intent) && !VcsAuthGate.requireSignedIn(this)) return
+        if (!allowsLocalTunnels(intent) && !allowsUnsignedEnrollment(intent) && !VcsAuthGate.requireSignedIn(this)) return
         setContentView(R.layout.main_activity)
         actionBar = supportActionBar
         supportFragmentManager.addOnBackStackChangedListener(this)
@@ -72,14 +72,16 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
 
     override fun onResume() {
         super.onResume()
-        if (!enrollmentIntentPending) VcsAuthGate.requireSignedIn(this)
+        if (!enrollmentIntentPending && !allowsLocalTunnels(intent)) VcsAuthGate.requireSignedIn(this)
         if (selectedTunnel?.let { !VcsManagedClient.canUseLocalTunnel(this, it.name) } == true) selectedTunnel = null
+        if (!VcsManagedClient.hasAccountSession(this) &&
+            selectedTunnel?.let { !VcsManagedClient.tunnelAccountScope(this).isIndependent(it.name) } == true) selectedTunnel = null
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (!allowsUnsignedEnrollment(intent) && !VcsAuthGate.requireSignedIn(this)) return
+        if (!allowsLocalTunnels(intent) && !allowsUnsignedEnrollment(intent) && !VcsAuthGate.requireSignedIn(this)) return
         if (shouldShowHomeOnAppStart(intent, null)) {
             showHomePage()
         }
@@ -92,11 +94,14 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
         return VcsManagedClient.isEnrollmentUri(intent?.data)
     }
 
+    private fun allowsLocalTunnels(intent: Intent?): Boolean =
+        intent?.getStringExtra(EXTRA_TUNNEL_SECTION) == TUNNEL_SECTION_AGENT_GATEWAY
+
     fun titleForTunnelSection(section: String?): String {
         return when (section) {
             TUNNEL_SECTION_VPN_MESH -> getString(R.string.vcs_home_vpn_mesh)
             TUNNEL_SECTION_SINGLE_SERVER -> getString(R.string.vcs_home_single_server)
-            TUNNEL_SECTION_AGENT_GATEWAY -> getString(R.string.vcs_home_agent_gateway)
+            TUNNEL_SECTION_AGENT_GATEWAY -> getString(R.string.vcs_home_other_tunnels)
             TUNNEL_SECTION_MANAGED_ACCESS -> getString(R.string.vcs_home_managed_access)
             TUNNEL_SECTION_MANAGED_ACCESS_VPN_CLUSTER -> getString(R.string.vcs_home_managed_access_vpn_cluster)
             TUNNEL_SECTION_MANAGED_ACCESS_S2S_CLUSTER -> getString(R.string.vcs_home_managed_access_s2s_cluster)
@@ -236,6 +241,8 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
         oldTunnel: ObservableTunnel?,
         newTunnel: ObservableTunnel?
     ): Boolean {
+        if (newTunnel != null && !VcsManagedClient.hasAccountSession(this) &&
+            !VcsManagedClient.tunnelAccountScope(this).isIndependent(newTunnel.name)) return false
         val fragmentManager = supportFragmentManager
         if (fragmentManager.isStateSaved) {
             return false

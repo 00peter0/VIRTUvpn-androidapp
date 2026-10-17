@@ -25,20 +25,26 @@ import java.nio.charset.StandardCharsets
 class ConfigNamingDialogFragment : DialogFragment() {
     private var binding: ConfigNamingDialogFragmentBinding? = null
     private var config: Config? = null
+    private var creating = false
 
     private fun createTunnelAndDismiss() {
         val binding = binding ?: return
         val activity = activity ?: return
+        if (creating) return
         val name = binding.tunnelNameText.text.toString()
+        creating = true
         activity.lifecycleScope.launch {
             try {
-                val tunnel = Application.getTunnelManager().create(name, config)
+                val tunnel = Application.getTunnelManager().create(name, config, independentOnly = true)
                 if (requireArguments().getBoolean(KEY_MARK_EXTERNAL_VPN_MESH, false)) {
                     VcsManagedClient.rememberExternalVpnMeshTunnels(activity, setOf(tunnel.name))
                 }
+                parentFragmentManager.setFragmentResult(RESULT_IMPORTED, Bundle())
                 dismiss()
             } catch (e: Throwable) {
                 binding.tunnelNameTextLayout.error = e.message
+            } finally {
+                creating = false
             }
         }
     }
@@ -66,15 +72,19 @@ class ConfigNamingDialogFragment : DialogFragment() {
             executePendingBindings()
             alertDialogBuilder.setView(root)
         }
-        alertDialogBuilder.setPositiveButton(R.string.create_tunnel) { _, _ -> createTunnelAndDismiss() }
+        alertDialogBuilder.setPositiveButton(R.string.create_tunnel, null)
         alertDialogBuilder.setNegativeButton(R.string.cancel) { _, _ -> dismiss() }
         val dialog = alertDialogBuilder.create()
-        dialog.setOnShowListener { VcsDialogs.applyDefaultStyle(dialog) }
+        dialog.setOnShowListener {
+            VcsDialogs.applyDefaultStyle(dialog)
+            dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener { createTunnelAndDismiss() }
+        }
         dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
         return dialog
     }
 
     companion object {
+        const val RESULT_IMPORTED = "local_tunnel_imported"
         private const val KEY_CONFIG_TEXT = "config_text"
         private const val KEY_MARK_EXTERNAL_VPN_MESH = "mark_external_vpn_mesh"
 

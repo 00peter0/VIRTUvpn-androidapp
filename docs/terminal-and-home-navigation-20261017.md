@@ -1,4 +1,4 @@
-# Terminal access and Home navigation (versions 917–918)
+# Terminal access and Home navigation (versions 917–919)
 
 ## Direct terminal access
 
@@ -6,7 +6,7 @@ All tunnel list sections now use the same direct **Open terminal** action that
 was previously available only in Single server. The action appears only for a
 local profile authorized for the current managed device and having a terminal
 in its current server-delivered assignments. S2S Cluster, VPN Cluster,
-Connections, VPN Mesh and generic lists reuse the existing terminal resolver and
+Other tunnels, VPN Mesh and generic lists reuse the existing terminal resolver and
 launcher; a section name does not grant a terminal to a profile without one.
 
 The launcher retains account authorization and activates the required assigned
@@ -17,8 +17,10 @@ or end persistent shell sessions.
 ## Internet diagnostics
 
 The public IP/location card and the DNS/WebRTC check through Secured Browser
-are shown only for profiles in VPN Mesh or VPN Cluster. Private Single server,
-S2S and standalone Connections do not display these cards and do not initiate
+are shown for profiles in VPN Mesh or VPN Cluster and independent third-party
+profiles. Third-party configurations may route only a private subnet, so these
+checks describe the actual current connection rather than certify VPN coverage. Private Single server,
+S2S and standalone Other tunnels do not display these cards and do not initiate
 the public identity HTTP probes. DNS and routing in the actual tunnel config
 remain unchanged. The check continues to describe Secured Browser's evidence
 observed through the current browser connection; it does not certify every
@@ -40,16 +42,20 @@ view is destroyed, and stale results cannot update the next profile's detail.
 ## Home overflow menu
 
 The last three Home cards, **Enroll device**, **Sync now** and **Check
-updates**, move into the three-dot menu beside **Connections**. Their existing
+updates**, move into the three-dot menu. Their existing
 enrollment, authentication, sync and update flows are reused. Sync now is
 disabled while a managed sync is in progress. The signed-out actions continue
 to use their existing sign-in prompts. Secured Browser and the independent VPN
 Router remain available without a VCS account.
 
-Connections is the existing standalone agent-gateway/PC/GPU profile section,
+**Other tunnels** is the existing standalone agent-gateway/PC/GPU profile section,
 not another unfiltered list of all local tunnels. Its profile filtering is
-unchanged. Home keeps VPN Mesh, Single server, VPN Cluster and S2S Cluster as
-the main navigation, with the version number at the bottom.
+unchanged. From version 919, it is the last Home card, below S2S Cluster and
+immediately above the version number. It replaces the previous Connections menu
+entry, and its destination screen uses the same Other tunnels title. The card
+uses the same styling as the other tunnel cards. Independent third-party VPNs
+work without a VCS account; assigned VCS profiles retain their account boundary. Home
+keeps VPN Mesh, Single server, VPN Cluster and S2S Cluster above it.
 
 The Home overflow was also inheriting a light popup theme, producing a white
 Connections box over the dark application. The shared action-bar popup theme now
@@ -134,3 +140,34 @@ Earlier navigation and negative security evidence remains in the version 917
 directory above. The physical checks cover the profiles available to this
 account; other assigned-profile shortcut sections use the shared implementation
 and were not separately connected on the phone.
+
+## Independent WireGuard VPNs in Other tunnels (919)
+
+The existing round logo button is visually unchanged. In Other tunnels it opens
+all three native choices: create manually, import a configuration file (.conf,
+.zip or QR image), or scan a QR code. The rest of the managed sections retain
+their existing synchronization button. No second WireGuard engine is added.
+The provider must supply WireGuard configuration; provider apps, password-only
+sign-ins and OpenVPN files are not supported by this flow.
+
+Independently created profiles use the existing encrypted private configuration
+store on the device. They do not require VCS registration, are not VCS server
+assignments and are not synchronized or backed up by VCS. Import never connects
+a profile automatically. Their routes, DNS and supported application exclusions
+are retained by the native parser/editor. Users can edit and rename them and
+explicitly delete them from their detail menu, with confirmation. Deleting an
+active local profile disconnects it; it does not revoke a provider subscription.
+
+The Other tunnels header has shared contextual information describing these
+limits. Assigned VCS connections can still appear here for the signed-in owner;
+these retain their terminal metadata and cannot be manually deleted. A signed-out
+Other tunnels screen shows only independent local profiles, including after
+activity restoration. Managed sections continue to require account sign-in.
+
+Independent status derives from the existing fail-closed ownership ledger: a
+profile owned by any managed device, including the current one, is never a local
+manual-delete target. Native creation and deletion recheck that boundary under
+the ownership lock at the actual file mutation. Managed sync reserves its name
+under the same lock and cannot claim an existing independent configuration; it
+uses the existing device suffix fallback or reports a conflict without replacing
+that profile. Independent renaming cannot take a managed reserved name.

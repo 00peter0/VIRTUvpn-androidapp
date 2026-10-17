@@ -561,7 +561,8 @@ object VcsManagedClient {
     /** Internet checks belong to internet-capable sections, never private-only access profiles. */
     fun supportsInternetDiagnostics(context: Context, tunnelName: String?): Boolean {
         if (tunnelName.isNullOrBlank() || !canUseLocalTunnel(context, tunnelName)) return false
-        return tunnelName in localTunnelNamesForSection(context, MainActivity.TUNNEL_SECTION_VPN_MESH) ||
+        return tunnelAccountScope(context).isIndependent(tunnelName) ||
+            tunnelName in localTunnelNamesForSection(context, MainActivity.TUNNEL_SECTION_VPN_MESH) ||
             tunnelName in localTunnelNamesForSection(context, MainActivity.TUNNEL_SECTION_MANAGED_ACCESS_VPN_CLUSTER)
     }
 
@@ -1121,16 +1122,20 @@ object VcsManagedClient {
 
     private suspend fun applyImportedConfig(context: Context, deviceId: String?, preferredName: String, config: Config): ImportResult {
         check(!deviceId.isNullOrBlank() && sessionInfo(context)?.deviceId == deviceId) { "Device session changed" }
-        val safeName = if (tunnelAccountScope(context).permits(preferredName)) preferredName else {
-            val suffix = java.security.MessageDigest.getInstance("SHA-256").digest(deviceId.toByteArray())
-                .take(3).joinToString("") { "%02x".format(it) }
-            preferredName.take(8) + "-" + suffix
-        }
-        check(tunnelAccountScope(context).permits(safeName)) { "This managed VPN name is already owned by another account" }
-        // Claim before touching a file, even when the surrounding sync later fails.
-        synchronized(tunnelAccountLock) {
+        // Reserve a managed name under the same lock used by independent creation.
+        // An existing unowned config is a local VPN, never an import target for sync.
+        val safeName = synchronized(tunnelAccountLock) {
             check(sessionInfo(context)?.deviceId == deviceId) { "Device session changed" }
-            storeManagedTunnelOwnership(context, loadManagedTunnelOwnership(context) + safeName, deviceId)
+            val scope = tunnelAccountScope(context)
+            fun available(name: String) = scope.mayClaimManagedName(name, java.io.File(context.filesDir, "$name.conf").exists())
+            val name = if (available(preferredName)) preferredName else {
+                val suffix = java.security.MessageDigest.getInstance("SHA-256").digest(deviceId.toByteArray())
+                    .take(3).joinToString("") { "%02x".format(it) }
+                preferredName.take(8) + "-" + suffix
+            }
+            check(available(name)) { "This managed VPN name conflicts with an existing local or other-account profile" }
+            storeManagedTunnelOwnership(context, loadManagedTunnelOwnership(context) + name, deviceId)
+            name
         }
         return withContext(Dispatchers.Main.immediate) {
             val manager = Application.getTunnelManager()
@@ -1510,6 +1515,7 @@ object VcsManagedClient {
         val scope = tunnelAccountScope(context)
         scope.requireAccess(oldName)
         scope.requireAccess(newName)
+        if (scope.isIndependent(oldName)) check(scope.isIndependent(newName)) { context.getString(R.string.vcs_other_tunnel_managed_name) }
         if (oldName in scope.owners) storeManagedTunnelOwnership(context, loadManagedTunnelOwnership(context) + newName)
     }
 

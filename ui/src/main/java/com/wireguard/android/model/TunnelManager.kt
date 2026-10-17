@@ -83,13 +83,19 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
 
     suspend fun getTunnels(): ObservableSortedKeyedArrayList<String, ObservableTunnel> = tunnels.await()
 
-    suspend fun create(name: String, config: Config?): ObservableTunnel = withContext(Dispatchers.Main.immediate) {
+    suspend fun create(name: String, config: Config?, independentOnly: Boolean = false): ObservableTunnel = withContext(Dispatchers.Main.immediate) {
         VcsManagedClient.tunnelAccountScope(context).requireAccess(name)
         if (Tunnel.isNameInvalid(name))
             throw IllegalArgumentException(context.getString(R.string.tunnel_error_invalid_name))
         if (tunnelMap.containsKey(name))
             throw IllegalArgumentException(context.getString(R.string.tunnel_error_already_exists, name))
-        addToList(name, withContext(Dispatchers.IO) { configStore.create(name, config!!) }, Tunnel.State.DOWN)
+        addToList(name, withContext(Dispatchers.IO) {
+            VcsManagedClient.withTunnelAccountScope(context) { scope ->
+                scope.requireAccess(name)
+                if (independentOnly) check(scope.isIndependent(name)) { context.getString(R.string.vcs_other_tunnel_managed_name) }
+                configStore.create(name, config!!)
+            }
+        }, Tunnel.State.DOWN)
     }
 
     suspend fun adoptExisting(name: String): ObservableTunnel = withContext(Dispatchers.Main.immediate) {
@@ -105,8 +111,10 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
         name in configStore.enumerate()
     }
 
-    suspend fun delete(tunnel: ObservableTunnel) = withContext(Dispatchers.Main.immediate) {
-        VcsManagedClient.tunnelAccountScope(context).requireAccess(tunnel.name)
+    suspend fun delete(tunnel: ObservableTunnel, independentOnly: Boolean = false) = withContext(Dispatchers.Main.immediate) {
+        val scope = VcsManagedClient.tunnelAccountScope(context)
+        scope.requireAccess(tunnel.name)
+        if (independentOnly) check(scope.isIndependent(tunnel.name)) { context.getString(R.string.vcs_manual_tunnel_delete_disabled) }
         val originalState = tunnel.state
         val wasLastUsed = tunnel == lastUsedTunnel
         // Make sure nothing touches the tunnel.
@@ -117,7 +125,13 @@ class TunnelManager(private val configStore: ConfigStore) : BaseObservable() {
             if (originalState == Tunnel.State.UP)
                 setBackendState(tunnel, Tunnel.State.DOWN, null)
             try {
-                withContext(Dispatchers.IO) { VcsManagedClient.withTunnelAuthorization(context, tunnel.name) { configStore.delete(tunnel.name) } }
+                withContext(Dispatchers.IO) {
+                    VcsManagedClient.withTunnelAccountScope(context) { currentScope ->
+                        currentScope.requireAccess(tunnel.name)
+                        if (independentOnly) check(currentScope.isIndependent(tunnel.name)) { context.getString(R.string.vcs_manual_tunnel_delete_disabled) }
+                        configStore.delete(tunnel.name)
+                    }
+                }
             } catch (e: Throwable) {
                 if (originalState == Tunnel.State.UP)
                     setBackendState(tunnel, Tunnel.State.UP, tunnel.config)

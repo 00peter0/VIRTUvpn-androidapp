@@ -57,7 +57,11 @@
     <string name="app_name" translatable="false">Virtu VPN</string>
     <string name="vcs_home_subtitle">Secure private access for VPN Mesh and Managed Access.</string>
     <string name="vcs_home_vpn_mesh">VPN Mesh</string>
-    <string name="vcs_home_agent_gateway">Connections</string>
+    <string name="vcs_home_other_tunnels">Other tunnels</string>
+    <string name="vcs_other_tunnels_empty" translatable="false">Add a WireGuard tunnel manually, import a configuration file, or scan its QR code.</string>
+    <string name="vcs_other_tunnels_help" translatable="false">Use + to create a WireGuard VPN manually, import a .conf file or .zip archive, or scan a WireGuard QR code. Your provider must supply a WireGuard configuration; OpenVPN files, provider sign-ins and provider apps are not supported.\n\nThese local profiles work without a VCS account and stay on this device. VCS does not sync, back up or revoke them. You can edit them and delete them from the tunnel menu. Adding a tunnel does not connect it automatically. Its routes and DNS come from the configuration, so it may carry internet traffic or only private network traffic. IP and DNS checks show the current connection and do not certify every app.\n\nAssigned VCS connections can also appear here. They retain their account access checks and are removed through VCS synchronization.</string>
+    <string name="vcs_other_tunnel_managed_name" translatable="false">This name is reserved for a VCS-managed tunnel. Choose a different name.</string>
+    <string name="vcs_other_tunnel_delete_confirm" translatable="false">Delete “%1$s” from this device? If connected, it will be disconnected. Keep the provider configuration if you want to add it again later.</string>
     <string name="vcs_home_single_server" translatable="false">Single server</string>
     <string name="vcs_information_about" translatable="false">Information: %1$s</string>
     <string name="vcs_private_connection_info_title" translatable="false">About this private connection</string>

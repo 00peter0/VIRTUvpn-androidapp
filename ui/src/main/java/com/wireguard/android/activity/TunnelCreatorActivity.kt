@@ -18,7 +18,8 @@ import com.wireguard.android.vcs.VcsManagedClient
 class TunnelCreatorActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (!VcsAuthGate.requireSignedIn(this)) return
+        if (intent?.getStringExtra(EXTRA_TUNNEL_SECTION) != MainActivity.TUNNEL_SECTION_AGENT_GATEWAY &&
+            !VcsAuthGate.requireSignedIn(this)) return
         setContentView(R.layout.tunnel_creator_activity)
     }
 

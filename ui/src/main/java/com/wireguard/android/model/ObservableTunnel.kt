@@ -149,10 +149,11 @@ class ObservableTunnel internal constructor(
 
 
     suspend fun deleteAsync() {
-        check(TunnelUiPolicy.manualDeletionEnabled) {
+        check(TunnelUiPolicy.manualDeletionEnabled || VcsManagedClient.tunnelAccountScope(Application.get()).isIndependent(name)) {
             Application.get().getString(R.string.vcs_manual_tunnel_delete_disabled)
         }
-        manager.delete(this)
+        manager.delete(this, independentOnly = !TunnelUiPolicy.manualDeletionEnabled)
+        manager.saveState()
     }
 
         // --- Latency for Smart Server Picker ---

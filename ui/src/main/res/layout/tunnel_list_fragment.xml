@@ -44,16 +44,30 @@
                 android:paddingTop="24dp">
 
                 <!-- Header -->
-                <TextView
-                    android:id="@+id/section_title"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginHorizontal="20dp"
                     android:layout_marginBottom="16dp"
-                    android:text="@string/vcs_tunnels_title"
-                    android:textColor="#FFFFFF"
-                    android:textSize="24sp"
-                    android:textStyle="bold" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:id="@+id/section_title"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/vcs_tunnels_title"
+                        android:textColor="#FFFFFF"
+                        android:textSize="24sp"
+                        android:textStyle="bold" />
+                    <com.wireguard.android.widget.VcsInfoButton
+                        android:id="@+id/other_tunnels_info"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:visibility="gone"
+                        app:infoTitle="@string/vcs_home_other_tunnels"
+                        app:infoMessage="@string/vcs_other_tunnels_help" />
+                </LinearLayout>
 
                 <!-- ⚡ Connect to Fastest -->
                 <LinearLayout
@@ -149,9 +163,7 @@
             </LinearLayout>
         </ScrollView>
 
-        <!-- Adding tunnels is locked to VCS sync; this round launch-icon button
-             triggers a sync. A plain ImageButton (not a Material FAB, which shrinks
-             and re-centers its icon) so the round logo fills the whole button. -->
+        <!-- The same round logo opens import choices in Other tunnels and syncs managed sections. -->
         <ImageButton
             android:id="@+id/create_fab"
             android:layout_width="72dp"

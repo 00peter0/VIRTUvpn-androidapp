@@ -320,7 +320,7 @@
     <!-- Completed VCS localization: keep format arguments and safety conditions. -->
     <string name="vcs_home_subtitle">Accès privé sécurisé pour VPN Mesh et Managed Access.</string>
     <string name="vcs_home_vpn_mesh">VPN Mesh</string>
-    <string name="vcs_home_agent_gateway">Agent Gateway</string>
+    <string name="vcs_home_other_tunnels">Autres tunnels</string>
     <string name="vcs_home_managed_access">Managed Access</string>
     <string name="vcs_home_secure_browser">Secured Browser</string>
     <string name="vcs_home_title">Accueil</string>

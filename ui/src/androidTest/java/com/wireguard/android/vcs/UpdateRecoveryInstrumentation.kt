@@ -34,11 +34,12 @@ class UpdateRecoveryInstrumentation : Instrumentation() {
         super.onStart()
         val result = Bundle()
         try {
-            if (arguments.getString("networkPolicyOnly") == "true" || arguments.getString("accountScopeOnly") == "true") {
+            if (arguments.getString("networkPolicyOnly") == "true" || arguments.getString("accountScopeOnly") == "true" || arguments.getString("independentTunnelOnly") == "true") {
                 // onStart can race Application.onCreate; wait for the main bind message to finish.
                 waitForIdleSync()
                 if (arguments.getString("networkPolicyOnly") == "true") checks += TerminalNetworkPolicyChecks.verify()
                 if (arguments.getString("accountScopeOnly") == "true") checks += ManagedTunnelAccountChecks.verify(targetContext)
+                if (arguments.getString("independentTunnelOnly") == "true") checks += IndependentTunnelChecks.verify(targetContext)
             }
             else if (arguments.getString("restoreOnly") == "true") restoreBackup()
             else exerciseRecovery()

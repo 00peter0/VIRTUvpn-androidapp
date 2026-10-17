@@ -96,6 +96,7 @@ class HomeActivity : AppCompatActivity() {
         binding.managedAccessVpnClusterButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_MANAGED_ACCESS_VPN_CLUSTER) }
         binding.managedAccessS2sClusterButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_MANAGED_ACCESS_S2S_CLUSTER) }
         binding.singleServerButton.setOnClickListener { if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_SINGLE_SERVER) }
+        binding.otherTunnelsButton.setOnClickListener { openVpnApp(MainActivity.TUNNEL_SECTION_AGENT_GATEWAY) }
         binding.deviceDiagnosticsButton.setOnClickListener { startActivity(Intent(this, DeviceDiagnosticsActivity::class.java)) }
         lifecycleScope.launch {
             lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
@@ -390,10 +391,6 @@ class HomeActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
-            R.id.menu_vcs_connections -> {
-                if (requireSignedInForHome()) openVpnApp(MainActivity.TUNNEL_SECTION_AGENT_GATEWAY)
-                true
-            }
             R.id.menu_vcs_enroll -> {
                 showEnrollDialog()
                 true
@@ -616,6 +613,7 @@ class HomeActivity : AppCompatActivity() {
             binding.managedAccessS2sClusterButton,
             binding.singleServerButton
         ).forEach { setProtectedButtonState(it, signedIn) }
+        setProtectedButtonState(binding.otherTunnelsButton, true)
         setProtectedButtonState(binding.secureBrowserButton, true)
         updateVpnRouterButtonState(lastVpnRouterStatus)
         invalidateOptionsMenu()

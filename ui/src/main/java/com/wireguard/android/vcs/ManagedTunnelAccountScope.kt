@@ -6,6 +6,12 @@ data class ManagedTunnelAccountScope(
     val owners: Map<String, Set<String>>,
     val valid: Boolean = true
 ) {
+    /** Independent device-local profiles are never VCS-managed, even by the current owner. */
+    fun isIndependent(name: String): Boolean = valid && name.isNotBlank() && name !in owners
+
+    fun mayClaimManagedName(name: String, configExists: Boolean): Boolean =
+        name.isNotBlank() && permits(name) && (!configExists || name in owners)
+
     fun permits(name: String): Boolean {
         if (!valid) return false
         val devices = owners[name] ?: return true // An independently imported third-party VPN.
