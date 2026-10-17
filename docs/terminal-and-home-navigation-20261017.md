@@ -6,9 +6,9 @@ three-dot overflow. The action still opens the existing confirmation dialog and
 remains limited to independent profiles.
 
 The same UI update keeps the existing VPN Mesh and VPN Router icons on
-Home. Single server, S2S Cluster and Other tunnels replace the repeated device
-symbol with one shared terminal icon. VPN Cluster uses a terminal window with a
-globe badge to represent infrastructure access together with internet VPN. These
+Home. Single server and S2S Cluster replace the repeated device symbol with one
+shared terminal icon. VPN Cluster and Other tunnels use the same terminal window
+with a globe badge to represent terminal and internet connectivity. These
 are vector resources; card sizes, order, labels, routing and actions are unchanged.
 
 Release verification also found a stale list after confirmed local deletion:
