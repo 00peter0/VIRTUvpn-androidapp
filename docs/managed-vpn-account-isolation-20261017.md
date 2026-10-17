@@ -71,3 +71,44 @@ reopening the current Single server terminal, and checking that the generic list
 no longer displays profiles owned by the previous account. Test evidence and
 release metadata are stored in the deployment evidence directory. Do not mark
 physical acceptance complete from unit tests alone.
+
+## Completed physical acceptance
+
+Version 916 (`d7ae17461e53d00208fd36fcef67a1a834cce6ac`) was published
+after 98 JVM tests, production lint/build and GitHub CI passed. Lint reported
+zero errors, 13 existing warnings and no new warnings. The signed APK SHA-256 is
+`89b3e34aaff19b31cb105f0ad4ae37fba15fd4ce4dd8b944fd774aaf72a3bbb0`.
+
+The Samsung acceptance phone on Android API 37 was updated in place from 915 to
+916 using its already-authorized USB debugging connection through the MacBook
+(`adb install -r`). The normal in-app update had reached Android system
+authentication. No PIN or fingerprint was supplied through automation and no
+system security setting was changed. Package signature, UID and original install
+time were preserved; the installed APK hash matched the published artifact.
+
+Physical instrumentation found four retained profiles belonging to the previous
+account and two belonging to the current account. Every foreign UP, TOGGLE,
+observable activation, direct config read and cached config read was rejected.
+The retained files and active backend VPN set were unchanged by these negative
+tests. The generic list displayed only the current account's `single-server`
+and `vancouver` profiles. All 430 allocated gateway exceptions passed the Android
+network-policy checks; public HTTP and Secured Browser HTTP remained rejected.
+
+The current Single server terminal connected to its assigned VPS. Read-only
+`echo`, `whoami`, `hostname` and `uptime` commands returned through the phone;
+the user also confirmed the working terminal. The existing server shell was
+left running. Read-only database snapshots across the update and tests matched:
+20 device records, four active records, no new device, and unchanged canonical
+device IDs, installation IDs and assignments.
+
+The first instrumentation attempt exposed a test-runner startup race with
+`Application.onCreate`. Waiting for the main thread to become idle fixed the
+runner; the rebuilt test APK then passed. This follow-up changes only test code
+and documentation, not the signed 916 application artifact.
+
+Evidence is retained at
+`/srv/vcs/deploy/evidence/virtuvpn-account-tunnel-isolation-20261017`, including
+the original failed attempt, successful physical log, screenshots, identity
+comparison and publication manifest. Other installations must update to 916 to
+receive these client-side ownership checks; this change does not revoke retained
+server-side WireGuard assignments.

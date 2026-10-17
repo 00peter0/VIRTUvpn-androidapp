@@ -35,6 +35,8 @@ class UpdateRecoveryInstrumentation : Instrumentation() {
         val result = Bundle()
         try {
             if (arguments.getString("networkPolicyOnly") == "true" || arguments.getString("accountScopeOnly") == "true") {
+                // onStart can race Application.onCreate; wait for the main bind message to finish.
+                waitForIdleSync()
                 if (arguments.getString("networkPolicyOnly") == "true") checks += TerminalNetworkPolicyChecks.verify()
                 if (arguments.getString("accountScopeOnly") == "true") checks += ManagedTunnelAccountChecks.verify(targetContext)
             }
