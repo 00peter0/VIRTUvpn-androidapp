@@ -250,6 +250,7 @@ class MainActivity : BaseActivity(), FragmentManager.OnBackStackChangedListener 
         val backStackEntries = fragmentManager.backStackEntryCount
         if (newTunnel == null) {
             fragmentManager.popBackStackImmediate(0, FragmentManager.POP_BACK_STACK_INCLUSIVE)
+            refreshTunnelSection()
             return true
         }
         if (backStackEntries == 2) {

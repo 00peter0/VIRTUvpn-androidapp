@@ -11,6 +11,12 @@ symbol with one shared terminal icon. VPN Cluster uses a terminal window with a
 globe badge to represent infrastructure access together with internet VPN. These
 are vector resources; card sizes, order, labels, routing and actions are unchanged.
 
+Release verification also found a stale list after confirmed local deletion:
+the retained list fragment held a filtered snapshot while the profile had already
+been removed. Returning from a selected detail now calls the existing section
+refresh helper. Deletion confirmation, ownership guards and storage logic are
+unchanged; the row disappears immediately without reopening the section.
+
 ## Direct terminal access
 
 All tunnel list sections now use the same direct **Open terminal** action that
