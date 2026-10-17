@@ -194,7 +194,8 @@ for that selected capability. If Android no longer offers a prompt, or camera
 AppOps still blocks an otherwise granted permission, the action opens Android
 settings. Actual access is rechecked on return; a successful settings activity
 result alone does not count as permission. A granted request returns to its
-original caller without a separate Continue step. Denial and cancellation do not
+original caller without a separate Continue step; continuation remains handled
+by that feature’s existing result callback. Denial and cancellation do not
 start the protected action or request another permission.
 
 The full overview is available only when explicitly opened from Home →
@@ -214,6 +215,40 @@ Verification and release evidence:
 `/srv/vcs/deploy/evidence/virtuvpn-context-permissions-920-20261017`.
 The dated 919 results below describe that release's previous behavior and are
 superseded by the focused flow above.
+
+
+### Final phone acceptance: version 920
+
+Published source `ebaf3ce2ac04eefb11c6b9b870f5e6d4445f2946`, APK SHA-256
+`80c0fa7639421aaf07125d1e0c3c948e01e98352fcd3462bf73a17cd537e849d`.
+
+- 108 JVM tests passed. Lint: 0 errors, the same 13 existing warnings, no new
+  warnings. CI run `39056962524` succeeded.
+- Native checks exercised all nine focused permission screens, the explicit
+  overview, cancellation and blocked camera behavior. Opening/cancelling screens
+  changed neither runtime grants nor request history. Existing granted usage
+  access remained manageable.
+- Thirteen physical UI checks passed. QR scanning showed only camera access and
+  its short purpose, with no bulk request, unrelated rows or Continue. Its action
+  opened the actual Android camera permission prompt. Cancelling without a grant
+  returned to Other tunnels without opening the scanner. The explicit Home
+  overview retained individual actions, Kill switch guidance and real Android VPN
+  settings; modern scoped files needed no broad storage grant.
+- Final-APK import, managed ownership and network-policy checks passed. Original
+  profile files, account identity and active VPN were preserved. Read-only DB
+  evidence found the same 20 device records, four active records, no new devices
+  and unchanged installation/device IDs and assignments.
+- Production signing, APK bytes, UID and first install time were verified. The
+  phone was updated without clearing data; the tablet was not touched. Owned
+  test/transfer files were removed. App, Gateway, Rust and production environment
+  were preserved; publishing the APK required no app restart.
+- Automation did not accept a new permission grant or change optional protection
+  settings. Live camera decoding and a newly accepted grant/resume were not
+  physically exercised. UI evidence is from the API 37 phone; API 24–37 capability
+  and runtime-request selection are unit tested. Quick Settings overlay access
+  retains the existing subsequent-tap behavior after returning from settings.
+
+Evidence: `/srv/vcs/deploy/evidence/virtuvpn-context-permissions-920-20261017`.
 
 ## Permissions and protection overview (919 — historical)
 
