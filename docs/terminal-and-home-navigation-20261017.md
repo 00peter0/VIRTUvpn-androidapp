@@ -337,3 +337,31 @@ Published source `e3e1becb0a197f1896957e8503e0497302dc434c`, APK SHA-256
 Evidence: `/srv/vcs/deploy/evidence/virtuvpn-other-tunnels-919-20261017`.
 Physical testing used the API 37 phone. Older runtime-permission group selection
 is unit tested; this does not claim physical acceptance on every older Android.
+
+## Release 921 acceptance
+
+Published source `8445bcd71b6170ee31170807755888b230b65d18`, APK SHA-256
+`6c954ec9c6cdbf55aa6fffbf2747bd4b4dfb1df608166ef8b9ae4c4d450e8357`.
+
+- 108 JVM tests passed; lint has 0 errors, 13 existing warnings and no new ones.
+  CI run `39059032377` succeeded.
+- Native checks on the final APK verified imports, local versus managed deletion,
+  account isolation, network policy and focused permission screens. The phone
+  retained its UID, original install time and data.
+- Eight functional UI checks verified the direct trash action, confirmation,
+  cancellation and immediate list refresh after deletion. After the final change
+  to Other tunnels, only Home icon mapping and documentation differed; the final
+  APK's Home was checked separately and VPN Cluster/Other tunnels share the same
+  combined vector. Original VPN icons and card layout remain unchanged.
+- Read-only DB checks retained 20 device records, four active records and all
+  IDs/assignments, with no new devices. Owned fixtures and transfer/test files
+  were removed. The tablet was not updated.
+- APK publication/serving and update metadata checks passed through vRack,
+  preserving App, Gateway, Rust and private production configuration without
+  a restart.
+
+The initial unpublished candidate exposed the stale list described above; its
+failure evidence and the passing regression proof are retained. Live provider
+VPN activation and camera decoding were not part of this UI release.
+
+Evidence: `/srv/vcs/deploy/evidence/virtuvpn-home-icons-921-20261017`.
